@@ -136,8 +136,10 @@ function createRequestKey() {
 
 function getApiErrorMessage(error, fallback) {
   return (
-    error?.response?.data?.error?.message ||
     error?.response?.data?.message ||
+    error?.response?.data?.error?.message ||
+    (typeof error?.response?.data?.error === "string" ? error.response.data.error : null) ||
+    error?.message ||
     fallback
   )
 }
