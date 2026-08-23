@@ -11,6 +11,7 @@ import {
   History,
   LoaderCircle,
   PackageSearch,
+  Plus,
   RefreshCw,
   Save,
   Search,
@@ -22,6 +23,7 @@ import {
 import { USER_ROLES } from "../../constants/roles"
 import { getBranches } from "../../features/branches/branches.api"
 import {
+  createStockIn,
   getInventoryBatches,
   getInventoryMovements,
   getInventorySerials,
@@ -308,6 +310,392 @@ function SerialStatusDialog({ isSaving, onClose, onSaved, serial }) {
   )
 }
 
+function AddSerialStockDialog({ activeBranch, branches, isSuperOwner, onClose, onSaved, viewingBranchId }) {
+  const [selectedBranchId, setSelectedBranchId] = useState(viewingBranchId || activeBranch?.id || branches[0]?.id || "")
+  const [items, setItems] = useState([])
+  const [selectedItemId, setSelectedItemId] = useState("")
+  const [batches, setBatches] = useState([])
+  const [batchMode, setBatchMode] = useState("EXISTING")
+  const [selectedBatchId, setSelectedBatchId] = useState("")
+  const [newBatchCode, setNewBatchCode] = useState("")
+  const [supplierName, setSupplierName] = useState("")
+  const [unitCost, setUnitCost] = useState("")
+  const [serialInput, setSerialInput] = useState("")
+  const [remarks, setRemarks] = useState("")
+  const [referenceNo, setReferenceNo] = useState("")
+  const [isLoadingItems, setIsLoadingItems] = useState(false)
+  const [isLoadingBatches, setIsLoadingBatches] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+
+  useEffect(() => {
+    let active = true
+    if (!selectedBranchId) return
+    setIsLoadingItems(true)
+    getItems({ branchId: selectedBranchId, status: "ACTIVE", isSerialized: "true", page: 1, limit: 100 })
+      .then((res) => {
+        if (!active) return
+        const rows = getCatalogRows(res)
+        setItems(rows)
+        if (rows.length > 0) {
+          setSelectedItemId((prev) => (rows.some((r) => r.id === prev) ? prev : rows[0].id))
+        } else {
+          setSelectedItemId("")
+        }
+      })
+      .catch((err) => {
+        if (!active) return
+        setErrorMessage(getApiErrorMessage(err, "Failed to load serialized items."))
+      })
+      .finally(() => {
+        if (active) setIsLoadingItems(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedBranchId])
+
+  useEffect(() => {
+    let active = true
+    if (!selectedBranchId || !selectedItemId) {
+      setBatches([])
+      setSelectedBatchId("")
+      return
+    }
+    setIsLoadingBatches(true)
+    getInventoryBatches({ branchId: selectedBranchId, itemId: selectedItemId, status: "ACTIVE", limit: 50 })
+      .then((res) => {
+        if (!active) return
+        const rows = getInventoryResult(res).rows || []
+        setBatches(rows)
+        if (rows.length > 0) {
+          setSelectedBatchId(rows[0].id)
+          setBatchMode("EXISTING")
+        } else {
+          setSelectedBatchId("")
+          setBatchMode("NEW")
+        }
+      })
+      .catch(() => {
+        if (!active) return
+        setBatches([])
+        setBatchMode("NEW")
+      })
+      .finally(() => {
+        if (active) setIsLoadingBatches(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedBranchId, selectedItemId])
+
+  const parsedSerials = useMemo(() => {
+    return serialInput
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }, [serialInput])
+
+  const duplicateCount = useMemo(() => {
+    const seen = new Set()
+    let dupes = 0
+    for (const s of parsedSerials) {
+      const lower = s.toLowerCase()
+      if (seen.has(lower)) dupes++
+      else seen.add(lower)
+    }
+    return dupes
+  }, [parsedSerials])
+
+  const selectedItem = items.find((i) => i.id === selectedItemId)
+
+  const submit = async (event) => {
+    event.preventDefault()
+    setErrorMessage("")
+
+    if (!selectedBranchId) {
+      setErrorMessage("Please select a branch.")
+      return
+    }
+    if (!selectedItemId) {
+      setErrorMessage("Please select a serialized item.")
+      return
+    }
+    if (parsedSerials.length === 0) {
+      setErrorMessage("Please enter at least one serial number.")
+      return
+    }
+    if (duplicateCount > 0) {
+      setErrorMessage("Please remove duplicate serial numbers from the list.")
+      return
+    }
+    if (batchMode === "EXISTING" && !selectedBatchId) {
+      setErrorMessage("Please select an active batch or switch to Create New Batch.")
+      return
+    }
+    if (batchMode === "NEW" && !newBatchCode.trim()) {
+      setErrorMessage("Please enter a new batch code.")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const payload = {
+        branchId: selectedBranchId,
+        itemId: selectedItemId,
+        quantity: parsedSerials.length,
+        serialNumbers: parsedSerials,
+        remarks: remarks.trim() || "Manual serial stock-in",
+        referenceNo: referenceNo.trim() || undefined,
+        ...(batchMode === "EXISTING"
+          ? { batchId: selectedBatchId }
+          : {
+              batchCode: newBatchCode.trim(),
+              supplierName: supplierName.trim() || undefined,
+              unitCost: unitCost !== "" ? Number(unitCost) : undefined,
+            }),
+      }
+
+      const response = await createStockIn(payload)
+      if (!response?.success) throw new Error(response?.message || "Failed to add serial stock")
+      onSaved(response.data, parsedSerials.length)
+    } catch (err) {
+      setErrorMessage(getApiErrorMessage(err, "Unable to add serial stock."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div
+      aria-labelledby="add-serial-title"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/70 p-4"
+      role="dialog"
+    >
+      <div className="mx-auto my-6 w-full max-w-2xl rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] pb-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-maroon)]">
+              Manual Serial Intake
+            </p>
+            <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]" id="add-serial-title">
+              Add Serial Stock
+            </h2>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              Directly intake missed delivery serials or physical count adjustments into branch inventory.
+            </p>
+          </div>
+          <button
+            aria-label="Close add serial stock dialog"
+            className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] hover:bg-[var(--color-soft)]"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form className="mt-5 space-y-4" onSubmit={submit}>
+          {isSuperOwner ? (
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Target branch</span>
+              <select
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] px-4 py-3 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                disabled={isSaving}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                value={selectedBranchId}
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.code} · {b.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Serialized item</span>
+            <select
+              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] px-4 py-3 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+              disabled={isSaving || isLoadingItems || items.length === 0}
+              onChange={(e) => setSelectedItemId(e.target.value)}
+              value={selectedItemId}
+            >
+              {items.length === 0 ? (
+                <option value="">No active serialized items found</option>
+              ) : (
+                items.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.itemCode} · {item.itemName}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Batch target</span>
+              <div className="flex gap-2">
+                <button
+                  className={`rounded-xl px-3 py-1 text-xs font-bold transition ${
+                    batchMode === "EXISTING"
+                      ? "bg-[var(--color-maroon)] text-white"
+                      : "bg-white text-[var(--color-muted)] hover:bg-slate-100"
+                  }`}
+                  disabled={isSaving || batches.length === 0}
+                  onClick={() => setBatchMode("EXISTING")}
+                  type="button"
+                >
+                  Existing batch ({batches.length})
+                </button>
+                <button
+                  className={`rounded-xl px-3 py-1 text-xs font-bold transition ${
+                    batchMode === "NEW"
+                      ? "bg-[var(--color-maroon)] text-white"
+                      : "bg-white text-[var(--color-muted)] hover:bg-slate-100"
+                  }`}
+                  disabled={isSaving}
+                  onClick={() => setBatchMode("NEW")}
+                  type="button"
+                >
+                  + New batch
+                </button>
+              </div>
+            </div>
+
+            {batchMode === "EXISTING" ? (
+              <div className="mt-3">
+                {batches.length > 0 ? (
+                  <select
+                    className="w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                    disabled={isSaving || isLoadingBatches}
+                    onChange={(e) => setSelectedBatchId(e.target.value)}
+                    value={selectedBatchId}
+                  >
+                    {batches.map((batch) => (
+                      <option key={batch.id} value={batch.id}>
+                        {batch.batchCode} · {Number(batch.quantityAvailable || 0)} available in stock (Cost: ₱{Number(batch.unitCost || 0).toLocaleString()})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="mt-2 text-xs font-semibold text-amber-800">
+                    No active batch exists for this item in this branch. Please create a new batch below.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="block sm:col-span-2">
+                  <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">New batch code</span>
+                  <input
+                    className="mt-1 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                    disabled={isSaving}
+                    onChange={(e) => setNewBatchCode(e.target.value)}
+                    placeholder="e.g. BATCH-2026-08-01"
+                    value={newBatchCode}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Supplier (optional)</span>
+                  <input
+                    className="mt-1 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)]"
+                    disabled={isSaving}
+                    onChange={(e) => setSupplierName(e.target.value)}
+                    placeholder="Supplier name"
+                    value={supplierName}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Unit cost (optional)</span>
+                  <input
+                    className="mt-1 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)]"
+                    disabled={isSaving}
+                    min="0"
+                    onChange={(e) => setUnitCost(e.target.value)}
+                    placeholder={selectedItem ? `Default: ₱${Number(selectedItem.costPrice || 0).toLocaleString()}` : "0.00"}
+                    step="0.01"
+                    type="number"
+                    value={unitCost}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
+          <label className="block">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                Serial Numbers barcode / text
+              </span>
+              <span className="text-xs font-bold text-[var(--color-maroon)]">
+                {parsedSerials.length} serial(s) entered {duplicateCount > 0 ? `(${duplicateCount} duplicates)` : ""}
+              </span>
+            </div>
+            <textarea
+              className="mt-2 min-h-32 w-full rounded-2xl border border-[var(--color-border)] px-4 py-3 font-mono text-sm outline-none focus:border-[var(--color-maroon)]"
+              disabled={isSaving}
+              onChange={(e) => setSerialInput(e.target.value)}
+              placeholder="Paste or scan serial barcodes here (one serial per line, or comma-separated)&#10;TEST-SN-001&#10;TEST-SN-002"
+              value={serialInput}
+            />
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              Each serial will be created as <strong>AVAILABLE</strong> stock and increment branch inventory.
+            </p>
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Reference no (optional)</span>
+              <input
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)]"
+                disabled={isSaving}
+                onChange={(e) => setReferenceNo(e.target.value)}
+                placeholder="e.g. PO-102 or AUDIT-2026"
+                value={referenceNo}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Remarks / Reason</span>
+              <input
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)]"
+                disabled={isSaving}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="e.g. Unrecorded delivery item"
+                value={remarks}
+              />
+            </label>
+          </div>
+
+          {errorMessage ? <ErrorBanner>{errorMessage}</ErrorBanner> : null}
+
+          <div className="mt-6 flex justify-end gap-3 border-t border-[var(--color-border)] pt-4">
+            <button
+              className="rounded-2xl border border-[var(--color-border)] px-5 py-3 text-sm font-bold disabled:opacity-50"
+              disabled={isSaving}
+              onClick={onClose}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-5 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:opacity-50"
+              disabled={isSaving || parsedSerials.length === 0}
+              type="submit"
+            >
+              {isSaving ? <LoaderCircle className="animate-spin" size={16} /> : <Plus size={16} />}
+              {isSaving ? "Adding stock…" : `Add ${parsedSerials.length || ""} Serial Stock`}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
   const activeBranch = selectedBranch || user?.branch || null
   const isSuperOwner = user?.role === USER_ROLES.SUPER_OWNER
@@ -339,6 +727,7 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
   const [detailMessage, setDetailMessage] = useState("")
   const [statusSerial, setStatusSerial] = useState(null)
   const [isSavingStatus, setIsSavingStatus] = useState(false)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const loadBranches = useCallback(async () => {
     if (!isSuperOwner) return
@@ -508,6 +897,12 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
     }
   }
 
+  const handleStockInSaved = (_result, count) => {
+    setIsAddModalOpen(false)
+    setNoticeMessage(`Successfully added ${count || ""} serial unit(s) into inventory.`)
+    loadSerials()
+  }
+
   const currentPageAvailable = useMemo(
     () => serials.filter((serial) => serial.status === "AVAILABLE").length,
     [serials],
@@ -531,7 +926,18 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--color-muted)]">Search serials, confirm branch availability, inspect their source batch, and review inventory movements recorded by receiving, transfers, sales, and reversals.</p>
           {viewingBranch ? <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-[var(--color-soft)] px-3 py-1.5 text-xs font-bold text-[var(--color-muted)]"><Building2 size={14} /><span className="truncate">{viewingBranch.code} · {viewingBranch.name}</span></p> : <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-[var(--color-soft)] px-3 py-1.5 text-xs font-bold text-[var(--color-muted)]"><Building2 size={14} />All accessible branches</p>}
         </div>
-        <button className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)] disabled:opacity-50" disabled={isLoading} onClick={loadSerials} type="button"><RefreshCw className={isLoading ? "animate-spin" : ""} size={17} />Refresh serials</button>
+        <div className="flex flex-wrap items-center gap-2">
+          {canManage ? (
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+              onClick={() => setIsAddModalOpen(true)}
+              type="button"
+            >
+              <Plus size={17} /> Add serial stock
+            </button>
+          ) : null}
+          <button className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)] disabled:opacity-50" disabled={isLoading} onClick={loadSerials} type="button"><RefreshCw className={isLoading ? "animate-spin" : ""} size={17} />Refresh serials</button>
+        </div>
       </header>
 
       {noticeMessage ? <div className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800"><span>{noticeMessage}</span><button aria-label="Dismiss notice" className="rounded-lg p-1 hover:bg-emerald-100" onClick={() => setNoticeMessage("")} type="button"><X size={16} /></button></div> : null}
@@ -573,6 +979,16 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
         {!isLoading && serials.length > 0 ? <div className="flex flex-col gap-3 border-t border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-semibold text-[var(--color-muted)]">Page {pagination?.page || page} of {totalPages} · {totalItems} serial(s)</p><div className="grid grid-cols-2 gap-2 sm:flex"><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} type="button"><ChevronLeft size={16} />Previous</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)} type="button">Next<ChevronRight size={16} /></button></div></div> : null}
       </section>
 
+      {isAddModalOpen ? (
+        <AddSerialStockDialog
+          activeBranch={activeBranch}
+          branches={branches}
+          isSuperOwner={isSuperOwner}
+          onClose={() => setIsAddModalOpen(false)}
+          onSaved={handleStockInSaved}
+          viewingBranchId={viewingBranchId}
+        />
+      ) : null}
       {detailSerial ? <SerialDetailDialog canManage={canManage} errorMessage={detailMessage} isLoading={isLoadingDetail} movements={movements} onClose={() => { setDetailSerial(null); setMovements([]); setDetailMessage("") }} onNavigate={onNavigate} onRequestStatus={setStatusSerial} serial={detailSerial} /> : null}
       {statusSerial ? <SerialStatusDialog isSaving={isSavingStatus} key={`${statusSerial.id}-${statusSerial.status}`} onClose={() => setStatusSerial(null)} onSaved={saveSerialStatus} serial={statusSerial} /> : null}
     </div>

@@ -1,4 +1,4 @@
-﻿import apiClient from "../../lib/apiClient"
+import apiClient from "../../lib/apiClient"
 
 export async function getInventoryOverview(params = {}) {
 const response = await apiClient.get("/inventory/overview", { params })
@@ -22,6 +22,11 @@ return response.data
 }
 export async function createStockAdjustment(payload) {
 const response = await apiClient.post("/inventory/adjustments", payload)
+return response.data
+}
+
+export async function createStockIn(payload) {
+const response = await apiClient.post("/inventory/stock-in", payload)
 return response.data
 }
 
