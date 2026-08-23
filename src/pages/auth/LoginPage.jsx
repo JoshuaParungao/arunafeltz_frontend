@@ -71,7 +71,7 @@ function LoginPage({ onLogin }) {
             <input
               autoComplete="username"
               className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
-              disabled={isSubmitting}
+              disabled={isLoading}
               id="identifier"
               name="identifier"
               onChange={(event) => setIdentifier(event.target.value)}
@@ -92,7 +92,7 @@ function LoginPage({ onLogin }) {
             <input
               autoComplete="current-password"
               className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
-              disabled={isSubmitting}
+              disabled={isLoading}
               id="password"
               name="password"
               onChange={(event) => setPassword(event.target.value)}
@@ -111,10 +111,10 @@ function LoginPage({ onLogin }) {
 
           <button
             className="w-full rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isSubmitting}
+            disabled={isLoading}
             type="submit"
           >
-            {isSubmitting ? "Signing in..." : "Sign in"}
+            {isLoading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
