@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   PackageSearch,
   Plus,
+  Printer,
   ReceiptText,
   RefreshCw,
   RotateCcw,
@@ -310,14 +311,23 @@ function SaleDetailDialog({
                 <p className="mt-1 text-sm text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
               ) : null}
             </div>
-            <button
-              aria-label="Close sale details"
-              className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
-              onClick={onClose}
-              type="button"
-            >
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+                onClick={() => window.print()}
+                type="button"
+              >
+                <Printer size={16} /> Print receipt
+              </button>
+              <button
+                aria-label="Close sale details"
+                className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+                onClick={onClose}
+                type="button"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </header>
 
           {isLoading ? (
