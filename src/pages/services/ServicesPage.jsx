@@ -45,8 +45,8 @@ const INSTALLMENT_TERMS = ["STRAIGHT", "MONTH_3", "MONTH_6", "MONTH_9", "MONTH_1
 const ACTIVE_STATUSES = new Set(["PENDING", "IN_PROGRESS", "READY_FOR_RELEASE"])
 const STATUSES = ["PENDING", "IN_PROGRESS", "READY_FOR_RELEASE", "COMPLETED", "CANCELLED"]
 const REPAIR_TYPES = [
-  { value: "ORDINARY_REPAIR", label: "Ordinary repair" },
-  { value: "BOARD_LEVEL_REPAIR", label: "Board-level repair" },
+  { value: "ORDINARY_REPAIR", label: "Standard service / repair" },
+  { value: "BOARD_LEVEL_REPAIR", label: "Specialized / Advanced repair" },
 ]
 const COMPLETED_OUTCOMES = new Set(["REPAIRED", "SERVICE_COMPLETED"])
 const UNREPAIRED_OUTCOMES = new Set([
@@ -1219,7 +1219,7 @@ export default function ServicesPage({ selectedBranch, user }) {
               </div>
 
               {createForm.repairType === "BOARD_LEVEL_REPAIR" ? (
-                <p className="rounded-2xl bg-sky-50 p-3 text-xs font-bold text-sky-800">Board-level repairs may only be assigned to and performed by a Senior Technician. The backend verifies eligibility when this Job Order is saved.</p>
+                <p className="rounded-2xl bg-sky-50 p-3 text-xs font-bold text-sky-800">Specialized / advanced repairs may only be assigned to and performed by a Senior Technician / Specialist. The backend verifies eligibility when this Job Order is saved.</p>
               ) : null}
 
               {!createForm.customerId ? (
@@ -1385,7 +1385,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                       {actionPerformerOptions.map((technician) => <option key={technician.id} value={technician.id}>{technicianLabel(technician)}</option>)}
                     </select>
                   </Field>
-                  {actionRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians are available for board-level work. Backend eligibility checks remain authoritative.</p> : null}
+                  {actionRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists are available for specialized work. Backend eligibility checks remain authoritative.</p> : null}
                   <ServicePricingFields
                     baseServiceCharge={actionForm.baseServiceCharge}
                     markupPercent={actionForm.markupPercent}
@@ -1418,7 +1418,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                   {assignmentTechnicianOptions.map((technician) => <option key={technician.id} value={technician.id}>{technicianLabel(technician)}</option>)}
                 </select>
               </Field>
-              {selectedRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians may be assigned to board-level repairs. Backend validation remains authoritative.</p> : null}
+              {selectedRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists may be assigned to specialized repairs. Backend validation remains authoritative.</p> : null}
             </div>
             <div className="flex justify-end gap-2 border-t border-[var(--color-border)] p-4 sm:px-6"><button className="rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={() => setShowAssignment(false)} type="button">Cancel</button><button className="rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white" disabled={isSaving} type="submit">{isSaving ? "Saving…" : "Save assignment"}</button></div>
           </form>
@@ -1454,7 +1454,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                     </select>
                   </Field>
                   <p className="text-xs text-[var(--color-muted)]">Service Done By must be confirmed explicitly and is never copied from Assigned Technician. Technician accounts may select only themselves.</p>
-                  {releaseRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians are available for board-level work. Backend eligibility checks remain authoritative.</p> : null}
+                  {releaseRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists are available for specialized work. Backend eligibility checks remain authoritative.</p> : null}
                 </>
               ) : (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>No repair incentive will be recorded.</strong> Keep the charge at zero for a no-charge pull-out, or retain an actual diagnostic/service charge where applicable.</div>

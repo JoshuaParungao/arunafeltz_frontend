@@ -132,8 +132,8 @@ export default function FinancialSummaryPanel({ report }) {
           <h3 className="font-black text-[var(--color-text-strong)]">Service sales</h3>
           <div className="mt-3">
             <MetricRow label="POS / quotation custom service base" value={service.posCustomServiceBaseSales} />
-            <MetricRow label="Ordinary repair base" value={service.ordinaryRepairBaseSales} />
-            <MetricRow label="Board-level repair base" value={service.boardLevelRepairBaseSales} />
+            <MetricRow label="Standard service base" value={service.ordinaryRepairBaseSales} />
+            <MetricRow label="Specialized repair base" value={service.boardLevelRepairBaseSales} />
             <MetricRow label="Total service base" value={service.totalServiceBaseSales} />
           </div>
         </div>
@@ -150,8 +150,8 @@ export default function FinancialSummaryPanel({ report }) {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <RepairAllocation label="Ordinary repair allocation" allocation={service.repairAllocation?.ordinary} />
-        <RepairAllocation label="Board-level repair allocation" allocation={service.repairAllocation?.boardLevel} />
+        <RepairAllocation label="Standard service allocation" allocation={service.repairAllocation?.ordinary} />
+        <RepairAllocation label="Specialized repair allocation" allocation={service.repairAllocation?.boardLevel} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
