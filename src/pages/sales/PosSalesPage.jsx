@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import {
   AlertCircle,
   Barcode,
@@ -290,15 +291,15 @@ function SaleDetailDialog({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [onClose])
 
-  return (
+  return createPortal(
     <div
       aria-labelledby="sale-detail-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-3 sm:p-6"
+      className="sale-receipt-print-overlay fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-3 sm:p-6"
       role="dialog"
     >
-      <div className="mx-auto min-h-full max-w-4xl py-4 sm:py-8">
-        <section className="overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl">
+      <div className="sale-receipt-print-shell mx-auto min-h-full max-w-4xl py-4 sm:py-8">
+        <section className="sale-receipt-print-document overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl">
           <header className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5 sm:p-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-maroon)]">
@@ -311,7 +312,7 @@ function SaleDetailDialog({
                 <p className="mt-1 text-sm text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="sale-receipt-print-actions flex items-center gap-2">
               <button
                 className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
                 onClick={() => window.print()}
@@ -529,7 +530,8 @@ function SaleDetailDialog({
           ) : null}
         </section>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

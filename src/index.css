@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 :root {
   --color-page: #faf9f6;
@@ -287,8 +287,40 @@ a {
     background: #ffffff;
   }
 
-  body > *:not(.quotation-print-overlay):not(.job-order-print-overlay) {
+  body > *:not(.quotation-print-overlay):not(.job-order-print-overlay):not(.sale-receipt-print-overlay) {
     display: none !important;
+  }
+
+  .sale-receipt-print-overlay {
+    position: static !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    inset: auto !important;
+  }
+
+  .sale-receipt-print-shell {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .sale-receipt-print-actions {
+    display: none !important;
+  }
+
+  .sale-receipt-print-document {
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    color: #111827 !important;
+  }
+
+  .sale-receipt-print-document,
+  .sale-receipt-print-document table {
+    color: #111827 !important;
   }
 
   .quotation-print-overlay {
