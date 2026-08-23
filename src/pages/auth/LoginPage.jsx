@@ -1,8 +1,12 @@
 import { useState } from "react"
+import { Eye, EyeOff } from "lucide-react"
 
 import { loginUser } from "../../features/auth/auth.api"
 
 function getErrorMessage(error) {
+  if (error?.response?.status === 401) {
+    return "Maling username o password. Pakisuri at subukan muli."
+  }
   return (
     error?.response?.data?.message ||
     error?.message ||
@@ -13,6 +17,7 @@ function getErrorMessage(error) {
 function LoginPage({ onLogin }) {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -76,14 +81,17 @@ function LoginPage({ onLogin }) {
               Username or email
             </label>
             <input
+              autoCapitalize="none"
               autoComplete="username"
+              autoCorrect="off"
               className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
               disabled={isLoading}
               id="identifier"
               name="identifier"
               onChange={(event) => setIdentifier(event.target.value)}
-              placeholder="Username or email"
+              placeholder="superowner"
               required
+              spellCheck="false"
               type="text"
               value={identifier}
             />
@@ -96,18 +104,32 @@ function LoginPage({ onLogin }) {
             >
               Password
             </label>
-            <input
-              autoComplete="current-password"
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
-              disabled={isLoading}
-              id="password"
-              name="password"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••••••"
-              required
-              type="password"
-              value={password}
-            />
+            <div className="relative mt-2">
+              <input
+                autoCapitalize="none"
+                autoComplete="current-password"
+                autoCorrect="off"
+                className="w-full rounded-2xl border border-[var(--color-border)] bg-white py-3 pl-4 pr-12 text-sm text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
+                disabled={isLoading}
+                id="password"
+                name="password"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••••••"
+                required
+                spellCheck="false"
+                type={showPassword ? "text" : "password"}
+                value={password}
+              />
+              <button
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-[var(--color-muted)] transition hover:text-[var(--color-text-strong)]"
+                onClick={() => setShowPassword((prev) => !prev)}
+                tabIndex="-1"
+                type="button"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {errorMessage ? (
