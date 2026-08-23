@@ -51,13 +51,20 @@ function LoginPage({ onLogin }) {
   return (
     <main className="grid min-h-svh place-items-center bg-[var(--color-page)] px-4 py-8">
       <section className="w-full max-w-md rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-card">
-        <div>
-          <h1 className="text-2xl font-black text-[var(--color-text-strong)]">
-            Arunafeltz Computer
-          </h1>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
-            Cloud POS and Business Monitoring
-          </p>
+        <div className="flex items-center gap-3">
+          <img
+            alt="Arunafeltz Computer Logo"
+            className="size-12 rounded-2xl object-contain shadow-sm"
+            src="/arunafeltzlogo.png"
+          />
+          <div>
+            <h1 className="text-xl font-black text-[var(--color-text-strong)]">
+              Arunafeltz Computer
+            </h1>
+            <p className="text-xs text-[var(--color-muted)]">
+              Cloud POS and Business Monitoring
+            </p>
+          </div>
         </div>
 
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>

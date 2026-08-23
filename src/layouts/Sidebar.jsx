@@ -61,9 +61,11 @@ function Sidebar({
       className={`h-svh shrink-0 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-sidebar)] py-5 text-white ${isCollapsed ? "w-20 px-3" : "w-72 px-4"} ${className}`}
     >
       <div className="flex items-center gap-3 px-1">
-        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--color-maroon)] text-lg font-bold shadow-soft">
-          A
-        </div>
+        <img
+          alt="Arunafeltz Computer Logo"
+          className="size-11 shrink-0 rounded-2xl bg-white/10 p-1 object-contain shadow-soft"
+          src="/arunafeltzlogo.png"
+        />
 
         {!isCollapsed ? (
           <div className="min-w-0">
