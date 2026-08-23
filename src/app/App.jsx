@@ -1,0 +1,434 @@
+﻿import { lazy, Suspense, useEffect, useState } from "react"
+
+import MainLayout from "../layouts/MainLayout"
+import LoginPage from "../pages/auth/LoginPage"
+import BranchChooserPage from "../pages/branches/BranchChooserPage"
+import PagePlaceholder from "../pages/PagePlaceholder"
+import {
+  APP_MODULES,
+  canRoleAccessModule,
+  getDefaultModuleForRole,
+} from "../constants/appModules"
+import { USER_ROLES } from "../constants/roles"
+import { getCurrentUser } from "../features/auth/auth.api"
+import { getCashBoxes } from "../features/cash-boxes/cashBoxes.api"
+import {
+  clearSelectedBranch,
+  clearSession,
+  getAccessToken,
+  getSelectedBranch,
+  getUser,
+  saveAccessToken,
+  saveSelectedBranch,
+  saveUser,
+} from "../lib/sessionStorage"
+
+const OwnerDashboardPage = lazy(() => import("../pages/dashboard/OwnerDashboardPage"))
+const StaffDashboardPage = lazy(() => import("../pages/dashboard/StaffDashboardPage"))
+const SettingsPage = lazy(() => import("../pages/settings/SettingsPage"))
+const ItemsPage = lazy(() => import("../pages/items/ItemsPage"))
+const InventoryPage = lazy(() => import("../pages/inventory/InventoryPage"))
+const StockTransfersPage = lazy(() => import("../pages/stock-transfers/StockTransfersPage"))
+const QuotationsPage = lazy(() => import("../pages/quotations/QuotationsPage"))
+const CustomersPage = lazy(() => import("../pages/customers/CustomersPage"))
+const ReportsPage = lazy(() => import("../pages/reports/ReportsPage"))
+const AlertsPage = lazy(() => import("../pages/alerts/AlertsPage"))
+const AuditLogsPage = lazy(() => import("../pages/audit-logs/AuditLogsPage"))
+const UsersPage = lazy(() => import("../pages/users/UsersPage"))
+const CashBoxesPage = lazy(() => import("../pages/cash-boxes/CashBoxesPage"))
+const CreditsPage = lazy(() => import("../pages/credits/CreditsPage"))
+const SuppliersPage = lazy(() => import("../pages/suppliers/SuppliersPage"))
+const PurchaseOrdersPage = lazy(() => import("../pages/purchase-orders/PurchaseOrdersPage"))
+const PurchaseReceivingsPage = lazy(() => import("../pages/purchase-receivings/PurchaseReceivingsPage"))
+const PosSalesPage = lazy(() => import("../pages/sales/PosSalesPage"))
+const SerialMonitoringPage = lazy(() => import("../pages/serials/SerialMonitoringPage"))
+const ServicesPage = lazy(() => import("../pages/services/ServicesPage"))
+const WarrantyPage = lazy(() => import("../pages/warranty/WarrantyPage"))
+const IncentivesPage = lazy(() => import("../pages/incentives/IncentivesPage"))
+
+function PageLoadingFallback() {
+  return (
+    <section className="grid min-h-64 place-items-center rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-card">
+      <div className="text-center">
+        <div className="mx-auto size-8 animate-spin rounded-full border-4 border-[var(--color-maroon-soft)] border-t-[var(--color-maroon)]" />
+        <p className="mt-3 text-sm font-semibold text-[var(--color-muted)]">Loading module...</p>
+      </div>
+    </section>
+  )
+}
+
+function needsBranchChooser(currentUser, selectedBranch) {
+  return currentUser?.role === USER_ROLES.SUPER_OWNER && !selectedBranch
+}
+
+function getInitialBranch(currentUser) {
+  if (currentUser?.branch) return currentUser.branch
+  return null
+}
+
+function App() {
+  const [activePage, setActivePage] = useState("owner-dashboard")
+  const [user, setUser] = useState(() => getUser())
+  const [selectedBranch, setSelectedBranch] = useState(() => getSelectedBranch())
+  const [isCheckingSession, setIsCheckingSession] = useState(() => Boolean(getAccessToken()))
+  const [hasAssignedCashBoxAccess, setHasAssignedCashBoxAccess] = useState(false)
+
+  const isCashBoxStaff = [
+    USER_ROLES.CASHIER,
+    USER_ROLES.TECHNICIAN,
+  ].includes(user?.role)
+
+  const isCashBoxManager = [
+    USER_ROLES.SUPER_OWNER,
+    USER_ROLES.ADMIN,
+  ].includes(user?.role)
+
+  const canAccessCashBox =
+    isCashBoxManager ||
+    (isCashBoxStaff && hasAssignedCashBoxAccess)
+
+  const allowedModules = user
+    ? APP_MODULES.filter(
+        (item) =>
+          canRoleAccessModule(user.role, item.key) ||
+          (item.key === "cash-box" && canAccessCashBox),
+      )
+    : []
+
+  const page = APP_MODULES.find((item) => item.key === activePage)
+
+  const setSafeActivePage = (pageKey, currentUser = user) => {
+    if (!currentUser) return
+
+    const canAccessRequestedPage =
+      canRoleAccessModule(currentUser.role, pageKey) ||
+      (pageKey === "cash-box" && canAccessCashBox)
+
+    if (canAccessRequestedPage) {
+      setActivePage(pageKey)
+      return
+    }
+
+    setActivePage(getDefaultModuleForRole(currentUser.role))
+  }
+
+  useEffect(() => {
+    const verifySession = async () => {
+      const token = getAccessToken()
+
+      if (!token) {
+        setIsCheckingSession(false)
+        return
+      }
+
+      try {
+        const response = await getCurrentUser()
+        const currentUser = response?.data?.user
+
+        if (!response?.success || !currentUser) {
+          throw new Error("Invalid session response.")
+        }
+
+        saveUser(currentUser)
+        setUser(currentUser)
+        setActivePage((currentPage) =>
+          canRoleAccessModule(currentUser.role, currentPage)
+            ? currentPage
+            : getDefaultModuleForRole(currentUser.role),
+        )
+
+        if (currentUser.role !== USER_ROLES.SUPER_OWNER) {
+          const branch = getInitialBranch(currentUser)
+
+          if (branch) {
+            saveSelectedBranch(branch)
+            setSelectedBranch(branch)
+          }
+        }
+      } catch {
+        clearSession()
+        setUser(null)
+        setSelectedBranch(null)
+      } finally {
+        setIsCheckingSession(false)
+      }
+    }
+
+    verifySession()
+  }, [])
+
+  useEffect(() => {
+    if (!isCashBoxStaff) {
+      const timer = window.setTimeout(() => {
+        setHasAssignedCashBoxAccess(false)
+      }, 0)
+
+      return () => window.clearTimeout(timer)
+    }
+
+    let cancelled = false
+
+    const branchId =
+      user?.branchId ||
+      user?.branch?.id ||
+      ""
+
+    const timer = window.setTimeout(async () => {
+      try {
+        await getCashBoxes({
+          ...(branchId ? { branchId } : {}),
+          status: "ACTIVE",
+          limit: 1,
+        })
+
+        if (!cancelled) {
+          setHasAssignedCashBoxAccess(true)
+        }
+      } catch {
+        if (!cancelled) {
+          setHasAssignedCashBoxAccess(false)
+        }
+      }
+    }, 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [
+    isCashBoxStaff,
+    user?.branch?.id,
+    user?.branchId,
+    user?.id,
+  ])
+
+  const handleLogin = async ({ token, user: loginUser }) => {
+    saveAccessToken(token)
+    saveUser(loginUser)
+
+    const response = await getCurrentUser()
+    const currentUser = response?.data?.user
+
+    if (!response?.success || !currentUser) {
+      clearSession()
+      throw new Error("Unable to verify logged-in user.")
+    }
+
+    saveUser(currentUser)
+    setUser(currentUser)
+    setActivePage(getDefaultModuleForRole(currentUser.role))
+
+    if (currentUser.role !== USER_ROLES.SUPER_OWNER) {
+      const branch = getInitialBranch(currentUser)
+
+      if (branch) {
+        saveSelectedBranch(branch)
+        setSelectedBranch(branch)
+      }
+    } else {
+      clearSelectedBranch()
+      setSelectedBranch(null)
+    }
+  }
+
+  const handleSelectBranch = (branch) => {
+    saveSelectedBranch(branch)
+    setSelectedBranch(branch)
+    setActivePage(getDefaultModuleForRole(user.role))
+  }
+
+  const handleSwitchBranch = () => {
+    if (user?.role !== USER_ROLES.SUPER_OWNER) return
+
+    clearSelectedBranch()
+    setSelectedBranch(null)
+    setActivePage(getDefaultModuleForRole(user.role))
+  }
+
+  const handleLogout = () => {
+    clearSession()
+    setUser(null)
+    setSelectedBranch(null)
+    setActivePage("owner-dashboard")
+  }
+
+  const renderPage = () => {
+    if (activePage === "owner-dashboard") {
+      return (
+        <OwnerDashboardPage
+          onNavigate={setSafeActivePage}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
+    }
+
+    if (activePage === "staff-dashboard") {
+      return (
+        <StaffDashboardPage
+          onNavigate={setSafeActivePage}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
+    }
+
+    if (activePage === "items") {
+      return <ItemsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "inventory") {
+      return <InventoryPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "pos") {
+      return <PosSalesPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "serials") {
+      return <SerialMonitoringPage onNavigate={setSafeActivePage} selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "services") {
+      return <ServicesPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "warranty") {
+      return <WarrantyPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "stock-transfers") {
+      return <StockTransfersPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "quotations") {
+      return <QuotationsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "customers") {
+      return <CustomersPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "reports") {
+      return <ReportsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "alerts") {
+      return (
+        <AlertsPage
+          onNavigate={setSafeActivePage}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
+    }
+
+    if (activePage === "audit-logs") {
+      return <AuditLogsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "users") {
+      return <UsersPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "cash-box") {
+      return (
+        <CashBoxesPage
+          hasCashBoxAccess={canAccessCashBox}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
+    }
+
+    if (activePage === "credits") {
+      return <CreditsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "incentives") {
+      return <IncentivesPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "suppliers") {
+      return <SuppliersPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "purchase-orders") {
+      return (
+        <PurchaseOrdersPage
+          onNavigate={setSafeActivePage}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
+    }
+
+    if (activePage === "receivings") {
+      return <PurchaseReceivingsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "settings") return <SettingsPage user={user} />
+
+    return (
+      <PagePlaceholder
+        title={page?.label || "Module"}
+        description="This module is unavailable for the current session. Return to the dashboard or choose another module."
+      />
+    )
+  }
+
+  if (isCheckingSession) {
+    return (
+      <main className="grid min-h-svh place-items-center bg-[var(--color-page)] px-4">
+        <section className="rounded-3xl border border-[var(--color-border)] bg-white p-6 text-center shadow-card">
+          <p className="brand-text text-xl font-bold text-[var(--color-text-strong)]">
+            Arunafeltz
+          </p>
+          <p className="mt-2 text-sm text-[var(--color-muted)]">Checking session...</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (!user) {
+    return <LoginPage onLogin={handleLogin} />
+  }
+
+  if (needsBranchChooser(user, selectedBranch)) {
+    return (
+      <BranchChooserPage
+        onLogout={handleLogout}
+        onSelectBranch={handleSelectBranch}
+        user={user}
+      />
+    )
+  }
+
+  return (
+    <MainLayout
+      activePage={activePage}
+      canSwitchBranch={user?.role === USER_ROLES.SUPER_OWNER}
+      modules={allowedModules}
+      onChangePage={(pageKey) => setSafeActivePage(pageKey)}
+      onLogout={handleLogout}
+      onSwitchBranch={handleSwitchBranch}
+      selectedBranch={selectedBranch}
+      user={user}
+    >
+      <Suspense fallback={<PageLoadingFallback />}>
+        {renderPage()}
+      </Suspense>
+    </MainLayout>
+  )
+}
+
+export default App
+
+
+
+
+
+
+
+
+

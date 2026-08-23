@@ -1,0 +1,873 @@
+﻿import { jsPDF } from "jspdf"
+import autoTable from "jspdf-autotable"
+
+const MAROON = [122, 31, 43]
+const DARK = [31, 41, 55]
+const MUTED = [100, 116, 139]
+const BORDER = [226, 232, 240]
+
+function number(value) {
+  const parsed = Number(value || 0)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function text(value, fallback = "-") {
+  const normalized = String(value ?? "").trim()
+  return normalized || fallback
+}
+
+function php(value) {
+  return `PHP ${number(value).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+function quantity(value) {
+  return number(value).toLocaleString("en-PH", {
+    maximumFractionDigits: 2,
+  })
+}
+
+function dateText(value) {
+  if (!value) return "-"
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return text(value)
+  }
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  })
+}
+
+function dateTimeText(value = new Date()) {
+  const date = new Date(value)
+
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function branchText(branch) {
+  if (!branch) return "All / Unspecified branch"
+
+  const code = text(branch.code, "")
+  const name = text(branch.name, "")
+
+  if (code && name) return `${code} - ${name}`
+  return code || name || "Unspecified branch"
+}
+
+function generatedByText(user) {
+  return (
+    user?.fullName ||
+    user?.name ||
+    user?.username ||
+    user?.email ||
+    "Arunafeltz user"
+  )
+}
+
+function cleanFilename(value) {
+  return String(value || "document")
+    .replace(/[<>:"/\\|?*]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;")
+}
+
+function normalizeDocument(config) {
+  return {
+    title: config.title || "Business Document",
+    reference: config.reference || "",
+    status: config.status || "",
+    branch: config.branch || "",
+    generatedBy: config.generatedBy || "",
+    generatedAt: config.generatedAt || new Date(),
+    meta: Array.isArray(config.meta) ? config.meta : [],
+    columns: Array.isArray(config.columns) ? config.columns : [],
+    rows: Array.isArray(config.rows) ? config.rows : [],
+    totals: Array.isArray(config.totals) ? config.totals : [],
+    notes: Array.isArray(config.notes)
+      ? config.notes.filter((entry) => String(entry?.value || "").trim())
+      : [],
+    filename: cleanFilename(config.filename || config.reference || config.title),
+    orientation: config.orientation || "portrait",
+  }
+}
+
+export function exportBusinessPdf(rawConfig) {
+  const config = normalizeDocument(rawConfig)
+
+  const doc = new jsPDF({
+    orientation: config.orientation,
+    unit: "mm",
+    format: "a4",
+  })
+
+  const margin = 12
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+
+  doc.setTextColor(...MAROON)
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(18)
+  doc.text("Arunafeltz", margin, 16)
+
+  doc.setTextColor(...MUTED)
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.text("Cloud POS and Business Monitoring", margin, 21)
+
+  doc.setTextColor(...DARK)
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(14)
+  doc.text(config.title, margin, 31)
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+
+  let y = 38
+
+  const headerMeta = [
+    ...(config.reference
+      ? [["Reference", config.reference]]
+      : []),
+    ...(config.status
+      ? [["Status", config.status]]
+      : []),
+    ...(config.branch
+      ? [["Branch", config.branch]]
+      : []),
+    ...config.meta,
+  ]
+
+  for (const [label, value] of headerMeta) {
+    doc.setTextColor(...MUTED)
+    doc.setFont("helvetica", "bold")
+    doc.text(`${text(label)}:`, margin, y)
+
+    doc.setTextColor(...DARK)
+    doc.setFont("helvetica", "normal")
+
+    const wrapped = doc.splitTextToSize(
+      text(value),
+      pageWidth - margin * 2 - 37,
+    )
+
+    doc.text(wrapped, margin + 37, y)
+
+    y += Math.max(5, wrapped.length * 4)
+  }
+
+  y += 2
+
+  autoTable(doc, {
+    startY: y,
+    head: [config.columns],
+    body: config.rows,
+    theme: "grid",
+    margin: {
+      left: margin,
+      right: margin,
+    },
+    styles: {
+      font: "helvetica",
+      fontSize: 7.5,
+      cellPadding: 2.2,
+      textColor: DARK,
+      lineColor: BORDER,
+      lineWidth: 0.15,
+      overflow: "linebreak",
+      valign: "middle",
+    },
+    headStyles: {
+      fillColor: MAROON,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      lineColor: MAROON,
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+  })
+
+  let cursorY = (doc.lastAutoTable?.finalY || y) + 7
+
+  if (config.totals.length) {
+    const totalLabelX = pageWidth - margin - 55
+    const totalValueX = pageWidth - margin
+
+    for (const [label, value] of config.totals) {
+      if (cursorY > pageHeight - 30) {
+        doc.addPage()
+        cursorY = 18
+      }
+
+      doc.setFontSize(9)
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(...MUTED)
+      doc.text(text(label), totalLabelX, cursorY)
+
+      doc.setTextColor(...DARK)
+      doc.text(text(value), totalValueX, cursorY, {
+        align: "right",
+      })
+
+      cursorY += 5
+    }
+  }
+
+  if (config.notes.length) {
+    cursorY += 4
+
+    for (const note of config.notes) {
+      if (cursorY > pageHeight - 35) {
+        doc.addPage()
+        cursorY = 18
+      }
+
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.setTextColor(...MUTED)
+      doc.text(text(note.label), margin, cursorY)
+
+      cursorY += 4
+
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(...DARK)
+
+      const wrapped = doc.splitTextToSize(
+        text(note.value),
+        pageWidth - margin * 2,
+      )
+
+      doc.text(wrapped, margin, cursorY)
+      cursorY += wrapped.length * 4 + 4
+    }
+  }
+
+  const pageCount = doc.getNumberOfPages()
+
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber)
+
+    doc.setDrawColor(...BORDER)
+    doc.line(
+      margin,
+      pageHeight - 12,
+      pageWidth - margin,
+      pageHeight - 12,
+    )
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7)
+    doc.setTextColor(...MUTED)
+
+    doc.text(
+      `Generated by ${config.generatedBy || "Arunafeltz"} - ${dateTimeText(
+        config.generatedAt,
+      )}`,
+      margin,
+      pageHeight - 7,
+    )
+
+    doc.text(
+      `Page ${pageNumber} of ${pageCount}`,
+      pageWidth - margin,
+      pageHeight - 7,
+      {
+        align: "right",
+      },
+    )
+  }
+
+  doc.save(`${config.filename}.pdf`)
+}
+
+export function printBusinessDocument(rawConfig) {
+  const config = normalizeDocument(rawConfig)
+
+  const popup = window.open(
+    "",
+    "_blank",
+    "width=1100,height=800",
+  )
+
+  if (!popup) {
+    window.alert("Please allow pop-ups to print this document.")
+    return
+  }
+
+  const metaRows = [
+    ...(config.reference
+      ? [["Reference", config.reference]]
+      : []),
+    ...(config.status
+      ? [["Status", config.status]]
+      : []),
+    ...(config.branch
+      ? [["Branch", config.branch]]
+      : []),
+    ...config.meta,
+  ]
+
+  const tableHead = config.columns
+    .map((column) => `<th>${escapeHtml(column)}</th>`)
+    .join("")
+
+  const tableRows = config.rows
+    .map(
+      (row) => `
+        <tr>
+          ${row
+            .map((cell) => `<td>${escapeHtml(cell)}</td>`)
+            .join("")}
+        </tr>
+      `,
+    )
+    .join("")
+
+  const metaHtml = metaRows
+    .map(
+      ([label, value]) => `
+        <div class="meta-row">
+          <strong>${escapeHtml(label)}</strong>
+          <span>${escapeHtml(value)}</span>
+        </div>
+      `,
+    )
+    .join("")
+
+  const totalsHtml = config.totals
+    .map(
+      ([label, value]) => `
+        <div class="total-row">
+          <strong>${escapeHtml(label)}</strong>
+          <strong>${escapeHtml(value)}</strong>
+        </div>
+      `,
+    )
+    .join("")
+
+  const notesHtml = config.notes
+    .map(
+      (note) => `
+        <section class="note">
+          <strong>${escapeHtml(note.label)}</strong>
+          <p>${escapeHtml(note.value)}</p>
+        </section>
+      `,
+    )
+    .join("")
+
+  popup.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(config.title)}</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 14mm;
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #1f2937;
+            font-size: 12px;
+          }
+
+          .company {
+            color: #7a1f2b;
+            font-size: 23px;
+            font-weight: 800;
+          }
+
+          .subtitle {
+            margin-top: 2px;
+            color: #64748b;
+            font-size: 10px;
+          }
+
+          h1 {
+            margin: 18px 0 10px;
+            font-size: 20px;
+          }
+
+          .meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 7px 18px;
+            margin-bottom: 16px;
+          }
+
+          .meta-row {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 8px;
+          }
+
+          .meta-row strong {
+            color: #64748b;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          th {
+            padding: 8px;
+            background: #7a1f2b;
+            color: white;
+            border: 1px solid #7a1f2b;
+            text-align: left;
+            font-size: 10px;
+          }
+
+          td {
+            padding: 7px 8px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+          }
+
+          tr {
+            break-inside: avoid;
+          }
+
+          .totals {
+            width: 310px;
+            margin: 16px 0 0 auto;
+          }
+
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 4px 0;
+          }
+
+          .note {
+            margin-top: 16px;
+          }
+
+          .note strong {
+            color: #64748b;
+          }
+
+          .note p {
+            margin: 4px 0 0;
+            white-space: pre-wrap;
+          }
+
+          footer {
+            margin-top: 24px;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 9px;
+          }
+
+          @media print {
+            button {
+              display: none !important;
+            }
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="company">Arunafeltz</div>
+        <div class="subtitle">Cloud POS and Business Monitoring</div>
+
+        <h1>${escapeHtml(config.title)}</h1>
+
+        <div class="meta">
+          ${metaHtml}
+        </div>
+
+        <table>
+          <thead>
+            <tr>${tableHead}</tr>
+          </thead>
+
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        ${
+          totalsHtml
+            ? `<div class="totals">${totalsHtml}</div>`
+            : ""
+        }
+
+        ${notesHtml}
+
+        <footer>
+          Generated by ${escapeHtml(
+            config.generatedBy || "Arunafeltz",
+          )} -
+          ${escapeHtml(dateTimeText(config.generatedAt))}
+        </footer>
+      </body>
+    </html>
+  `)
+
+  popup.document.close()
+
+  window.setTimeout(() => {
+    popup.focus()
+    popup.print()
+  }, 250)
+}
+
+export function purchaseOrderDocument(order, context = {}) {
+  const lines = Array.isArray(order?.items) ? order.items : []
+
+  let computedSubtotal = 0
+  let computedDiscount = 0
+
+  const rows = lines.map((line) => {
+    const ordered = number(line.quantity)
+    const received = number(line.receivedQuantity)
+    const unitCost = number(line.unitCost)
+    const discount = number(line.discountAmount)
+
+    const gross = ordered * unitCost
+    const lineTotal =
+      line.lineTotal != null
+        ? number(line.lineTotal)
+        : Math.max(0, gross - discount)
+
+    computedSubtotal += gross
+    computedDiscount += discount
+
+    return [
+      text(line.item?.itemCode || "Unlinked"),
+      text(line.description),
+      quantity(ordered),
+      quantity(received),
+      php(unitCost),
+      php(discount),
+      php(lineTotal),
+    ]
+  })
+
+  const subtotal =
+    order?.subtotal != null
+      ? number(order.subtotal)
+      : computedSubtotal
+
+  const totalDiscount =
+    order?.totalDiscount != null
+      ? number(order.totalDiscount)
+      : computedDiscount
+
+  const grandTotal =
+    order?.grandTotal != null
+      ? number(order.grandTotal)
+      : Math.max(0, subtotal - totalDiscount)
+
+  return {
+    title: "Purchase Order",
+    reference: text(order?.poCode),
+    status: text(order?.status),
+    branch: branchText(order?.branch || context.branch),
+    generatedBy: generatedByText(context.generatedBy),
+    filename: `${text(order?.poCode, "Purchase-Order")}_${new Date()
+      .toISOString()
+      .slice(0, 10)}`,
+    meta: [
+      ["Supplier", text(order?.supplierNameSnapshot || order?.supplier?.name)],
+      ["Order date", dateText(order?.orderDate)],
+      ["Expected date", dateText(order?.expectedDate)],
+    ],
+    columns: [
+      "Item Code",
+      "Description",
+      "Ordered",
+      "Received",
+      "Unit Cost",
+      "Discount",
+      "Line Total",
+    ],
+    rows,
+    totals: [
+      ["Subtotal", php(subtotal)],
+      ["Discount", php(totalDiscount)],
+      ["Grand Total", php(grandTotal)],
+    ],
+    notes: [
+      {
+        label: "Notes",
+        value: order?.notes || "",
+      },
+    ],
+  }
+}
+
+export function receivingDocument(receiving, context = {}) {
+  const lines = Array.isArray(receiving?.items)
+    ? receiving.items
+    : []
+
+  let computedSubtotal = 0
+  let computedDiscount = 0
+
+  const rows = lines.map((line) => {
+    const qty = number(line.quantityReceived)
+    const unitCost = number(line.unitCost)
+    const discount = number(line.discountAmount)
+    const gross = qty * unitCost
+
+    const lineTotal =
+      line.lineTotal != null
+        ? number(line.lineTotal)
+        : Math.max(0, gross - discount)
+
+    computedSubtotal += gross
+    computedDiscount += discount
+
+    const serials = Array.isArray(line.serials)
+      ? line.serials
+          .map((serial) => serial.serialNumber)
+          .filter(Boolean)
+          .join(", ")
+      : ""
+
+    return [
+      text(line.item?.itemCode),
+      text(line.item?.itemName || line.description),
+      quantity(qty),
+      php(unitCost),
+      php(discount),
+      text(line.batchCode),
+      dateText(line.expiryDate),
+      serials || "-",
+      php(lineTotal),
+    ]
+  })
+
+  const subtotal =
+    receiving?.subtotal != null
+      ? number(receiving.subtotal)
+      : computedSubtotal
+
+  const totalDiscount =
+    receiving?.totalDiscount != null
+      ? number(receiving.totalDiscount)
+      : computedDiscount
+
+  const grandTotal =
+    receiving?.grandTotal != null
+      ? number(receiving.grandTotal)
+      : Math.max(0, subtotal - totalDiscount)
+
+  return {
+    title: "Purchase Receiving / Delivery",
+    reference: text(receiving?.receivingCode),
+    status: text(receiving?.status),
+    branch: branchText(receiving?.branch || context.branch),
+    generatedBy: generatedByText(context.generatedBy),
+    filename: `${text(
+      receiving?.receivingCode,
+      "Receiving",
+    )}_${new Date().toISOString().slice(0, 10)}`,
+    orientation: "landscape",
+    meta: [
+      ["Supplier", text(receiving?.supplierNameSnapshot)],
+      [
+        "Purchase order",
+        text(receiving?.purchaseOrder?.poCode || "Standalone"),
+      ],
+      ["Receiving date", dateText(receiving?.receivingDate)],
+      ["Delivery no.", text(receiving?.supplierDeliveryNo)],
+      ["Invoice no.", text(receiving?.supplierInvoiceNo)],
+      ["Reference", text(receiving?.referenceNo)],
+    ],
+    columns: [
+      "Item Code",
+      "Item",
+      "Qty",
+      "Unit Cost",
+      "Discount",
+      "Batch",
+      "Expiry",
+      "Serial Number(s)",
+      "Line Total",
+    ],
+    rows,
+    totals: [
+      ["Subtotal", php(subtotal)],
+      ["Discount", php(totalDiscount)],
+      ["Grand Total", php(grandTotal)],
+    ],
+    notes: [
+      {
+        label: "Notes",
+        value: receiving?.notes || "",
+      },
+    ],
+  }
+}
+
+export function inventoryDocument(items, context = {}) {
+  const records = Array.isArray(items) ? items : []
+
+  return {
+    title: "Inventory Stock Report",
+    reference: "",
+    status: "",
+    branch: branchText(context.branch),
+    generatedBy: generatedByText(context.generatedBy),
+    filename: `Inventory_${cleanFilename(
+      branchText(context.branch),
+    )}_${new Date().toISOString().slice(0, 10)}`,
+    orientation: "landscape",
+    meta: Array.isArray(context.filters)
+      ? context.filters
+      : [],
+    columns: [
+      "Item Code",
+      "Product Name",
+      "Category",
+      "Available",
+      "Total In",
+      "Batches",
+      "Serials",
+      "Reorder",
+      "Tracking",
+      "Stock Level",
+      "Branch",
+    ],
+    rows: records.map((item) => [
+      text(item.itemCode),
+      text(item.itemName),
+      text(item.category?.name),
+      quantity(item.quantityAvailable),
+      quantity(item.quantityIn),
+      quantity(item.batchCount),
+      quantity(item.serialCount),
+      quantity(item.reorderLevel),
+      item.isSerialized ? "Serialized" : "Non-serialized",
+      number(item.quantityAvailable) <= 0
+        ? "Out of stock"
+        : item.isLowStock
+          ? "Low stock"
+          : "Stock is okay",
+      text(item.branch?.code || item.branch?.name),
+    ]),
+    totals: [
+      ["Inventory item count", quantity(records.length)],
+      [
+        "Total available units",
+        quantity(
+          records.reduce(
+            (sum, item) =>
+              sum + number(item.quantityAvailable),
+            0,
+          ),
+        ),
+      ],
+    ],
+  }
+}
+
+export function reportDocument({
+  label,
+  columns,
+  records,
+  totals = [],
+  branch,
+  generatedBy,
+  filters = [],
+  filename,
+}) {
+  const safeColumns = Array.isArray(columns) ? columns : []
+  const safeRecords = Array.isArray(records) ? records : []
+
+  return {
+    title: label || "Business Report",
+    branch: branchText(branch),
+    generatedBy: generatedByText(generatedBy),
+    filename:
+      filename ||
+      `${cleanFilename(label || "Report")}_${new Date()
+        .toISOString()
+        .slice(0, 10)}`,
+    orientation:
+      safeColumns.length >= 7 ? "landscape" : "portrait",
+    meta: filters,
+    totals: Array.isArray(totals) ? totals : [],
+    columns: safeColumns.map(([columnLabel]) =>
+      text(columnLabel),
+    ),
+    rows: safeRecords.map((record) =>
+      safeColumns.map(([, accessor]) => {
+        try {
+          return text(accessor(record))
+        } catch {
+          return "-"
+        }
+      }),
+    ),
+  }
+}
+
+export function exportPurchaseOrderPdf(order, context) {
+  exportBusinessPdf(purchaseOrderDocument(order, context))
+}
+
+export function printPurchaseOrder(order, context) {
+  printBusinessDocument(
+    purchaseOrderDocument(order, context),
+  )
+}
+
+export function exportReceivingPdf(receiving, context) {
+  exportBusinessPdf(receivingDocument(receiving, context))
+}
+
+export function printReceiving(receiving, context) {
+  printBusinessDocument(
+    receivingDocument(receiving, context),
+  )
+}
+
+export function exportInventoryPdf(items, context) {
+  exportBusinessPdf(inventoryDocument(items, context))
+}
+
+export function exportReportPdf(options) {
+  exportBusinessPdf(reportDocument(options))
+}
+
+export function printReport(options) {
+  printBusinessDocument(reportDocument(options))
+}
+
