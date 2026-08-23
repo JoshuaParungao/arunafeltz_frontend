@@ -148,20 +148,42 @@ function getApiErrorMessage(error, fallback) {
 }
 
 function getCatalogRows(response) {
-  const result = response?.data || {}
-  return Array.isArray(result.items) ? result.items : []
+  if (Array.isArray(response)) return response
+
+  const result = response || {}
+  return Array.isArray(result.items)
+    ? result.items
+    : Array.isArray(result.data)
+      ? result.data
+      : Array.isArray(result.records)
+        ? result.records
+        : []
 }
 
 function getInventoryRows(response) {
-  const result = response?.data || {}
-  return Array.isArray(result.data) ? result.data : []
+  if (Array.isArray(response)) return response
+
+  const result = response || {}
+  return Array.isArray(result.data)
+    ? result.data
+    : Array.isArray(result.items)
+      ? result.items
+      : Array.isArray(result.records)
+        ? result.records
+        : []
 }
 
 function getSaleListResult(response) {
-  const result = response?.data || {}
+  const result = response || {}
 
   return {
-    rows: Array.isArray(result.data) ? result.data : [],
+    rows: Array.isArray(result.data)
+      ? result.data
+      : Array.isArray(result.items)
+        ? result.items
+        : Array.isArray(result.records)
+          ? result.records
+          : [],
     meta: result.meta || null,
   }
 }

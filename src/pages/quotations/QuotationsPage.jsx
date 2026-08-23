@@ -104,7 +104,7 @@ function formatDate(value) {
 }
 
 function getQuotationRows(response) {
-  const result = response?.data || response || {}
+  const result = response?.data ?? response ?? {}
 
   if (Array.isArray(result)) return result
   if (Array.isArray(result.items)) return result.items
@@ -532,7 +532,7 @@ function QuotationsPage({ selectedBranch, user }) {
         limit: 100,
       })
 
-      const result = response?.data || {}
+      const result = response?.data ?? response ?? {}
       const rows = Array.isArray(result.customers)
         ? result.customers
         : Array.isArray(result.items)
@@ -575,8 +575,14 @@ function QuotationsPage({ selectedBranch, user }) {
         limit: 100,
       })
 
-      const result = response?.data || {}
-      const rows = Array.isArray(result.items) ? result.items : []
+      const result = response?.data ?? response ?? {}
+      const rows = Array.isArray(result.items)
+        ? result.items
+        : Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.records)
+            ? result.records
+            : []
 
       setAvailableItems(rows)
 
@@ -1099,10 +1105,26 @@ function QuotationsPage({ selectedBranch, user }) {
               limit: 100,
             }),
           ])
-          const batchesResult = batchResponse?.data || batchResponse || {}
-          const serialsResult = serialResponse?.data || serialResponse || {}
-          const availableBatches = Array.isArray(batchesResult.data) ? batchesResult.data : []
-          const availableSerials = Array.isArray(serialsResult.data) ? serialsResult.data : []
+          const batchesResult = batchResponse?.data ?? batchResponse ?? {}
+          const serialsResult = serialResponse?.data ?? serialResponse ?? {}
+          const availableBatches = Array.isArray(batchesResult.data)
+            ? batchesResult.data
+            : Array.isArray(batchesResult.items)
+              ? batchesResult.items
+              : Array.isArray(batchesResult.records)
+                ? batchesResult.records
+                : Array.isArray(batchResponse)
+                  ? batchResponse
+                  : []
+          const availableSerials = Array.isArray(serialsResult.data)
+            ? serialsResult.data
+            : Array.isArray(serialsResult.items)
+              ? serialsResult.items
+              : Array.isArray(serialsResult.records)
+                ? serialsResult.records
+                : Array.isArray(serialResponse)
+                  ? serialResponse
+                  : []
           const isSerialized = Boolean(item.item?.isSerialized)
 
           const baseLine = {
@@ -2433,8 +2455,7 @@ function QuotationsPage({ selectedBranch, user }) {
                   Close conversion
                 </button>
               </div>
-
-              {isLoadingConversionStock ? (
+{isLoadingConversionStock ? (
                 <p className="mt-4 text-sm text-[var(--color-muted)]">Loading branch batches and serials...</p>
               ) : null}
 
@@ -2460,43 +2481,67 @@ function QuotationsPage({ selectedBranch, user }) {
                           Service/custom line — no inventory deduction
                         </p>
                       ) : line.isSerialized ? (
-                        <select
-                          className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
-                          onChange={(event) =>
-                            updateConversionLine(line.conversionKey, "serialId", event.target.value)
-                          }
-                          value={line.serialId}
-                        >
-                          <option value="">Select available serial</option>
-                          {(line.availableSerials || []).map((serial) => (
-                            <option
-                              disabled={conversionLines.some(
-                                (otherLine) =>
-                                  otherLine.conversionKey !== line.conversionKey &&
-                                  otherLine.serialId === serial.id,
-                              )}
-                              key={serial.id}
-                              value={serial.id}
-                            >
-                              {serial.serialNumber} • {serial.batch?.batchCode || "No batch"}
+                        <div>
+                          <select
+                            className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-red-50 disabled:text-red-700"
+                            disabled={(line.availableSerials || []).length === 0}
+                            onChange={(event) =>
+                              updateConversionLine(line.conversionKey, "serialId", event.target.value)
+                            }
+                            value={line.serialId}
+                          >
+                            <option value="">
+                              {(line.availableSerials || []).length === 0
+                                ? "⚠️ No available serials in stock"
+                                : "Select available serial"}
                             </option>
-                          ))}
-                        </select>
+                            {(line.availableSerials || []).map((serial) => (
+                              <option
+                                disabled={conversionLines.some(
+                                  (otherLine) =>
+                                    otherLine.conversionKey !== line.conversionKey &&
+                                    otherLine.serialId === serial.id,
+                                )}
+                                key={serial.id}
+                                value={serial.id}
+                              >
+                                {serial.serialNumber} • {serial.batch?.batchCode || "No batch"}
+                              </option>
+                            ))}
+                          </select>
+                          {(line.availableSerials || []).length === 0 ? (
+                            <p className="mt-1 text-xs font-bold text-red-600">
+                              Out of stock: 0 available serials in this branch.
+                            </p>
+                          ) : null}
+                        </div>
                       ) : (
-                        <select
-                          className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
-                          onChange={(event) =>
-                            updateConversionLine(line.conversionKey, "batchId", event.target.value)
-                          }
-                          value={line.batchId}
-                        >
-                          <option value="">Select active batch</option>
-                          {(line.availableBatches || []).map((batch) => (
-                            <option key={batch.id} value={batch.id}>
-                              {batch.batchCode} • {Number(batch.quantityAvailable || 0)} available
+                        <div>
+                          <select
+                            className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-red-50 disabled:text-red-700"
+                            disabled={(line.availableBatches || []).length === 0}
+                            onChange={(event) =>
+                              updateConversionLine(line.conversionKey, "batchId", event.target.value)
+                            }
+                            value={line.batchId}
+                          >
+                            <option value="">
+                              {(line.availableBatches || []).length === 0
+                                ? "⚠️ No stock batches available"
+                                : "Select active batch"}
                             </option>
-                          ))}
-                        </select>
+                            {(line.availableBatches || []).map((batch) => (
+                              <option key={batch.id} value={batch.id}>
+                                {batch.batchCode} • {Number(batch.quantityAvailable || 0)} available
+                              </option>
+                            ))}
+                          </select>
+                          {(line.availableBatches || []).length === 0 ? (
+                            <p className="mt-1 text-xs font-bold text-red-600">
+                              Out of stock: 0 available quantity in this branch.
+                            </p>
+                          ) : null}
+                        </div>
                       )}
                     </div>
                   ))}
