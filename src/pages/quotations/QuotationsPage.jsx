@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import { createPortal } from "react-dom"
 
@@ -17,6 +17,7 @@ import {
   getInventorySerials,
 } from "../../features/inventory/inventory.api"
 import { createSale } from "../../features/sales/sales.api"
+import { generateUUID } from "../../utils/uuid"
 
 const IMMEDIATE_PAYMENT_METHODS = [
   ["CASH", "Cash"],
@@ -50,7 +51,7 @@ const INSTALLMENT_TERMS = [
 ]
 
 function createRequestKey() {
-  return globalThis.crypto.randomUUID()
+  return generateUUID()
 }
 
 function money(value) {

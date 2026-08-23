@@ -18,6 +18,7 @@ import {
   getCreditAccountById,
   getCreditAccounts,
 } from "../../features/credit-accounts/creditAccounts.api";
+import { generateUUID } from "../../utils/uuid";
 
 const TERMS = [
   "STRAIGHT",
@@ -196,7 +197,7 @@ export default function CreditsPage({ selectedBranch, user }) {
       if (collectionRequestRef.current.signature !== requestSignature) {
         collectionRequestRef.current = {
           signature: requestSignature,
-          key: globalThis.crypto.randomUUID(),
+          key: generateUUID(),
         };
       }
 

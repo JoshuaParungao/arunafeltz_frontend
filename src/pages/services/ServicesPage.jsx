@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 
 import { getCustomers } from "../../features/customers/customers.api"
+import { generateUUID } from "../../utils/uuid"
 import {
   cancelServicePayment,
   createServiceJob,
@@ -926,7 +927,7 @@ export default function ServicesPage({ selectedBranch, user }) {
       if (paymentRequestRef.current.signature !== requestSignature) {
         paymentRequestRef.current = {
           signature: requestSignature,
-          key: globalThis.crypto.randomUUID(),
+          key: generateUUID(),
         }
       }
 

@@ -28,6 +28,7 @@ import {
   getInventorySerials,
 } from "../../features/inventory/inventory.api"
 import { getItems } from "../../features/items/items.api"
+import { generateUUID } from "../../utils/uuid"
 import {
   cancelSale,
   createSaleReturn,
@@ -131,7 +132,7 @@ function formatStatus(value) {
 }
 
 function createRequestKey() {
-  return globalThis.crypto.randomUUID()
+  return generateUUID()
 }
 
 function getApiErrorMessage(error, fallback) {
