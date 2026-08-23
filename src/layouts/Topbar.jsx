@@ -1,4 +1,4 @@
-﻿import { Bell, Building2, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react"
+import { Bell, Building2, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react"
 
 import { getRoleLabel } from "../constants/roles"
 
@@ -45,7 +45,7 @@ function Topbar({
             {activeLabel}
           </p>
           <p className="hidden text-xs text-[var(--color-muted)] sm:block">
-            Arunafeltz Cloud POS and Business Monitoring
+            Arunafeltz Computer Cloud POS and Business Monitoring
           </p>
         </div>
 

@@ -341,9 +341,9 @@ function JobOrderPrintCopy({ copyLabel, job }) {
     <section className="job-order-print-copy">
       <header className="jo-print-header">
         <div>
-          <p className="jo-print-brand">ARUNAFELTZ</p>
+          <p className="jo-print-brand">ARUNAFELTZ COMPUTER</p>
           <h1>Services / Job Order</h1>
-          <p>{job.branch?.name || "Arunafeltz branch"}</p>
+          <p>{job.branch?.name || "Arunafeltz Computer branch"}</p>
           <p>{[job.branch?.address, job.branch?.contactNo].filter(Boolean).join(" · ")}</p>
         </div>
         <div className="jo-print-reference">

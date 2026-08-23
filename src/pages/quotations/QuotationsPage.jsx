@@ -157,7 +157,7 @@ function QuotationPrintPreview({ quotation, onClose }) {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--color-maroon)]">
-                  Arunafeltz
+                  Arunafeltz Computer
                 </p>
                 <h1
                   className="mt-2 text-3xl font-black tracking-tight text-[var(--color-text-strong)]"
@@ -166,7 +166,7 @@ function QuotationPrintPreview({ quotation, onClose }) {
                   Customer Quotation
                 </h1>
                 <p className="mt-2 text-sm text-[var(--color-muted)]">
-                  {branch?.name || "Arunafeltz branch"}
+                  {branch?.name || "Arunafeltz Computer branch"}
                   {branch?.code ? ` • ${branch.code}` : ""}
                 </p>
               </div>
@@ -304,7 +304,7 @@ function QuotationPrintPreview({ quotation, onClose }) {
           ) : null}
 
           <footer className="mt-8 border-t border-[var(--color-border)] pt-4 text-center text-xs text-[var(--color-muted)]">
-            Thank you for choosing Arunafeltz. This quotation is subject to the stated validity date.
+            Thank you for choosing Arunafeltz Computer. This quotation is subject to the stated validity date.
           </footer>
         </article>
       </div>

@@ -131,7 +131,7 @@ export default function OwnerDashboardPage({ user, selectedBranch, onNavigate })
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <Badge tone="maroon">Owner/Admin Monitoring</Badge>
-          <h1 className="mt-3 text-2xl font-black tracking-tight text-[var(--color-text-strong)]">Arunafeltz Business Dashboard</h1>
+          <h1 className="mt-3 text-2xl font-black tracking-tight text-[var(--color-text-strong)]">Arunafeltz Computer Business Dashboard</h1>
           <p className="mt-1 text-sm text-[var(--color-muted)]">Live monitoring branch: <span className="font-black text-[var(--color-text-strong)]">{branchCode}</span></p>
         </div>
         <button className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold disabled:opacity-60" disabled={isLoading} onClick={loadDashboard} type="button">{isLoading ? "Refreshing..." : "Refresh dashboard"}</button>

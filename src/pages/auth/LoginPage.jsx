@@ -1,4 +1,4 @@
-﻿import { useState } from "react"
+import { useState } from "react"
 
 import { loginUser } from "../../features/auth/auth.api"
 
@@ -52,60 +52,75 @@ function LoginPage({ onLogin }) {
     <main className="grid min-h-svh place-items-center bg-[var(--color-page)] px-4 py-8">
       <section className="w-full max-w-md rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-card">
         <div>
-          <p className="brand-text text-2xl font-bold text-[var(--color-text-strong)]">
-            Arunafeltz
-          </p>
+          <h1 className="text-2xl font-black text-[var(--color-text-strong)]">
+            Arunafeltz Computer
+          </h1>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
             Cloud POS and Business Monitoring
           </p>
         </div>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <label className="block">
-            <span className="text-sm font-semibold text-[var(--color-text-strong)]">
+        <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+          <div>
+            <label
+              className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]"
+              htmlFor="identifier"
+            >
               Username or email
-            </span>
+            </label>
             <input
               autoComplete="username"
-              className="mt-2 h-12 w-full rounded-2xl border border-[var(--color-border)] px-4 text-sm outline-none transition focus:border-[var(--color-maroon)]"
+              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
+              disabled={isSubmitting}
+              id="identifier"
+              name="identifier"
               onChange={(event) => setIdentifier(event.target.value)}
-              placeholder="superowner"
+              placeholder="Username or email"
+              required
               type="text"
               value={identifier}
             />
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="text-sm font-semibold text-[var(--color-text-strong)]">
+          <div>
+            <label
+              className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]"
+              htmlFor="password"
+            >
               Password
-            </span>
+            </label>
             <input
               autoComplete="current-password"
-              className="mt-2 h-12 w-full rounded-2xl border border-[var(--color-border)] px-4 text-sm outline-none transition focus:border-[var(--color-maroon)]"
+              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
+              disabled={isSubmitting}
+              id="password"
+              name="password"
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter password"
+              placeholder="••••••••••••"
+              required
               type="password"
               value={password}
             />
-          </label>
+          </div>
 
           {errorMessage ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
               {errorMessage}
-            </div>
+            </p>
           ) : null}
 
           <button
-            className="h-12 w-full rounded-2xl bg-[var(--color-maroon)] text-sm font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isLoading}
+            className="w-full rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isSubmitting}
             type="submit"
           >
-            {isLoading ? "Signing in..." : "Sign in"}
+            {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
-        <p className="mt-5 text-xs leading-5 text-[var(--color-muted)]">
-          Use an active Arunafeltz account. Your role and branch determine the workspace you can access.
+        <p className="mt-6 text-xs text-[var(--color-muted)]">
+          Use an active Arunafeltz Computer account. Your role and branch determine the
+          workspace you can access.
         </p>
       </section>
     </main>

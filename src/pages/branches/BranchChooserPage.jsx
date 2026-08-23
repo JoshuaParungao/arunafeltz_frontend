@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { Building2, LogOut, MapPin, Phone } from "lucide-react"
 
 import Card from "../../components/ui/Card"
@@ -44,7 +44,7 @@ function BranchChooserPage({ onSelectBranch, onLogout, user }) {
           <div className="min-w-0">
             <Badge tone="maroon">Branch Selection</Badge>
             <h1 className="brand-text mt-3 text-3xl font-bold tracking-tight text-[var(--color-text-strong)]">
-              Arunafeltz
+              Arunafeltz Computer
             </h1>
             <p className="mt-2 text-sm leading-6 text-[var(--color-muted)]">
               Welcome, {user?.fullName || user?.username || "Super Owner"}. Select a branch to monitor.

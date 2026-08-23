@@ -1,4 +1,4 @@
-﻿import {
+import {
   BarChart3,
   Boxes,
   ClipboardList,
@@ -67,7 +67,7 @@ function Sidebar({
 
         {!isCollapsed ? (
           <div className="min-w-0">
-            <p className="brand-text text-lg font-bold tracking-tight">Arunafeltz</p>
+            <p className="brand-text text-base font-bold tracking-tight">Arunafeltz Computer</p>
             <p className="truncate text-xs text-white/60">Enterprise POS</p>
           </div>
         ) : null}
