@@ -1,6 +1,7 @@
-import { Bell, Building2, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react"
+import { Bell, Building2, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from "lucide-react"
 
 import { getRoleLabel } from "../constants/roles"
+import { useTheme } from "../context/ThemeContext"
 
 function Topbar({
   activeLabel,
@@ -14,6 +15,7 @@ function Topbar({
   isDesktopSidebarCollapsed,
 }) {
   const branchCode = selectedBranch?.code || user?.branch?.code || "ALL"
+  const { resolvedTheme, toggleTheme } = useTheme()
 
   return (
     <header className="z-20 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-page)]/95 px-4 py-3 backdrop-blur md:px-6">
@@ -61,6 +63,20 @@ function Topbar({
             />
           </label>
         </div>
+
+        <button
+          aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="grid size-10 shrink-0 place-items-center rounded-2xl border border-[var(--color-border)] bg-white text-[var(--color-text-strong)] shadow-card transition hover:bg-[var(--color-soft)]"
+          onClick={toggleTheme}
+          title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          type="button"
+        >
+          {resolvedTheme === "dark" ? (
+            <Sun className="size-4 text-amber-400" />
+          ) : (
+            <Moon className="size-4 text-[var(--color-maroon)]" />
+          )}
+        </button>
 
         <button
           aria-label="Notifications are available in Action Alerts"

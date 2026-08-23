@@ -26,6 +26,26 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html.dark,
+[data-theme="dark"] {
+  --color-page: #0b0f17;
+  --color-card: #131b26;
+  --color-soft: #1c2636;
+  --color-border: #243042;
+
+  --color-text: #cbd5e1;
+  --color-text-strong: #f8fafc;
+  --color-muted: #94a3b8;
+
+  --color-sidebar: #0d121b;
+  --color-maroon: #9b2c47;
+  --color-maroon-hover: #b83a58;
+  --color-maroon-soft: #2e141f;
+
+  color: var(--color-text);
+  background: var(--color-page);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -96,6 +116,35 @@ a {
 
 .shadow-soft {
   box-shadow: 0 16px 35px rgba(122, 31, 43, 0.22);
+}
+
+html.dark .bg-white:not(.quotation-print-document):not(.job-order-print-document):not(.sale-receipt-print-document),
+[data-theme="dark"] .bg-white:not(.quotation-print-document):not(.job-order-print-document):not(.sale-receipt-print-document) {
+  background-color: var(--color-card) !important;
+  color: var(--color-text-strong);
+}
+
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+html.dark select,
+html.dark textarea,
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: var(--color-card);
+  color: var(--color-text-strong);
+  border-color: var(--color-border);
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder,
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--color-muted);
+}
+
+html.dark .shadow-card,
+[data-theme="dark"] .shadow-card {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .quotation-print-overlay {
