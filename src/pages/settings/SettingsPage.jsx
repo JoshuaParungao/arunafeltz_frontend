@@ -340,13 +340,13 @@ function ReceiptBusinessNameForm({ setting, onSaved, canManageSettings = false }
 
 function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
   const [values, setValues] = useState({
-    STRAIGHT: 0,
-    MONTH_3: 5,
-    MONTH_6: 10,
-    MONTH_9: 15,
-    MONTH_12: 20,
-    MONTH_18: 25,
-    MONTH_24: 30,
+    STRAIGHT: 0.96,
+    MONTH_3: 0.96,
+    MONTH_6: 0.935,
+    MONTH_9: 0.905,
+    MONTH_12: 0.875,
+    MONTH_18: 0.815,
+    MONTH_24: 0.755,
   })
   const [message, setMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
@@ -367,13 +367,13 @@ function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
 
   const handleReset = () => {
     const currentValue = setting?.value && typeof setting.value === "object" ? setting.value : {
-      STRAIGHT: 0,
-      MONTH_3: 5,
-      MONTH_6: 10,
-      MONTH_9: 15,
-      MONTH_12: 20,
-      MONTH_18: 25,
-      MONTH_24: 30,
+      STRAIGHT: 0.96,
+      MONTH_3: 0.96,
+      MONTH_6: 0.935,
+      MONTH_9: 0.905,
+      MONTH_12: 0.875,
+      MONTH_18: 0.815,
+      MONTH_24: 0.755,
     }
     setValues(currentValue)
     setMessage("")
