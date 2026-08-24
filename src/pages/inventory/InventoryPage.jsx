@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { AlertCircle, PackageSearch, RefreshCw, Search } from "lucide-react"
 import { useCallback } from "react"
 
@@ -1009,23 +1009,24 @@ export default function InventoryPage({ selectedBranch, user }) {
       </section>
 
       {isBulkRequestOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-xl">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col rounded-3xl border border-[var(--color-border)] bg-white shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="shrink-0 flex items-center justify-between border-b border-[var(--color-border)] p-4 sm:p-5 bg-white">
+              <div className="min-w-0 pr-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
                   Stock request
                 </p>
-                <h3 className="mt-1 text-xl font-black text-[var(--color-text-strong)]">
+                <h3 className="text-lg sm:text-xl font-black text-[var(--color-text-strong)] truncate">
                   Bulk stock request
                 </h3>
-                <p className="mt-1 text-sm font-semibold text-[var(--color-muted)]">
+                <p className="hidden sm:block text-xs sm:text-sm font-medium text-[var(--color-muted)]">
                   Choose multiple products from the viewed branch and send one request.
                 </p>
               </div>
 
               <button
-                className="rounded-2xl border border-[var(--color-border)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                className="shrink-0 rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-xs sm:text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
                 onClick={() => {
                   setIsBulkRequestOpen(false)
                   setRequestSourceBranchId("")
@@ -1042,216 +1043,241 @@ export default function InventoryPage({ selectedBranch, user }) {
               </button>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-xs font-black uppercase text-[var(--color-muted)]">Source branch</span>
-                <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold"
-                  onChange={(event) => {
-                    setRequestSourceBranchId(event.target.value)
-                    setBulkRequestItems([])
-                    setRequestMessage("")
-                  }}
-                  value={requestSourceBranchId}
-                >
-                  {requestSourceOptions.map((branch) => <option key={branch.id} value={branch.id}>{branch.code} - {branch.name}</option>)}
-                </select>
-              </label>
-              <div className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold text-[var(--color-muted)]">
-                Destination: {selectedBranch?.code || selectedBranch?.name || "Your branch"}
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-xs font-black uppercase text-[var(--color-muted)]">Source branch</span>
+                  <select
+                    className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 sm:py-3 text-sm font-bold text-[var(--color-text-strong)]"
+                    onChange={(event) => {
+                      setRequestSourceBranchId(event.target.value)
+                      setBulkRequestItems([])
+                      setRequestMessage("")
+                    }}
+                    value={requestSourceBranchId}
+                  >
+                    {requestSourceOptions.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.code} - {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-3.5 text-sm font-bold text-[var(--color-muted)] flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase text-[var(--color-muted)] block">Destination</span>
+                    <span className="text-sm font-bold text-[var(--color-text-strong)]">
+                      {selectedBranch?.code || selectedBranch?.name || "Your branch"}
+                    </span>
+                  </div>
+                  <span className="rounded-full bg-blue-100 text-blue-800 text-[10px] font-black px-2 py-0.5">Target</span>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-xs font-black uppercase text-[var(--color-muted)]">
-                  Fulfillment method
-                </span>
-                <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold"
-                  disabled={isRequesting}
-                  onChange={(event) => {
-                    const method = event.target.value
-                    setRequestFulfillmentMethod(method)
-                    if (method === "PICKUP") {
-                      setRequestDeliveryCharge("0")
-                    }
-                    setRequestMessage("")
-                  }}
-                  value={requestFulfillmentMethod}
-                >
-                  <option value="PICKUP">Pickup</option>
-                  <option value="DELIVERY">Delivery</option>
-                </select>
-              </label>
-
-              {requestFulfillmentMethod === "DELIVERY" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-xs font-black uppercase text-[var(--color-muted)]">
-                    Delivery charge
+                    Fulfillment method
                   </span>
-                  <input
-                    className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold"
+                  <select
+                    className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 sm:py-3 text-sm font-bold text-[var(--color-text-strong)]"
                     disabled={isRequesting}
-                    min="0"
-                    onChange={(event) => setRequestDeliveryCharge(event.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    type="number"
-                    value={requestDeliveryCharge}
-                  />
+                    onChange={(event) => {
+                      const method = event.target.value
+                      setRequestFulfillmentMethod(method)
+                      if (method === "PICKUP") {
+                        setRequestDeliveryCharge("0")
+                      }
+                      setRequestMessage("")
+                    }}
+                    value={requestFulfillmentMethod}
+                  >
+                    <option value="PICKUP">Pickup</option>
+                    <option value="DELIVERY">Delivery</option>
+                  </select>
                 </label>
-              ) : (
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold text-[var(--color-muted)]">
-                  Pickup - no delivery charge.
-                </div>
-              )}
-            </div>
 
-            <div className="mt-5 grid min-h-0 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-              <section className="min-h-0 rounded-3xl border border-[var(--color-border)] p-4">
-                <div className="relative">
-                  <Search
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]"
-                    size={18}
-                  />
-                  <input
-                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-11 pr-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-                    onChange={(event) => setBulkSearchText(event.target.value)}
-                    placeholder="Search item code, item name, brand, or model"
-                    value={bulkSearchText}
-                  />
-                </div>
+                {requestFulfillmentMethod === "DELIVERY" ? (
+                  <label className="block">
+                    <span className="text-xs font-black uppercase text-[var(--color-muted)]">
+                      Delivery charge (₱)
+                    </span>
+                    <input
+                      className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 sm:py-3 text-sm font-bold text-[var(--color-text-strong)]"
+                      disabled={isRequesting}
+                      min="0"
+                      onChange={(event) => setRequestDeliveryCharge(event.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                      type="number"
+                      value={requestDeliveryCharge}
+                    />
+                  </label>
+                ) : (
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-3.5 text-sm font-semibold text-[var(--color-muted)] flex items-center">
+                    Pickup — no delivery charge.
+                  </div>
+                )}
+              </div>
 
-                <div className="mt-4 max-h-[48vh] space-y-3 overflow-y-auto pr-1">
-                  {isLoadingRequestCatalog ? (
-                    <div className="rounded-2xl bg-[var(--color-soft)] p-5 text-sm font-bold text-[var(--color-muted)]">Loading requestable stock...</div>
-                  ) : filteredBulkItems.length > 0 ? (
-                    filteredBulkItems.map((item) => (
-                      <article
-                        className="rounded-2xl border border-[var(--color-border)] bg-white p-4"
-                        key={item.id}
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="font-black text-[var(--color-text-strong)]">
-                              {item.itemName}
-                            </p>
-                            <p className="mt-1 text-xs font-bold text-[var(--color-muted)]">
-                              {item.itemCode}
-                            </p>
-                            <p className="mt-1 text-xs text-[var(--color-muted)]">
-                              {[item.brand, item.modelName].filter(Boolean).join(" â€¢ ") || "No brand/model"}
-                            </p>
+              <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] items-start pt-2">
+                {/* Available Stock List */}
+                <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-soft)]/40 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-wide text-[var(--color-muted)]">
+                      Available Branch Stock
+                    </p>
+                    <span className="text-xs font-bold text-[var(--color-muted)]">
+                      {filteredBulkItems.length} found
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]"
+                      size={18}
+                    />
+                    <input
+                      className="w-full rounded-2xl border border-[var(--color-border)] bg-white py-2.5 pl-10 pr-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
+                      onChange={(event) => setBulkSearchText(event.target.value)}
+                      placeholder="Search item code, name, or brand..."
+                      value={bulkSearchText}
+                    />
+                  </div>
+
+                  <div className="max-h-[260px] sm:max-h-[320px] lg:max-h-[380px] space-y-2.5 overflow-y-auto pr-1">
+                    {isLoadingRequestCatalog ? (
+                      <div className="rounded-2xl bg-white p-5 text-center text-sm font-bold text-[var(--color-muted)] shadow-sm">
+                        Loading requestable stock...
+                      </div>
+                    ) : filteredBulkItems.length > 0 ? (
+                      filteredBulkItems.map((item) => (
+                        <article
+                          className="rounded-2xl border border-[var(--color-border)] bg-white p-3.5 shadow-sm transition hover:border-[var(--color-maroon)]"
+                          key={item.id}
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm text-[var(--color-text-strong)] leading-snug">
+                                {item.itemName}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-mono font-bold text-[var(--color-muted)]">
+                                  {item.itemCode}
+                                </span>
+                                <span className="text-[11px] text-[var(--color-muted)]">
+                                  {[item.brand, item.modelName].filter(Boolean).join(" • ")}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border)]">
+                              <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                                Avail: {formatNumber(item.quantityAvailable)}
+                              </span>
+                              <button
+                                className="rounded-xl bg-[#7A1F2B] px-3.5 py-1.5 text-xs font-black text-white shadow-soft transition hover:bg-[#5C1720] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:opacity-60"
+                                disabled={Number(item.quantityAvailable || 0) <= 0}
+                                onClick={() => addBulkRequestItem(item)}
+                                type="button"
+                              >
+                                + Add
+                              </button>
+                            </div>
                           </div>
+                        </article>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl bg-white p-5 text-center text-sm font-bold text-[var(--color-muted)] shadow-sm">
+                        No products found.
+                      </div>
+                    )}
+                  </div>
+                </section>
 
-                          <div className="flex flex-col gap-2 text-sm font-bold text-[var(--color-text-strong)] sm:items-end">
-                            <span>
-                              Available: {formatNumber(item.quantityAvailable)}
-                            </span>
+                {/* Selected Products Cart */}
+                <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 space-y-3 shadow-card">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-[var(--color-muted)]">
+                        Request list
+                      </p>
+                      <h4 className="text-base font-black text-[var(--color-text-strong)]">
+                        Selected products
+                      </h4>
+                    </div>
+                    <span className="rounded-full bg-red-100 text-[#7A1F2B] px-2.5 py-1 text-xs font-black">
+                      {bulkRequestItems.length} selected
+                    </span>
+                  </div>
+
+                  {requestMessage ? (
+                    <p className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-sm font-black text-emerald-800">
+                      {requestMessage}
+                    </p>
+                  ) : null}
+
+                  <div className="max-h-[220px] sm:max-h-[280px] lg:max-h-[320px] space-y-2.5 overflow-y-auto pr-1">
+                    {bulkRequestItems.length > 0 ? (
+                      bulkRequestItems.map((item) => (
+                        <article
+                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/60 p-3.5"
+                          key={item.id}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm text-[var(--color-text-strong)] leading-tight truncate">
+                                {item.itemName}
+                              </p>
+                              <p className="mt-0.5 text-xs text-[var(--color-muted)]">
+                                Code: {item.itemCode} • Available: {formatNumber(item.availableQuantity)}
+                              </p>
+                            </div>
+
                             <button
-                              className="rounded-2xl border border-[#7A1F2B] bg-white px-4 py-2 text-xs font-black text-[#7A1F2B] transition hover:bg-[#F4F1EC] disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:opacity-60"
-                              disabled={Number(item.quantityAvailable || 0) <= 0}
-                              onClick={() => addBulkRequestItem(item)}
+                              className="shrink-0 rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-black text-red-700 hover:bg-red-50"
+                              onClick={() => removeBulkRequestItem(item.id)}
                               type="button"
                             >
-                              Add
+                              Remove
                             </button>
                           </div>
-                        </div>
-                      </article>
-                    ))
-                  ) : (
-                    <div className="rounded-2xl bg-[var(--color-soft)] p-5 text-sm font-bold text-[var(--color-muted)]">
-                      No products found.
-                    </div>
-                  )}
-                </div>
-              </section>
 
-              <section className="flex min-h-0 flex-col rounded-3xl border border-[var(--color-border)] p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                  Request list
-                </p>
-                <h4 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
-                  Selected products
-                </h4>
-
-                <div className="mt-4 rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold text-[var(--color-muted)]">
-                  {bulkRequestItems.length} product(s) selected
-                </div>
-
-                <button
-                  className="mt-3 w-full rounded-2xl border-2 border-[#7A1F2B] bg-white px-5 py-3 text-sm font-black text-[#7A1F2B] shadow-sm transition hover:bg-[#F4F1EC] disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:opacity-70"
-                  disabled={isRequesting || bulkRequestItems.length === 0}
-                  onClick={submitBulkStockRequest}
-                  type="button"
-                >
-                  {isRequesting ? "Sending..." : "Send bulk request"}
-                </button>
-
-                {requestMessage ? (
-                  <p className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">
-                    {requestMessage}
-                  </p>
-                ) : null}
-
-                <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-                  {bulkRequestItems.length > 0 ? (
-                    bulkRequestItems.map((item) => (
-                      <article
-                        className="rounded-2xl border border-[var(--color-border)] bg-white p-4"
-                        key={item.id}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-black text-[var(--color-text-strong)]">
-                              {item.itemName}
-                            </p>
-                            <p className="mt-1 text-xs font-bold text-[var(--color-muted)]">
-                              {item.itemCode}
-                            </p>
-                            <p className="mt-1 text-xs text-[var(--color-muted)]">
-                              Available: {formatNumber(item.availableQuantity)}
-                            </p>
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <span className="text-xs font-bold text-[var(--color-muted)] uppercase">
+                              Quantity:
+                            </span>
+                            <input
+                              className="w-24 rounded-xl border border-[var(--color-border)] bg-white px-3 py-1.5 text-sm font-black text-[var(--color-text-strong)] text-center outline-none focus:border-[#7A1F2B]"
+                              max={item.availableQuantity}
+                              min="1"
+                              onChange={(event) =>
+                                updateBulkRequestQuantity(item.id, event.target.value)
+                              }
+                              type="number"
+                              value={item.quantity}
+                            />
                           </div>
+                        </article>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-6 text-center text-sm font-semibold text-[var(--color-muted)]">
+                        Selected items will appear here. Click "+ Add" from the available list.
+                      </div>
+                    )}
+                  </div>
 
-                          <button
-                            className="rounded-xl border border-red-200 px-3 py-2 text-xs font-black text-red-700 transition hover:bg-red-50"
-                            onClick={() => removeBulkRequestItem(item.id)}
-                            type="button"
-                          >
-                            Remove
-                          </button>
-                        </div>
-
-                        <label className="mt-4 block">
-                          <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                            Quantity
-                          </span>
-                          <input
-                            className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-                            max={item.availableQuantity}
-                            min="1"
-                            onChange={(event) =>
-                              updateBulkRequestQuantity(item.id, event.target.value)
-                            }
-                            type="number"
-                            value={item.quantity}
-                          />
-                        </label>
-
-                      </article>
-                    ))
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-5 text-sm font-semibold text-[var(--color-muted)]">
-                      Selected items will appear here.
-                    </div>
-                  )}
-                </div>
-
-
-              </section>
+                  <button
+                    className="w-full rounded-2xl bg-[#7A1F2B] px-5 py-3 text-sm font-black text-white shadow-soft transition hover:bg-[#5C1720] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:opacity-60"
+                    disabled={isRequesting || bulkRequestItems.length === 0}
+                    onClick={submitBulkStockRequest}
+                    type="button"
+                  >
+                    {isRequesting ? "Sending..." : `Send bulk request (${bulkRequestItems.length})`}
+                  </button>
+                </section>
+              </div>
             </div>
           </div>
         </div>
