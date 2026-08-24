@@ -1,4 +1,4 @@
-﻿import apiClient from "../../lib/apiClient"
+import apiClient from "../../lib/apiClient"
 
 export async function getSettings() {
   const response = await apiClient.get("/settings")
@@ -6,7 +6,15 @@ export async function getSettings() {
 }
 
 export async function updateSettingByScopeKey(scopeKey, payload) {
-  const encodedScopeKey = encodeURIComponent(scopeKey)
-  const response = await apiClient.patch(`/settings/scope/${encodedScopeKey}`, payload)
-  return response.data
+  const cleanKey = String(scopeKey || "").replace(/^GLOBAL:/i, "").trim()
+  try {
+    const response = await apiClient.patch(`/settings/scope/${cleanKey}`, payload)
+    return response.data
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      const fallbackResponse = await apiClient.patch(`/settings/${cleanKey}`, payload)
+      return fallbackResponse.data
+    }
+    throw error
+  }
 }
