@@ -468,19 +468,18 @@ function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
               <span className="text-sm font-bold text-[var(--color-text-strong)]">
                 {term.label}
               </span>
-              <div className="relative mt-2">
+              <div className="mt-2">
                 <input
-                  className="h-12 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 pr-10 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
+                  className="h-12 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
                   disabled={!canManageSettings || isSaving}
-                  min="0"
+                  inputMode="decimal"
+                  min="0.0001"
                   onChange={(event) => handleChange(term.key, event.target.value)}
-                  step="0.01"
+                  placeholder="e.g. 0.755"
+                  step="any"
                   type="number"
                   value={values[term.key] ?? ""}
                 />
-                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-bold text-[var(--color-muted)]">
-                  %
-                </span>
               </div>
             </label>
           ))}
