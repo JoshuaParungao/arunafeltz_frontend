@@ -238,7 +238,8 @@ function ReceiptBusinessNameForm({ setting, onSaved, canManageSettings = false }
     setIsSaving(true)
 
     try {
-      const response = await updateSettingByScopeKey(setting.scopeKey, {
+      const scopeKey = setting?.scopeKey || "GLOBAL:receipt.business_name"
+      const response = await updateSettingByScopeKey(scopeKey, {
         value: trimmedValue,
       })
 
@@ -259,8 +260,6 @@ function ReceiptBusinessNameForm({ setting, onSaved, canManageSettings = false }
       setIsSaving(false)
     }
   }
-
-  if (!setting) return null
 
   return (
     <Card className="border-[var(--color-maroon)] ring-2 ring-[var(--color-maroon-soft)]">
@@ -286,7 +285,7 @@ function ReceiptBusinessNameForm({ setting, onSaved, canManageSettings = false }
             Business name
           </span>
           <input
-            className="mt-2 h-12 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
+            className="mt-2 h-12 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
             disabled={!canManageSettings || isSaving}
             onChange={(event) => setValue(event.target.value)}
             type="text"
@@ -296,7 +295,7 @@ function ReceiptBusinessNameForm({ setting, onSaved, canManageSettings = false }
 
         {!canManageSettings ? (
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-muted)]">
-            Only Super Owner can change this setting. You can still view the current value.
+            Only Super Owner or Admin can change this setting.
           </div>
         ) : null}
 
@@ -322,10 +321,10 @@ function ReceiptBusinessNameForm({ setting, onSaved, canManageSettings = false }
           </button>
 
           <button
-            className="h-12 rounded-2xl border border-[var(--color-border)] bg-white px-5 text-sm font-bold text-[var(--color-text-strong)] shadow-card transition hover:bg-[var(--color-soft)]"
+            className="h-12 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 text-sm font-bold text-[var(--color-text-strong)] shadow-card transition hover:bg-[var(--color-soft)]"
             disabled={isSaving}
             onClick={() => {
-              setValue(setting.value || "")
+              setValue(setting?.value || "")
               setMessage("")
               setErrorMessage("")
             }}
@@ -340,19 +339,24 @@ function ReceiptBusinessNameForm({ setting, onSaved, canManageSettings = false }
 }
 
 function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
-  const [values, setValues] = useState({})
+  const [values, setValues] = useState({
+    STRAIGHT: 0,
+    MONTH_3: 5,
+    MONTH_6: 10,
+    MONTH_9: 15,
+    MONTH_12: 20,
+    MONTH_18: 25,
+    MONTH_24: 30,
+  })
   const [message, setMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    const currentValue = setting?.value && typeof setting.value === "object" ? setting.value : {}
-    // Keep the editable draft aligned with the latest saved setting.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setValues(currentValue)
+    if (setting?.value && typeof setting.value === "object") {
+      setValues(setting.value)
+    }
   }, [setting])
-
-  if (!setting) return null
 
   const handleChange = (termKey, inputValue) => {
     setValues((currentValues) => ({
@@ -362,7 +366,15 @@ function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
   }
 
   const handleReset = () => {
-    const currentValue = setting?.value && typeof setting.value === "object" ? setting.value : {}
+    const currentValue = setting?.value && typeof setting.value === "object" ? setting.value : {
+      STRAIGHT: 0,
+      MONTH_3: 5,
+      MONTH_6: 10,
+      MONTH_9: 15,
+      MONTH_12: 20,
+      MONTH_18: 25,
+      MONTH_24: 30,
+    }
     setValues(currentValue)
     setMessage("")
     setErrorMessage("")
@@ -397,7 +409,7 @@ function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
       nextValue[term.key] = numericValue
     }
 
-    const oldValue = JSON.stringify(setting.value)
+    const oldValue = JSON.stringify(setting?.value || {})
     const newValue = JSON.stringify(nextValue)
 
     if (oldValue === newValue) {
@@ -408,7 +420,8 @@ function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
     setIsSaving(true)
 
     try {
-      const response = await updateSettingByScopeKey(setting.scopeKey, {
+      const scopeKey = setting?.scopeKey || "GLOBAL:installment.term_basis"
+      const response = await updateSettingByScopeKey(scopeKey, {
         value: nextValue,
       })
 
@@ -439,42 +452,43 @@ function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
             Installment / Interest Rates
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--color-muted)]">
-            These rates are used for installment or credit computations. Staff can only select a term.
+            Owner and admin configured terms and percentages. Sales staff choose from these rates.
           </p>
         </div>
 
         <div className="rounded-2xl bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-muted)]">
-          {canManageSettings ? "Save carefully" : "Viewing only"}
+          {canManageSettings ? "Configure terms" : "Viewing only"}
         </div>
       </div>
 
       <form className="mt-5 space-y-4" onSubmit={handleSave}>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {INSTALLMENT_TERMS.map((term) => (
-            <label
-              className="block rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4"
-              key={term.key}
-            >
+            <label className="block" key={term.key}>
               <span className="text-sm font-bold text-[var(--color-text-strong)]">
                 {term.label}
               </span>
-              <input
-                className="mt-2 h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm font-bold outline-none transition focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
-                disabled={!canManageSettings || isSaving}
-                inputMode="decimal"
-                min="0.0001"
-                onChange={(event) => handleChange(term.key, event.target.value)}
-                step="any"
-                type="number"
-                value={values[term.key] ?? ""}
-              />
+              <div className="relative mt-2">
+                <input
+                  className="h-12 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 pr-10 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
+                  disabled={!canManageSettings || isSaving}
+                  min="0"
+                  onChange={(event) => handleChange(term.key, event.target.value)}
+                  step="0.01"
+                  type="number"
+                  value={values[term.key] ?? ""}
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-bold text-[var(--color-muted)]">
+                  %
+                </span>
+              </div>
             </label>
           ))}
         </div>
 
         {!canManageSettings ? (
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-muted)]">
-            Only Super Owner can change installment rates. You can still view the current values.
+            Only Super Owner or Admin can change installment rates.
           </div>
         ) : null}
 
@@ -500,7 +514,7 @@ function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
           </button>
 
           <button
-            className="h-12 rounded-2xl border border-[var(--color-border)] bg-white px-5 text-sm font-bold text-[var(--color-text-strong)] shadow-card transition hover:bg-[var(--color-soft)]"
+            className="h-12 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 text-sm font-bold text-[var(--color-text-strong)] shadow-card transition hover:bg-[var(--color-soft)]"
             disabled={isSaving}
             onClick={handleReset}
             type="button"
@@ -514,9 +528,7 @@ function InstallmentRatesForm({ setting, onSaved, canManageSettings = false }) {
 }
 
 function SystemPreferencesDisplay({ setting }) {
-  if (!setting) return null
-
-  const isEnabled = Boolean(setting.value)
+  const isEnabled = Boolean(setting?.value)
 
   return (
     <Card className="border-[var(--color-border)]">
@@ -560,9 +572,18 @@ function SystemPreferencesDisplay({ setting }) {
   )
 }
 function DocumentNumberingDisplay({ setting }) {
-  if (!setting) return null
+  const defaultNumbering = {
+    receipt: { label: "Sales Receipt", prefix: "RCPT" },
+    quotation: { label: "Quotation", prefix: "QT" },
+    service: { label: "Service Job", prefix: "SVC" },
+    servicePayment: { label: "Service Payment", prefix: "SVCPAY" },
+    warranty: { label: "Warranty Claim", prefix: "WTY" },
+    transfer: { label: "Stock Transfer", prefix: "TR" },
+    purchaseOrder: { label: "Purchase Order", prefix: "PO" },
+    receiving: { label: "Purchase Receiving", prefix: "REC" },
+  }
 
-  const numbering = setting.value && typeof setting.value === "object" ? setting.value : {}
+  const numbering = setting?.value && typeof setting.value === "object" ? setting.value : defaultNumbering
 
   const rows = Object.entries(numbering).map(([key, value]) => {
     const prefix = value?.prefix || "-"
@@ -604,7 +625,7 @@ function DocumentNumberingDisplay({ setting }) {
       </div>
 
       <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-        These are the current numbering examples used by the system. Editing will be added only after the numbering rules are fully connected.
+        These are the current numbering examples used by the system.
       </div>
 
       <div className="mt-5 grid gap-3 xl:grid-cols-2">
@@ -624,7 +645,7 @@ function DocumentNumberingDisplay({ setting }) {
               <Badge tone="gray">View only</Badge>
             </div>
 
-            <div className="mt-3 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[var(--color-text-strong)]">
+            <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-strong)]">
               Example: {row.sample}
             </div>
           </div>
@@ -716,10 +737,8 @@ function CashBoxRulesForm({
     return () => window.clearTimeout(timeoutId)
   }, [canManageSettings, refreshCustodianOptions])
 
-  if (!defaultPaymentStatusSetting || !requireHandoverSetting) return null
-
   const defaultPaymentStatus = formatReadableText(
-    String(defaultPaymentStatusSetting.value || ""),
+    String(defaultPaymentStatusSetting?.value || "PENDING_HANDOVER"),
   )
 
   const lockedRules = [
@@ -802,7 +821,7 @@ function CashBoxRulesForm({
 
     if (
       cleanedValue ===
-      Boolean(requireHandoverSetting.value)
+      Boolean(requireHandoverSetting?.value)
     ) {
       setMessage("No changes to save.")
       return
@@ -811,8 +830,9 @@ function CashBoxRulesForm({
     setIsSaving(true)
 
     try {
+      const scopeKey = requireHandoverSetting?.scopeKey || "GLOBAL:cash_box.require_handover_confirmation"
       const response = await updateSettingByScopeKey(
-        requireHandoverSetting.scopeKey,
+        scopeKey,
         {
           value: cleanedValue,
         },
@@ -1314,8 +1334,6 @@ function ServiceRulesForm({ setting, onSaved, canManageSettings = false }) {
     }
   }, [setting])
 
-  if (!setting) return null
-
   const serviceRules = [
     {
       key: "requireCustomer",
@@ -1371,17 +1389,16 @@ function ServiceRulesForm({ setting, onSaved, canManageSettings = false }) {
   }
 
   const handleReset = () => {
-    if (setting?.value && typeof setting.value === "object") {
-      setRules({
-        ...SERVICE_DEFAULT_RULES,
-        ...setting.value,
-        requireFinalChargeOnCompletion: true,
-        requireCancellationReason: true,
-        allowPaymentOnlyWhenCompleted: true,
-        requireExactPaymentAmount: true,
-      })
-    }
+    const currentValue = setting?.value && typeof setting.value === "object" ? {
+      ...SERVICE_DEFAULT_RULES,
+      ...setting.value,
+      requireFinalChargeOnCompletion: true,
+      requireCancellationReason: true,
+      allowPaymentOnlyWhenCompleted: true,
+      requireExactPaymentAmount: true,
+    } : SERVICE_DEFAULT_RULES
 
+    setRules(currentValue)
     setMessage("")
     setErrorMessage("")
   }
@@ -1391,7 +1408,7 @@ function ServiceRulesForm({ setting, onSaved, canManageSettings = false }) {
     setErrorMessage("")
 
     if (!canManageSettings) {
-      setErrorMessage("Only Super Owner can change service rules.")
+      setErrorMessage("Only Super Owner or Admin can change service rules.")
       return
     }
 
@@ -1406,7 +1423,7 @@ function ServiceRulesForm({ setting, onSaved, canManageSettings = false }) {
 
     const oldValue = JSON.stringify({
       ...SERVICE_DEFAULT_RULES,
-      ...setting.value,
+      ...(setting?.value || {}),
       requireFinalChargeOnCompletion: true,
       requireCancellationReason: true,
       allowPaymentOnlyWhenCompleted: true,
@@ -1422,7 +1439,8 @@ function ServiceRulesForm({ setting, onSaved, canManageSettings = false }) {
     setIsSaving(true)
 
     try {
-      const response = await updateSettingByScopeKey(setting.scopeKey, {
+      const scopeKey = setting?.scopeKey || "GLOBAL:service.rules"
+      const response = await updateSettingByScopeKey(scopeKey, {
         value: cleanedRules,
       })
 
@@ -1551,16 +1569,12 @@ function WarrantyRulesForm({
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    // Keep the editable draft aligned with the latest saved settings.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setValues({
-      majorPartsMonths: majorPartsSetting?.value ?? "",
-      accessoriesDays: accessoriesSetting?.value ?? "",
-      outrightReplacementDays: outrightReplacementSetting?.value ?? "",
+      majorPartsMonths: majorPartsSetting?.value ?? 12,
+      accessoriesDays: accessoriesSetting?.value ?? 7,
+      outrightReplacementDays: outrightReplacementSetting?.value ?? 7,
     })
   }, [majorPartsSetting, accessoriesSetting, outrightReplacementSetting])
-
-  if (!majorPartsSetting || !accessoriesSetting || !outrightReplacementSetting) return null
 
   const handleChange = (key, value) => {
     if (!canManageSettings) return
@@ -1575,9 +1589,9 @@ function WarrantyRulesForm({
 
   const handleReset = () => {
     setValues({
-      majorPartsMonths: majorPartsSetting?.value ?? "",
-      accessoriesDays: accessoriesSetting?.value ?? "",
-      outrightReplacementDays: outrightReplacementSetting?.value ?? "",
+      majorPartsMonths: majorPartsSetting?.value ?? 12,
+      accessoriesDays: accessoriesSetting?.value ?? 7,
+      outrightReplacementDays: outrightReplacementSetting?.value ?? 7,
     })
     setMessage("")
     setErrorMessage("")
@@ -1588,7 +1602,7 @@ function WarrantyRulesForm({
     setErrorMessage("")
 
     if (!canManageSettings) {
-      setErrorMessage("Only Super Owner can change warranty rules.")
+      setErrorMessage("Only Super Owner or Admin can change warranty rules.")
       return
     }
 
@@ -1608,9 +1622,9 @@ function WarrantyRulesForm({
     }
 
     const noChanges =
-      cleanedValues.majorPartsMonths === Number(majorPartsSetting.value) &&
-      cleanedValues.accessoriesDays === Number(accessoriesSetting.value) &&
-      cleanedValues.outrightReplacementDays === Number(outrightReplacementSetting.value)
+      cleanedValues.majorPartsMonths === Number(majorPartsSetting?.value) &&
+      cleanedValues.accessoriesDays === Number(accessoriesSetting?.value) &&
+      cleanedValues.outrightReplacementDays === Number(outrightReplacementSetting?.value)
 
     if (noChanges) {
       setMessage("No changes to save.")
@@ -1622,25 +1636,28 @@ function WarrantyRulesForm({
     try {
       const updates = []
 
-      if (cleanedValues.majorPartsMonths !== Number(majorPartsSetting.value)) {
+      if (cleanedValues.majorPartsMonths !== Number(majorPartsSetting?.value)) {
+        const scopeKey = majorPartsSetting?.scopeKey || "GLOBAL:warranty.major_parts_months"
         updates.push(
-          updateSettingByScopeKey(majorPartsSetting.scopeKey, {
+          updateSettingByScopeKey(scopeKey, {
             value: cleanedValues.majorPartsMonths,
           }),
         )
       }
 
-      if (cleanedValues.accessoriesDays !== Number(accessoriesSetting.value)) {
+      if (cleanedValues.accessoriesDays !== Number(accessoriesSetting?.value)) {
+        const scopeKey = accessoriesSetting?.scopeKey || "GLOBAL:warranty.accessories_days"
         updates.push(
-          updateSettingByScopeKey(accessoriesSetting.scopeKey, {
+          updateSettingByScopeKey(scopeKey, {
             value: cleanedValues.accessoriesDays,
           }),
         )
       }
 
-      if (cleanedValues.outrightReplacementDays !== Number(outrightReplacementSetting.value)) {
+      if (cleanedValues.outrightReplacementDays !== Number(outrightReplacementSetting?.value)) {
+        const scopeKey = outrightReplacementSetting?.scopeKey || "GLOBAL:warranty.outright_replacement_days"
         updates.push(
-          updateSettingByScopeKey(outrightReplacementSetting.scopeKey, {
+          updateSettingByScopeKey(scopeKey, {
             value: cleanedValues.outrightReplacementDays,
           }),
         )
@@ -1798,8 +1815,6 @@ function InventoryRulesForm({ setting, onSaved, canManageSettings = false }) {
     }
   }, [setting])
 
-  if (!setting) return null
-
   const toggleRules = [
     {
       key: "blockNegativeStock",
@@ -1852,14 +1867,13 @@ function InventoryRulesForm({ setting, onSaved, canManageSettings = false }) {
   }
 
   const handleReset = () => {
-    if (setting?.value && typeof setting.value === "object") {
-      setRules({
-        ...INVENTORY_DEFAULT_RULES,
-        ...setting.value,
-        blockNegativeStock: true,
-      })
-    }
+    const currentValue = setting?.value && typeof setting.value === "object" ? {
+      ...INVENTORY_DEFAULT_RULES,
+      ...setting.value,
+      blockNegativeStock: true,
+    } : INVENTORY_DEFAULT_RULES
 
+    setRules(currentValue)
     setMessage("")
     setErrorMessage("")
   }
@@ -1869,7 +1883,7 @@ function InventoryRulesForm({ setting, onSaved, canManageSettings = false }) {
     setErrorMessage("")
 
     if (!canManageSettings) {
-      setErrorMessage("Only Super Owner can change inventory rules.")
+      setErrorMessage("Only Super Owner or Admin can change inventory rules.")
       return
     }
 
@@ -1884,7 +1898,7 @@ function InventoryRulesForm({ setting, onSaved, canManageSettings = false }) {
 
     const oldValue = JSON.stringify({
       ...INVENTORY_DEFAULT_RULES,
-      ...setting.value,
+      ...(setting?.value || {}),
       blockNegativeStock: true,
     })
     const newValue = JSON.stringify(cleanedRules)
@@ -1897,7 +1911,8 @@ function InventoryRulesForm({ setting, onSaved, canManageSettings = false }) {
     setIsSaving(true)
 
     try {
-      const response = await updateSettingByScopeKey(setting.scopeKey, {
+      const scopeKey = setting?.scopeKey || "GLOBAL:inventory.rules"
+      const response = await updateSettingByScopeKey(scopeKey, {
         value: cleanedRules,
       })
 
@@ -2029,8 +2044,6 @@ function DiscountRulesForm({ setting, onSaved, canManageSettings = false }) {
     }
   }, [setting])
 
-  if (!setting) return null
-
   const toggleRules = [
     {
       key: "allowLineItemDiscount",
@@ -2072,15 +2085,14 @@ function DiscountRulesForm({ setting, onSaved, canManageSettings = false }) {
   }
 
   const handleReset = () => {
-    if (setting?.value && typeof setting.value === "object") {
-      setRules({
-        ...DISCOUNT_DEFAULT_RULES,
-        ...setting.value,
-        discountMode: "AMOUNT_ONLY",
-        allowPercentageDiscount: false,
-      })
-    }
+    const currentValue = setting?.value && typeof setting.value === "object" ? {
+      ...DISCOUNT_DEFAULT_RULES,
+      ...setting.value,
+      discountMode: "AMOUNT_ONLY",
+      allowPercentageDiscount: false,
+    } : DISCOUNT_DEFAULT_RULES
 
+    setRules(currentValue)
     setMessage("")
     setErrorMessage("")
   }
@@ -2090,7 +2102,7 @@ function DiscountRulesForm({ setting, onSaved, canManageSettings = false }) {
     setErrorMessage("")
 
     if (!canManageSettings) {
-      setErrorMessage("Only Super Owner can change discount rules.")
+      setErrorMessage("Only Super Owner or Admin can change discount rules.")
       return
     }
 
@@ -2104,7 +2116,7 @@ function DiscountRulesForm({ setting, onSaved, canManageSettings = false }) {
 
     const oldValue = JSON.stringify({
       ...DISCOUNT_DEFAULT_RULES,
-      ...setting.value,
+      ...(setting?.value || {}),
       discountMode: "AMOUNT_ONLY",
       allowPercentageDiscount: false,
     })
@@ -2118,7 +2130,8 @@ function DiscountRulesForm({ setting, onSaved, canManageSettings = false }) {
     setIsSaving(true)
 
     try {
-      const response = await updateSettingByScopeKey(setting.scopeKey, {
+      const scopeKey = setting?.scopeKey || "GLOBAL:discount.rules"
+      const response = await updateSettingByScopeKey(scopeKey, {
         value: cleanedRules,
       })
 
@@ -2248,8 +2261,6 @@ function PriceTierLabelsForm({ setting, onSaved, canManageSettings = false }) {
     }
   }, [setting])
 
-  if (!setting) return null
-
   const handleChange = (tier, value) => {
     if (!canManageSettings) return
 
@@ -2262,13 +2273,12 @@ function PriceTierLabelsForm({ setting, onSaved, canManageSettings = false }) {
   }
 
   const handleReset = () => {
-    if (setting?.value && typeof setting.value === "object") {
-      setLabels({
-        ...PRICE_TIER_DEFAULT_LABELS,
-        ...setting.value,
-      })
-    }
+    const currentValue = setting?.value && typeof setting.value === "object" ? {
+      ...PRICE_TIER_DEFAULT_LABELS,
+      ...setting.value,
+    } : PRICE_TIER_DEFAULT_LABELS
 
+    setLabels(currentValue)
     setMessage("")
     setErrorMessage("")
   }
@@ -2278,7 +2288,7 @@ function PriceTierLabelsForm({ setting, onSaved, canManageSettings = false }) {
     setErrorMessage("")
 
     if (!canManageSettings) {
-      setErrorMessage("Only Super Owner can change price tier labels.")
+      setErrorMessage("Only Super Owner or Admin can change price tier labels.")
       return
     }
 
@@ -2297,7 +2307,7 @@ function PriceTierLabelsForm({ setting, onSaved, canManageSettings = false }) {
       return
     }
 
-    const oldValue = JSON.stringify(setting.value)
+    const oldValue = JSON.stringify(setting?.value || {})
     const newValue = JSON.stringify(cleanedLabels)
 
     if (oldValue === newValue) {
@@ -2308,7 +2318,8 @@ function PriceTierLabelsForm({ setting, onSaved, canManageSettings = false }) {
     setIsSaving(true)
 
     try {
-      const response = await updateSettingByScopeKey(setting.scopeKey, {
+      const scopeKey = setting?.scopeKey || "GLOBAL:price.tier_labels"
+      const response = await updateSettingByScopeKey(scopeKey, {
         value: cleanedLabels,
       })
 
@@ -2357,7 +2368,7 @@ function PriceTierLabelsForm({ setting, onSaved, canManageSettings = false }) {
               Price {tier}
             </span>
             <input
-              className="mt-2 h-12 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-[var(--color-maroon-soft)] disabled:cursor-not-allowed disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
+              className="mt-2 h-12 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-[var(--color-maroon-soft)] disabled:cursor-not-allowed disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
               disabled={!canManageSettings || isSaving}
               maxLength={40}
               onChange={(event) => handleChange(tier, event.target.value)}
@@ -2369,7 +2380,7 @@ function PriceTierLabelsForm({ setting, onSaved, canManageSettings = false }) {
 
       {!canManageSettings ? (
         <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--color-muted)]">
-          Only Super Owner can change price tier labels. You can still view the current labels.
+          Only Super Owner or Admin can change price tier labels.
         </div>
       ) : null}
 
@@ -2396,7 +2407,7 @@ function PriceTierLabelsForm({ setting, onSaved, canManageSettings = false }) {
         </button>
 
         <button
-          className="h-12 rounded-2xl border border-[var(--color-border)] bg-white px-5 text-sm font-bold text-[var(--color-text-strong)] shadow-card transition hover:bg-[var(--color-soft)]"
+          className="h-12 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 text-sm font-bold text-[var(--color-text-strong)] shadow-card transition hover:bg-[var(--color-soft)]"
           disabled={isSaving}
           onClick={handleReset}
           type="button"
@@ -2415,8 +2426,6 @@ function PaymentMethodsSetupCard({ setting, onSaved, canManageSettings = false }
 
   useEffect(() => {
     if (setting?.value && typeof setting.value === "object") {
-      // Keep the editable draft aligned with the latest saved setting.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPaymentMethods({
         ...PAYMENT_METHODS_DEFAULT_VALUE,
         ...setting.value,
@@ -2427,8 +2436,6 @@ function PaymentMethodsSetupCard({ setting, onSaved, canManageSettings = false }
       })
     }
   }, [setting])
-
-  if (!setting) return null
 
   const paymentOptions = [
     { key: "cash", label: "Cash", description: "Accept physical cash payments." },
@@ -2474,17 +2481,16 @@ function PaymentMethodsSetupCard({ setting, onSaved, canManageSettings = false }
   }
 
   const handleReset = () => {
-    if (setting?.value && typeof setting.value === "object") {
-      setPaymentMethods({
-        ...PAYMENT_METHODS_DEFAULT_VALUE,
-        ...setting.value,
-        requiredFields: {
-          ...PAYMENT_METHODS_DEFAULT_VALUE.requiredFields,
-          ...(setting.value.requiredFields || {}),
-        },
-      })
-    }
+    const currentValue = setting?.value && typeof setting.value === "object" ? {
+      ...PAYMENT_METHODS_DEFAULT_VALUE,
+      ...setting.value,
+      requiredFields: {
+        ...PAYMENT_METHODS_DEFAULT_VALUE.requiredFields,
+        ...(setting.value.requiredFields || {}),
+      },
+    } : PAYMENT_METHODS_DEFAULT_VALUE
 
+    setPaymentMethods(currentValue)
     setMessage("")
     setErrorMessage("")
   }
@@ -2494,11 +2500,11 @@ function PaymentMethodsSetupCard({ setting, onSaved, canManageSettings = false }
     setErrorMessage("")
 
     if (!canManageSettings) {
-      setErrorMessage("Only Super Owner can change payment methods.")
+      setErrorMessage("Only Super Owner or Admin can change payment methods.")
       return
     }
 
-    const oldValue = JSON.stringify(setting.value)
+    const oldValue = JSON.stringify(setting?.value || {})
     const newValue = JSON.stringify(paymentMethods)
 
     if (oldValue === newValue) {
@@ -2509,7 +2515,8 @@ function PaymentMethodsSetupCard({ setting, onSaved, canManageSettings = false }
     setIsSaving(true)
 
     try {
-      const response = await updateSettingByScopeKey(setting.scopeKey, {
+      const scopeKey = setting?.scopeKey || "GLOBAL:payment.methods"
+      const response = await updateSettingByScopeKey(scopeKey, {
         value: paymentMethods,
       })
 
@@ -2779,76 +2786,64 @@ function SettingsPage({ user }) {
   const renderSettingsSectionContent = (group) => {
     switch (group.title) {
       case "Business Profile":
-        return receiptBusinessName ? (
+        return (
           <ReceiptBusinessNameForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={receiptBusinessName}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Branch Settings":
         return <PlannedSettingsContent group={group} />
 
       case "Payment Methods":
-        return paymentMethodsSetting ? (
+        return (
           <PaymentMethodsSetupCard
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={paymentMethodsSetting}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Installment / Interest Rates":
-        return installmentTermBasis ? (
+        return (
           <InstallmentRatesForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={installmentTermBasis}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Price Tier Settings":
-        return priceTierLabelsSetting ? (
+        return (
           <PriceTierLabelsForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={priceTierLabelsSetting}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Discount Rules":
-        return discountRulesSetting ? (
+        return (
           <DiscountRulesForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={discountRulesSetting}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Inventory Rules":
-        return inventoryRulesSetting ? (
+        return (
           <InventoryRulesForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={inventoryRulesSetting}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Warranty Rules":
-        return (warrantyAccessoriesSetting && warrantyMajorPartsSetting && warrantyOutrightReplacementSetting) ? (
+        return (
           <WarrantyRulesForm
             accessoriesSetting={warrantyAccessoriesSetting}
             canManageSettings={canManageSettings}
@@ -2856,31 +2851,25 @@ function SettingsPage({ user }) {
             onSaved={handleSettingSaved}
             outrightReplacementSetting={warrantyOutrightReplacementSetting}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Service Rules":
-        return serviceRulesSetting ? (
+        return (
           <ServiceRulesForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={serviceRulesSetting}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Cash Box Rules":
-        return (cashBoxDefaultPaymentStatusSetting && cashBoxRequireHandoverSetting) ? (
+        return (
           <CashBoxRulesForm
             canManageSettings={canManageSettings}
             defaultPaymentStatusSetting={cashBoxDefaultPaymentStatusSetting}
             onSaved={handleSettingSaved}
             requireHandoverSetting={cashBoxRequireHandoverSetting}
           />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "Incentive Rules":
@@ -2904,17 +2893,13 @@ function SettingsPage({ user }) {
           </>
         )
       case "Document Numbering":
-        return documentNumberingSetting ? (
+        return (
           <DocumentNumberingDisplay setting={documentNumberingSetting} />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       case "System Preferences":
-        return systemPreferenceSetting ? (
+        return (
           <SystemPreferencesDisplay setting={systemPreferenceSetting} />
-        ) : (
-          <PlannedSettingsContent group={group} />
         )
 
       default:
