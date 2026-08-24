@@ -3,8 +3,10 @@ import {
   Banknote,
   Building2,
   ChevronDown,
+  Database,
   FileText,
   Landmark,
+  ListTree,
   Percent,
   ReceiptText,
   Settings,
@@ -35,6 +37,7 @@ import {
 } from "../../features/settings/settings.utils"
 
 const ICONS = {
+  "Database Backup & Disaster Recovery": Database,
   "Business Profile": Building2,
   "Branch Settings": Landmark,
   "Payment Methods": Banknote,
@@ -48,6 +51,7 @@ const ICONS = {
   "Incentive Rules": Percent,
   "Document Numbering": FileText,
   "System Preferences": SlidersHorizontal,
+  "All Saved Database Values": ListTree,
 }
 
 const INSTALLMENT_TERMS = [
@@ -2658,8 +2662,7 @@ function SettingsPage({ user }) {
   const [settings, setSettings] = useState([])
   const [errorMessage, setErrorMessage] = useState("")
   const [isLoading, setIsLoading] = useState(true)
-  const [openSavedGroup, setOpenSavedGroup] = useState("")
-  const [openPlannedGroup, setOpenPlannedGroup] = useState("")
+  const [activeTab, setActiveTab] = useState("Database Backup & Disaster Recovery")
 
   const canManageSettings = ["SUPER_OWNER", "ADMIN"].includes(user?.role)
   const canManageIncentives = ["SUPER_OWNER", "ADMIN"].includes(user?.role)
@@ -2876,8 +2879,7 @@ function SettingsPage({ user }) {
                 canManage={canManageIncentives}
               />
             </div>
-
-                      </>
+          </>
         )
       case "Document Numbering":
         return (
@@ -2893,6 +2895,12 @@ function SettingsPage({ user }) {
         return <PlannedSettingsContent group={group} />
     }
   }
+
+  const selectedGroup = useMemo(
+    () => SETTINGS_GROUPS.find((g) => g.title === activeTab),
+    [activeTab]
+  )
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
@@ -2902,7 +2910,7 @@ function SettingsPage({ user }) {
             Settings
           </h1>
           <p className="mt-1 max-w-4xl text-sm leading-6 text-[var(--color-muted)]">
-            Business values are organized into editable and expandable cards.
+            Configure business rules, payment terms, interest rates, and system backups.
           </p>
         </div>
 
@@ -2917,93 +2925,125 @@ function SettingsPage({ user }) {
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-sidebar)] p-5 text-white shadow-card">
-        <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold">Business values are controlled here</h2>
-            <p className="mt-2 text-sm leading-6 text-white/70">
-              Interest rates, quotation computation, warranty duration, cash handling, receipt
-              information, and branch-specific rules should come from Settings.
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-white/10 p-4 text-sm leading-6 text-white/75">
-            {canManageSettings
-              ? "You can update available settings. Save carefully."
-              : "You can view settings. Only Super Owner can change them."}
-          </div>
-        </div>
-      </section>
-
-      <DatabaseBackupRecoverySection user={user} />
-
-      <section className="grid gap-4">
-        <Card className="order-2">
-          <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
-            Current Saved Business Settings
-          </h2>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
-            Click a group to view the saved values currently used by the system.
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        {/* Navigation Sidebar */}
+        <aside className="space-y-1 rounded-3xl border border-[var(--color-border)] bg-white p-3 shadow-card self-start lg:sticky lg:top-5">
+          <p className="px-3 py-2 text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
+            Settings Categories
           </p>
 
-          <div className="mt-5 space-y-3">
-            {Object.entries(groupedSettings).map(([groupName, groupItems]) => (
-              <ExpandableCard
-                badge={`${groupItems.length} saved`}
-                description="Saved values currently used by the system."
-                icon={Settings}
-                isOpen={openSavedGroup === groupName}
-                key={groupName}
-                onToggle={() =>
-                  setOpenSavedGroup((current) => (current === groupName ? "" : groupName))
-                }
-                title={groupName}
-              >
-                <div className="space-y-3">
-                  {groupItems.map((setting) => (
-                    <SavedSettingItem key={setting.id} setting={setting} />
-                  ))}
-                </div>
-              </ExpandableCard>
-            ))}
-          </div>
-        </Card>
-
-        <div className="order-1 space-y-4">
-          <Card>
-            <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
-              Settings Sections
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--color-muted)]">
-              Click a section to view or edit its settings.
-            </p>
-          </Card>
+          <button
+            type="button"
+            onClick={() => setActiveTab("Database Backup & Disaster Recovery")}
+            className={`flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left text-sm font-bold transition ${
+              activeTab === "Database Backup & Disaster Recovery"
+                ? "bg-[var(--color-maroon)] text-white shadow-soft"
+                : "text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+            }`}
+          >
+            <Database size={18} className="shrink-0" />
+            <span className="min-w-0 truncate">Backup & Recovery</span>
+            <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-black ${
+              activeTab === "Database Backup & Disaster Recovery" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+            }`}>
+              Auto
+            </span>
+          </button>
 
           {SETTINGS_GROUPS.map((group) => {
             const Icon = ICONS[group.title] || Settings
+            const isActive = activeTab === group.title
 
             return (
-              <ExpandableCard
-                badge={group.priority ? "Priority" : null}
-                description={group.description}
-                icon={Icon}
-                isOpen={openPlannedGroup === group.title}
+              <button
                 key={group.title}
-                onToggle={() =>
-                  setOpenPlannedGroup((current) =>
-                    current === group.title ? "" : group.title,
-                  )
-                }
-                title={group.title}
+                type="button"
+                onClick={() => setActiveTab(group.title)}
+                className={`flex w-full items-center gap-3 rounded-2xl px-3.5 py-2.5 text-left text-sm font-bold transition ${
+                  isActive
+                    ? "bg-[var(--color-maroon)] text-white shadow-soft"
+                    : "text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+                }`}
               >
-                <div className="[&>div]:border-0 [&>div]:bg-transparent [&>div]:p-0 [&>div]:shadow-none [&>div]:ring-0">
-                  {renderSettingsSectionContent(group)}
-                </div>
-              </ExpandableCard>
+                <Icon size={18} className="shrink-0" />
+                <span className="min-w-0 truncate">{group.title}</span>
+                {group.priority ? (
+                  <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-black ${
+                    isActive ? "bg-white/20 text-white" : "bg-amber-100 text-amber-800"
+                  }`}>
+                    ★
+                  </span>
+                ) : null}
+              </button>
             )
           })}
-        </div>
-      </section>
+
+          <div className="pt-2 border-t border-[var(--color-border)] mt-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("All Saved Database Values")}
+              className={`flex w-full items-center gap-3 rounded-2xl px-3.5 py-2.5 text-left text-sm font-bold transition ${
+                activeTab === "All Saved Database Values"
+                  ? "bg-[var(--color-maroon)] text-white shadow-soft"
+                  : "text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+              }`}
+            >
+              <ListTree size={18} className="shrink-0" />
+              <span className="min-w-0 truncate">Raw Database Values</span>
+              <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeTab === "All Saved Database Values" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+              }`}>
+                {settings.length}
+              </span>
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Content Viewport */}
+        <main className="min-w-0 space-y-4">
+          {activeTab === "Database Backup & Disaster Recovery" ? (
+            <DatabaseBackupRecoverySection user={user} />
+          ) : activeTab === "All Saved Database Values" ? (
+            <Card>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--color-border)] pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
+                    All Saved Database Records
+                  </h2>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    Live raw records stored in the database. Nothing is deleted or lost.
+                  </p>
+                </div>
+                <Badge tone="maroon">{settings.length} Records</Badge>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                {Object.entries(groupedSettings).map(([groupName, groupItems]) => (
+                  <div key={groupName} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
+                    <h3 className="font-bold text-sm text-[var(--color-text-strong)] mb-3 flex items-center justify-between">
+                      <span>{groupName}</span>
+                      <span className="text-xs font-normal text-[var(--color-muted)]">{groupItems.length} items</span>
+                    </h3>
+                    <div className="space-y-3">
+                      {groupItems.map((setting) => (
+                        <SavedSettingItem key={setting.id} setting={setting} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : selectedGroup ? (
+            <div>
+              {renderSettingsSectionContent(selectedGroup)}
+            </div>
+          ) : (
+            <Card>
+              <p className="text-sm text-[var(--color-muted)]">Select a category from the left menu.</p>
+            </Card>
+          )}
+        </main>
+      </div>
     </div>
   )
 }
