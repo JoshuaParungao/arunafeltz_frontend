@@ -337,9 +337,16 @@ function SaleDetailDialog({
         <section className="sale-receipt-print-document overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl">
           <header className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5 sm:p-6">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-maroon)]">
-                {title}
-              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-maroon)]">
+                  {title}
+                </p>
+                {Boolean(sale?.quotation?.isPcBuild || sale?.remarks?.includes("[PC BUILD]") || sale?.isPcBuild) ? (
+                  <span className="rounded-full bg-[var(--color-maroon)] px-2.5 py-0.5 text-xs font-black text-white shadow-xs">
+                    🖥️ PC Build / PC Set
+                  </span>
+                ) : null}
+              </div>
               <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]" id="sale-detail-title">
                 {sale?.receiptCode || "Loading receipt…"}
               </h2>
@@ -413,43 +420,79 @@ function SaleDetailDialog({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--color-border)]">
-                      {(sale.items || []).map((item) => (
-                        <tr key={item.id || item.lineNo}>
-                          <td className="px-4 py-4">
-                            <p className="font-bold text-[var(--color-text-strong)]">{item.description}</p>
-                            {item.serialNumber ? (
-                              <p className="mt-1 text-xs text-[var(--color-muted)]">Serial: {item.serialNumber}</p>
-                            ) : null}
-                            {Number(item.returnedQuantity || 0) > 0 ? (
-                              <p className="mt-1 text-xs font-semibold text-orange-700">Returned {Number(item.returnedQuantity)} · remaining {Number(item.remainingReturnQuantity || 0)}</p>
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-4 text-right">{Number(item.quantity || 0)}</td>
-                          <td className="px-4 py-4 text-right">{formatMoney(item.unitPrice)}</td>
-                          <td className="px-4 py-4 text-right">{formatMoney(item.discountAmount)}</td>
-                          <td className="px-4 py-4 text-right font-bold">{formatMoney(item.lineTotal)}</td>
-                        </tr>
-                      ))}
+                      {(sale.items || []).map((item) => {
+                        const isPcBuildSale = Boolean(sale.quotation?.isPcBuild || sale.remarks?.includes("[PC BUILD]") || sale.isPcBuild)
+                        const serialNum = item.serialNumber || item.serial?.serialNumber
+                        return (
+                          <tr key={item.id || item.lineNo}>
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-bold text-[var(--color-text-strong)]">{item.description}</p>
+                                {isPcBuildSale && item.itemId ? (
+                                  <span className="inline-flex items-center rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
+                                    PC Part
+                                  </span>
+                                ) : null}
+                                {item.item?.hasWarranty ? (
+                                  <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                                    🛡️ Warranty
+                                  </span>
+                                ) : null}
+                              </div>
+                              {serialNum ? (
+                                <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-800 border border-slate-200">
+                                  <span className="text-slate-500 font-sans text-[11px]">SN:</span> {serialNum}
+                                </p>
+                              ) : null}
+                              {Number(item.returnedQuantity || 0) > 0 ? (
+                                <p className="mt-1 text-xs font-semibold text-orange-700">Returned {Number(item.returnedQuantity)} · remaining {Number(item.remainingReturnQuantity || 0)}</p>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-4 text-right">{Number(item.quantity || 0)}</td>
+                            <td className="px-4 py-4 text-right">{formatMoney(item.unitPrice)}</td>
+                            <td className="px-4 py-4 text-right">{formatMoney(item.discountAmount)}</td>
+                            <td className="px-4 py-4 text-right font-bold">{formatMoney(item.lineTotal)}</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
 
                 <div className="divide-y divide-[var(--color-border)] md:hidden">
-                  {(sale.items || []).map((item) => (
-                    <div className="space-y-2 p-4" key={item.id || item.lineNo}>
-                      <p className="font-bold text-[var(--color-text-strong)]">{item.description}</p>
-                      {item.serialNumber ? (
-                        <p className="text-xs text-[var(--color-muted)]">Serial: {item.serialNumber}</p>
-                      ) : null}
-                      {Number(item.returnedQuantity || 0) > 0 ? <p className="text-xs font-semibold text-orange-700">Returned {Number(item.returnedQuantity)} · remaining {Number(item.remainingReturnQuantity || 0)}</p> : null}
-                      <div className="grid grid-cols-2 gap-2 text-xs text-[var(--color-muted)]">
-                        <span>Qty {Number(item.quantity || 0)}</span>
-                        <span className="text-right">{formatMoney(item.unitPrice)} each</span>
-                        <span>Discount {formatMoney(item.discountAmount)}</span>
-                        <span className="text-right font-bold text-[var(--color-text-strong)]">{formatMoney(item.lineTotal)}</span>
+                  {(sale.items || []).map((item) => {
+                    const isPcBuildSale = Boolean(sale.quotation?.isPcBuild || sale.remarks?.includes("[PC BUILD]") || sale.isPcBuild)
+                    const serialNum = item.serialNumber || item.serial?.serialNumber
+                    return (
+                      <div className="space-y-2 p-4" key={item.id || item.lineNo}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-[var(--color-text-strong)]">{item.description}</p>
+                          {isPcBuildSale && item.itemId ? (
+                            <span className="inline-flex items-center rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
+                              PC Part
+                            </span>
+                          ) : null}
+                          {item.item?.hasWarranty ? (
+                            <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                              🛡️ Warranty
+                            </span>
+                          ) : null}
+                        </div>
+                        {serialNum ? (
+                          <p className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-800 border border-slate-200">
+                            <span className="text-slate-500 font-sans text-[11px]">SN:</span> {serialNum}
+                          </p>
+                        ) : null}
+                        {Number(item.returnedQuantity || 0) > 0 ? <p className="text-xs font-semibold text-orange-700">Returned {Number(item.returnedQuantity)} · remaining {Number(item.remainingReturnQuantity || 0)}</p> : null}
+                        <div className="grid grid-cols-2 gap-2 text-xs text-[var(--color-muted)]">
+                          <span>Qty {Number(item.quantity || 0)}</span>
+                          <span className="text-right">{formatMoney(item.unitPrice)} each</span>
+                          <span>Discount {formatMoney(item.discountAmount)}</span>
+                          <span className="text-right font-bold text-[var(--color-text-strong)]">{formatMoney(item.lineTotal)}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
@@ -774,6 +817,7 @@ function PosSalesPage({ selectedBranch, user }) {
   const [serviceDiscount, setServiceDiscount] = useState("0")
   const [serviceCharge, setServiceCharge] = useState("0")
   const [remarks, setRemarks] = useState("")
+  const [isPcBuild, setIsPcBuild] = useState(false)
 
   const [paymentMethod, setPaymentMethod] = useState("CASH")
   const [settlementMethod, setSettlementMethod] = useState("CASH")
@@ -1228,6 +1272,7 @@ function PosSalesPage({ selectedBranch, user }) {
     setCustomerSearch("")
     setServiceCharge("0")
     setRemarks("")
+    setIsPcBuild(false)
     setPaymentMethod("CASH")
     setSettlementMethod("CASH")
     setPaymentAmount("0")
@@ -1263,11 +1308,14 @@ function PosSalesPage({ selectedBranch, user }) {
 
     try {
       const settlementAmount = Number(effectivePaymentAmount || 0)
+      const formattedRemarks = isPcBuild
+        ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
+        : remarks.trim() || undefined
       const salePayload = {
         branchId,
         customerId: selectedCustomerId || undefined,
         serviceCharge: Number(serviceCharge || 0),
-        remarks: remarks.trim() || undefined,
+        remarks: formattedRemarks,
         items: cart.map((line) => {
           if (line.type === "SERVICE") {
             return {
@@ -1618,12 +1666,23 @@ function PosSalesPage({ selectedBranch, user }) {
           </div>
 
           <section className="min-w-0 self-start rounded-3xl border border-[var(--color-border)] bg-white shadow-card 2xl:sticky 2xl:top-5">
-            <header className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] p-4 sm:p-5">
+            <header className="flex flex-col gap-3 border-b border-[var(--color-border)] p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[var(--color-maroon)] text-white"><ShoppingCart size={20} /></span>
                 <div><h2 className="font-black text-[var(--color-text-strong)]">Current sale</h2><p className="text-xs text-[var(--color-muted)]">{cart.length} line(s)</p></div>
               </div>
-              {cart.length > 0 ? <button className="text-xs font-bold text-red-700" onClick={() => { if (window.confirm("Clear the unsaved cart?")) setCart([]) }} type="button">Clear cart</button> : null}
+              <div className="flex items-center gap-3">
+                <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1.5 transition hover:bg-slate-100">
+                  <input
+                    type="checkbox"
+                    checked={isPcBuild}
+                    onChange={(e) => setIsPcBuild(e.target.checked)}
+                    className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                  />
+                  <span className="text-xs font-bold text-[var(--color-text-strong)]">🖥️ PC Build Sale</span>
+                </label>
+                {cart.length > 0 ? <button className="text-xs font-bold text-red-700" onClick={() => { if (window.confirm("Clear the unsaved cart?")) setCart([]) }} type="button">Clear cart</button> : null}
+              </div>
             </header>
 
             {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{cartMessage}</div> : null}
@@ -1644,7 +1703,14 @@ function PosSalesPage({ selectedBranch, user }) {
                     <article className="rounded-2xl border border-[var(--color-border)] p-4" key={line.localId}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Line {index + 1} · {line.type === "SERVICE" ? "Service" : "Product"}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Line {index + 1} · {line.type === "SERVICE" ? "Service" : "Product"}</p>
+                            {isPcBuild && line.type === "PRODUCT" ? (
+                              <span className="rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
+                                PC Part
+                              </span>
+                            ) : null}
+                          </div>
                           <h3 className="mt-1 truncate font-black text-[var(--color-text-strong)]">{line.item?.itemName || line.description}</h3>
                           {line.item ? <p className="mt-1 text-xs text-[var(--color-muted)]">{line.item.itemCode}{line.item.isSerialized ? " · Serialized" : ""}</p> : null}
                         </div>
