@@ -2779,64 +2779,76 @@ function SettingsPage({ user }) {
   const renderSettingsSectionContent = (group) => {
     switch (group.title) {
       case "Business Profile":
-        return (
+        return receiptBusinessName ? (
           <ReceiptBusinessNameForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={receiptBusinessName}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Branch Settings":
         return <PlannedSettingsContent group={group} />
 
       case "Payment Methods":
-        return (
+        return paymentMethodsSetting ? (
           <PaymentMethodsSetupCard
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={paymentMethodsSetting}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Installment / Interest Rates":
-        return (
+        return installmentTermBasis ? (
           <InstallmentRatesForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={installmentTermBasis}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Price Tier Settings":
-        return (
+        return priceTierLabelsSetting ? (
           <PriceTierLabelsForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={priceTierLabelsSetting}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Discount Rules":
-        return (
+        return discountRulesSetting ? (
           <DiscountRulesForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={discountRulesSetting}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Inventory Rules":
-        return (
+        return inventoryRulesSetting ? (
           <InventoryRulesForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={inventoryRulesSetting}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Warranty Rules":
-        return (
+        return (warrantyAccessoriesSetting && warrantyMajorPartsSetting && warrantyOutrightReplacementSetting) ? (
           <WarrantyRulesForm
             accessoriesSetting={warrantyAccessoriesSetting}
             canManageSettings={canManageSettings}
@@ -2844,25 +2856,31 @@ function SettingsPage({ user }) {
             onSaved={handleSettingSaved}
             outrightReplacementSetting={warrantyOutrightReplacementSetting}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Service Rules":
-        return (
+        return serviceRulesSetting ? (
           <ServiceRulesForm
             canManageSettings={canManageSettings}
             onSaved={handleSettingSaved}
             setting={serviceRulesSetting}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Cash Box Rules":
-        return (
+        return (cashBoxDefaultPaymentStatusSetting && cashBoxRequireHandoverSetting) ? (
           <CashBoxRulesForm
             canManageSettings={canManageSettings}
             defaultPaymentStatusSetting={cashBoxDefaultPaymentStatusSetting}
             onSaved={handleSettingSaved}
             requireHandoverSetting={cashBoxRequireHandoverSetting}
           />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "Incentive Rules":
@@ -2886,13 +2904,17 @@ function SettingsPage({ user }) {
           </>
         )
       case "Document Numbering":
-        return (
+        return documentNumberingSetting ? (
           <DocumentNumberingDisplay setting={documentNumberingSetting} />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       case "System Preferences":
-        return (
+        return systemPreferenceSetting ? (
           <SystemPreferencesDisplay setting={systemPreferenceSetting} />
+        ) : (
+          <PlannedSettingsContent group={group} />
         )
 
       default:
