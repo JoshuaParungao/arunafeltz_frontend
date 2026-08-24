@@ -1077,9 +1077,9 @@ export default function ServicesPage({ selectedBranch, user }) {
             ["Ready for release", totals.ready, CheckCircle2],
             ["Released", totals.released, UserRoundCheck],
           ].map(([label, value, Icon]) => (
-            <div className="rounded-2xl bg-slate-50 p-4" key={label}>
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm" key={label}>
               <Icon className="text-[var(--color-maroon)]" size={18} />
-              <p className="mt-3 text-2xl font-black">{value}</p>
+              <p className="mt-3 text-2xl font-black text-[var(--color-text-strong)]">{value}</p>
               <p className="text-xs font-bold text-[var(--color-muted)]">{label}</p>
             </div>
           ))}
@@ -1087,23 +1087,23 @@ export default function ServicesPage({ selectedBranch, user }) {
       </section>
 
       {notice ? (
-        <div className="flex items-center justify-between rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-700 dark:text-emerald-300">
           <span>{notice}</span><button onClick={() => setNotice("")} type="button"><X size={16} /></button>
         </div>
       ) : null}
       {errorMessage ? (
-        <div className="flex items-start gap-2 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+        <div className="flex items-start gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300">
           <CircleAlert className="mt-0.5 shrink-0" size={17} /><span>{errorMessage}</span>
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:p-5">
+      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-card sm:p-5">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px_210px_auto]">
           <label className="relative">
             <Search className="absolute left-3.5 top-3 text-[var(--color-muted)]" size={17} />
             <input
               aria-label="Search job orders"
-              className="w-full rounded-xl border border-[var(--color-border)] py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[var(--color-maroon)]"
               onChange={(event) => { setSearch(event.target.value); setPage(1) }}
               placeholder="Search JO, customer, device, serial, or title"
               value={search}
@@ -1111,7 +1111,7 @@ export default function ServicesPage({ selectedBranch, user }) {
           </label>
           <select
             aria-label="Filter service status"
-            className="rounded-xl border border-[var(--color-border)] px-3.5 py-2.5 text-sm font-bold"
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold"
             onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}
             value={statusFilter}
           >
@@ -1120,14 +1120,14 @@ export default function ServicesPage({ selectedBranch, user }) {
           </select>
           <select
             aria-label="Filter repair category"
-            className="rounded-xl border border-[var(--color-border)] px-3.5 py-2.5 text-sm font-bold"
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold"
             onChange={(event) => { setRepairTypeFilter(event.target.value); setPage(1) }}
             value={repairTypeFilter}
           >
             <option value="">All repair categories</option>
             {REPAIR_TYPES.map((repairType) => <option key={repairType.value} value={repairType.value}>{repairType.label}</option>)}
           </select>
-          <label className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-3.5 py-2.5 text-sm font-bold">
+          <label className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold">
             <input checked={quickOnly} onChange={(event) => { setQuickOnly(event.target.checked); setPage(1) }} type="checkbox" /> Quick only
           </label>
         </div>
@@ -1136,18 +1136,18 @@ export default function ServicesPage({ selectedBranch, user }) {
           <div className="grid min-h-64 place-items-center"><LoaderCircle className="animate-spin text-[var(--color-maroon)]" size={32} /></div>
         ) : jobs.length === 0 ? (
           <div className="grid min-h-64 place-items-center text-center">
-            <div><Wrench className="mx-auto text-slate-300" size={38} /><p className="mt-3 font-black">No job orders found</p><p className="mt-1 text-sm text-[var(--color-muted)]">Adjust the filters or receive a new service.</p></div>
+            <div><Wrench className="mx-auto text-[var(--color-muted)]" size={38} /><p className="mt-3 font-black text-[var(--color-text-strong)]">No job orders found</p><p className="mt-1 text-sm text-[var(--color-muted)]">Adjust the filters or receive a new service.</p></div>
           </div>
         ) : (
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
             {jobs.map((job) => (
-              <button className="rounded-2xl border border-[var(--color-border)] p-4 text-left transition hover:border-[var(--color-maroon)]/40 hover:shadow-sm" key={job.id} onClick={() => openDetail(job)} type="button">
+              <button className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition hover:border-[var(--color-maroon)]/40 hover:shadow-sm" key={job.id} onClick={() => openDetail(job)} type="button">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-black text-[var(--color-maroon)]">{job.jobCode}</p>
-                      {job.isQuickService ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">QUICK</span> : null}
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-700">{friendly(job.repairType)}</span>
+                      {job.isQuickService ? <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">QUICK</span> : null}
+                      <span className="rounded-full bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-text-strong)]">{friendly(job.repairType)}</span>
                     </div>
                     <h3 className="mt-1 truncate font-black text-[var(--color-text-strong)]">{job.jobTitle}</h3>
                   </div>
@@ -1171,9 +1171,9 @@ export default function ServicesPage({ selectedBranch, user }) {
         <div className="mt-5 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
           <p className="text-xs font-bold text-[var(--color-muted)]">{meta.total || 0} job order{meta.total === 1 ? "" : "s"}</p>
           <div className="flex items-center gap-2">
-            <button aria-label="Previous page" className="rounded-xl border border-[var(--color-border)] p-2 disabled:opacity-40" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={17} /></button>
-            <span className="text-xs font-black">{page} / {totalPages}</span>
-            <button aria-label="Next page" className="rounded-xl border border-[var(--color-border)] p-2 disabled:opacity-40" disabled={page >= totalPages || isLoading} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={17} /></button>
+            <button aria-label="Previous page" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[var(--color-text-strong)] disabled:opacity-40" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={17} /></button>
+            <span className="text-xs font-black text-[var(--color-text-strong)]">{page} / {totalPages}</span>
+            <button aria-label="Next page" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[var(--color-text-strong)] disabled:opacity-40" disabled={page >= totalPages || isLoading} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={17} /></button>
           </div>
         </div>
       </section>
@@ -1182,9 +1182,9 @@ export default function ServicesPage({ selectedBranch, user }) {
         <Modal onClose={() => setShowCreate(false)} title="Receive service / create Job Order" width="max-w-4xl">
           <form onSubmit={submitCreate}>
             <div className="max-h-[72vh] space-y-5 overflow-y-auto p-5 sm:p-6">
-              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <label className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
                 <input checked={createForm.isQuickService} className="mt-1" onChange={(event) => setCreateForm((form) => ({ ...form, isQuickService: event.target.checked }))} type="checkbox" />
-                <span><strong className="block text-sm text-amber-900">Quick / same-day service</strong><span className="text-xs text-amber-800">Skips IN PROGRESS and may move directly from received to service performed.</span></span>
+                <span><strong className="block text-sm text-amber-900 dark:text-amber-200">Quick / same-day service</strong><span className="text-xs text-amber-800 dark:text-amber-300">Skips IN PROGRESS and may move directly from received to service performed.</span></span>
               </label>
 
               <div className="grid gap-4 sm:grid-cols-2">

@@ -66,7 +66,7 @@ function InventoryMobileCard({ item, canAdjust, onView, onAdjust }) {
             {item.itemCode}
           </p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
-            {[item.brand, item.modelName].filter(Boolean).join(" â€¢ ") || "No brand/model"}
+            {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
           </p>
         </div>
 
@@ -954,10 +954,10 @@ export default function InventoryPage({ selectedBranch, user }) {
                           {item.itemCode}
                         </p>
                         <p className="mt-1 text-xs text-[var(--color-muted)]">
-                          {[item.brand, item.modelName].filter(Boolean).join(" â€¢ ") || "No brand/model"}
+                          {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
                         </p>
                         <p className="mt-1 text-xs text-[var(--color-muted)]">
-                          {item.category?.name || "No category"} â€¢ {item.unit?.name || "No unit"}
+                          {item.category?.name || "No category"} • {item.unit?.name || "No unit"}
                         </p>
                       </td>
 
@@ -1446,14 +1446,14 @@ export default function InventoryPage({ selectedBranch, user }) {
         </div>
       ) : null}
       {pagination ? (
-        <section className="flex flex-col gap-3 rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
+        <section className="flex flex-col gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-semibold text-[var(--color-muted)]">
-            Page {pagination.page} of {pagination.totalPages} â€¢ {pagination.totalItems} item(s)
+            Page {pagination.page} of {pagination.totalPages} • {pagination.totalItems} item(s)
           </div>
 
           <div className="flex gap-3">
             <button
-              className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:cursor-not-allowed disabled:opacity-40"
               disabled={page <= 1 || isLoading}
               onClick={() => setPage((currentPage) => Math.max(currentPage - 1, 1))}
               type="button"
@@ -1462,7 +1462,7 @@ export default function InventoryPage({ selectedBranch, user }) {
             </button>
 
             <button
-              className="rounded-2xl border border-[#7A1F2B] bg-white px-4 py-3 text-sm font-bold text-[#7A1F2B] transition hover:bg-[#F4F1EC] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-2xl border border-[var(--color-maroon)] bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-40 disabled:bg-gray-400 disabled:border-transparent"
               disabled={page >= pagination.totalPages || isLoading}
               onClick={() => setPage((currentPage) => currentPage + 1)}
               type="button"
