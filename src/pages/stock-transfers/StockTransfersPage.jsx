@@ -38,7 +38,12 @@ function StatusBadge({ status }) {
     DRAFT: "bg-slate-100 text-slate-700",
   }
 
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${styles[status] || styles.DRAFT}`}>{status || "UNKNOWN"}</span>
+  const formatted = String(status || "Unknown")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+
+  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${styles[status] || styles.DRAFT}`}>{formatted}</span>
 }
 
 function isV2Transfer(transfer) {
@@ -372,13 +377,13 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-sm">
         <div className="grid gap-3 md:grid-cols-[1fr_240px]">
           <label className="relative block">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={17} />
-            <input className="w-full rounded-2xl border border-[var(--color-border)] py-3 pl-11 pr-4 text-sm font-bold" onChange={(event) => { setSearchText(event.target.value); setPage(1) }} placeholder="Search code or notes" value={searchText} />
+            <input className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] py-3 pl-11 pr-4 text-sm font-bold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSearchText(event.target.value); setPage(1) }} placeholder="Search code or notes" value={searchText} />
           </label>
-          <select className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold" onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }} value={statusFilter}>
+          <select className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }} value={statusFilter}>
             <option value="">All statuses</option><option value="DRAFT">Draft</option><option value="REQUESTED">Requested</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option><option value="POSTED">Posted</option><option value="CANCELLED">Cancelled</option>
           </select>
         </div>
@@ -414,7 +419,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
         <div className="mt-5 grid gap-4 xl:hidden">
           {isLoading ? <p className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold text-[var(--color-muted)]">Loading stock transfers...</p> : null}
           {!isLoading && transfers.length === 0 ? <p className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold text-[var(--color-muted)]">No stock transfers found.</p> : null}
-          {!isLoading ? transfers.map((transfer) => <article className="rounded-3xl border border-[var(--color-border)] p-4" key={transfer.id}>
+          {!isLoading ? transfers.map((transfer) => <article className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4" key={transfer.id}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-1.5">
@@ -430,11 +435,11 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
           </article>) : null}
         </div>
 
-        {pagination ? <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold text-[var(--color-muted)]">Page {pagination.page} of {pagination.totalPages} • {pagination.totalItems} transfer(s)</p><div className="flex gap-2"><button className="rounded-xl border px-4 py-2 text-sm font-black disabled:opacity-50" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => Math.max(value - 1, 1))} type="button">Previous</button><button className="rounded-xl border px-4 py-2 text-sm font-black disabled:opacity-50" disabled={page >= pagination.totalPages || isLoading} onClick={() => setPage((value) => value + 1)} type="button">Next</button></div></div> : null}
+        {pagination ? <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold text-[var(--color-muted)]">Page {pagination.page} of {pagination.totalPages} • {pagination.totalItems} transfer(s)</p><div className="flex gap-2"><button className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-black disabled:opacity-50" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => Math.max(value - 1, 1))} type="button">Previous</button><button className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-black disabled:opacity-50" disabled={page >= pagination.totalPages || isLoading} onClick={() => setPage((value) => value + 1)} type="button">Next</button></div></div> : null}
       </section>
 
-      {selectedTransfer ? <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-        <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-xl sm:rounded-3xl">
+      {selectedTransfer ? <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4 backdrop-blur-xs">
+        <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] p-5 shadow-xl sm:rounded-3xl">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-wide text-[#7A1F2B]">Transfer detail</p>
@@ -444,7 +449,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
               </div>
               <div className="mt-2"><StatusBadge status={selectedTransfer.status} /></div>
             </div>
-            <button className="rounded-xl border p-2" onClick={() => setSelectedTransfer(null)} type="button" aria-label="Close"><X size={18} /></button>
+            <button className="rounded-xl border border-[var(--color-border)] p-2 hover:bg-[var(--color-soft)]" onClick={() => setSelectedTransfer(null)} type="button" aria-label="Close"><X size={18} /></button>
           </div>
           {isLoadingDetail ? <p className="mt-5 rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold">Loading detail...</p> : <>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -453,10 +458,10 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
               <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Requested</p><p className="mt-1 text-sm font-bold">{formatDate(selectedTransfer.requestedAt || selectedTransfer.transferDate)}</p></div>
               <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Posted</p><p className="mt-1 text-sm font-bold">{formatDate(selectedTransfer.postedAt)}</p></div>
               {selectedTransfer.fulfillmentMethod ? (
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Fulfillment</p><p className="mt-1 text-sm font-bold">{selectedTransfer.fulfillmentMethod}{selectedTransfer.fulfillmentStatus ? ` (${selectedTransfer.fulfillmentStatus})` : ""}</p></div>
+                <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Fulfillment</p><p className="mt-1 text-sm font-bold">{selectedTransfer.fulfillmentMethod ? selectedTransfer.fulfillmentMethod.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : "—"}{selectedTransfer.fulfillmentStatus ? ` (${selectedTransfer.fulfillmentStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())})` : ""}</p></div>
               ) : null}
               {selectedTransfer.paymentStatus ? (
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Payment</p><p className="mt-1 text-sm font-bold">{selectedTransfer.paymentStatus}</p></div>
+                <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Payment</p><p className="mt-1 text-sm font-bold">{selectedTransfer.paymentStatus ? selectedTransfer.paymentStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : "—"}</p></div>
               ) : null}
             </div>
             <div className="mt-5 space-y-3">

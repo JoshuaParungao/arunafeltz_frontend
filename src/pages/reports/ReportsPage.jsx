@@ -4,13 +4,25 @@ import { getReport } from "../../features/reports/reports.api"
 import { getBranches } from "../../features/branches/branches.api"
 import FinancialSummaryPanel from "./FinancialSummaryPanel"
 import { exportReportPdf } from "../../utils/businessDocumentExport"
+import { getRoleLabel } from "../../constants/roles"
+
+function formatWord(value) {
+  if (!value) return "—"
+  return String(value)
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+}
 
 const REPORTS = Object.freeze({
   financial: {
     label: "Unified Financial Summary",
     statuses: [],
     columns: [
-      ["Event", (row) => row.eventType?.replaceAll("_", " ")],
+      ["Event", (row) => formatWord(row.eventType)],
       ["Manila date", (row) => formatDate(row.eventDate)],
       ["Source", (row) => row.sourceCode || row.sourceId],
       ["Branch", (row) => row.branch?.code],
@@ -29,7 +41,7 @@ const REPORTS = Object.freeze({
       ["Date", (row) => formatDate(row.saleDate)],
       ["Branch", (row) => row.branch?.code],
       ["Customer", (row) => row.customer?.fullName || "Walk-in"],
-      ["Status", (row) => row.status],
+      ["Status", (row) => formatWord(row.status)],
       ["Product", (row) => peso(row.netProductRevenue)],
       ["Branch COGS", (row) => peso(row.netOperationalProductCost)],
       ["Branch margin", (row) => peso(row.branchProductMargin)],
@@ -50,12 +62,12 @@ const REPORTS = Object.freeze({
       ["Received by", (row) => row.receivedBy?.fullName || "Unrecorded"],
       ["Assigned", (row) => row.assignedTechnician?.fullName || "Unassigned"],
       ["Quick", (row) => row.isQuickService ? "YES" : "NO"],
-      ["Status", (row) => row.status],
-      ["Release outcome", (row) => row.releaseOutcome?.replaceAll("_", " ") || "Not released"],
-      ["Payment", (row) => row.paymentState?.replaceAll("_", " ")],
+      ["Status", (row) => formatWord(row.status)],
+      ["Release outcome", (row) => formatWord(row.releaseOutcome) || "Not released"],
+      ["Payment", (row) => formatWord(row.paymentState)],
       ["Last action", (row) => row.lastAction?.actor?.fullName
-        ? `${row.lastAction.action.replaceAll("_", " ")} · ${row.lastAction.actor.fullName}`
-        : row.lastAction?.action?.replaceAll("_", " ")],
+        ? `${formatWord(row.lastAction.action)} · ${row.lastAction.actor.fullName}`
+        : formatWord(row.lastAction?.action)],
       ["Service charge", (row) => peso(row.finalServiceCharge)],
     ],
   },
@@ -81,7 +93,7 @@ const REPORTS = Object.freeze({
       ["Item", (row) => row.item?.itemName || "Unlinked item"],
       ["Customer", (row) => row.customer?.fullName || "Walk-in"],
       ["Supplier", (row) => row.supplierName || "—"],
-      ["Status", (row) => row.status],
+      ["Status", (row) => formatWord(row.status)],
     ],
   },
   cash: {
@@ -91,8 +103,8 @@ const REPORTS = Object.freeze({
       ["Transaction", (row) => row.transactionCode],
       ["Date", (row) => formatDate(row.transactionDate)],
       ["Branch", (row) => row.branch?.code],
-      ["Type", (row) => row.type],
-      ["Status", (row) => row.status],
+      ["Type", (row) => formatWord(row.type)],
+      ["Status", (row) => formatWord(row.status)],
       ["Amount", (row) => peso(row.amount)],
     ],
   },
@@ -105,7 +117,7 @@ const REPORTS = Object.freeze({
       ["Customer", (row) => row.customer?.fullName],
       ["Branch", (row) => row.branch?.code],
       ["Next due", (row) => formatDate(row.nextDueDate)],
-      ["Status", (row) => row.isOverdue ? "OVERDUE" : row.status],
+      ["Status", (row) => row.isOverdue ? "Overdue" : formatWord(row.status)],
       ["Remaining", (row) => peso(row.remainingBalance)],
     ],
   },
@@ -118,8 +130,8 @@ const REPORTS = Object.freeze({
       ["Date", (row) => formatDate(row.sourceDate)],
       ["Staff", (row) => row.staff?.fullName],
       ["Branch", (row) => row.branch?.code],
-      ["Type", (row) => row.sourceType?.replaceAll("_", " ")],
-      ["Status", (row) => row.status],
+      ["Type", (row) => formatWord(row.sourceType)],
+      ["Status", (row) => formatWord(row.status)],
       ["Incentive", (row) => peso(row.amount)],
     ],
   },
@@ -130,13 +142,13 @@ const REPORTS = Object.freeze({
       ["Period", (row) => row.cycle?.periodCode || row.cycle?.cycleCode],
       ["Employee", (row) => row.staff?.fullName],
       ["Branch", (row) => row.branch?.code],
-      ["Classification", (row) => row.classification?.replaceAll("_", " ") || "MIXED"],
+      ["Classification", (row) => formatWord(row.classification) || "Mixed"],
       ["Product basis", (row) => peso(row.productBasis)],
       ["Product incentive", (row) => peso(row.productIncentive)],
       ["Service basis", (row) => peso(row.serviceBasis)],
       ["Service incentive", (row) => peso(row.serviceIncentive)],
       ["Total", (row) => peso(row.totalIncentive)],
-      ["Claim status", (row) => row.status],
+      ["Claim status", (row) => formatWord(row.status)],
       ["Claimed", (row) => formatDate(row.claimedAt)],
       ["Approved by", (row) => row.approvedBy?.fullName || "—"],
       ["Paid", (row) => formatDate(row.paidAt)],
@@ -148,8 +160,8 @@ const REPORTS = Object.freeze({
     supportsSearch: true,
     columns: [
       ["Staff", (row) => row.fullName],
-      ["Access role", (row) => row.role === "CASHIER" ? "SALES AGENT" : row.role?.replaceAll("_", " ")],
-      ["Incentive class", (row) => row.incentiveClassification?.replaceAll("_", " ") || "NONE"],
+      ["Access role", (row) => getRoleLabel(row.role)],
+      ["Incentive class", (row) => formatWord(row.incentiveClassification) || "None"],
       ["Branch", (row) => row.branch?.code],
       ["Completed sales", (row) => number(row.completedSales)],
       ["Completed services", (row) => number(row.completedServices)],
@@ -163,7 +175,7 @@ const REPORTS = Object.freeze({
     columns: [
       ["Supplier", (row) => `${row.supplierCode} — ${row.name}`],
       ["Branch", (row) => row.branch?.code || "Global"],
-      ["Status", (row) => row.status],
+      ["Status", (row) => formatWord(row.status)],
       ["PO count", (row) => number(row.totalPurchaseOrders)],
       ["PO value", (row) => peso(row.totalPoGrandTotal)],
       ["Received value", (row) => peso(row.totalReceivingGrandTotal)],
@@ -178,7 +190,7 @@ const REPORTS = Object.freeze({
       ["Date", (row) => formatDate(row.orderDate)],
       ["Supplier", (row) => row.supplier?.name || row.supplierNameSnapshot],
       ["Branch", (row) => row.branch?.code],
-      ["Status", (row) => row.status],
+      ["Status", (row) => formatWord(row.status)],
       ["Total", (row) => peso(row.grandTotal)],
     ],
   },
@@ -191,7 +203,7 @@ const REPORTS = Object.freeze({
       ["Date", (row) => formatDate(row.receivingDate)],
       ["Supplier", (row) => row.supplier?.name || row.supplierNameSnapshot],
       ["Branch", (row) => row.branch?.code],
-      ["Status", (row) => row.status],
+      ["Status", (row) => formatWord(row.status)],
       ["Total", (row) => peso(row.grandTotal)],
     ],
   },
@@ -204,7 +216,7 @@ const REPORTS = Object.freeze({
       ["Date", (row) => formatDate(row.transferDate)],
       ["From", (row) => row.fromBranch?.code],
       ["To", (row) => row.toBranch?.code],
-      ["Status", (row) => row.status],
+      ["Status", (row) => formatWord(row.status)],
       ["Quantity", (row) => number(row.totalQuantity)],
       ["Agreed value", (row) => peso(row.totalAgreedAmount)],
       ["Transfer sale", (row) => peso(row.outgoingTransferSales)],
@@ -500,7 +512,7 @@ export default function ReportsPage({ selectedBranch, user }) {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-card">
+      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-card">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--color-maroon)]">Monitoring</p>
         <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -517,10 +529,10 @@ export default function ReportsPage({ selectedBranch, user }) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card">
+      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-card">
         <div className={`grid gap-3 md:grid-cols-2 ${isSuperOwner ? "xl:grid-cols-7" : "xl:grid-cols-6"}`}>
           <select
-            className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] xl:col-span-2"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] xl:col-span-2"
             onChange={(event) => {
               setReportKey(event.target.value)
               setStatus("")
@@ -540,7 +552,7 @@ export default function ReportsPage({ selectedBranch, user }) {
           {isSuperOwner ? (
             <select
               aria-label="Report branch"
-              className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
               onChange={(event) => { setReportBranchId(event.target.value); setPage(1) }}
               value={reportBranchId}
             >
@@ -550,31 +562,31 @@ export default function ReportsPage({ selectedBranch, user }) {
           ) : null}
           {config.statuses.length > 0 ? (
             <select
-              className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)] font-bold"
               onChange={(event) => { setStatus(event.target.value); setPage(1) }}
               value={status}
             >
               <option value="">{config.filterLabel || "All statuses"}</option>
-              {config.statuses.map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}
+              {config.statuses.map((value) => <option key={value} value={value}>{formatWord(value)}</option>)}
             </select>
           ) : null}
           <input
             aria-label="Report start date"
-            className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
             onChange={(event) => { setDateFrom(event.target.value); setPage(1) }}
             type="date"
             value={dateFrom}
           />
           <input
             aria-label="Report end date"
-            className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
             onChange={(event) => { setDateTo(event.target.value); setPage(1) }}
             type="date"
             value={dateTo}
           />
           <div className="flex min-w-0 gap-2">
             <button
-              className="flex-1 rounded-2xl border border-[var(--color-maroon)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-maroon)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-2xl border border-[var(--color-maroon)] bg-[var(--color-card)] px-4 py-3 text-sm font-bold text-[var(--color-maroon)] hover:bg-[var(--color-soft)] disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isLoading || isExportingPdf}
               onClick={handleExportPdf}
               type="button"
@@ -583,7 +595,7 @@ export default function ReportsPage({ selectedBranch, user }) {
             </button>
 
             <button
-              className="flex-1 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+              className="flex-1 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-60"
               disabled={isLoading || isExportingPdf}
               onClick={loadReport}
               type="button"
@@ -594,7 +606,7 @@ export default function ReportsPage({ selectedBranch, user }) {
         </div>
         {config.supportsSearch ? (
           <input
-            className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+            className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
             onChange={(event) => { setSearch(event.target.value); setPage(1) }}
             placeholder="Search this report"
             value={search}
@@ -604,7 +616,7 @@ export default function ReportsPage({ selectedBranch, user }) {
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             <select
               aria-label="Quick service filter"
-              className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
               onChange={(event) => { setIsQuickService(event.target.value); setPage(1) }}
               value={isQuickService}
             >
@@ -614,18 +626,18 @@ export default function ReportsPage({ selectedBranch, user }) {
             </select>
             <select
               aria-label="Service release outcome"
-              className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)] font-bold"
               onChange={(event) => { setReleaseOutcome(event.target.value); setPage(1) }}
               value={releaseOutcome}
             >
               <option value="">All release outcomes</option>
               {["REPAIRED", "SERVICE_COMPLETED", "UNREPAIRED", "CUSTOMER_PULL_OUT", "NO_FAULT_FOUND", "DECLINED", "OTHER"].map((value) => (
-                <option key={value} value={value}>{value.replaceAll("_", " ")}</option>
+                <option key={value} value={value}>{formatWord(value)}</option>
               ))}
             </select>
             <select
               aria-label="Released job filter"
-              className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
               onChange={(event) => { setReleasedOnly(event.target.value); setPage(1) }}
               value={releasedOnly}
             >
@@ -638,7 +650,7 @@ export default function ReportsPage({ selectedBranch, user }) {
         {reportKey === "incentiveClaims" ? (
           <select
             aria-label="Incentive classification"
-            className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)] md:max-w-sm"
+            className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)] md:max-w-sm"
             onChange={(event) => { setIncentiveClassification(event.target.value); setPage(1) }}
             value={incentiveClassification}
           >
@@ -661,7 +673,7 @@ export default function ReportsPage({ selectedBranch, user }) {
 
       {reportKey !== "financial" ? <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {primitiveTotals.map(([key, value]) => (
-          <div className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card" key={key}>
+          <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-card" key={key}>
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-muted)]">{labelForKey(key)}</p>
             <p className="mt-2 text-2xl font-black text-[var(--color-text-strong)]">
               {MONEY_KEY.test(key) ? peso(value) : number(value)}
@@ -670,7 +682,7 @@ export default function ReportsPage({ selectedBranch, user }) {
         ))}
       </section> : null}
 
-      <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
+      <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">
         <div className="border-b border-[var(--color-border)] p-5">
           <h2 className="font-black text-[var(--color-text-strong)]">{config.label} records</h2>
           <p className="mt-1 text-xs text-[var(--color-muted)]">{meta.totalItems || 0} matching record(s)</p>
@@ -692,9 +704,9 @@ export default function ReportsPage({ selectedBranch, user }) {
           </table>
         </div>
         <div className="flex items-center justify-between border-t border-[var(--color-border)] p-4">
-          <button className="rounded-xl border px-4 py-2 text-sm font-bold disabled:opacity-40" disabled={!meta.hasPreviousPage} onClick={() => setPage((value) => Math.max(value - 1, 1))} type="button">Previous</button>
+          <button className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-bold text-[var(--color-text-strong)] disabled:opacity-40" disabled={!meta.hasPreviousPage} onClick={() => setPage((value) => Math.max(value - 1, 1))} type="button">Previous</button>
           <span className="text-sm text-[var(--color-muted)]">Page {meta.page || page} of {meta.totalPages || 1}</span>
-          <button className="rounded-xl border px-4 py-2 text-sm font-bold disabled:opacity-40" disabled={!meta.hasNextPage} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
+          <button className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-bold text-[var(--color-text-strong)] disabled:opacity-40" disabled={!meta.hasNextPage} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
         </div>
       </section>
     </div>

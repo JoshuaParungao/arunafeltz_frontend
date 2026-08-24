@@ -71,16 +71,23 @@ function apiError(error, fallback) {
 }
 
 function label(value) {
-  return String(value || "—").replaceAll("_", " ");
+  if (!value) return "—";
+  return String(value)
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }
 
 function Status({ value }) {
   const className =
     value === "PAID" || value === "POSTED"
-      ? "bg-emerald-50 text-emerald-700"
+      ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300"
       : value === "ACTIVE"
-        ? "bg-amber-50 text-amber-700"
-        : "bg-rose-50 text-rose-700";
+        ? "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300"
+        : "bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300";
   return (
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-black ${className}`}

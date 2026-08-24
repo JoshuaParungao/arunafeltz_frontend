@@ -17,6 +17,7 @@ import {
   getInventorySerials,
 } from "../../features/inventory/inventory.api"
 import { createSale } from "../../features/sales/sales.api"
+import { getRoleLabel } from "../../constants/roles"
 import { generateUUID } from "../../utils/uuid"
 
 const IMMEDIATE_PAYMENT_METHODS = [
@@ -1776,7 +1777,7 @@ function QuotationsPage({ selectedBranch, user }) {
                   </option>
                   {availableServiceStaff.map((staff) => (
                     <option key={staff.id} value={staff.id}>
-                      {staff.fullName} ({staff.role})
+                      {staff.fullName} ({getRoleLabel(staff.role)})
                     </option>
                   ))}
                 </select>
@@ -2747,7 +2748,7 @@ function QuotationsPage({ selectedBranch, user }) {
                     </option>
                     {availableServiceStaff.map((staff) => (
                       <option key={staff.id} value={staff.id}>
-                        {staff.fullName} ({staff.role})
+                        {staff.fullName} ({getRoleLabel(staff.role)})
                       </option>
                     ))}
                   </select>

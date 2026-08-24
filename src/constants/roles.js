@@ -16,11 +16,11 @@ export const USER_STATUS = {
 
 export const ROLE_LABELS = {
   SUPER_OWNER: "Main Admin",
-  BRANCH_OWNER: "Legacy Branch Owner",
+  BRANCH_OWNER: "Branch Owner",
   ADMIN: "Admin",
   CASHIER: "Sales Agent",
   TECHNICIAN: "Technician",
-  CASH_CUSTODIAN: "Legacy Cash Custodian",
+  CASH_CUSTODIAN: "Cash Custodian",
 }
 
 export const ACCOUNT_TYPES = {

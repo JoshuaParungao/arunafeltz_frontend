@@ -37,11 +37,11 @@ import {
 
 const ROLE_LABELS = {
   SUPER_OWNER: "Main Admin",
-  BRANCH_OWNER: "Legacy Branch Owner",
+  BRANCH_OWNER: "Branch Owner",
   ADMIN: "Admin",
   CASHIER: "Sales Agent",
   TECHNICIAN: "Technician",
-  CASH_CUSTODIAN: "Legacy Cash Custodian",
+  CASH_CUSTODIAN: "Cash Custodian",
 }
 
 const ASSIGNABLE_ROLES = {
@@ -214,7 +214,7 @@ function ModalFrame({ children, labelledBy, onClose, size = "max-w-3xl" }) {
       role="dialog"
     >
       <section
-        className={`max-h-[calc(100svh-2.5rem)] w-full ${size} overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-white shadow-card`}
+        className={`max-h-[calc(100svh-2.5rem)] w-full ${size} overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] shadow-card`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         {children}
@@ -982,14 +982,14 @@ function UsersPage({ selectedBranch, user }) {
 
       {branchError ? <ErrorBanner>{branchError}</ErrorBanner> : null}
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card">
+      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-card">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_repeat(3,minmax(10rem,13rem))_auto] xl:items-end">
           <label className="min-w-0">
             <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Search</span>
             <span className="relative mt-2 block">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={18} />
               <input
-                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-11 pr-4 text-sm font-semibold outline-none focus:border-[var(--color-accent)] focus:bg-white"
+                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-11 pr-4 text-sm font-semibold outline-none focus:border-[var(--color-accent)] focus:bg-[var(--color-card)]"
                 onChange={(event) => {
                   setSearchText(event.target.value)
                   setPage(1)
@@ -1082,13 +1082,13 @@ function UsersPage({ selectedBranch, user }) {
       {errorMessage ? (
         <section className="space-y-3 rounded-3xl border border-red-200 bg-red-50 p-5">
           <ErrorBanner>{errorMessage}</ErrorBanner>
-          <button className="rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700" onClick={loadUsers} type="button">
+          <button className="rounded-2xl border border-red-200 bg-[var(--color-card)] px-4 py-2.5 text-sm font-bold text-red-700" onClick={loadUsers} type="button">
             Try again
           </button>
         </section>
       ) : null}
 
-      <section className="min-w-0 overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
+      <section className="min-w-0 overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">
         {isLoading ? (
           <div className="p-6 text-sm font-semibold text-[var(--color-muted)]">Loading users... Please wait.</div>
         ) : users.length === 0 ? (
@@ -1168,7 +1168,7 @@ function UsersPage({ selectedBranch, user }) {
       </section>
 
       {!isLoading && users.length > 0 ? (
-        <section className="flex flex-col gap-3 rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
+        <section className="flex flex-col gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-semibold text-[var(--color-muted)]">
             Page {meta?.page || page} of {totalPages} · {total} user(s)
           </p>
@@ -1193,7 +1193,7 @@ function UsersPage({ selectedBranch, user }) {
         </section>
       ) : null}
 
-      <section className="flex items-start gap-3 rounded-3xl border border-[var(--color-border)] bg-white p-4 text-sm leading-6 text-[var(--color-muted)] shadow-card">
+      <section className="flex items-start gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-sm leading-6 text-[var(--color-muted)] shadow-card">
         <ShieldCheck className="mt-0.5 shrink-0 text-[var(--color-maroon)]" size={19} />
         <p>
           Branch access and role hierarchy are enforced by the server. Password hashes and credentials are never returned in user records.
