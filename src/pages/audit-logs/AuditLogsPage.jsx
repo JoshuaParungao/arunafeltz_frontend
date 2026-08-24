@@ -29,16 +29,49 @@ function formatRole(role) {
   return String(role)
     .replace(/_/g, " ")
     .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .split(" ")
+    .filter(Boolean)
+    .map((c) => c.charAt(0).toUpperCase() + c.slice(1))
+    .join(" ")
 }
 
 function formatAction(action) {
   if (!action) return "Activity"
   return String(action)
+    .replace(/_/g, " ")
     .toLowerCase()
     .split(" ")
+    .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ")
+}
+
+function formatDescription(desc) {
+  if (!desc) return "—"
+  // Clean any uppercase words with underscores into clean title words with spaces (e.g. BOARD_LEVEL_REPAIR -> Board Level Repair, SERVICE_COMPLETED -> Service Completed)
+  let text = String(desc).replace(/\b[A-Z]{2,}(?:_[A-Z0-9]+)+\b/g, (match) => {
+    return match
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ")
+  })
+  // Also clean single status technical tokens (e.g. ORDERED -> Ordered, COMPLETED -> Completed)
+  text = text.replace(
+    /\b(ORDERED|PENDING|IN_PROGRESS|COMPLETED|CANCELLED|REPAIRED|UNREPAIRED|DECLINED|DRAFT|APPROVED|RECEIVED)\b/g,
+    (match) => {
+      return match
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .split(" ")
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")
+    }
+  )
+  return text
 }
 
 function formatEntityType(entity) {
@@ -60,6 +93,9 @@ function formatEntityType(entity) {
     CashBox: "Cash Box",
     CashTransaction: "Cash Entry",
     Incentive: "Incentive Record",
+    IncentiveProgramRuleVersion: "Incentive Program Rule",
+    IncentiveAccountConfigVersion: "Incentive Account Config",
+    IncentiveProgramScheduleVersion: "Incentive Schedule",
   }
   if (entityMap[entity]) return entityMap[entity]
   return String(entity)
@@ -67,7 +103,10 @@ function formatEntityType(entity) {
     .replace(/_/g, " ")
     .toLowerCase()
     .trim()
-    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .split(" ")
+    .filter(Boolean)
+    .map((c) => c.charAt(0).toUpperCase() + c.slice(1))
+    .join(" ")
 }
 
 export default function AuditLogsPage({ selectedBranch, user }) {
@@ -107,8 +146,8 @@ export default function AuditLogsPage({ selectedBranch, user }) {
       setMeta({})
       setErrorMessage(
         error?.response?.data?.message ||
-        error?.response?.data?.error?.message ||
-        "Could not load audit logs."
+          error?.response?.data?.error?.message ||
+          "Could not load audit logs."
       )
     } finally {
       setIsLoading(false)
@@ -232,46 +271,43 @@ export default function AuditLogsPage({ selectedBranch, user }) {
               ) : null}
               {!isLoading
                 ? logs.map((log) => (
-                  <tr className="align-top hover:bg-[var(--color-soft)]/50 transition" key={log.id}>
-                    <td className="px-4 py-4 whitespace-nowrap text-xs font-semibold text-[var(--color-muted)]">
-                      {dateTime(log.createdAt)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="font-bold text-[var(--color-text-strong)] block">
-                        {log.actor?.fullName || log.actor?.username || "System"}
-                      </span>
-                      <span className="block text-xs font-medium text-[var(--color-muted)]">
-                        {formatRole(log.actor?.role)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 font-bold text-[var(--color-maroon)]">
-                      {formatAction(log.action)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="font-semibold text-[var(--color-text-strong)] block">
-                        {formatEntityType(log.entityType)}
-                      </span>
-                      <span className="block max-w-40 truncate text-xs text-[var(--color-muted)]">
-                        {log.entityId || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-xs font-semibold text-[var(--color-text-strong)]">
-                      {log.branch?.name || log.branch?.code || "Global / System"}
-                    </td>
-                    <td className="px-4 py-4 max-w-sm text-xs leading-relaxed text-[var(--color-text)]">
-                      {log.description || "—"}
-                    </td>
-                    <td className="px-4 py-4">
-                      <button
-                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
-                        onClick={() => openLog(log)}
-                        type="button"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                    <tr className="align-top hover:bg-[var(--color-soft)]/50 transition" key={log.id}>
+                      <td className="px-4 py-4 whitespace-nowrap text-xs font-semibold text-[var(--color-muted)]">
+                        {dateTime(log.createdAt)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="font-bold text-[var(--color-text-strong)] block">
+                          {log.actor?.fullName || log.actor?.username || "System"}
+                        </span>
+                        <span className="block text-xs font-medium text-[var(--color-muted)]">
+                          {formatRole(log.actor?.role)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 font-bold text-[var(--color-maroon)]">
+                        {formatAction(log.action)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="font-semibold text-[var(--color-text-strong)] block">
+                          {formatEntityType(log.entityType)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-xs font-semibold text-[var(--color-text-strong)]">
+                        {log.branch?.name || log.branch?.code || "Global / System"}
+                      </td>
+                      <td className="px-4 py-4 max-w-sm text-xs leading-relaxed text-[var(--color-text)]">
+                        {formatDescription(log.description)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                          onClick={() => openLog(log)}
+                          type="button"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
                 : null}
             </tbody>
           </table>
