@@ -8,6 +8,7 @@ export const getScheduledBackups = async () => {
 export const exportDatabaseBackup = async () => {
   const response = await apiClient.get("/backups/export", {
     responseType: "blob",
+    timeout: 120000,
   })
   return response.data
 }
@@ -17,12 +18,15 @@ export const downloadScheduledBackup = async (filename) => {
     `/backups/scheduled/${encodeURIComponent(filename)}`,
     {
       responseType: "blob",
+      timeout: 120000,
     }
   )
   return response.data
 }
 
 export const restoreDatabaseBackup = async (payload) => {
-  const response = await apiClient.post("/backups/restore", payload)
+  const response = await apiClient.post("/backups/restore", payload, {
+    timeout: 120000,
+  })
   return response.data
 }
