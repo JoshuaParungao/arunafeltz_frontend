@@ -66,7 +66,7 @@ const RELEASE_OUTCOMES = [
   { value: "OTHER", label: "Other" },
 ]
 const FIELD_CLASS =
-  "mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-[var(--color-maroon)]/10"
+  "mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-[var(--color-maroon)]/10"
 
 const EMPTY_CREATE = {
   customerId: "",
@@ -164,11 +164,20 @@ function apiError(error, fallback) {
 }
 
 function statusTone(status) {
-  if (status === "COMPLETED") return "bg-emerald-50 text-emerald-700"
-  if (status === "CANCELLED") return "bg-rose-50 text-rose-700"
-  if (status === "READY_FOR_RELEASE") return "bg-sky-50 text-sky-700"
-  if (status === "IN_PROGRESS") return "bg-amber-50 text-amber-700"
-  return "bg-slate-100 text-slate-700"
+  switch (status) {
+    case "PENDING":
+      return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+    case "IN_PROGRESS":
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+    case "READY_FOR_RELEASE":
+      return "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300"
+    case "COMPLETED":
+      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+    case "CANCELLED":
+      return "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300"
+    default:
+      return "bg-[var(--color-soft)] text-[var(--color-text-strong)]"
+  }
 }
 
 function StatusBadge({ status }) {
@@ -181,18 +190,18 @@ function StatusBadge({ status }) {
 
 function Modal({ children, onClose, title, width = "max-w-3xl" }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/55 p-3 sm:p-6">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/60 p-3 sm:p-6 backdrop-blur-xs">
       <section
         aria-label={title}
         aria-modal="true"
-        className={`my-auto w-full ${width} overflow-hidden rounded-3xl bg-white shadow-2xl`}
+        className={`my-auto w-full ${width} overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] shadow-2xl`}
         role="dialog"
       >
-        <header className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
+        <header className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4 sm:px-6 bg-[var(--color-card)]">
           <h2 className="text-lg font-black text-[var(--color-text-strong)]">{title}</h2>
           <button
             aria-label="Close"
-            className="rounded-xl p-2 text-[var(--color-muted)] hover:bg-slate-100"
+            className="rounded-xl p-2 text-[var(--color-muted)] hover:bg-[var(--color-soft)]"
             onClick={onClose}
             type="button"
           >
@@ -224,7 +233,7 @@ function ServicePricingFields({ baseServiceCharge, markupPercent, onBaseChange, 
   const numericBase = baseIsValid ? Number(baseServiceCharge || 0) : 0
 
   return (
-    <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-slate-50 p-4">
+    <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Base service charge *">
           <input
@@ -250,11 +259,11 @@ function ServicePricingFields({ baseServiceCharge, markupPercent, onBaseChange, 
         </Field>
       </div>
       {!markupIsValid ? (
-        <p className="text-xs font-bold text-rose-700">Markup must be at least 0% and less than 100%.</p>
+        <p className="text-xs font-bold text-rose-500">Markup must be at least 0% and less than 100%.</p>
       ) : null}
       <div className="grid gap-2 text-xs sm:grid-cols-3">
-        <div><p className="font-bold text-[var(--color-muted)]">Base</p><p className="mt-1 font-black">{money(numericBase)}</p></div>
-        <div><p className="font-bold text-[var(--color-muted)]">Markup amount</p><p className="mt-1 font-black">{money(Math.max(finalServiceCharge - numericBase, 0))}</p></div>
+        <div><p className="font-bold text-[var(--color-muted)]">Base</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(numericBase)}</p></div>
+        <div><p className="font-bold text-[var(--color-muted)]">Markup amount</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(Math.max(finalServiceCharge - numericBase, 0))}</p></div>
         <div><p className="font-bold text-[var(--color-muted)]">Final customer price</p><p className="mt-1 font-black text-[var(--color-maroon)]">{money(finalServiceCharge)}</p></div>
       </div>
     </div>
@@ -1223,7 +1232,7 @@ export default function ServicesPage({ selectedBranch, user }) {
               ) : null}
 
               {!createForm.customerId ? (
-                <div className="grid gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
+                <div className="grid gap-4 rounded-2xl bg-[var(--color-soft)] p-4 sm:grid-cols-2">
                   <Field label="Walk-in customer name"><input className={FIELD_CLASS} maxLength="180" onChange={(event) => setCreateForm((form) => ({ ...form, customerNameSnapshot: event.target.value }))} value={createForm.customerNameSnapshot} /></Field>
                   <Field label="Customer contact"><input className={FIELD_CLASS} maxLength="250" onChange={(event) => setCreateForm((form) => ({ ...form, customerContactSnapshot: event.target.value }))} value={createForm.customerContactSnapshot} /></Field>
                 </div>
@@ -1265,15 +1274,15 @@ export default function ServicesPage({ selectedBranch, user }) {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-xl font-black">{selectedJob.jobTitle}</h3>
-                      {selectedJob.isQuickService ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">QUICK SERVICE</span> : null}
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">{friendly(selectedJob.repairType)}</span>
+                      {selectedJob.isQuickService ? <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 px-2.5 py-1 text-xs font-black">QUICK SERVICE</span> : null}
+                      <span className="rounded-full bg-[var(--color-soft)] px-2.5 py-1 text-xs font-black text-[var(--color-text-strong)]">{friendly(selectedJob.repairType)}</span>
                     </div>
                     <p className="mt-1 text-sm text-[var(--color-muted)]">Received {dateTime(selectedJob.receivedAt)} · {selectedJob.branch?.name || selectedJob.branch?.code}</p>
                   </div>
                   <div className="flex items-center gap-2"><StatusBadge status={selectedJob.status} /><button className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-black" onClick={() => setIsPrintPreviewOpen(true)} type="button"><Printer size={15} /> Print JO</button></div>
                 </div>
 
-                <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 rounded-2xl bg-[var(--color-soft)] p-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div><p className="text-xs font-bold text-[var(--color-muted)]">Customer</p><p className="mt-1 font-bold">{selectedJob.customerNameSnapshot || selectedJob.customer?.fullName || "Walk-in"}</p><p className="text-xs text-[var(--color-muted)]">{selectedJob.customerContactSnapshot || "No contact supplied"}</p></div>
                   <div><p className="text-xs font-bold text-[var(--color-muted)]">Repair category</p><p className="mt-1 font-bold">{friendly(selectedJob.repairType)}</p></div>
                   <div><p className="text-xs font-bold text-[var(--color-muted)]">Assigned technician</p><p className="mt-1 font-bold">{selectedJob.assignedTechnician ? technicianLabel(selectedJob.assignedTechnician) : "Unassigned"}</p></div>

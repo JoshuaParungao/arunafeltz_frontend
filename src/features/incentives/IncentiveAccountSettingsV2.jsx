@@ -214,7 +214,7 @@ function ToggleRateField({
         </span>
 
         <input
-          className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none transition focus:border-[var(--color-maroon)] disabled:bg-slate-100 disabled:text-[var(--color-muted)]"
+          className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none transition focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
           disabled={
             disabled ||
             !enabled
@@ -424,7 +424,7 @@ function AccountCard({
             </span>
 
             <input
-              className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+              className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
               disabled={
                 !canManage ||
                 isSaving
@@ -465,7 +465,7 @@ function AccountCard({
           </span>
 
           <input
-            className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+            className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
             disabled={
               !canManage ||
               isSaving

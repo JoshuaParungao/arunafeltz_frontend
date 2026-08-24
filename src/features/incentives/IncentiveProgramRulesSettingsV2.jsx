@@ -389,7 +389,7 @@ function ProgramCard({
             </span>
 
             <input
-              className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+              className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
               disabled={
                 !canManage ||
                 isSaving
@@ -426,7 +426,7 @@ function ProgramCard({
               Automatically derived as 100% minus Repair Cost Pool %. This value is not edited or stored separately.
             </p>
 
-            <div className="mt-3 flex h-11 items-center rounded-xl border border-[var(--color-border)] bg-slate-100 px-3 text-sm font-black text-[var(--color-text-strong)]">
+            <div className="mt-3 flex h-11 items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm font-black text-[var(--color-text-strong)]">
               {
                 percentLabel(
                   companyShare,
@@ -447,7 +447,7 @@ function ProgramCard({
         </span>
 
         <input
-          className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+          className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
           disabled={
             !canManage ||
             isSaving
@@ -931,7 +931,7 @@ export default function IncentiveProgramRulesSettingsV2({
                 </span>
 
                 <select
-                  className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+                  className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
                   disabled={
                     isLoading ||
                     Boolean(

@@ -43,7 +43,7 @@ function blankRates(version) {
 }
 
 const inputClass =
-  "mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+  "mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
 
 export default function EnterpriseIncentiveSettings({ canManage }) {
   const [configuration, setConfiguration] = useState(null)
@@ -287,7 +287,7 @@ export default function EnterpriseIncentiveSettings({ canManage }) {
                     <td className="px-4 py-3" key={field}>
                       <input
                         aria-label={`${label} ${field === "productRate" ? "product" : "service"} rate`}
-                        className="h-10 w-full rounded-xl border border-[var(--color-border)] px-3 font-bold disabled:bg-slate-100"
+                        className="h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 font-bold disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
                         disabled={!canManage || Boolean(busyAction)}
                         max="100"
                         min="0"

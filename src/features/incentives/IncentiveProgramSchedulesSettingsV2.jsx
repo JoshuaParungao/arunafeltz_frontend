@@ -637,7 +637,7 @@ function ScheduleCard({
           </span>
 
           <select
-            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
             disabled={
               !canManage ||
               Boolean(
@@ -688,7 +688,7 @@ function ScheduleCard({
           </span>
 
           <input
-            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
             disabled={
               !canManage ||
               Boolean(
@@ -719,7 +719,7 @@ function ScheduleCard({
           </span>
 
           <input
-            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
             disabled={
               !canManage ||
               Boolean(
@@ -753,7 +753,7 @@ function ScheduleCard({
             </span>
 
             <input
-              className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+              className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
               disabled={
                 !canManage ||
                 Boolean(
@@ -809,7 +809,7 @@ function ScheduleCard({
           </span>
 
           <input
-            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
             disabled={
               !canManage ||
               Boolean(
@@ -848,7 +848,7 @@ function ScheduleCard({
           </span>
 
           <input
-            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+            className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
             disabled={
               !canManage ||
               Boolean(
@@ -888,7 +888,7 @@ function ScheduleCard({
         </span>
 
         <input
-          className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+          className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
           disabled={
             !canManage ||
             Boolean(
@@ -1622,7 +1622,7 @@ export default function IncentiveProgramSchedulesSettingsV2({
                 </span>
 
                 <select
-                  className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+                  className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
                   disabled={
                     isLoading ||
                     Boolean(
