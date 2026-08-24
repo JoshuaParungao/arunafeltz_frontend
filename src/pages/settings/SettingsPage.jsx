@@ -24,6 +24,7 @@ import { getSettings, updateSettingByScopeKey } from "../../features/settings/se
 import IncentiveAccountSettingsV2 from "../../features/incentives/IncentiveAccountSettingsV2"
 import IncentiveProgramRulesSettingsV2 from "../../features/incentives/IncentiveProgramRulesSettingsV2"
 import IncentiveProgramSchedulesSettingsV2 from "../../features/incentives/IncentiveProgramSchedulesSettingsV2"
+import DatabaseBackupRecoverySection from "../../features/backup/DatabaseBackupRecoverySection"
 import {
   findSettingByKey,
   formatReadableText,
@@ -2934,6 +2935,7 @@ function SettingsPage({ user }) {
         </div>
       </section>
 
+      <DatabaseBackupRecoverySection user={user} />
 
       <section className="grid gap-4">
         <Card className="order-2">
