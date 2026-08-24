@@ -7,12 +7,18 @@ export async function getSettings() {
 
 export async function updateSettingByScopeKey(scopeKey, payload) {
   const cleanKey = String(scopeKey || "").replace(/^GLOBAL:/i, "").trim()
+  const requestBody = {
+    key: cleanKey,
+    scopeKey: scopeKey || `GLOBAL:${cleanKey}`,
+    ...payload,
+  }
+
   try {
-    const response = await apiClient.patch(`/settings/scope/${cleanKey}`, payload)
+    const response = await apiClient.patch("/settings", requestBody)
     return response.data
   } catch (error) {
     if (error?.response?.status === 404) {
-      const fallbackResponse = await apiClient.patch(`/settings/${cleanKey}`, payload)
+      const fallbackResponse = await apiClient.patch(`/settings/scope/${cleanKey}`, payload)
       return fallbackResponse.data
     }
     throw error
