@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+Allow: /login
+Disallow: /dashboard
+Disallow: /sales
+Disallow: /inventory
+Disallow: /reports
+Disallow: /users
+Disallow: /settings
+Disallow: /customers
+Disallow: /quotations
+Disallow: /warranty
+Disallow: /services
+Disallow: /incentives
+Disallow: /audit-logs
+Disallow: /stock-transfers
+Disallow: /cash-boxes
+Disallow: /credits
+
+Sitemap: https://arunafeltzcomputerpos.cloud/sitemap.xml

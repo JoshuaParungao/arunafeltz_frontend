@@ -7,7 +7,9 @@ import {
   updateStockTransferPricingById,
   updateStockTransferStatusById,
 } from "../../features/stock-transfers/stockTransfers.api"
+import { getInventorySerials } from "../../features/inventory/inventory.api"
 import { getUser } from "../../lib/sessionStorage"
+import SerialScannerModal from "../../components/common/SerialScannerModal"
 
 function formatDate(value) {
   if (!value) return "—"
@@ -212,10 +214,15 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
     }
   }
 
-  const updateTransferStatus = async (transfer, nextStatus) => {
-    const payload = { status: nextStatus }
+  const [isSerialModalOpen, setIsSerialModalOpen] = useState(false)
+  const [serialModalTransfer, setSerialModalTransfer] = useState(null)
+  const [serialModalItems, setSerialModalItems] = useState([])
+  const [isFulfillingSerials, setIsFulfillingSerials] = useState(false)
 
-    if (nextStatus === "REJECTED" || nextStatus === "CANCELLED") {
+  const updateTransferStatus = async (transfer, nextStatus, customPayload = null) => {
+    const payload = customPayload || { status: nextStatus }
+
+    if (!customPayload && (nextStatus === "REJECTED" || nextStatus === "CANCELLED")) {
       const label = nextStatus === "REJECTED" ? "rejecting" : "cancelling"
       const reason = window.prompt(`Reason for ${label} this transfer`)
       if (!reason?.trim()) {
@@ -223,7 +230,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
         return
       }
       payload[nextStatus === "REJECTED" ? "rejectionReason" : "cancellationReason"] = reason.trim()
-    } else if (!window.confirm(`Confirm ${nextStatus.toLowerCase()} for ${transfer.transferCode}?`)) {
+    } else if (!customPayload && !window.confirm(`Confirm ${nextStatus.toLowerCase()} for ${transfer.transferCode}?`)) {
       return
     }
 
@@ -240,6 +247,110 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
       setErrorMessage(error?.response?.data?.error?.message || "Could not update stock transfer.")
     } finally {
       setActionTransferId("")
+    }
+  }
+
+  const handleAction = async (transfer, nextStatus) => {
+    if (nextStatus === "POSTED") {
+      setActionTransferId(transfer.id)
+      setErrorMessage("")
+      setSuccessMessage("")
+
+      try {
+        const response = await getStockTransferById(transfer.id)
+        const detail = response?.data || transfer
+        const serializedLines = (detail.items || []).filter(
+          (item) => item.item?.isSerialized || item.isSerialized
+        )
+
+        if (serializedLines.length > 0) {
+          const itemsWithSerials = await Promise.all(
+            serializedLines.map(async (line) => {
+              const itemId = line.itemId || line.item?.id
+              const serialRes = await getInventorySerials({
+                branchId: detail.fromBranchId,
+                itemId,
+                status: "AVAILABLE",
+                limit: 100,
+              })
+              const serialRows = Array.isArray(serialRes?.data?.items)
+                ? serialRes.data.items
+                : Array.isArray(serialRes?.data)
+                ? serialRes.data
+                : []
+
+              return {
+                stockTransferItemId: line.id,
+                itemId,
+                itemName: line.item?.itemName || line.description || "Item",
+                itemCode: line.item?.itemCode || "",
+                requiredQuantity: Number(line.quantity || 1),
+                availableSerials: serialRows,
+              }
+            })
+          )
+
+          setSerialModalTransfer(detail)
+          setSerialModalItems(itemsWithSerials)
+          setIsSerialModalOpen(true)
+          return
+        }
+      } catch (error) {
+        setErrorMessage(
+          error?.response?.data?.error?.message ||
+            error?.message ||
+            "Could not load transfer details for serial verification."
+        )
+        return
+      } finally {
+        setActionTransferId("")
+      }
+    }
+
+    await updateTransferStatus(transfer, nextStatus)
+  }
+
+  const handleConfirmSerialFulfillment = async (selectedSerialsMap) => {
+    if (!serialModalTransfer) return
+
+    setIsFulfillingSerials(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const itemsPayload = Object.entries(selectedSerialsMap).map(
+        ([stockTransferItemId, serialIds]) => ({
+          stockTransferItemId,
+          serialIds,
+        })
+      )
+
+      const response = await updateStockTransferStatusById(
+        serialModalTransfer.id,
+        {
+          status: "POSTED",
+          items: itemsPayload,
+        }
+      )
+
+      setSuccessMessage(
+        `${response?.data?.transferCode || serialModalTransfer.transferCode} successfully fulfilled and dispatched with assigned serial numbers.`
+      )
+      setIsSerialModalOpen(false)
+      setSerialModalTransfer(null)
+      setSerialModalItems([])
+      if (selectedTransfer?.id === serialModalTransfer.id) {
+        setSelectedTransfer(response?.data || null)
+      }
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not complete serial transfer fulfillment."
+      )
+    } finally {
+      setIsFulfillingSerials(false)
     }
   }
 
@@ -294,7 +405,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                 <td className="px-4 py-4">{transfer.requestedBy?.fullName || transfer.requestedBy?.username || "—"}</td>
                 <td className="px-4 py-4 font-bold">{transfer.items?.length || 0}</td>
                 <td className="px-4 py-4 text-[var(--color-muted)]">{formatDate(transfer.requestedAt || transfer.transferDate)}</td>
-                <td className="px-4 py-4"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={updateTransferStatus} onView={openTransfer} /></td>
+                <td className="px-4 py-4"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} /></td>
               </tr>) : null}
             </tbody>
           </table>
@@ -315,7 +426,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
               <StatusBadge status={transfer.status} />
             </div>
             <p className="mt-3 text-sm text-[var(--color-muted)]">{transfer.items?.length || 0} line(s) • {formatDate(transfer.requestedAt || transfer.transferDate)}</p>
-            <div className="mt-4"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={updateTransferStatus} onView={openTransfer} /></div>
+            <div className="mt-4"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} /></div>
           </article>) : null}
         </div>
 
@@ -430,10 +541,27 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
             {canEditSelectedPricing ? <button className="mt-4 rounded-xl bg-[#7A1F2B] px-4 py-3 text-sm font-black text-white disabled:opacity-50" disabled={actionTransferId === selectedTransfer.id} onClick={saveTransferPricing} type="button">{actionTransferId === selectedTransfer.id ? "Saving pricing..." : "Save agreed pricing"}</button> : null}
             <div className="mt-4 rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Total internal transfer value</p><p className="mt-1 text-lg font-black">{formatMoney((selectedTransfer.items || []).reduce((sum, item) => sum + Number(item.transferAmount || 0), 0))}</p><p className="mt-1 text-xs text-[var(--color-muted)]">This is internal transfer accounting, not ordinary customer sales revenue.</p></div>
             <div className="mt-5 grid gap-2 text-sm text-[var(--color-muted)]"><p>Requested by: {selectedTransfer.requestedBy?.fullName || selectedTransfer.requestedBy?.username || "—"}</p><p>Approved by: {selectedTransfer.approvedBy?.fullName || selectedTransfer.approvedBy?.username || "—"}</p><p>Posted by: {selectedTransfer.postedBy?.fullName || selectedTransfer.postedBy?.username || "—"}</p>{selectedTransfer.rejectionReason ? <p>Rejection: {selectedTransfer.rejectionReason}</p> : null}{selectedTransfer.cancellationReason ? <p>Cancellation: {selectedTransfer.cancellationReason}</p> : null}</div>
-            <div className="mt-5"><ActionButtons transfer={selectedTransfer} user={user} busy={actionTransferId === selectedTransfer.id} onAction={updateTransferStatus} onView={() => {}} /></div>
+            <div className="mt-5"><ActionButtons transfer={selectedTransfer} user={user} busy={actionTransferId === selectedTransfer.id} onAction={handleAction} onView={() => {}} /></div>
           </>}
         </section>
       </div> : null}
+
+      <SerialScannerModal
+        isOpen={isSerialModalOpen}
+        items={serialModalItems}
+        isSubmitting={isFulfillingSerials}
+        onClose={() => {
+          if (!isFulfillingSerials) {
+            setIsSerialModalOpen(false)
+            setSerialModalTransfer(null)
+            setSerialModalItems([])
+          }
+        }}
+        onConfirm={handleConfirmSerialFulfillment}
+        subtitle={`Scan barcode or type serial numbers from ${serialModalTransfer?.fromBranch?.name || serialModalTransfer?.fromBranch?.code || "source branch"} to dispatch.`}
+        title="Fulfill Stock Transfer"
+        transferCode={serialModalTransfer?.transferCode || ""}
+      />
     </div>
   )
 }
