@@ -151,40 +151,53 @@ function getCatalogRows(response) {
   if (Array.isArray(response)) return response
 
   const result = response || {}
-  return Array.isArray(result.items)
-    ? result.items
-    : Array.isArray(result.data)
-      ? result.data
-      : Array.isArray(result.records)
-        ? result.records
-        : []
+  const innerData = result.data || {}
+
+  if (Array.isArray(result.items)) return result.items
+  if (Array.isArray(innerData.items)) return innerData.items
+  if (Array.isArray(result.data)) return result.data
+  if (Array.isArray(innerData.data)) return innerData.data
+  if (Array.isArray(result.records)) return result.records
+  if (Array.isArray(innerData.records)) return innerData.records
+
+  return []
 }
 
 function getInventoryRows(response) {
   if (Array.isArray(response)) return response
 
   const result = response || {}
-  return Array.isArray(result.data)
-    ? result.data
-    : Array.isArray(result.items)
-      ? result.items
-      : Array.isArray(result.records)
-        ? result.records
-        : []
+  const innerData = result.data || {}
+
+  if (Array.isArray(result.data)) return result.data
+  if (Array.isArray(innerData.data)) return innerData.data
+  if (Array.isArray(result.items)) return result.items
+  if (Array.isArray(innerData.items)) return innerData.items
+  if (Array.isArray(result.records)) return result.records
+  if (Array.isArray(innerData.records)) return innerData.records
+
+  return []
 }
 
 function getSaleListResult(response) {
   const result = response || {}
+  const innerData = result.data || {}
+
+  const rows = Array.isArray(result.data)
+    ? result.data
+    : Array.isArray(innerData.items)
+      ? innerData.items
+      : Array.isArray(innerData.data)
+        ? innerData.data
+        : Array.isArray(result.items)
+          ? result.items
+          : Array.isArray(result.records)
+            ? result.records
+            : []
 
   return {
-    rows: Array.isArray(result.data)
-      ? result.data
-      : Array.isArray(result.items)
-        ? result.items
-        : Array.isArray(result.records)
-          ? result.records
-          : [],
-    meta: result.meta || null,
+    rows,
+    meta: result.meta || innerData.pagination || result.pagination || null,
   }
 }
 
