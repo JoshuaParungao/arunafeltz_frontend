@@ -17,6 +17,7 @@ import {
   getInventorySerials,
 } from "../../features/inventory/inventory.api"
 import { createSale } from "../../features/sales/sales.api"
+import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
 import { getRoleLabel } from "../../constants/roles"
 import { generateUUID } from "../../utils/uuid"
 
@@ -50,6 +51,26 @@ const INSTALLMENT_TERMS = [
   ["MONTH_18", "18 months"],
   ["MONTH_24", "24 months"],
 ]
+
+const INSTALLMENT_TERM_MONTHS = {
+  STRAIGHT: 1,
+  MONTH_3: 3,
+  MONTH_6: 6,
+  MONTH_9: 9,
+  MONTH_12: 12,
+  MONTH_18: 18,
+  MONTH_24: 24,
+}
+
+const DEFAULT_INSTALLMENT_BASIS = {
+  STRAIGHT: 0.96,
+  MONTH_3: 0.96,
+  MONTH_6: 0.935,
+  MONTH_9: 0.905,
+  MONTH_12: 0.875,
+  MONTH_18: 0.815,
+  MONTH_24: 0.755,
+}
 
 function createRequestKey() {
   return generateUUID()
@@ -386,6 +407,22 @@ function QuotationsPage({ selectedBranch, user }) {
   const detailPanelRef = useRef(null)
   const formPanelRef = useRef(null)
 
+  const [installmentRates, setInstallmentRates] = useState(DEFAULT_INSTALLMENT_BASIS)
+
+  useEffect(() => {
+    let isMounted = true
+    getInstallmentBasisSettings()
+      .then((res) => {
+        if (isMounted && res?.data?.termBasis) {
+          setInstallmentRates(res.data.termBasis)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   const nextLocalLineId = (prefix) => {
     localLineSequenceRef.current += 1
     return `${prefix}-${localLineSequenceRef.current}`
@@ -398,6 +435,37 @@ function QuotationsPage({ selectedBranch, user }) {
   )
   const isConversionInHouse =
     conversionPaymentMethod === "IN_HOUSE_INSTALLMENT"
+
+  const conversionInstallmentCalculation = useMemo(() => {
+    if (!isConversionReceivable || !selectedQuotation) return null
+
+    const termBasis = Number(
+      installmentRates?.[conversionCreditTerm] || DEFAULT_INSTALLMENT_BASIS[conversionCreditTerm] || 1,
+    )
+    const months = INSTALLMENT_TERM_MONTHS[conversionCreditTerm] || 1
+    const cashPromoTotal = Number(selectedQuotation.grandTotal || 0)
+    const downpayment = Number(conversionAmountPaid || 0)
+
+    const regularPriceTotalAmount =
+      Math.round((cashPromoTotal / termBasis) * 100) / 100
+    const interestAmount = Math.max(regularPriceTotalAmount - cashPromoTotal, 0)
+    const financedBalance = Math.max(
+      Math.round(((cashPromoTotal - downpayment) / termBasis) * 100) / 100,
+      0,
+    )
+    const monthlyDueAmount = Math.round((financedBalance / months) * 100) / 100
+
+    return {
+      termBasis,
+      months,
+      cashPromoTotal,
+      downpayment,
+      regularPriceTotalAmount,
+      interestAmount,
+      financedBalance,
+      monthlyDueAmount,
+    }
+  }, [isConversionReceivable, selectedQuotation, installmentRates, conversionCreditTerm, conversionAmountPaid])
 
   const filteredQuotations = useMemo(() => {
     if (statusFilter === "ALL") return quotations
@@ -1061,7 +1129,7 @@ function QuotationsPage({ selectedBranch, user }) {
   }
 
   const openQuotationConversion = async () => {
-    if (!selectedQuotation?.id || selectedQuotation.status !== "APPROVED") return
+    if (!selectedQuotation?.id || ["CONVERTED", "CANCELLED", "REJECTED"].includes(selectedQuotation.status)) return
 
     setIsConversionOpen(true)
     setIsLoadingConversionStock(true)
@@ -1075,7 +1143,7 @@ function QuotationsPage({ selectedBranch, user }) {
     setConversionCreditDueDay("")
     setConversionCreditFirstDueDate("")
     setConversionRemarks("")
-    setConversionAmountPaid(String(Number(selectedQuotation.grandTotal || 0)))
+    setConversionAmountPaid("0")
     conversionRequestRef.current = { signature: "", key: "" }
 
     try {
@@ -1226,7 +1294,7 @@ function QuotationsPage({ selectedBranch, user }) {
         return
       }
 
-      if (isConversionInHouse && !conversionCreditTerm) {
+      if (!conversionCreditTerm) {
         setConversionMessage("Select an installment term.")
         return
       }
@@ -1237,7 +1305,6 @@ function QuotationsPage({ selectedBranch, user }) {
           : Number(conversionCreditDueDay)
 
       if (
-        isConversionInHouse &&
         dueDay !== null &&
         (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31)
       ) {
@@ -1258,7 +1325,11 @@ function QuotationsPage({ selectedBranch, user }) {
       }
     }
 
-    if (!window.confirm("Convert this approved quotation into a sale and deduct branch inventory?")) {
+    const confirmPrompt = isConversionReceivable
+      ? `Convert this quotation into an AR sale for ₱${money(conversionInstallmentCalculation?.regularPriceTotalAmount || selectedQuotation.grandTotal)} and deduct branch inventory?`
+      : `Convert this quotation into a sale for ₱${money(selectedQuotation.grandTotal)} and deduct branch inventory?`
+
+    if (!window.confirm(confirmPrompt)) {
       return
     }
 
@@ -1299,20 +1370,16 @@ function QuotationsPage({ selectedBranch, user }) {
               provider: conversionPaymentMethod,
               providerReferenceNo:
                 conversionProviderReferenceNo.trim() || undefined,
-              ...(isConversionInHouse
-                ? {
-                    term: conversionCreditTerm,
-                    dueDay:
-                      conversionCreditDueDay === ""
-                        ? undefined
-                        : Number(conversionCreditDueDay),
-                    firstDueDate: conversionCreditFirstDueDate
-                      ? new Date(
-                          `${conversionCreditFirstDueDate}T00:00:00+08:00`,
-                        ).toISOString()
-                      : undefined,
-                  }
-                : {}),
+              term: conversionCreditTerm,
+              dueDay:
+                conversionCreditDueDay === ""
+                  ? undefined
+                  : Number(conversionCreditDueDay),
+              firstDueDate: conversionCreditFirstDueDate
+                ? new Date(
+                    `${conversionCreditFirstDueDate}T00:00:00+08:00`,
+                  ).toISOString()
+                : undefined,
               remarks: conversionRemarks.trim() || undefined,
             }
           : undefined,
@@ -1605,14 +1672,30 @@ function QuotationsPage({ selectedBranch, user }) {
                       {formatDate(quotation.createdAt)}
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <button
-                        className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
-                        disabled={isLoadingDetails}
-                        onClick={() => loadQuotationDetails(quotation)}
-                        type="button"
-                      >
-                        View
-                      </button>
+                      <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                        <button
+                          className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                          disabled={isLoadingDetails}
+                          onClick={() => loadQuotationDetails(quotation)}
+                          type="button"
+                        >
+                          View
+                        </button>
+                        {!["CONVERTED", "CANCELLED", "REJECTED"].includes(quotation.status) ? (
+                          <button
+                            className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100"
+                            disabled={isLoadingDetails}
+                            onClick={async () => {
+                              await loadQuotationDetails(quotation)
+                              setIsConversionOpen(true)
+                            }}
+                            type="button"
+                            title="Directly convert quotation to sale"
+                          >
+                            Convert
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -2320,7 +2403,7 @@ function QuotationsPage({ selectedBranch, user }) {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {selectedQuotation.status === "APPROVED" ? (
+              {!["CONVERTED", "CANCELLED", "REJECTED"].includes(selectedQuotation.status) ? (
                 <button
                   className="rounded-2xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-800"
                   onClick={openQuotationConversion}
@@ -2649,54 +2732,85 @@ function QuotationsPage({ selectedBranch, user }) {
                       />
                     </label>
                     {isConversionReceivable ? (
-                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-900 md:col-span-2 xl:col-span-4">
-                        The unpaid quotation balance will open one receivable account. External financing supports walk-in customers; in-house installment requires the quotation customer and configured term pricing.
+                      <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 space-y-3 md:col-span-2 xl:col-span-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200 pb-2">
+                          <p className="text-xs font-black uppercase tracking-wide text-blue-900">
+                            Accounts Receivable Conversion Breakdown
+                          </p>
+                          <span className="rounded-lg border border-blue-200 bg-white px-2 py-0.5 text-xs font-black text-blue-900 shadow-2xs">
+                            Rate Basis: {conversionInstallmentCalculation?.termBasis ?? "1.00"}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div className="rounded-xl border border-blue-100 bg-white p-2 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-muted)]">Cash Promo Total</span>
+                            <p className="mt-0.5 text-xs font-black text-[var(--color-text-strong)]">₱{money(selectedQuotation.grandTotal)}</p>
+                          </div>
+                          <div className="rounded-xl border border-blue-100 bg-white p-2 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-blue-700">Interest / Rate Adj</span>
+                            <p className="mt-0.5 text-xs font-black text-blue-900">+₱{money(conversionInstallmentCalculation?.interestAmount || 0)}</p>
+                          </div>
+                          <div className="rounded-xl border border-blue-100 bg-white p-2 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-maroon)]">Financed Total</span>
+                            <p className="mt-0.5 text-xs font-black text-[var(--color-maroon)]">₱{money(conversionInstallmentCalculation?.regularPriceTotalAmount || selectedQuotation.grandTotal)}</p>
+                          </div>
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Monthly ({conversionInstallmentCalculation?.months} mos)</span>
+                            <p className="mt-0.5 text-xs font-black text-emerald-950">₱{money(conversionInstallmentCalculation?.monthlyDueAmount || 0)}/mo</p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 pt-1 sm:grid-cols-3">
+                          <label className="block">
+                            <span className="text-xs font-bold uppercase tracking-[0.12em] text-blue-900">
+                              Installment term
+                            </span>
+                            <select
+                              className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                              onChange={(event) => setConversionCreditTerm(event.target.value)}
+                              value={conversionCreditTerm}
+                            >
+                              {INSTALLMENT_TERMS.map(([value, label]) => {
+                                const rate = installmentRates?.[value] ?? DEFAULT_INSTALLMENT_BASIS[value]
+                                return (
+                                  <option key={value} value={value}>
+                                    {label} {rate ? `(Rate: ${rate})` : ""}
+                                  </option>
+                                )
+                              })}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="text-xs font-bold uppercase tracking-[0.12em] text-blue-900">
+                              Due day (optional)
+                            </span>
+                            <input
+                              className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)]"
+                              max="31"
+                              min="1"
+                              onChange={(event) => setConversionCreditDueDay(event.target.value)}
+                              placeholder="1–31"
+                              step="1"
+                              type="number"
+                              value={conversionCreditDueDay}
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-xs font-bold uppercase tracking-[0.12em] text-blue-900">
+                              First due date (optional)
+                            </span>
+                            <input
+                              className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)]"
+                              onChange={(event) => setConversionCreditFirstDueDate(event.target.value)}
+                              type="date"
+                              value={conversionCreditFirstDueDate}
+                            />
+                          </label>
+                        </div>
                       </div>
-                    ) : null}
-                    {isConversionInHouse ? (
-                      <label className="block">
-                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-muted)]">
-                          Installment term
-                        </span>
-                        <select
-                          className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
-                          onChange={(event) => setConversionCreditTerm(event.target.value)}
-                          value={conversionCreditTerm}
-                        >
-                          {INSTALLMENT_TERMS.map(([value, label]) => (
-                            <option key={value} value={value}>{label}</option>
-                          ))}
-                        </select>
-                      </label>
-                    ) : null}
-                    {isConversionInHouse ? (
-                      <label className="block">
-                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-muted)]">
-                          Due day (optional)
-                        </span>
-                        <input
-                          className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
-                          max="31"
-                          min="1"
-                          onChange={(event) => setConversionCreditDueDay(event.target.value)}
-                          step="1"
-                          type="number"
-                          value={conversionCreditDueDay}
-                        />
-                      </label>
-                    ) : null}
-                    {isConversionInHouse ? (
-                      <label className="block">
-                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-muted)]">
-                          First due date (optional)
-                        </span>
-                        <input
-                          className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
-                          onChange={(event) => setConversionCreditFirstDueDate(event.target.value)}
-                          type="date"
-                          value={conversionCreditFirstDueDate}
-                        />
-                      </label>
                     ) : null}
                   </div>
 
@@ -2704,6 +2818,11 @@ function QuotationsPage({ selectedBranch, user }) {
                     <div>
                       <p className="text-sm font-bold text-[var(--color-text-strong)]">
                         Quotation total: ₱{money(selectedQuotation.grandTotal)}
+                        {isConversionReceivable && conversionInstallmentCalculation ? (
+                          <span className="ml-2 text-xs font-semibold text-blue-800">
+                            (Financed: ₱{money(conversionInstallmentCalculation.regularPriceTotalAmount)})
+                          </span>
+                        ) : null}
                       </p>
                       {conversionMessage ? (
                         <p className="mt-1 text-sm font-semibold text-[var(--color-maroon)]">
@@ -2722,7 +2841,11 @@ function QuotationsPage({ selectedBranch, user }) {
                       onClick={submitQuotationConversion}
                       type="button"
                     >
-                      {isConvertingQuotation ? "Converting..." : "Complete sale conversion"}
+                      {isConvertingQuotation
+                        ? "Converting..."
+                        : isConversionReceivable
+                          ? `Complete AR conversion · ₱${money(conversionInstallmentCalculation?.regularPriceTotalAmount || selectedQuotation.grandTotal)}`
+                          : "Complete sale conversion"}
                     </button>
                   </div>
                 </div>
