@@ -16,6 +16,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  ShieldCheck,
   ShoppingCart,
   Trash2,
   UserRound,
@@ -1014,7 +1015,7 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }, [loadSales, salesSearch])
 
-  const addProduct = async (item) => {
+  const addProduct = async (item, preselectedSerial = null) => {
     if (!branchId || addingItemId) return
 
     setAddingItemId(item.id)
@@ -1033,17 +1034,12 @@ function PosSalesPage({ selectedBranch, user }) {
       )
       const serials = item.isSerialized ? getInventoryRows(serialResponse) : []
 
-      if (item.isSerialized && serials.length === 0) {
-        setCartMessage(`${item.itemName} has no available serial in this branch.`)
-        return
-      }
-
-      if (!item.isSerialized && batches.length === 0) {
-        setCartMessage(`${item.itemName} has no active batch with available stock.`)
-        return
-      }
-
       const localId = `product-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const initialSerialId = preselectedSerial?.id || serials[0]?.id || ""
+      const initialBatchId = item.isSerialized
+        ? (preselectedSerial?.batch?.id || serials[0]?.batch?.id || "")
+        : (batches[0]?.id || "")
+
       setCart((current) => [
         ...current,
         {
@@ -1055,8 +1051,12 @@ function PosSalesPage({ selectedBranch, user }) {
           quantity: "1",
           markupPercent: "",
           discountAmount: "0",
-          batchId: item.isSerialized ? "" : batches[0]?.id || "",
-          serialId: "",
+          batchId: initialBatchId,
+          serialId: initialSerialId,
+          customSerialNumber: preselectedSerial?.serialNumber || "",
+          isCustomSerial: !preselectedSerial,
+          warrantyType: item.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
+          warrantyDuration: item.isSerialized ? "12 Months Major Parts (7D Outright)" : "30 Days (7D Outright)",
           batches,
           serials,
         },
@@ -1069,9 +1069,10 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }
 
-  const handleItemSearchSubmit = (event) => {
+  const handleItemSearchSubmit = async (event) => {
     event.preventDefault()
-    const normalized = itemSearch.trim().toLowerCase()
+    const query = itemSearch.trim()
+    const normalized = query.toLowerCase()
     if (!normalized) return
 
     const exactItem = itemResults.find((item) => {
@@ -1081,10 +1082,32 @@ function PosSalesPage({ selectedBranch, user }) {
     })
 
     if (exactItem) {
-      addProduct(exactItem)
-    } else {
-      setItemMessage("No exact item code or barcode match. Choose a product from the results.")
+      await addProduct(exactItem)
+      return
     }
+
+    // Check if the query is an existing available serial number in this branch
+    try {
+      const serialResponse = await getInventorySerials({
+        branchId,
+        search: query,
+        status: "AVAILABLE",
+        limit: 10,
+      })
+      const foundSerials = getInventoryRows(serialResponse)
+      const matchedSerial = foundSerials.find(
+        (s) => s.serialNumber?.toLowerCase() === normalized,
+      )
+
+      if (matchedSerial && matchedSerial.item) {
+        await addProduct(matchedSerial.item, matchedSerial)
+        return
+      }
+    } catch {
+      // ignore
+    }
+
+    setItemMessage("No exact item code, barcode, or available serial found. Select a product from the list.")
   }
 
   const updateCartLine = (localId, patch) => {
@@ -1213,9 +1236,12 @@ function PosSalesPage({ selectedBranch, user }) {
 
       if (line.item.isSerialized) {
         if (quantity !== 1) return `${line.item.itemName} must be sold one serialized unit per line.`
-        if (!line.serialId) return `Select an available serial for ${line.item.itemName}.`
-        if (serialIds.has(line.serialId)) return "The same serial cannot be used more than once in a sale."
-        serialIds.add(line.serialId)
+        const serialVal = line.isCustomSerial ? line.customSerialNumber?.trim() : line.serialId
+        if (!serialVal) return `Select or scan a serial number for ${line.item.itemName}.`
+        if (line.serialId) {
+          if (serialIds.has(line.serialId)) return "The same serial cannot be used more than once in a sale."
+          serialIds.add(line.serialId)
+        }
       } else {
         if (!line.batchId) return `Select a branch batch for ${line.item.itemName}.`
         batchQuantities.set(line.batchId, (batchQuantities.get(line.batchId) || 0) + quantity)
@@ -1303,7 +1329,9 @@ function PosSalesPage({ selectedBranch, user }) {
     setCheckoutMessage("")
 
     const cartSnapshot = cart.map((line) => ({
-      serialNumber: line.serials?.find((serial) => serial.id === line.serialId)?.serialNumber || null,
+      serialNumber: line.isCustomSerial
+        ? line.customSerialNumber?.trim()
+        : line.serials?.find((serial) => serial.id === line.serialId)?.serialNumber || null,
     }))
 
     try {
@@ -1343,8 +1371,11 @@ function PosSalesPage({ selectedBranch, user }) {
                 : Number(line.markupPercent),
             quantity: Number(line.quantity),
             discountAmount: Number(line.discountAmount || 0),
-            batchId: line.batchId,
-            serialId: line.serialId || undefined,
+            batchId: line.batchId || undefined,
+            serialId: (!line.isCustomSerial && line.serialId) ? line.serialId : undefined,
+            serialNumber: (line.isCustomSerial && line.customSerialNumber?.trim()) ? line.customSerialNumber.trim() : undefined,
+            warrantyType: line.warrantyType || undefined,
+            warrantyDuration: line.warrantyDuration || undefined,
           }
         }),
         payments:
@@ -1752,16 +1783,74 @@ function PosSalesPage({ selectedBranch, user }) {
                           </label>
 
                           {line.item.isSerialized ? (
-                            <label className="sm:col-span-2">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Available serial</span>
-                              <select className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => updateCartLine(line.localId, { serialId: event.target.value })} value={line.serialId}>
-                                <option value="">Select one serial</option>
-                                {line.serials.map((serial) => (
-                                  <option disabled={selectedSerialIds.has(serial.id) && serial.id !== line.serialId} key={serial.id} value={serial.id}>{serial.serialNumber} · {serial.batch?.batchCode || "No batch"}</option>
-                                ))}
-                              </select>
-                              <p className="mt-1 text-xs text-[var(--color-muted)]">The selected serial determines its source batch.</p>
-                            </label>
+                            <div className="sm:col-span-2 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                                  {line.isCustomSerial ? "Barcode / Serial Input" : "Available Serial"}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateCartLine(line.localId, {
+                                      isCustomSerial: !line.isCustomSerial,
+                                      serialId: !line.isCustomSerial ? "" : (line.serials[0]?.id || ""),
+                                      customSerialNumber: "",
+                                    })
+                                  }
+                                  className="text-[11px] font-bold text-[var(--color-maroon)] underline hover:opacity-80"
+                                >
+                                  {line.isCustomSerial
+                                    ? "← Choose from existing serials"
+                                    : "+ Scan / Enter New Serial Barcode"}
+                                </button>
+                              </div>
+
+                              {line.isCustomSerial ? (
+                                <div>
+                                  <input
+                                    autoFocus
+                                    className="w-full rounded-xl border border-[var(--color-maroon)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[var(--color-maroon)]"
+                                    placeholder="Scan barcode or type serial number…"
+                                    value={line.customSerialNumber || ""}
+                                    onChange={(event) =>
+                                      updateCartLine(line.localId, {
+                                        customSerialNumber: event.target.value,
+                                      })
+                                    }
+                                  />
+                                  <p className="mt-1 text-xs text-emerald-700 font-semibold">
+                                    ⚡ Scanned serial will be automatically added to inventory and tracked upon sale completion.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <select
+                                    className="w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                                    onChange={(event) =>
+                                      updateCartLine(line.localId, { serialId: event.target.value })
+                                    }
+                                    value={line.serialId}
+                                  >
+                                    <option value="">Select one serial</option>
+                                    {line.serials.map((serial) => (
+                                      <option
+                                        disabled={
+                                          selectedSerialIds.has(serial.id) &&
+                                          serial.id !== line.serialId
+                                        }
+                                        key={serial.id}
+                                        value={serial.id}
+                                      >
+                                        {serial.serialNumber} · {serial.batch?.batchCode || "No batch"}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <p className="mt-1 text-xs text-[var(--color-muted)]">
+                                    The selected serial determines its source batch.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <label className="sm:col-span-2">
                               <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Source batch</span>
@@ -1780,6 +1869,42 @@ function PosSalesPage({ selectedBranch, user }) {
                             <p className="text-xs text-[var(--color-muted)]">Line total preview</p>
                             <p className="mt-1 font-black text-[var(--color-text-strong)]">{formatMoney(getLineTotal(line))}</p>
                             {!line.item.isSerialized && selectedBatch ? <p className="mt-1 text-xs text-[var(--color-muted)]">Batch stock {Number(selectedBatch.quantityAvailable || 0)}</p> : null}
+                          </div>
+
+                          <div className="sm:col-span-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]/60 p-3">
+                            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-maroon)] flex items-center gap-1.5">
+                                <ShieldCheck size={14} /> Warranty Coverage
+                              </span>
+                              <div className="flex gap-1 flex-wrap">
+                                {[
+                                  { label: "Major Parts", type: "MAJOR_PARTS", duration: "12 Months Major Parts (7D Outright)" },
+                                  { label: "Accessories", type: "ACCESSORIES", duration: "30 Days (7D Outright)" },
+                                  { label: "Outright Only", type: "OUTRIGHT_ONLY", duration: "7 Days Outright Replacement" },
+                                  { label: "No Warranty", type: "NO_WARRANTY", duration: "No Warranty" },
+                                ].map((preset) => (
+                                  <button
+                                    key={preset.type}
+                                    type="button"
+                                    onClick={() => updateCartLine(line.localId, { warrantyType: preset.type, warrantyDuration: preset.duration })}
+                                    className={`rounded-lg px-2 py-1 text-[10px] font-bold transition ${
+                                      line.warrantyType === preset.type
+                                        ? "bg-[var(--color-maroon)] text-white shadow-xs"
+                                        : "bg-white text-[var(--color-text-strong)] hover:bg-slate-100"
+                                    }`}
+                                  >
+                                    {preset.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <input
+                              type="text"
+                              className="w-full rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
+                              placeholder="e.g. 12 Months Major Parts (7D Outright)"
+                              value={line.warrantyDuration || ""}
+                              onChange={(e) => updateCartLine(line.localId, { warrantyDuration: e.target.value })}
+                            />
                           </div>
                         </div>
                       ) : (

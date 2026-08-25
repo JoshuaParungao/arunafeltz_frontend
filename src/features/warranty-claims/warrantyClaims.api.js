@@ -24,3 +24,23 @@ export async function releaseWarrantyClaim(id, payload = {}) {
   const response = await apiClient.post(`/warranty-claims/${id}/release`, payload)
   return response.data
 }
+
+export async function processImmediateReplacement(id, payload) {
+  const response = await apiClient.post(`/warranty-claims/${id}/replace`, payload)
+  return response.data
+}
+
+export async function dispatchToSupplier(id, payload) {
+  const response = await apiClient.post(`/warranty-claims/${id}/dispatch-supplier`, payload)
+  return response.data
+}
+
+export async function resolveSupplierRma(id, payload) {
+  const response = await apiClient.post(`/warranty-claims/${id}/resolve-supplier`, payload)
+  return response.data
+}
+
+export async function rejectCustomerClaim(id, payload) {
+  const response = await apiClient.post(`/warranty-claims/${id}/reject`, payload)
+  return response.data
+}
