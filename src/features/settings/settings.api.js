@@ -24,3 +24,13 @@ export async function updateSettingByScopeKey(scopeKey, payload) {
     throw error
   }
 }
+
+export async function getInstallmentBasisSettings() {
+  const response = await apiClient.get("/settings/business-rules/installment")
+  return response.data
+}
+
+export async function computeInstallmentTest(payload) {
+  const response = await apiClient.post("/settings/business-rules/installment/test-compute", payload)
+  return response.data
+}

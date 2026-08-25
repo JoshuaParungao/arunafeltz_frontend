@@ -39,6 +39,7 @@ import {
   getSaleById,
   getSales,
 } from "../../features/sales/sales.api"
+import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
 
 const SALE_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -84,6 +85,26 @@ const INSTALLMENT_TERMS = [
   ["MONTH_18", "18 months"],
   ["MONTH_24", "24 months"],
 ]
+
+const INSTALLMENT_TERM_MONTHS = {
+  STRAIGHT: 1,
+  MONTH_3: 3,
+  MONTH_6: 6,
+  MONTH_9: 9,
+  MONTH_12: 12,
+  MONTH_18: 18,
+  MONTH_24: 24,
+}
+
+const DEFAULT_INSTALLMENT_BASIS = {
+  STRAIGHT: 0.96,
+  MONTH_3: 0.96,
+  MONTH_6: 0.935,
+  MONTH_9: 0.905,
+  MONTH_12: 0.875,
+  MONTH_18: 0.815,
+  MONTH_24: 0.755,
+}
 
 const RETURN_METHODS = [
   ["CASH", "Cash"],
@@ -841,9 +862,24 @@ function PosSalesPage({ selectedBranch, user }) {
   const [creditFirstDueDate, setCreditFirstDueDate] = useState("")
   const [creditRemarks, setCreditRemarks] = useState("")
   const [providerReference, setProviderReference] = useState("")
+  const [installmentRates, setInstallmentRates] = useState(DEFAULT_INSTALLMENT_BASIS)
   const [isSubmittingSale, setIsSubmittingSale] = useState(false)
   const [checkoutMessage, setCheckoutMessage] = useState("")
   const [completedSale, setCompletedSale] = useState(null)
+
+  useEffect(() => {
+    let isMounted = true
+    getInstallmentBasisSettings()
+      .then((res) => {
+        if (isMounted && res?.data?.termBasis) {
+          setInstallmentRates(res.data.termBasis)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const [sales, setSales] = useState([])
   const [salesMeta, setSalesMeta] = useState(null)
@@ -885,11 +921,53 @@ function PosSalesPage({ selectedBranch, user }) {
     return { productGross, serviceGross, subtotal, totalDiscount, additionalCharge, grandTotal }
   }, [cart, serviceCharge])
 
-  const effectivePaymentAmount = paymentAmountTouched
-    ? paymentAmount
-    : totals.grandTotal.toFixed(2)
   const isReceivableCheckout = RECEIVABLE_PROVIDER_VALUES.has(paymentMethod)
   const isInHouseCheckout = paymentMethod === "IN_HOUSE_INSTALLMENT"
+
+  const effectivePaymentAmount = paymentAmountTouched
+    ? paymentAmount
+    : isReceivableCheckout
+      ? "0"
+      : totals.grandTotal.toFixed(2)
+
+  const installmentCalculation = useMemo(() => {
+    if (!isReceivableCheckout) return null
+
+    const termBasis = Number(
+      installmentRates?.[creditTerm] || DEFAULT_INSTALLMENT_BASIS[creditTerm] || 1,
+    )
+    const months = INSTALLMENT_TERM_MONTHS[creditTerm] || 1
+    const cashPromoTotal = totals.grandTotal
+    const downpayment = Number(paymentAmount || 0)
+
+    const regularPriceTotalAmount =
+      Math.round((cashPromoTotal / termBasis) * 100) / 100
+    const interestAmount = Math.max(regularPriceTotalAmount - cashPromoTotal, 0)
+    const financedBalance = Math.max(
+      Math.round(((cashPromoTotal - downpayment) / termBasis) * 100) / 100,
+      0,
+    )
+    const monthlyDueAmount = Math.round((financedBalance / months) * 100) / 100
+
+    return {
+      termBasis,
+      months,
+      cashPromoTotal,
+      downpayment,
+      regularPriceTotalAmount,
+      interestAmount,
+      financedBalance,
+      monthlyDueAmount,
+    }
+  }, [isReceivableCheckout, installmentRates, creditTerm, totals.grandTotal, paymentAmount])
+
+  const amountPaidNumber = Number(effectivePaymentAmount || 0)
+  const expectedBalance = isReceivableCheckout
+    ? (installmentCalculation?.financedBalance ?? Math.max(totals.grandTotal - amountPaidNumber, 0))
+    : Math.max(totals.grandTotal - amountPaidNumber, 0)
+  const expectedChange = isReceivableCheckout
+    ? 0
+    : Math.max(amountPaidNumber - totals.grandTotal, 0)
 
   const serviceBaseUnitPrice = Number(serviceUnitPrice || 0)
   const serviceFinalUnitPrice = getServiceMarkupAdjustedPrice(serviceBaseUnitPrice, serviceMarkup)
@@ -1281,13 +1359,12 @@ function PosSalesPage({ selectedBranch, user }) {
         return "Select an active customer for an in-house installment account."
       }
 
-      if (isInHouseCheckout && !creditTerm) {
+      if (!creditTerm) {
         return "Select an installment term."
       }
 
       const dueDay = creditDueDay === "" ? null : Number(creditDueDay)
       if (
-        isInHouseCheckout &&
         dueDay !== null &&
         (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31)
       ) {
@@ -1333,7 +1410,11 @@ function PosSalesPage({ selectedBranch, user }) {
       return
     }
 
-    if (!window.confirm(`Complete this sale for ${formatMoney(totals.grandTotal)} and deduct branch inventory?`)) return
+    const confirmPrompt = isReceivableCheckout
+      ? `Complete this AR sale for ${formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)} (Cash promo: ${formatMoney(totals.grandTotal)}, ${INSTALLMENT_TERMS.find(([v]) => v === creditTerm)?.[1] || creditTerm}) and deduct branch inventory?`
+      : `Complete this sale for ${formatMoney(totals.grandTotal)} and deduct branch inventory?`
+
+    if (!window.confirm(confirmPrompt)) return
 
     setIsSubmittingSale(true)
     setCheckoutMessage("")
@@ -1405,20 +1486,16 @@ function PosSalesPage({ selectedBranch, user }) {
           ? {
               provider: paymentMethod,
               providerReferenceNo: providerReference.trim() || undefined,
-              ...(isInHouseCheckout
-                ? {
-                    term: creditTerm,
-                    dueDay:
-                      creditDueDay === ""
-                        ? undefined
-                        : Number(creditDueDay),
-                    firstDueDate: creditFirstDueDate
-                      ? new Date(
-                          `${creditFirstDueDate}T00:00:00+08:00`,
-                        ).toISOString()
-                      : undefined,
-                  }
-                : {}),
+              term: creditTerm,
+              dueDay:
+                creditDueDay === ""
+                  ? undefined
+                  : Number(creditDueDay),
+              firstDueDate: creditFirstDueDate
+                ? new Date(
+                    `${creditFirstDueDate}T00:00:00+08:00`,
+                  ).toISOString()
+                : undefined,
               remarks: creditRemarks.trim() || undefined,
             }
           : undefined,
@@ -1554,9 +1631,6 @@ function PosSalesPage({ selectedBranch, user }) {
     [cart],
   )
 
-  const amountPaidNumber = Number(effectivePaymentAmount || 0)
-  const expectedChange = Math.max(amountPaidNumber - totals.grandTotal, 0)
-  const expectedBalance = Math.max(totals.grandTotal - amountPaidNumber, 0)
   const totalPages = salesMeta?.totalPages || 1
 
   return (
@@ -1982,18 +2056,100 @@ function PosSalesPage({ selectedBranch, user }) {
                   <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Reference number</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm" onChange={(event) => setPaymentReference(event.target.value)} placeholder="Optional for traceability" value={paymentReference} /></label>
                   <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Payment remarks</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm" onChange={(event) => setPaymentRemarks(event.target.value)} placeholder="Optional" value={paymentRemarks} /></label>
                 </div>
+
                 {isReceivableCheckout ? (
-                  <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                    <p className="text-sm font-black text-blue-900">Accounts receivable · {formatStatus(paymentMethod)}</p>
-                    <p className="mt-1 text-xs leading-5 text-blue-800">The unpaid balance remains in AR until actual collections are posted. Only in-house installment uses configured term pricing and requires a selected customer.</p>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                      {isInHouseCheckout ? <label><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Term</span><select className="mt-2 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm font-semibold" onChange={(event) => setCreditTerm(event.target.value)} value={creditTerm}>{INSTALLMENT_TERMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label> : null}
-                      {isInHouseCheckout ? <label><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Due day (optional)</span><input className="mt-2 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm" max="31" min="1" onChange={(event) => setCreditDueDay(event.target.value)} placeholder="1–31" step="1" type="number" value={creditDueDay} /></label> : null}
-                      {isInHouseCheckout ? <label><span className="text-xs font-bold uppercase tracking-wide text-blue-800">First due date (optional)</span><input className="mt-2 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm" onChange={(event) => setCreditFirstDueDate(event.target.value)} type="date" value={creditFirstDueDate} /></label> : null}
-                      <label className="sm:col-span-3"><span className="text-xs font-bold uppercase tracking-wide text-blue-800">AR remarks (optional)</span><input className="mt-2 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm" onChange={(event) => setCreditRemarks(event.target.value)} placeholder="Provider or collection notes" value={creditRemarks} /></label>
+                  <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200 pb-2.5">
+                      <div>
+                        <p className="text-sm font-black text-blue-900">
+                          Accounts Receivable · {formatStatus(paymentMethod)}
+                        </p>
+                        <p className="text-xs text-blue-800">
+                          {isInHouseCheckout
+                            ? "In-house installment requires a selected registered customer."
+                            : "Financed through provider. Computes interest based on configured term rates."}
+                        </p>
+                      </div>
+                      <span className="rounded-xl border border-blue-200 bg-white px-2.5 py-1 text-xs font-black text-blue-900 shadow-2xs">
+                        Rate Basis: {installmentCalculation?.termBasis ?? "1.00"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div className="rounded-xl border border-blue-100 bg-white p-2.5 shadow-2xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-muted)]">Cash Promo Total</span>
+                        <p className="mt-0.5 text-sm font-black text-[var(--color-text-strong)]">{formatMoney(totals.grandTotal)}</p>
+                      </div>
+                      <div className="rounded-xl border border-blue-100 bg-white p-2.5 shadow-2xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-blue-700">Interest / Rate Adj</span>
+                        <p className="mt-0.5 text-sm font-black text-blue-900">+{formatMoney(installmentCalculation?.interestAmount || 0)}</p>
+                      </div>
+                      <div className="rounded-xl border border-blue-100 bg-white p-2.5 shadow-2xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-maroon)]">Financed Total</span>
+                        <p className="mt-0.5 text-sm font-black text-[var(--color-maroon)]">{formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}</p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 shadow-2xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Monthly ({installmentCalculation?.months} mos)</span>
+                        <p className="mt-0.5 text-sm font-black text-emerald-950">{formatMoney(installmentCalculation?.monthlyDueAmount || 0)}/mo</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 pt-1 sm:grid-cols-3">
+                      <label>
+                        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">Installment Term</span>
+                        <select
+                          className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm font-semibold text-[var(--color-text-strong)]"
+                          onChange={(event) => setCreditTerm(event.target.value)}
+                          value={creditTerm}
+                        >
+                          {INSTALLMENT_TERMS.map(([value, label]) => {
+                            const rate = installmentRates?.[value] ?? DEFAULT_INSTALLMENT_BASIS[value]
+                            return (
+                              <option key={value} value={value}>
+                                {label} {rate ? `(Rate: ${rate})` : ""}
+                              </option>
+                            )
+                          })}
+                        </select>
+                      </label>
+
+                      <label>
+                        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">Due day (optional)</span>
+                        <input
+                          className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm"
+                          max="31"
+                          min="1"
+                          onChange={(event) => setCreditDueDay(event.target.value)}
+                          placeholder="1–31"
+                          step="1"
+                          type="number"
+                          value={creditDueDay}
+                        />
+                      </label>
+
+                      <label>
+                        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">First due date (optional)</span>
+                        <input
+                          className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm"
+                          onChange={(event) => setCreditFirstDueDate(event.target.value)}
+                          type="date"
+                          value={creditFirstDueDate}
+                        />
+                      </label>
+
+                      <label className="sm:col-span-3">
+                        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">AR Remarks / Approval notes</span>
+                        <input
+                          className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm"
+                          onChange={(event) => setCreditRemarks(event.target.value)}
+                          placeholder="Provider approval code, account notes, or reference"
+                          value={creditRemarks}
+                        />
+                      </label>
                     </div>
                   </div>
                 ) : null}
+
                 <div className="mt-3 flex flex-wrap justify-between gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
                   <span>Expected balance: {formatMoney(expectedBalance)}</span>
                   <span>Expected change: {formatMoney(expectedChange)}</span>
@@ -2002,9 +2158,22 @@ function PosSalesPage({ selectedBranch, user }) {
 
               {checkoutMessage ? <ErrorBanner>{checkoutMessage}</ErrorBanner> : null}
 
-              <button className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-5 py-4 text-sm font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50" disabled={cart.length === 0 || isSubmittingSale || !branchId} onClick={submitSale} type="button">
-                {isSubmittingSale ? <LoaderCircle className="animate-spin" size={18} /> : <ReceiptText size={18} />}
-                {isSubmittingSale ? "Completing sale…" : `Complete sale · ${formatMoney(totals.grandTotal)}`}
+              <button
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-5 py-4 text-sm font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={cart.length === 0 || isSubmittingSale || !branchId}
+                onClick={submitSale}
+                type="button"
+              >
+                {isSubmittingSale ? (
+                  <LoaderCircle className="animate-spin" size={18} />
+                ) : (
+                  <ReceiptText size={18} />
+                )}
+                {isSubmittingSale
+                  ? "Completing sale…"
+                  : isReceivableCheckout
+                    ? `Complete AR sale · ${formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}`
+                    : `Complete sale · ${formatMoney(totals.grandTotal)}`}
               </button>
             </div>
           </section>
