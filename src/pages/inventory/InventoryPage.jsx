@@ -807,7 +807,6 @@ export default function InventoryPage({ selectedBranch, user }) {
                 setPage(1)
               }}
               value={viewingBranchId}
-              disabled={user?.role !== "SUPER_OWNER"}
             >
               {branchOptions.map((branch) => (
                 <option key={branch.id} value={branch.id}>
@@ -864,7 +863,7 @@ export default function InventoryPage({ selectedBranch, user }) {
       ) : null}
 
       <section className="rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
-        {adjustItem && canAdjustStock && !adjustItem.isSerialized ? (
+        {adjustItem && canAdjustStock && !adjustItem.isSerialized && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id) ? (
           <StockAdjustmentPanel
             item={adjustItem}
             batches={adjustBatches}
@@ -988,7 +987,7 @@ export default function InventoryPage({ selectedBranch, user }) {
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-2">
                           <button className="rounded-2xl border border-[var(--color-border)] px-4 py-2 text-xs font-black" onClick={() => openAdjustModal(item)} type="button">View details</button>
-                          {canAdjustStock && !item.isSerialized ? (
+                          {canAdjustStock && !item.isSerialized && (user?.role === "SUPER_OWNER" || item.branch?.id === selectedBranch?.id) ? (
                             <button className="rounded-2xl border border-[#7A1F2B] px-4 py-2 text-xs font-black text-[#7A1F2B]" onClick={() => openAdjustModal(item)} type="button">Adjust stock</button>
                           ) : null}
                         </div>
@@ -1001,7 +1000,13 @@ export default function InventoryPage({ selectedBranch, user }) {
 
             <div className="grid gap-4 p-4 xl:hidden">
               {items.map((item) => (
-                <InventoryMobileCard item={item} key={item.id} canAdjust={canAdjustStock} onView={openAdjustModal} onAdjust={openAdjustModal} />
+                <InventoryMobileCard
+                  item={item}
+                  key={item.id}
+                  canAdjust={canAdjustStock && (user?.role === "SUPER_OWNER" || item.branch?.id === selectedBranch?.id)}
+                  onView={openAdjustModal}
+                  onAdjust={openAdjustModal}
+                />
               ))}
             </div>
           </>
