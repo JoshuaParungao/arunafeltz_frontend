@@ -584,25 +584,35 @@ function SaleDetailDialog({
               ) : null}
 
               {(canCancel || canReturn) && ["COMPLETED", "PARTIALLY_REFUNDED"].includes(sale.status) ? (
-                <div className="flex flex-wrap justify-end gap-3 border-t border-[var(--color-border)] pt-5">
-                  {canReturn && !sale.creditAccount && (sale.items || []).some((item) => item.itemId && Number(item.remainingReturnQuantity || 0) > 0) ? (
-                    <button
-                      className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 px-4 py-3 text-sm font-bold text-orange-700 transition hover:bg-orange-50"
-                      onClick={() => onReturnItems(sale)}
-                      type="button"
-                    >
-                      <RotateCcw size={16} />Return sale items
-                    </button>
-                  ) : null}
-                  {canCancel && sale.status === "COMPLETED" ? (
-                  <button
-                    className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 transition hover:bg-red-50"
-                    onClick={() => onCancelSale(sale)}
-                    type="button"
-                  >
-                    Cancel whole sale
-                  </button>
-                  ) : null}
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/60 p-4 space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                    Audit Actions & Reversals
+                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-[var(--color-muted)] max-w-md">
+                      Authorized staff can process either a specific item return/refund or void the entire sale receipt.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {canReturn && !sale.creditAccount && (sale.items || []).some((item) => item.itemId && Number(item.remainingReturnQuantity || 0) > 0) ? (
+                        <button
+                          className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-orange-700"
+                          onClick={() => onReturnItems(sale)}
+                          type="button"
+                        >
+                          <RotateCcw size={15} /> Specific Item Refund / Return
+                        </button>
+                      ) : null}
+                      {canCancel && sale.status === "COMPLETED" ? (
+                        <button
+                          className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                          onClick={() => onCancelSale(sale)}
+                          type="button"
+                        >
+                          <X size={15} /> Cancel Whole Sale (Void)
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -1472,6 +1482,26 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }
 
+  const handleOpenReturn = async (sale) => {
+    try {
+      const response = await getSaleById(sale.id)
+      const detail = response?.data || sale
+      setSaleToReturn(detail)
+    } catch {
+      setSaleToReturn(sale)
+    }
+  }
+
+  const handleOpenCancel = async (sale) => {
+    try {
+      const response = await getSaleById(sale.id)
+      const detail = response?.data || sale
+      setSaleToCancel(detail)
+    } catch {
+      setSaleToCancel(sale)
+    }
+  }
+
   const confirmCancellation = async (reason) => {
     if (!saleToCancel?.id || isCancellingSale) return
 
@@ -1999,11 +2029,110 @@ function PosSalesPage({ selectedBranch, user }) {
           <>
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]"><tr><th className="px-4 py-3">Receipt</th><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Sales Agent</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Payment</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
-                <tbody className="divide-y divide-[var(--color-border)]">{sales.map((sale) => <tr className="transition hover:bg-[var(--color-soft)]" key={sale.id}><td className="px-4 py-4"><p className="font-bold text-[var(--color-text-strong)]">{sale.receiptCode}</p><p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p></td><td className="px-4 py-4">{sale.customer?.fullName || "Walk-in"}</td><td className="px-4 py-4">{sale.cashier?.fullName || "—"}</td><td className="px-4 py-4"><StatusBadge status={sale.status} /></td><td className="px-4 py-4"><StatusBadge status={sale.paymentStatus} /></td><td className="px-4 py-4 text-right font-black">{formatMoney(sale.grandTotal)}</td><td className="px-4 py-4 text-right"><button className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold transition hover:bg-white" onClick={() => openSaleDetails(sale)} type="button"><Eye size={14} />View</button></td></tr>)}</tbody>
+                <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                  <tr>
+                    <th className="px-4 py-3">Receipt</th>
+                    <th className="px-4 py-3">Customer</th>
+                    <th className="px-4 py-3">Sales Agent</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Payment</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-border)]">
+                  {sales.map((sale) => (
+                    <tr className="transition hover:bg-[var(--color-soft)]" key={sale.id}>
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-[var(--color-text-strong)]">{sale.receiptCode}</p>
+                        <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
+                      </td>
+                      <td className="px-4 py-4">{sale.customer?.fullName || "Walk-in"}</td>
+                      <td className="px-4 py-4">{sale.cashier?.fullName || "—"}</td>
+                      <td className="px-4 py-4"><StatusBadge status={sale.status} /></td>
+                      <td className="px-4 py-4"><StatusBadge status={sale.paymentStatus} /></td>
+                      <td className="px-4 py-4 text-right font-black">{formatMoney(sale.grandTotal)}</td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                          <button
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-bold transition hover:bg-[var(--color-soft)]"
+                            onClick={() => openSaleDetails(sale)}
+                            type="button"
+                          >
+                            <Eye size={13} /> View
+                          </button>
+                          {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                            <button
+                              className="inline-flex items-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-bold text-orange-800 transition hover:bg-orange-100"
+                              onClick={() => handleOpenReturn(sale)}
+                              type="button"
+                              title="Refund or return specific items"
+                            >
+                              <RotateCcw size={13} /> Refund
+                            </button>
+                          ) : null}
+                          {canCancelSale && sale.status === "COMPLETED" ? (
+                            <button
+                              className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                              onClick={() => handleOpenCancel(sale)}
+                              type="button"
+                              title="Cancel whole sale"
+                            >
+                              <X size={13} /> Cancel
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
-            <div className="grid gap-3 p-4 lg:hidden">{sales.map((sale) => <article className="rounded-2xl border border-[var(--color-border)] p-4" key={sale.id}><div className="flex items-start justify-between gap-3"><div><p className="font-black text-[var(--color-text-strong)]">{sale.receiptCode}</p><p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p></div><p className="font-black text-[var(--color-text-strong)]">{formatMoney(sale.grandTotal)}</p></div><p className="mt-3 text-sm">{sale.customer?.fullName || "Walk-in customer"}</p><div className="mt-3 flex flex-wrap gap-2"><StatusBadge status={sale.status} /><StatusBadge status={sale.paymentStatus} /></div><button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-bold" onClick={() => openSaleDetails(sale)} type="button"><Eye size={15} />View sale</button></article>)}</div>
+            <div className="grid gap-3 p-4 lg:hidden">
+              {sales.map((sale) => (
+                <article className="rounded-2xl border border-[var(--color-border)] p-4" key={sale.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-black text-[var(--color-text-strong)]">{sale.receiptCode}</p>
+                      <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
+                    </div>
+                    <p className="font-black text-[var(--color-text-strong)]">{formatMoney(sale.grandTotal)}</p>
+                  </div>
+                  <p className="mt-3 text-sm">{sale.customer?.fullName || "Walk-in customer"}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <StatusBadge status={sale.status} />
+                    <StatusBadge status={sale.paymentStatus} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold"
+                      onClick={() => openSaleDetails(sale)}
+                      type="button"
+                    >
+                      <Eye size={14} /> View
+                    </button>
+                    {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                      <button
+                        className="inline-flex items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800"
+                        onClick={() => handleOpenReturn(sale)}
+                        type="button"
+                      >
+                        <RotateCcw size={14} /> Refund
+                      </button>
+                    ) : null}
+                    {canCancelSale && sale.status === "COMPLETED" ? (
+                      <button
+                        className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
+                        onClick={() => handleOpenCancel(sale)}
+                        type="button"
+                      >
+                        <X size={14} /> Cancel
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
           </>
         )}
 
