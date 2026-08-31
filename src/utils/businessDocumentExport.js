@@ -839,12 +839,14 @@ export function reportDocument({
   }
 }
 
-export function exportWarrantyReceiptPdf(sale, context = {}) {
+export function exportWarrantyReceiptPdf(sale, options = {}) {
+  const context = options.context || {}
   // Strict A4 portrait format: 210mm x 297mm
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: "a4",
+    compress: true,
   })
 
   const margin = 12
@@ -1155,7 +1157,27 @@ export function exportWarrantyReceiptPdf(sale, context = {}) {
     doc.text(sig.name, x + (sigColWidth - 4) / 2, finalY + 14.5, { align: "center" })
   })
 
+  if (options.autoPrint) {
+    doc.autoPrint()
+    const pdfUrl = doc.output("bloburl")
+    const printWindow = window.open(pdfUrl, "_blank")
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
+    } else {
+      // Fallback if popup blocker is active
+      doc.save(`Warranty_Receipt_${sale?.receiptCode || "receipt"}.pdf`)
+    }
+    return
+  }
+
   doc.save(`Warranty_Receipt_${sale?.receiptCode || "receipt"}.pdf`)
+}
+
+export function printWarrantyReceipt(sale) {
+  exportWarrantyReceiptPdf(sale, { autoPrint: true })
 }
 
 export function exportPurchaseOrderPdf(order, context) {

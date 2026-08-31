@@ -41,7 +41,7 @@ import {
   getSales,
 } from "../../features/sales/sales.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
-import { exportWarrantyReceiptPdf } from "../../utils/businessDocumentExport"
+import { exportWarrantyReceiptPdf, printWarrantyReceipt } from "../../utils/businessDocumentExport"
 
 const SALE_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -418,7 +418,7 @@ function SaleDetailDialog({
               </button>
               <button
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
-                onClick={() => window.print()}
+                onClick={() => printWarrantyReceipt(sale)}
                 title="Print receipt"
                 type="button"
               >
