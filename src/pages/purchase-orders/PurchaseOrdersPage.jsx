@@ -229,7 +229,7 @@ function PurchaseOrderItemLookup({
               </p>
 
               <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
-                For a new inventory product, create it in Items / Catalog first.
+                For a new inventory product, create it in Item Catalog first.
                 For shipping or miscellaneous charges, leave the item unlinked
                 and type the description.
               </p>

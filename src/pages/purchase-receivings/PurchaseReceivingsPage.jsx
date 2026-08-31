@@ -249,7 +249,7 @@ const normalizedQuery = query.trim().toLowerCase()
               </p>
 
               <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
-                Create the new product in Items / Catalog first so Item Code,
+                Create the new product in Item Catalog first so Item Code,
                 Barcode, inventory, and serial tracking stay under one master
                 record.
               </p>

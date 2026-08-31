@@ -238,7 +238,7 @@ function ItemEditorModal({
         <header className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5 sm:p-6">
           <div>
             <p className="text-sm font-bold text-[var(--color-accent)]">
-              Items / Catalog
+              Item Catalog
             </p>
 
             <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]">
@@ -1078,7 +1078,7 @@ function ItemsPage({ selectedBranch, user }) {
       <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-[var(--color-accent)]">
-            Items / Catalog
+            Item Catalog
           </p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--color-text-strong)]">
             Product catalog

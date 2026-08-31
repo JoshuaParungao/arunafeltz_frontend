@@ -52,7 +52,7 @@ export const APP_MODULES = [
   },
   {
     key: "items",
-    label: "Items / Catalog",
+    label: "Item Catalog",
     group: "Core Operations",
     roles: BRANCH_OPERATION_ROLES,
   },
