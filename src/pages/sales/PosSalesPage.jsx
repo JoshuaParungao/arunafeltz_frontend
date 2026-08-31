@@ -2852,17 +2852,13 @@ function PosSalesPage({ selectedBranch, user }) {
 
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-[#002060] bg-blue-50/50 px-4 py-3.5 text-sm font-bold text-[#002060] shadow-xs transition hover:bg-blue-100/70 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={cart.length === 0 || isCreatingQuotation || !branchId || (!selectedCustomerId && !customerSearch.trim())}
-                  onClick={submitQuotation}
-                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Save active cart as formal quotation"}
+                  disabled={cart.length === 0 || (!selectedCustomerId && !customerSearch.trim())}
+                  onClick={openCartPreview}
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Review quotation preview before saving"}
                   type="button"
                 >
-                  {isCreatingQuotation ? (
-                    <LoaderCircle className="animate-spin" size={17} />
-                  ) : (
-                    <FileText size={17} />
-                  )}
-                  {isCreatingQuotation ? "Saving Quote…" : "Quote"}
+                  <FileText size={17} />
+                  Quote
                 </button>
 
                 <button
@@ -3042,10 +3038,12 @@ function PosSalesPage({ selectedBranch, user }) {
         <QuotationDetailDialog
           installmentCalculation={isReceivableCheckout ? installmentCalculation : null}
           isPreview={isQuotationPreviewMode}
+          isSavingQuotation={isCreatingQuotation}
           onClose={() => {
             setIsQuotationDocOpen(false)
             setActiveQuotationDoc(null)
           }}
+          onSaveQuotation={isQuotationPreviewMode ? submitQuotation : null}
           quotation={activeQuotationDoc}
         />
       ) : null}
