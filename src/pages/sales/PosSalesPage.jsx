@@ -2241,34 +2241,6 @@ function PosSalesPage({ selectedBranch, user }) {
                         )
                       })()}
                     </div>
-
-                    {/* Quick-Select Staff Pills */}
-                    {serviceStaffList.length > 0 ? (
-                      <div className="pt-1">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-violet-800 mb-1.5">
-                          Quick Select Staff:
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {serviceStaffList.map((staff) => {
-                            const isSelected = staff.id === selectedServiceStaffId
-                            return (
-                              <button
-                                key={staff.id}
-                                type="button"
-                                onClick={() => setSelectedServiceStaffId(staff.id)}
-                                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
-                                  isSelected
-                                    ? "bg-violet-700 text-white shadow-xs"
-                                    : "bg-white text-slate-700 border border-violet-200 hover:bg-violet-100/60"
-                                }`}
-                              >
-                                {staff.fullName} <span className="opacity-75 text-[10px]">({getRoleLabel(staff.role)})</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
 
                   <label className="sm:col-span-2">
