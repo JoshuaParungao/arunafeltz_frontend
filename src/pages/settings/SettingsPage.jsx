@@ -587,7 +587,7 @@ function DocumentNumberingDisplay({ setting }) {
   const rows = Object.entries(numbering).map(([key, value]) => {
     const prefix = value?.prefix || "-"
     const sampleByPrefix = {
-      RCPT: "RCPT-MAIN-20260808-0001",
+      RCPT: "00001",
       QT: "QT-MAIN-20260808-0001",
       SVC: "SVC-MAIN-20260808-0001",
       SVCPAY: "SVCPAY-MAIN-20260808-0001",
