@@ -1371,7 +1371,7 @@ function QuotationsPage({ selectedBranch, user }) {
             Active quotations
           </p>
           <p className="mt-2 text-2xl font-bold text-[var(--color-text-strong)]">
-            {quotations.filter((quote) => ["DRAFT", "SENT", "APPROVED"].includes(quote.status)).length}
+            {quotations.filter((quote) => quote.status === "DRAFT").length}
           </p>
         </div>
       </div>
@@ -1395,10 +1395,8 @@ function QuotationsPage({ selectedBranch, user }) {
             >
               <option value="ALL">All statuses</option>
               <option value="DRAFT">Draft</option>
-              <option value="SENT">Sent</option>
-              <option value="APPROVED">Approved</option>
-              <option value="CANCELLED">Cancelled</option>
               <option value="CONVERTED">Converted</option>
+              <option value="CANCELLED">Cancelled</option>
             </select>
 
             <button
@@ -1479,42 +1477,28 @@ function QuotationsPage({ selectedBranch, user }) {
                         >
                           View
                         </button>
-                        {!["CONVERTED", "CANCELLED", "REJECTED"].includes(quotation.status) ? (
-                          <button
-                            className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100"
-                            disabled={isLoadingDetails}
-                            onClick={async () => {
-                              await loadQuotationDetails(quotation)
-                              setIsConversionOpen(true)
-                            }}
-                            type="button"
-                            title="Convert quotation to sale"
-                          >
-                            Convert
-                          </button>
-                        ) : null}
                         {!["CONVERTED", "CANCELLED"].includes(quotation.status) ? (
                           <button
                             className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100"
                             disabled={isLoadingDetails || isUpdatingStatus}
                             onClick={async () => {
-                              if (!window.confirm(`Are you sure you want to cancel Quotation ${quotation.quotationCode}? This action cannot be undone.`)) {
+                              if (!window.confirm(`Are you sure you want to delete Quotation ${quotation.quotationCode}? This action cannot be undone.`)) {
                                 return
                               }
                               try {
                                 await updateQuotationStatus(quotation.id, {
                                   status: "CANCELLED",
-                                  remarks: "Cancelled from quotation archive",
+                                  remarks: "Deleted from quotation archive",
                                 })
                                 await loadQuotations()
                               } catch (err) {
-                                alert(err?.response?.data?.message || "Failed to cancel quotation.")
+                                alert(err?.response?.data?.message || "Failed to delete quotation.")
                               }
                             }}
                             type="button"
-                            title="Cancel / Delete quotation"
+                            title="Delete quotation"
                           >
-                            Cancel
+                            Delete
                           </button>
                         ) : null}
                       </div>
@@ -2233,24 +2217,6 @@ function QuotationsPage({ selectedBranch, user }) {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {!["CONVERTED", "CANCELLED", "REJECTED"].includes(selectedQuotation.status) ? (
-                <button
-                  className="rounded-2xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-800"
-                  onClick={openQuotationConversion}
-                  type="button"
-                >
-                  Convert to sale
-                </button>
-              ) : null}
-              {selectedQuotation.status === "DRAFT" ? (
-                <button
-                  className="rounded-2xl border border-[var(--color-maroon)] bg-white px-4 py-2 text-sm font-bold text-[var(--color-maroon)] transition hover:bg-[var(--color-soft)]"
-                  onClick={openEditQuotationForm}
-                  type="button"
-                >
-                  Edit draft
-                </button>
-              ) : null}
               <button
                 className="rounded-2xl bg-[var(--color-maroon)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90"
                 onClick={() => setIsPrintPreviewOpen(true)}
@@ -2299,42 +2265,22 @@ function QuotationsPage({ selectedBranch, user }) {
             </div>
           </div>
 
-          {selectedQuotation.status === "DRAFT" || selectedQuotation.status === "SENT" ? (
+          {!["CONVERTED", "CANCELLED"].includes(selectedQuotation.status) ? (
             <div className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-bold text-[var(--color-text-strong)]">Quotation workflow</p>
+                <p className="text-sm font-bold text-[var(--color-text-strong)]">Quotation actions</p>
                 <p className="mt-1 text-xs text-[var(--color-muted)]">
-                  Status changes are recorded and cannot be rolled back through normal editing.
+                  Delete or cancel this quotation from the archive. Conversion to sale is handled directly in POS.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {selectedQuotation.status === "DRAFT" ? (
-                  <button
-                    className="rounded-2xl bg-[var(--color-maroon)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isUpdatingStatus}
-                    onClick={() => changeQuotationStatus("SENT")}
-                    type="button"
-                  >
-                    Mark as sent
-                  </button>
-                ) : null}
-                {selectedQuotation.status === "SENT" ? (
-                  <button
-                    className="rounded-2xl bg-[var(--color-maroon)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isUpdatingStatus}
-                    onClick={() => changeQuotationStatus("APPROVED")}
-                    type="button"
-                  >
-                    Approve quotation
-                  </button>
-                ) : null}
                 <button
                   className="rounded-2xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isUpdatingStatus}
                   onClick={() => changeQuotationStatus("CANCELLED")}
                   type="button"
                 >
-                  Cancel quotation
+                  Delete quotation
                 </button>
               </div>
             </div>
@@ -2800,10 +2746,6 @@ function QuotationsPage({ selectedBranch, user }) {
       {isPrintPreviewOpen && selectedQuotation ? (
         <QuotationDetailDialog
           onClose={() => setIsPrintPreviewOpen(false)}
-          onConvertToSale={() => {
-            setIsPrintPreviewOpen(false)
-            openQuotationConversion()
-          }}
           quotation={selectedQuotation}
         />
       ) : null}

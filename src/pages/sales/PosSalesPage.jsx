@@ -3065,8 +3065,6 @@ function PosSalesPage({ selectedBranch, user }) {
               >
                 <option value="">All quotation statuses</option>
                 <option value="DRAFT">Draft</option>
-                <option value="SENT">Sent</option>
-                <option value="APPROVED">Approved</option>
                 <option value="CONVERTED">Converted</option>
                 <option value="CANCELLED">Cancelled</option>
               </select>
