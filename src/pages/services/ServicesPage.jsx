@@ -32,6 +32,18 @@ import {
   updateServiceJobAssignment,
   updateServiceJobStatus,
 } from "../../features/service-jobs/serviceJobs.api"
+import JobOrderReceiptPrint from "./JobOrderReceiptPrint"
+import DiagnosticIntakePrint from "./DiagnosticIntakePrint"
+import MaintenanceIntakePrint from "./MaintenanceIntakePrint"
+import {
+  ACCESSORIES_OPTIONS,
+  INTAKE_RECORD_HEADER,
+  PHYSICAL_CONDITIONS,
+  PREVIOUS_REPAIR_ACTIONS,
+  REQUESTED_MAINTENANCE_SERVICES,
+  SPECIAL_ATTENTION_ITEMS,
+  UNIT_TYPES,
+} from "./serviceJobForms"
 
 const CREATE_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "TECHNICIAN", "CASHIER"])
 const LIFECYCLE_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "CASHIER", "TECHNICIAN"])
@@ -72,6 +84,7 @@ const EMPTY_CREATE = {
   customerId: "",
   customerNameSnapshot: "",
   customerContactSnapshot: "",
+  customerAddressSnapshot: "",
   assignedTechnicianId: "",
   jobTitle: "",
   deviceDescription: "",
@@ -85,6 +98,32 @@ const EMPTY_CREATE = {
   baseServiceCharge: "",
   markupPercent: "",
   isQuickService: false,
+
+  // Intake Form Specific Fields
+  intakeType: "DIAGNOSTIC", // "DIAGNOSTIC" | "MAINTENANCE"
+  unitType: "Laptop",
+  brandModel: "",
+  whenProblemStarted: "",
+  checkedByOtherShop: "No",
+  numShopsHandled: "",
+  otherShopsList: "",
+  previousRepairs: [],
+  otherPreviousRepairs: "",
+  componentsModified: "No",
+  receivedAccessories: [],
+  otherAccessories: "",
+  physicalConditions: [],
+  otherConditionNotes: "",
+  requestedServices: [],
+  otherRequestedService: "",
+  firstTimeMaintenance: "Yes (First Maintenance)",
+  numTimesMaintained: "",
+  lastMaintenanceWhen: "Less than 6 months ago",
+  lastMaintenanceWho: "Our Shop",
+  upgradedDuringMaintenance: "No",
+  upgradedSpecify: "",
+  specialAttention: [],
+  otherSpecialAttention: "",
 }
 
 function money(value) {
@@ -303,140 +342,60 @@ function FinancialSnapshot({ compact = false, job }) {
   )
 }
 
-function printText(value, maxLength = 240) {
-  const text = String(value || "—").trim()
-  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text
-}
+function JobOrderPrintPreview({ defaultDoc = "RECEIPT", job, onClose }) {
+  const [docType, setDocType] = useState(defaultDoc)
 
-function PrintField({ label, value, wide = false }) {
-  return (
-    <div className={wide ? "jo-print-field jo-print-wide" : "jo-print-field"}>
-      <p className="jo-print-label">{label}</p>
-      <p className="jo-print-value">{printText(value)}</p>
-    </div>
-  )
-}
-
-function JobOrderPrintCopy({ copyLabel, job }) {
-  const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in customer"
-  const customerContact =
-    job.customerContactSnapshot ||
-    [job.customer?.mobileNumber, job.customer?.email].filter(Boolean).join(" / ") ||
-    "—"
-  const postedPayments = (job.payments || []).filter(
-    (payment) => payment.status === "POSTED",
-  )
-  const directTotal = postedPayments.reduce(
-    (total, payment) => total + Number(payment.amount || 0),
-    0,
-  )
-  const paymentText = job.creditAccount
-    ? `${friendly(job.paymentState)} · ${friendly(job.creditAccount.provider)} · AR ${money(job.creditAccount.remainingBalance)}`
-    : `${friendly(job.paymentState)} · collected ${money(directTotal)}`
-  const hasFinancialSnapshot =
-    copyLabel === "STORE COPY" &&
-    (Boolean(job.financialSnapshotAt) || [
-      job.repairCostPercentSnapshot,
-      job.companySharePercentSnapshot,
-      job.repairCostPoolAmountSnapshot,
-      job.companyShareAmountSnapshot,
-      job.repairFeeSnapshot,
-      job.repairIncentiveRateSnapshot,
-      job.repairIncentiveAmountSnapshot,
-      job.unallocatedRepairCostPoolSnapshot,
-    ].some((value) => value !== null && value !== undefined))
-
-  return (
-    <section className="job-order-print-copy">
-      <header className="jo-print-header">
-        <div>
-          <p className="jo-print-brand">ARUNAFELTZ COMPUTER</p>
-          <h1>Services / Job Order</h1>
-          <p>{job.branch?.name || "Arunafeltz Computer branch"}</p>
-          <p>{[job.branch?.address, job.branch?.contactNo].filter(Boolean).join(" · ")}</p>
-        </div>
-        <div className="jo-print-reference">
-          <strong>{copyLabel}</strong>
-          <span>JO No. {job.jobCode}</span>
-          <span>Received {dateTime(job.receivedAt)}</span>
-        </div>
-      </header>
-
-      <div className="jo-print-grid jo-print-grid-3">
-        <PrintField label="Customer" value={customerName} />
-        <PrintField label="Contact" value={customerContact} />
-        <PrintField label="Service type / title" value={job.jobTitle} />
-        <PrintField label="Device / unit" value={job.deviceDescription} />
-        <PrintField label="Serial number" value={job.serialNumber} />
-        <PrintField label="Repair category" value={friendly(job.repairType)} />
-        <PrintField label="Assigned technician" value={job.assignedTechnician ? technicianLabel(job.assignedTechnician) : "Unassigned"} />
-        <PrintField label="Service Done By" value={job.serviceDoneBy ? technicianLabel(job.serviceDoneBy) : "—"} />
-      </div>
-
-      <div className="jo-print-grid jo-print-grid-2">
-        <PrintField label="Reported issue / request" value={job.problemDescription} wide />
-        <PrintField label="Accessories received" value={job.accessoriesReceived} wide />
-        <PrintField label="Physical condition / receiving remarks" value={job.receivingRemarks} wide />
-        <PrintField label="Diagnosis / service performed" value={[job.diagnosis, job.serviceNotes].filter(Boolean).join(" — ")} wide />
-      </div>
-
-      <div className="jo-print-grid jo-print-grid-4">
-        <PrintField label="Base service charge" value={moneyOrDash(job.baseServiceCharge)} />
-        <PrintField label="Markup" value={percentOrDash(job.markupPercent)} />
-        <PrintField label="Service markup amount" value={moneyOrDash(job.serviceMarkupAmount)} />
-        <PrintField label="Final service charge" value={moneyOrDash(job.finalServiceCharge)} />
-        <PrintField label="Payment" value={paymentText} />
-        <PrintField label="Release outcome" value={friendly(job.releaseOutcome)} />
-        <PrintField label="Received by" value={job.receivedBy?.fullName || job.createdBy?.fullName} />
-        <PrintField label="Released by" value={job.releasedBy?.fullName} />
-        <PrintField label="Release date" value={dateTime(job.releasedAt)} />
-        <PrintField label="Release notes" value={job.releaseNotes || job.cancellationReason} />
-      </div>
-
-      {hasFinancialSnapshot ? (
-        <div className="jo-print-grid jo-print-grid-4">
-          <PrintField label="Repair Cost %" value={percentOrDash(job.repairCostPercentSnapshot)} />
-          <PrintField label="Company Share %" value={percentOrDash(job.companySharePercentSnapshot)} />
-          <PrintField label="Repair Cost Pool" value={moneyOrDash(job.repairCostPoolAmountSnapshot)} />
-          <PrintField label="Company Share Amount" value={moneyOrDash(job.companyShareAmountSnapshot)} />
-          <PrintField label="Repair Fee" value={moneyOrDash(job.repairFeeSnapshot)} />
-          <PrintField label="Repair Incentive Rate" value={percentOrDash(job.repairIncentiveRateSnapshot)} />
-          <PrintField label="Repair Incentive Amount" value={moneyOrDash(job.repairIncentiveAmountSnapshot)} />
-          <PrintField label="Remaining/unallocated Repair Cost Pool" value={moneyOrDash(job.unallocatedRepairCostPoolSnapshot)} />
-          <PrintField label="Financial snapshot at" value={dateTime(job.financialSnapshotAt)} />
-        </div>
-      ) : null}
-
-      <footer className="jo-print-signatures">
-        <div><span>Customer signature / date</span></div>
-        <div><span>Receiving / releasing staff signature</span></div>
-      </footer>
-    </section>
-  )
-}
-
-function JobOrderPrintPreview({ job, onClose }) {
   return createPortal(
     <div aria-label="Printable job order" aria-modal="true" className="job-order-print-overlay" role="dialog">
       <div className="job-order-print-shell">
         <div className="job-order-print-actions">
-          <div>
-            <p className="font-black text-white">One-page Job Order preview</p>
-            <p className="text-xs text-white/70">Customer and store copies print on one A4 sheet.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <p className="font-black text-white">Official Print Center</p>
+              <p className="text-xs text-white/70">JO #{job.jobCode} · A4 Ready</p>
+            </div>
+            <div className="flex rounded-xl bg-black/40 p-1 border border-white/20">
+              <button
+                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "RECEIPT" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}
+                onClick={() => setDocType("RECEIPT")}
+                type="button"
+              >
+                Dual-Copy JO Receipt
+              </button>
+              <button
+                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "DIAGNOSTIC" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}
+                onClick={() => setDocType("DIAGNOSTIC")}
+                type="button"
+              >
+                Diagnostic Intake Form
+              </button>
+              <button
+                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "MAINTENANCE" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}
+                onClick={() => setDocType("MAINTENANCE")}
+                type="button"
+              >
+                Maintenance & Upgrade Form
+              </button>
+            </div>
           </div>
           <div className="flex gap-2">
-            <button className="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white" onClick={onClose} type="button">
+            <button className="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white hover:bg-white/10" onClick={onClose} type="button">
               Close
             </button>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-black text-[var(--color-maroon)]" onClick={() => window.print()} type="button">
+            <button className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-black text-[var(--color-maroon)] shadow-lg hover:bg-slate-50" onClick={() => window.print()} type="button">
               <Printer size={16} /> Print A4
             </button>
           </div>
         </div>
+
         <article className="job-order-print-document">
-          <JobOrderPrintCopy copyLabel="CUSTOMER COPY" job={job} />
-          <div className="job-order-cut-line"><span>CUT HERE</span></div>
-          <JobOrderPrintCopy copyLabel="STORE COPY" job={job} />
+          {docType === "RECEIPT" ? (
+            <JobOrderReceiptPrint job={job} />
+          ) : docType === "DIAGNOSTIC" ? (
+            <DiagnosticIntakePrint job={job} />
+          ) : (
+            <MaintenanceIntakePrint job={job} />
+          )}
         </article>
       </div>
     </div>,
@@ -516,7 +475,7 @@ export default function ServicesPage({ selectedBranch, user }) {
     receivableRemarks: "",
   })
   const paymentRequestRef = useRef({ signature: "", key: "" })
-  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false)
+  const [printPreviewState, setPrintPreviewState] = useState({ isOpen: false, defaultDoc: "RECEIPT" })
 
   const loadJobs = useCallback(async () => {
     const response = await getServiceJobs({
@@ -609,6 +568,69 @@ export default function ServicesPage({ selectedBranch, user }) {
     const baseServiceCharge = Number(createForm.baseServiceCharge || 0)
     const markupPercent = normalizedMarkup(createForm.markupPercent)
     const finalServiceCharge = getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
+    // Build structured intake record
+    const intakeRecord = {
+      intakeType: createForm.intakeType,
+      customerAddress: createForm.customerAddressSnapshot.trim(),
+      unitType: createForm.unitType,
+      brandModel: createForm.brandModel.trim(),
+      serialNumber: createForm.serialNumber.trim(),
+      problemSymptoms: createForm.problemDescription.trim(),
+      whenProblemStarted: createForm.whenProblemStarted.trim(),
+      checkedByOtherShop: createForm.checkedByOtherShop,
+      numShopsHandled: createForm.numShopsHandled.trim(),
+      otherShopsList: createForm.otherShopsList.trim(),
+      previousRepairs: createForm.previousRepairs,
+      otherPreviousRepairs: createForm.otherPreviousRepairs.trim(),
+      componentsModified: createForm.componentsModified,
+      receivedAccessories: createForm.receivedAccessories,
+      otherAccessories: createForm.otherAccessories.trim(),
+      physicalConditions: createForm.physicalConditions,
+      otherConditionNotes: createForm.otherConditionNotes.trim(),
+      requestedServices: createForm.requestedServices,
+      otherRequestedService: createForm.otherRequestedService.trim(),
+      firstTimeMaintenance: createForm.firstTimeMaintenance,
+      numTimesMaintained: createForm.numTimesMaintained.trim(),
+      lastMaintenanceWhen: createForm.lastMaintenanceWhen,
+      lastMaintenanceWho: createForm.lastMaintenanceWho,
+      upgradedDuringMaintenance: createForm.upgradedDuringMaintenance,
+      upgradedSpecify: createForm.upgradedSpecify.trim(),
+      specialAttention: createForm.specialAttention,
+      otherSpecialAttention: createForm.otherSpecialAttention.trim(),
+    }
+
+    // Compose formatted text for standard DB fields
+    const deviceDescription = createForm.brandModel
+      ? `${createForm.unitType}: ${createForm.brandModel}`
+      : createForm.deviceDescription || createForm.unitType
+
+    const accessoriesList = [
+      ...createForm.receivedAccessories,
+      createForm.otherAccessories ? `Other: ${createForm.otherAccessories}` : "",
+    ].filter(Boolean).join(", ")
+    const accessoriesReceived = accessoriesList || createForm.accessoriesReceived
+
+    const conditionsList = [
+      ...createForm.physicalConditions,
+      createForm.otherConditionNotes ? `Other: ${createForm.otherConditionNotes}` : "",
+    ].filter(Boolean).join(", ")
+    const receivingRemarks = conditionsList || createForm.receivingRemarks
+
+    const problemDescription = createForm.intakeType === "DIAGNOSTIC"
+      ? [
+          createForm.problemDescription,
+          createForm.whenProblemStarted ? `(Started: ${createForm.whenProblemStarted})` : "",
+          createForm.checkedByOtherShop === "Yes" ? `[Prev shop check: Yes - ${createForm.otherShopsList || "Unknown"}]` : "",
+        ].filter(Boolean).join(" ")
+      : [
+          createForm.requestedServices.join(", "),
+          createForm.otherRequestedService ? `Custom: ${createForm.otherRequestedService}` : "",
+          createForm.problemDescription ? `Notes: ${createForm.problemDescription}` : "",
+        ].filter(Boolean).join(" ")
+
+    // Serialize intake record into serviceNotes with structured header
+    const structuredNotes = `${INTAKE_RECORD_HEADER}${JSON.stringify(intakeRecord)}${createForm.serviceNotes.trim() ? `\n\n${createForm.serviceNotes.trim()}` : ""}`
+
     setIsSaving(true)
     setErrorMessage("")
     try {
@@ -619,24 +641,34 @@ export default function ServicesPage({ selectedBranch, user }) {
         customerNameSnapshot: !createForm.customerId ? createForm.customerNameSnapshot.trim() || undefined : undefined,
         customerContactSnapshot: !createForm.customerId ? createForm.customerContactSnapshot.trim() || undefined : undefined,
         assignedTechnicianId: createForm.assignedTechnicianId || undefined,
-        deviceDescription: createForm.deviceDescription.trim() || undefined,
+        deviceDescription: deviceDescription.trim() || undefined,
         serialNumber: createForm.serialNumber.trim() || undefined,
-        problemDescription: createForm.problemDescription.trim() || undefined,
-        accessoriesReceived: createForm.accessoriesReceived.trim() || undefined,
-        receivingRemarks: createForm.receivingRemarks.trim() || undefined,
+        problemDescription: (problemDescription || createForm.problemDescription).trim() || undefined,
+        accessoriesReceived: (accessoriesReceived || createForm.accessoriesReceived).trim() || undefined,
+        receivingRemarks: (receivingRemarks || createForm.receivingRemarks).trim() || undefined,
         diagnosis: createForm.diagnosis.trim() || undefined,
-        serviceNotes: createForm.serviceNotes.trim() || undefined,
+        serviceNotes: structuredNotes.trim() || undefined,
         repairType: createForm.repairType,
         baseServiceCharge,
         markupPercent,
         estimatedServiceCharge: finalServiceCharge,
         isQuickService: createForm.isQuickService,
       })
+      const created = response?.data
       setCreateForm(EMPTY_CREATE)
       setShowCreate(false)
-      setNotice(`${response?.data?.jobCode || "Job order"} received.`)
+      setNotice(`${created?.jobCode || "Job order"} received.`)
       setPage(1)
       await loadJobs()
+
+      // Prompt Print Center directly
+      if (created) {
+        setSelectedJob(created)
+        setPrintPreviewState({
+          isOpen: true,
+          defaultDoc: createForm.intakeType === "DIAGNOSTIC" ? "DIAGNOSTIC" : "MAINTENANCE",
+        })
+      }
     } catch (error) {
       setErrorMessage(apiError(error, "Could not create job order."))
     } finally {
@@ -1181,13 +1213,32 @@ export default function ServicesPage({ selectedBranch, user }) {
       {showCreate ? (
         <Modal onClose={() => setShowCreate(false)} title="Receive service / create Job Order" width="max-w-4xl">
           <form onSubmit={submitCreate}>
-            <div className="max-h-[72vh] space-y-5 overflow-y-auto p-5 sm:p-6">
-              <label className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+            <div className="max-h-[76vh] space-y-5 overflow-y-auto p-5 sm:p-6">
+              {/* Intake Mode Switcher */}
+              <div className="flex rounded-2xl bg-[var(--color-soft)] p-1.5 border border-[var(--color-border)]">
+                <button
+                  className={`flex-1 rounded-xl py-2 text-xs font-black transition ${createForm.intakeType === "DIAGNOSTIC" ? "bg-[var(--color-maroon)] text-white shadow-sm" : "text-[var(--color-text-strong)] hover:bg-black/5"}`}
+                  onClick={() => setCreateForm((f) => ({ ...f, intakeType: "DIAGNOSTIC", repairType: "BOARD_LEVEL_REPAIR" }))}
+                  type="button"
+                >
+                  Diagnostic & Repair Intake
+                </button>
+                <button
+                  className={`flex-1 rounded-xl py-2 text-xs font-black transition ${createForm.intakeType === "MAINTENANCE" ? "bg-[var(--color-maroon)] text-white shadow-sm" : "text-[var(--color-text-strong)] hover:bg-black/5"}`}
+                  onClick={() => setCreateForm((f) => ({ ...f, intakeType: "MAINTENANCE", repairType: "ORDINARY_REPAIR" }))}
+                  type="button"
+                >
+                  Maintenance, Upgrade & Cleaning Intake
+                </button>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5">
                 <input checked={createForm.isQuickService} className="mt-1" onChange={(event) => setCreateForm((form) => ({ ...form, isQuickService: event.target.checked }))} type="checkbox" />
                 <span><strong className="block text-sm text-amber-900 dark:text-amber-200">Quick / same-day service</strong><span className="text-xs text-amber-800 dark:text-amber-300">Skips IN PROGRESS and may move directly from received to service performed.</span></span>
               </label>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Top Meta: Repair Category, Customer, Assigned Technician */}
+              <div className="grid gap-4 sm:grid-cols-3">
                 <Field label="Repair category *">
                   <select
                     className={FIELD_CLASS}
@@ -1223,7 +1274,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                     ))}
                   </select>
                 </Field>
-                <Field label="Assigned technician (optional at intake; not Service Done By)">
+                <Field label="Assigned technician (optional at intake)">
                   <select className={FIELD_CLASS} onChange={(event) => setCreateForm((form) => ({ ...form, assignedTechnicianId: event.target.value }))} value={createForm.assignedTechnicianId}>
                     <option value="">Unassigned</option>
                     {createTechnicianOptions.map((technician) => <option key={technician.id} value={technician.id}>{technicianLabel(technician)}</option>)}
@@ -1231,44 +1282,325 @@ export default function ServicesPage({ selectedBranch, user }) {
                 </Field>
               </div>
 
-              {createForm.repairType === "BOARD_LEVEL_REPAIR" ? (
-                <p className="rounded-2xl bg-sky-50 p-3 text-xs font-bold text-sky-800">Specialized / advanced repairs may only be assigned to and performed by a Senior Technician / Specialist. The backend verifies eligibility when this Job Order is saved.</p>
-              ) : null}
+              {/* Customer Contact & Address Snapshot */}
+              <div className="grid gap-4 rounded-2xl bg-[var(--color-soft)] p-4 sm:grid-cols-3">
+                {!createForm.customerId ? (
+                  <>
+                    <Field label="Walk-in customer name"><input className={FIELD_CLASS} maxLength="180" onChange={(event) => setCreateForm((form) => ({ ...form, customerNameSnapshot: event.target.value }))} placeholder="e.g. Marc Hernandez" value={createForm.customerNameSnapshot} /></Field>
+                    <Field label="Customer contact"><input className={FIELD_CLASS} maxLength="250" onChange={(event) => setCreateForm((form) => ({ ...form, customerContactSnapshot: event.target.value }))} placeholder="09XX-XXX-XXXX" value={createForm.customerContactSnapshot} /></Field>
+                  </>
+                ) : null}
+                <div className={!createForm.customerId ? "" : "sm:col-span-3"}>
+                  <Field label="Customer address (printed on intake)"><input className={FIELD_CLASS} maxLength="250" onChange={(event) => setCreateForm((form) => ({ ...form, customerAddressSnapshot: event.target.value }))} placeholder="Barangay, City, Province" value={createForm.customerAddressSnapshot} /></Field>
+                </div>
+              </div>
 
-              {!createForm.customerId ? (
-                <div className="grid gap-4 rounded-2xl bg-[var(--color-soft)] p-4 sm:grid-cols-2">
-                  <Field label="Walk-in customer name"><input className={FIELD_CLASS} maxLength="180" onChange={(event) => setCreateForm((form) => ({ ...form, customerNameSnapshot: event.target.value }))} value={createForm.customerNameSnapshot} /></Field>
-                  <Field label="Customer contact"><input className={FIELD_CLASS} maxLength="250" onChange={(event) => setCreateForm((form) => ({ ...form, customerContactSnapshot: event.target.value }))} value={createForm.customerContactSnapshot} /></Field>
+              {/* Unit Information */}
+              <div className="space-y-3 rounded-2xl border border-[var(--color-border)] p-4">
+                <p className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Unit Information (Intake Checklist)</p>
+                <div>
+                  <p className="text-xs font-bold text-[var(--color-muted)] mb-2">Type of Unit (✓)</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {UNIT_TYPES.map((type) => (
+                      <label className="flex items-center gap-2 text-xs font-bold" key={type}>
+                        <input
+                          checked={createForm.unitType === type}
+                          name="intakeUnitType"
+                          onChange={() => setCreateForm((f) => ({ ...f, unitType: type }))}
+                          type="radio"
+                        />
+                        <span>{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3 pt-2">
+                  <Field label="Brand & model *">
+                    <input
+                      className={FIELD_CLASS}
+                      maxLength="180"
+                      onChange={(event) => setCreateForm((form) => ({ ...form, brandModel: event.target.value }))}
+                      placeholder="e.g. ASUS TUF Gaming F15 FX506"
+                      required
+                      value={createForm.brandModel}
+                    />
+                  </Field>
+                  <Field label="Serial number (if available)">
+                    <input
+                      className={FIELD_CLASS}
+                      maxLength="180"
+                      onChange={(event) => setCreateForm((form) => ({ ...form, serialNumber: event.target.value }))}
+                      placeholder="e.g. M4NRCX00192834K"
+                      value={createForm.serialNumber}
+                    />
+                  </Field>
+                  <Field label="Job title / service type *">
+                    <input
+                      className={FIELD_CLASS}
+                      maxLength="180"
+                      onChange={(event) => setCreateForm((form) => ({ ...form, jobTitle: event.target.value }))}
+                      placeholder={createForm.intakeType === "DIAGNOSTIC" ? "e.g. No Power / Motherboard Diagnosis" : "e.g. Preventive Maintenance & Thermal Repaste"}
+                      required
+                      value={createForm.jobTitle}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Diagnostic Form Specific Section */}
+              {createForm.intakeType === "DIAGNOSTIC" ? (
+                <div className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
+                  <p className="text-xs font-black uppercase tracking-wider text-blue-900 dark:text-blue-200">Diagnostic Questionnaire</p>
+                  
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Reported issue / symptoms *">
+                      <textarea
+                        className={FIELD_CLASS}
+                        maxLength="1200"
+                        onChange={(event) => setCreateForm((form) => ({ ...form, problemDescription: event.target.value }))}
+                        placeholder="Please describe the issue or symptoms being experienced..."
+                        rows="3"
+                        value={createForm.problemDescription}
+                      />
+                    </Field>
+                    <Field label="When did the problem start?">
+                      <input
+                        className={FIELD_CLASS}
+                        maxLength="180"
+                        onChange={(event) => setCreateForm((form) => ({ ...form, whenProblemStarted: event.target.value }))}
+                        placeholder="e.g. 3 days ago, after thunderstorm, suddenly while playing"
+                        value={createForm.whenProblemStarted}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2 pt-2">
+                    <div>
+                      <p className="text-xs font-bold text-[var(--color-text-strong)] mb-1.5">1. Checked/repaired by another shop?</p>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 text-xs font-bold">
+                          <input
+                            checked={createForm.checkedByOtherShop === "Yes"}
+                            name="checkedByOther"
+                            onChange={() => setCreateForm((f) => ({ ...f, checkedByOtherShop: "Yes" }))}
+                            type="radio"
+                          />
+                          <span>Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-bold">
+                          <input
+                            checked={createForm.checkedByOtherShop === "No"}
+                            name="checkedByOther"
+                            onChange={() => setCreateForm((f) => ({ ...f, checkedByOtherShop: "No" }))}
+                            type="radio"
+                          />
+                          <span>No</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {createForm.checkedByOtherShop === "Yes" ? (
+                      <div>
+                        <p className="text-xs font-bold text-[var(--color-text-strong)] mb-1.5">2. How many shops / technicians handled this?</p>
+                        <input
+                          className={FIELD_CLASS}
+                          maxLength="50"
+                          onChange={(e) => setCreateForm((f) => ({ ...f, numShopsHandled: e.target.value }))}
+                          placeholder="e.g. 1 shop"
+                          value={createForm.numShopsHandled}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {createForm.checkedByOtherShop === "Yes" ? (
+                    <Field label="3. List previous shop(s) or technician(s) if known">
+                      <input
+                        className={FIELD_CLASS}
+                        maxLength="180"
+                        onChange={(e) => setCreateForm((f) => ({ ...f, otherShopsList: e.target.value }))}
+                        placeholder="e.g. PC Shop in SM"
+                        value={createForm.otherShopsList}
+                      />
+                    </Field>
+                  ) : null}
+
+                  <div>
+                    <p className="text-xs font-bold text-[var(--color-text-strong)] mb-1.5">4. What repairs/tests were previously performed?</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {PREVIOUS_REPAIR_ACTIONS.map((action) => {
+                        const checked = createForm.previousRepairs.includes(action)
+                        return (
+                          <label className="flex items-center gap-2 text-xs" key={action}>
+                            <input
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...createForm.previousRepairs, action]
+                                  : createForm.previousRepairs.filter((x) => x !== action)
+                                setCreateForm((f) => ({ ...f, previousRepairs: next }))
+                              }}
+                              type="checkbox"
+                            />
+                            <span>{action}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
-              <Field label="Job title / service type *"><input autoFocus className={FIELD_CLASS} maxLength="180" onChange={(event) => setCreateForm((form) => ({ ...form, jobTitle: event.target.value }))} required value={createForm.jobTitle} /></Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Device / unit description"><textarea className={FIELD_CLASS} maxLength="500" onChange={(event) => setCreateForm((form) => ({ ...form, deviceDescription: event.target.value }))} rows="3" value={createForm.deviceDescription} /></Field>
-                <Field label="Serial number"><input className={FIELD_CLASS} maxLength="180" onChange={(event) => setCreateForm((form) => ({ ...form, serialNumber: event.target.value }))} value={createForm.serialNumber} /></Field>
-                <Field label="Reported issue / service request"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setCreateForm((form) => ({ ...form, problemDescription: event.target.value }))} rows="3" value={createForm.problemDescription} /></Field>
-                <Field label="Accessories received"><textarea className={FIELD_CLASS} maxLength="1200" onChange={(event) => setCreateForm((form) => ({ ...form, accessoriesReceived: event.target.value }))} rows="3" value={createForm.accessoriesReceived} /></Field>
-                <Field label="Physical condition / receiving remarks"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setCreateForm((form) => ({ ...form, receivingRemarks: event.target.value }))} rows="3" value={createForm.receivingRemarks} /></Field>
-                <Field label="Initial diagnosis"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setCreateForm((form) => ({ ...form, diagnosis: event.target.value }))} rows="3" value={createForm.diagnosis} /></Field>
+              {/* Maintenance Form Specific Section */}
+              {createForm.intakeType === "MAINTENANCE" ? (
+                <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                  <p className="text-xs font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-200">Maintenance & Service Checklist</p>
+                  
+                  <div>
+                    <p className="text-xs font-bold text-[var(--color-text-strong)] mb-2">Requested Service (✓)</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {REQUESTED_MAINTENANCE_SERVICES.map((srv) => {
+                        const checked = createForm.requestedServices.includes(srv)
+                        return (
+                          <label className="flex items-center gap-2 text-xs" key={srv}>
+                            <input
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...createForm.requestedServices, srv]
+                                  : createForm.requestedServices.filter((x) => x !== srv)
+                                setCreateForm((f) => ({ ...f, requestedServices: next }))
+                              }}
+                              type="checkbox"
+                            />
+                            <span>{srv}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <Field label="Customer specific requests / notes">
+                    <textarea
+                      className={FIELD_CLASS}
+                      maxLength="1000"
+                      onChange={(e) => setCreateForm((f) => ({ ...f, problemDescription: e.target.value }))}
+                      placeholder="e.g. Deep clean fans, repaste thermal grizzly Kryonaut..."
+                      rows="2"
+                      value={createForm.problemDescription}
+                    />
+                  </Field>
+
+                  <div>
+                    <p className="text-xs font-bold text-[var(--color-text-strong)] mb-1.5">Special attention items (✓)</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {SPECIAL_ATTENTION_ITEMS.map((item) => {
+                        const checked = createForm.specialAttention.includes(item)
+                        return (
+                          <label className="flex items-center gap-2 text-xs" key={item}>
+                            <input
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...createForm.specialAttention, item]
+                                  : createForm.specialAttention.filter((x) => x !== item)
+                                setCreateForm((f) => ({ ...f, specialAttention: next }))
+                              }}
+                              type="checkbox"
+                            />
+                            <span>{item}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Shop Check: Accessories & Initial Physical Condition */}
+              <div className="space-y-4 rounded-2xl border border-[var(--color-border)] p-4">
+                <p className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Shop Use: Accessories & Physical Condition</p>
+
+                <div>
+                  <p className="text-xs font-bold text-[var(--color-muted)] mb-1.5">Accessories Included (✓)</p>
+                  <div className="flex flex-wrap gap-4">
+                    {ACCESSORIES_OPTIONS.map((acc) => {
+                      const checked = createForm.receivedAccessories.includes(acc)
+                      return (
+                        <label className="flex items-center gap-2 text-xs font-bold" key={acc}>
+                          <input
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...createForm.receivedAccessories, acc]
+                                : createForm.receivedAccessories.filter((x) => x !== acc)
+                              setCreateForm((f) => ({ ...f, receivedAccessories: next }))
+                            }}
+                            type="checkbox"
+                          />
+                          <span>{acc}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-[var(--color-muted)] mb-1.5">Initial Physical Condition (✓)</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {PHYSICAL_CONDITIONS.map((cond) => {
+                      const checked = createForm.physicalConditions.includes(cond)
+                      return (
+                        <label className="flex items-center gap-2 text-xs" key={cond}>
+                          <input
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...createForm.physicalConditions, cond]
+                                : createForm.physicalConditions.filter((x) => x !== cond)
+                              setCreateForm((f) => ({ ...f, physicalConditions: next }))
+                            }}
+                            type="checkbox"
+                          />
+                          <span>{cond}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 pt-1">
+                  <Field label="Condition notes / specific marks"><input className={FIELD_CLASS} maxLength="250" onChange={(e) => setCreateForm((f) => ({ ...f, otherConditionNotes: e.target.value }))} placeholder="e.g. Scratches on lid, missing rubber foot" value={createForm.otherConditionNotes} /></Field>
+                  <Field label="Initial diagnosis remarks (optional)"><input className={FIELD_CLASS} maxLength="250" onChange={(e) => setCreateForm((f) => ({ ...f, diagnosis: e.target.value }))} placeholder="Initial observations..." value={createForm.diagnosis} /></Field>
+                </div>
               </div>
-              <Field label="Service notes"><textarea className={FIELD_CLASS} maxLength="3000" onChange={(event) => setCreateForm((form) => ({ ...form, serviceNotes: event.target.value }))} rows="2" value={createForm.serviceNotes} /></Field>
-              <ServicePricingFields
-                baseServiceCharge={createForm.baseServiceCharge}
-                markupPercent={createForm.markupPercent}
-                onBaseChange={(value) => setCreateForm((form) => ({ ...form, baseServiceCharge: value }))}
-                onMarkupChange={(value) => setCreateForm((form) => ({ ...form, markupPercent: value }))}
-              />
+
+              {/* Pricing & Service Notes */}
+              <div className="space-y-4 rounded-2xl border border-[var(--color-border)] p-4">
+                <p className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Pricing & Charges</p>
+                <ServicePricingFields
+                  baseServiceCharge={createForm.baseServiceCharge}
+                  markupPercent={createForm.markupPercent}
+                  onBaseChange={(value) => setCreateForm((form) => ({ ...form, baseServiceCharge: value }))}
+                  onMarkupChange={(value) => setCreateForm((form) => ({ ...form, markupPercent: value }))}
+                />
+                <Field label="Additional internal service notes"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setCreateForm((form) => ({ ...form, serviceNotes: event.target.value }))} placeholder="Internal remarks not printed on customer receipt..." rows="2" value={createForm.serviceNotes} /></Field>
+              </div>
             </div>
+
             <div className="flex justify-end gap-2 border-t border-[var(--color-border)] p-4 sm:px-6">
               <button className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold" onClick={() => setShowCreate(false)} type="button">Cancel</button>
-              <button className="rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50" disabled={isSaving} type="submit">{isSaving ? "Receiving…" : "Receive & create JO"}</button>
+              <button className="rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white shadow hover:opacity-95 disabled:opacity-50" disabled={isSaving} type="submit">
+                {isSaving ? "Receiving…" : "Receive & Create Job Order"}
+              </button>
             </div>
           </form>
         </Modal>
       ) : null}
 
       {selectedJob ? (
-        <Modal onClose={() => { setSelectedJob(null); setActionStatus(""); setShowPayment(false); setShowRelease(false); setShowAssignment(false); setIsPrintPreviewOpen(false) }} title={selectedJob.jobCode} width="max-w-4xl">
+        <Modal onClose={() => { setSelectedJob(null); setActionStatus(""); setShowPayment(false); setShowRelease(false); setShowAssignment(false); setPrintPreviewState({ isOpen: false, defaultDoc: "RECEIPT" }) }} title={selectedJob.jobCode} width="max-w-4xl">
           <div className="max-h-[78vh] overflow-y-auto p-5 sm:p-6">
             {isDetailLoading ? (
               <div className="grid min-h-48 place-items-center"><LoaderCircle className="animate-spin" /></div>
@@ -1283,7 +1615,16 @@ export default function ServicesPage({ selectedBranch, user }) {
                     </div>
                     <p className="mt-1 text-sm text-[var(--color-muted)]">Received {dateTime(selectedJob.receivedAt)} · {selectedJob.branch?.name || selectedJob.branch?.code}</p>
                   </div>
-                  <div className="flex items-center gap-2"><StatusBadge status={selectedJob.status} /><button className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-black" onClick={() => setIsPrintPreviewOpen(true)} type="button"><Printer size={15} /> Print JO</button></div>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={selectedJob.status} />
+                    <button
+                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-3 py-2 text-xs font-black text-white shadow-sm hover:opacity-95"
+                      onClick={() => setPrintPreviewState({ isOpen: true, defaultDoc: "RECEIPT" })}
+                      type="button"
+                    >
+                      <Printer size={15} /> Print JO / Intake
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 rounded-2xl bg-[var(--color-soft)] p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1311,7 +1652,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                     ["Accessories received", selectedJob.accessoriesReceived],
                     ["Physical condition / receiving remarks", selectedJob.receivingRemarks],
                     ["Diagnosis", selectedJob.diagnosis],
-                    ["Service performed / notes", selectedJob.serviceNotes],
+                    ["Service performed / notes", (selectedJob.serviceNotes || "").replace(/\[INTAKE_RECORD_V1\]:[\s\S]*?(\n\n|$)/, "").trim() || "—"],
                     ["Release notes", selectedJob.releaseNotes],
                   ].map(([label, value]) => (
                     <div key={label}><p className="text-xs font-black uppercase tracking-wide text-[var(--color-muted)]">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6">{value || "—"}</p></div>
@@ -1505,7 +1846,13 @@ export default function ServicesPage({ selectedBranch, user }) {
         </Modal>
       ) : null}
 
-      {isPrintPreviewOpen && selectedJob ? <JobOrderPrintPreview job={selectedJob} onClose={() => setIsPrintPreviewOpen(false)} /> : null}
+      {printPreviewState.isOpen && selectedJob ? (
+        <JobOrderPrintPreview
+          defaultDoc={printPreviewState.defaultDoc}
+          job={selectedJob}
+          onClose={() => setPrintPreviewState({ isOpen: false, defaultDoc: "RECEIPT" })}
+        />
+      ) : null}
     </div>
   )
 }

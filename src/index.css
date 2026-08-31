@@ -118,8 +118,8 @@ a {
   box-shadow: 0 16px 35px rgba(122, 31, 43, 0.22);
 }
 
-html.dark .bg-white:not(.quotation-print-document):not(.job-order-print-document):not(.sale-receipt-print-document),
-[data-theme="dark"] .bg-white:not(.quotation-print-document):not(.job-order-print-document):not(.sale-receipt-print-document) {
+html.dark .bg-white:not(.quotation-print-document):not(.job-order-print-document):not(.sale-receipt-print-document):not(.jo-dual-receipt-page):not(.jo-intake-print-sheet),
+[data-theme="dark"] .bg-white:not(.quotation-print-document):not(.job-order-print-document):not(.sale-receipt-print-document):not(.jo-dual-receipt-page):not(.jo-intake-print-sheet) {
   background-color: var(--color-card) !important;
   color: var(--color-text-strong);
 }
@@ -323,6 +323,541 @@ html.dark .shadow-card,
   letter-spacing: 0.14em;
 }
 
+/* =========================================================================
+   AUTHENTIC JOB ORDER DUAL-COPY RECEIPT (Mirrors 1.-NEW-JOB-ORDER-RECEIPT)
+   ========================================================================= */
+.jo-dual-receipt-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: "Arial Narrow", Arial, sans-serif !important;
+}
+
+.jo-receipt-half {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #000000;
+  padding: 3mm 4mm;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-size: 9pt;
+  line-height: 1.15;
+}
+
+.jo-receipt-header-grid {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 4mm;
+  border-bottom: 1.5px solid #000000;
+  padding-bottom: 2mm;
+}
+
+.jo-receipt-logo-block {
+  flex: 1 1 auto;
+}
+
+.jo-receipt-brand-title {
+  font-size: 9.5pt;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+  margin: 0;
+  color: #000000 !important;
+  text-transform: uppercase;
+}
+
+.jo-receipt-brand-sub,
+.jo-receipt-brand-contact {
+  font-size: 8pt;
+  margin: 1px 0 0;
+  color: #111827 !important;
+}
+
+.jo-receipt-meta-block {
+  flex: 0 0 auto;
+  min-width: 48mm;
+  text-align: right;
+  font-size: 8.5pt;
+}
+
+.jo-receipt-meta-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 1px;
+}
+
+.jo-meta-label {
+  font-size: 8.5pt;
+  color: #000000 !important;
+}
+
+.jo-meta-value {
+  font-size: 8.5pt;
+  min-width: 24mm;
+  text-align: left;
+}
+
+.jo-jo-num {
+  font-size: 11pt !important;
+  font-weight: bold !important;
+  color: #b91c1c !important;
+}
+
+.jo-receipt-title-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #000000;
+  color: #ffffff !important;
+  padding: 1.5px 6px;
+  margin-top: 1.5mm;
+  font-size: 9.5pt;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.jo-copy-tag {
+  font-size: 7.5pt;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+}
+
+.jo-receipt-notice-box {
+  border: 1px solid #000000;
+  background: #f8fafc;
+  color: #000000 !important;
+  font-weight: bold;
+  font-size: 7.8pt;
+  text-align: center;
+  padding: 1.5px 4px;
+  margin-top: 1.5mm;
+  letter-spacing: 0.02em;
+}
+
+.jo-receipt-details-table {
+  border: 1px solid #000000;
+  margin-top: 1.5mm;
+  font-size: 8.5pt;
+}
+
+.jo-detail-row {
+  display: grid;
+  grid-template-columns: 24mm 1fr 24mm 38mm;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.jo-detail-row:last-child {
+  border-bottom: none;
+}
+
+.jo-detail-cell {
+  padding: 1.5px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jo-cell-label {
+  font-weight: bold;
+  color: #334155;
+  border-right: 1px solid #e2e8f0;
+}
+
+.jo-cell-val {
+  color: #000000 !important;
+}
+
+.jo-cell-label.jo-right {
+  border-left: 1px solid #e2e8f0;
+}
+
+.jo-receipt-policy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4mm;
+  margin-top: 1.5mm;
+  padding: 1mm 0;
+}
+
+.jo-no-claim-box {
+  font-size: 9.5pt;
+  font-weight: bold;
+  letter-spacing: 0.03em;
+  color: #000000 !important;
+}
+
+.jo-received-by-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 55mm;
+}
+
+.jo-received-label {
+  font-size: 7.5pt;
+  color: #475569;
+}
+
+.jo-staff-name-line {
+  width: 52mm;
+  border-bottom: 1px solid #000000;
+  text-align: center;
+  font-size: 8.5pt;
+  font-weight: bold;
+  padding-bottom: 1px;
+  min-height: 4mm;
+}
+
+.jo-signature-caption {
+  font-size: 6.8pt;
+  color: #475569;
+  text-align: center;
+  width: 52mm;
+  margin-top: 1px;
+}
+
+.jo-receipt-terms-section {
+  border-top: 1px solid #000000;
+  padding-top: 1.5mm;
+  margin-top: 1mm;
+  font-size: 7.2pt;
+  line-height: 1.2;
+}
+
+.jo-terms-title {
+  font-size: 7.8pt;
+  margin-bottom: 1px;
+}
+
+.jo-terms-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.jo-terms-list li {
+  margin-bottom: 0.5px;
+}
+
+.jo-claim-status-row {
+  display: flex;
+  gap: 15mm;
+  margin-top: 1.5mm;
+  font-weight: bold;
+  font-size: 7.8pt;
+}
+
+.jo-receipt-disclaimer-section {
+  border-top: 1px solid #000000;
+  padding-top: 1.5mm;
+  margin-top: 1.5mm;
+  font-size: 6.8pt;
+  line-height: 1.2;
+  position: relative;
+}
+
+.jo-disclaimer-title {
+  font-size: 7.5pt;
+}
+
+.jo-disclaimer-intro {
+  font-weight: bold;
+  margin: 0.5px 0;
+}
+
+.jo-disclaimer-item {
+  margin: 0.5px 0;
+}
+
+.jo-disclaimer-closing {
+  margin-top: 1px;
+  max-width: 125mm;
+}
+
+.jo-conforme-box {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 52mm;
+}
+
+.jo-conforme-label {
+  align-self: flex-start;
+  font-size: 7.5pt;
+  font-weight: bold;
+}
+
+.jo-conforme-signature-line {
+  width: 100%;
+  border-bottom: 1px solid #000000;
+  text-align: center;
+  font-size: 8.5pt;
+  font-weight: bold;
+  min-height: 4mm;
+}
+
+.jo-sheet-cut-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px dashed #64748b;
+  margin: 2mm 0;
+  font-size: 7.5pt;
+  font-weight: bold;
+  color: #64748b;
+  position: relative;
+}
+
+.jo-sheet-cut-divider span {
+  position: relative;
+  top: -0.6em;
+  background: #ffffff;
+  padding: 0 4mm;
+}
+
+/* =========================================================================
+   AUTHENTIC A4 INTAKE FORM (Diagnostic & Maintenance)
+   ========================================================================= */
+.jo-intake-print-sheet {
+  width: 100%;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 9pt;
+  line-height: 1.25;
+  padding: 2mm 3mm;
+}
+
+.jo-intake-header-center {
+  text-align: center;
+  border-bottom: 1.5px solid #000000;
+  padding-bottom: 2mm;
+  margin-bottom: 2mm;
+}
+
+.jo-intake-main-title {
+  font-size: 13pt;
+  font-weight: bold;
+  color: #1e3a8a !important;
+  letter-spacing: 0.03em;
+  margin: 0;
+}
+
+.jo-intake-top-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+  margin-bottom: 3mm;
+}
+
+.jo-intake-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 4mm;
+  width: 100%;
+}
+
+.jo-intake-field-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 2mm;
+}
+
+.jo-intake-field-label {
+  font-size: 8.5pt;
+  color: #000000;
+  white-space: nowrap;
+}
+
+.jo-intake-field-line {
+  flex: 1 1 auto;
+  border-bottom: 1px solid #000000;
+  min-height: 4mm;
+  font-size: 9pt;
+  padding: 0 3px;
+  color: #000000;
+}
+
+.jo-intake-unit-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5mm 4mm;
+  margin: 1.5mm 0;
+  padding-left: 2mm;
+}
+
+.jo-intake-check-label,
+.jo-intake-check-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8.2pt;
+  cursor: default;
+}
+
+.jo-print-box {
+  font-size: 11pt;
+  line-height: 1;
+  font-family: monospace;
+}
+
+.jo-intake-section {
+  border-top: 1px solid #000000;
+  padding-top: 2mm;
+  margin-top: 2.5mm;
+}
+
+.jo-intake-section-title {
+  font-size: 9.5pt;
+  font-weight: bold;
+  margin-bottom: 1.5mm;
+  color: #000000;
+}
+
+.jo-intake-instruction {
+  font-size: 8pt;
+  font-style: italic;
+  margin-bottom: 1.5mm;
+  color: #334155;
+}
+
+.jo-intake-lines-box {
+  border: 1px solid #94a3b8;
+  background: #fdfdfd;
+  min-height: 14mm;
+  padding: 2mm 3mm;
+  border-radius: 2px;
+}
+
+.jo-intake-text-fill {
+  font-size: 8.5pt;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.jo-intake-q-block {
+  margin-bottom: 2mm;
+}
+
+.jo-intake-q-text {
+  font-size: 8.5pt;
+  margin-bottom: 1mm;
+}
+
+.jo-intake-radio-row {
+  display: flex;
+  align-items: center;
+  padding-left: 4mm;
+}
+
+.jo-inline-underline {
+  border-bottom: 1px solid #000000;
+  padding: 0 4px;
+}
+
+.jo-intake-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5mm 4mm;
+  padding-left: 2mm;
+}
+
+.jo-intake-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5mm 4mm;
+  padding-left: 2mm;
+}
+
+.jo-intake-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5mm 3mm;
+  padding-left: 2mm;
+}
+
+.jo-intake-declaration-box {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  padding: 2.5mm 3.5mm;
+  font-size: 7.8pt;
+}
+
+.jo-declaration-text {
+  margin: 0 0 1.5mm;
+}
+
+.jo-ack-bullets {
+  list-style: none;
+  padding-left: 2mm;
+  margin: 0;
+}
+
+.jo-ack-bullets li {
+  margin-bottom: 0.8mm;
+}
+
+.jo-intake-sig-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8mm;
+}
+
+.jo-intake-sig-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 48mm;
+}
+
+.jo-sig-underline {
+  border-bottom: 1px solid #000000;
+  width: 100%;
+  text-align: center;
+  font-size: 8.5pt;
+  font-weight: bold;
+  min-height: 4.5mm;
+}
+
+.jo-sig-caption {
+  font-size: 7.2pt;
+  margin-top: 1px;
+  color: #475569;
+}
+
+.jo-intake-shop-use-section {
+  border: 1.5px solid #000000;
+  padding: 2.5mm 3.5mm;
+  margin-top: 3mm;
+  background: #ffffff;
+}
+
+.jo-shop-use-banner {
+  font-size: 9pt;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 1mm;
+  margin-bottom: 2mm;
+}
+
+.jo-intake-flex-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.jo-bold {
+  font-weight: bold;
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -436,15 +971,53 @@ html.dark .shadow-card,
   }
 
   .job-order-print-document {
-    display: grid;
+    display: block;
     width: 100%;
-    height: 273mm;
-    max-height: 273mm;
-    grid-template-rows: minmax(0, 1fr) 6mm minmax(0, 1fr);
-    overflow: hidden;
+    height: auto;
+    max-height: none;
+    overflow: visible;
     padding: 0;
     box-shadow: none;
     print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .jo-dual-receipt-page {
+    width: 100% !important;
+    height: 275mm !important;
+    max-height: 275mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .jo-receipt-half {
+    flex: 1 1 48% !important;
+    max-height: 133mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    padding: 2.5mm 3.5mm !important;
+  }
+
+  .jo-sheet-cut-divider {
+    margin: 1.5mm 0 !important;
+  }
+
+  .jo-intake-print-sheet {
+    width: 100% !important;
+    height: 275mm !important;
+    max-height: 275mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
   }
 
   .job-order-print-copy {
