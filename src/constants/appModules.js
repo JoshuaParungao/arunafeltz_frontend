@@ -34,7 +34,7 @@ export const APP_MODULES = [
 
   {
     key: "pos",
-    label: "POS / Sales",
+    label: "POS",
     group: "Core Operations",
     roles: SALES_OPERATION_ROLES,
   },

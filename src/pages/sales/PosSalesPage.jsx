@@ -1981,7 +1981,7 @@ function PosSalesPage({ selectedBranch, user }) {
     <div className="min-w-0 space-y-6">
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-[var(--color-maroon)]">POS / Sales</p>
+          <p className="text-sm font-bold text-[var(--color-maroon)]">POS</p>
           <h1 className="mt-1 text-2xl font-black tracking-tight text-[var(--color-text-strong)]">Branch checkout and sales history</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--color-muted)]">
             Product prices use the selected tier. Stock, serial availability, totals, and payments are revalidated when the sale is saved.
