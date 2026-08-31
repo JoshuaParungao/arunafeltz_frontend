@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense, useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 
 import MainLayout from "../layouts/MainLayout"
 import LoginPage from "../pages/auth/LoginPage"
@@ -23,7 +23,6 @@ import {
   saveUser,
 } from "../lib/sessionStorage"
 
-const OwnerDashboardPage = lazy(() => import("../pages/dashboard/OwnerDashboardPage"))
 const StaffDashboardPage = lazy(() => import("../pages/dashboard/StaffDashboardPage"))
 const SettingsPage = lazy(() => import("../pages/settings/SettingsPage"))
 const ItemsPage = lazy(() => import("../pages/items/ItemsPage"))
@@ -67,7 +66,7 @@ function getInitialBranch(currentUser) {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState("owner-dashboard")
+  const [activePage, setActivePage] = useState("pos")
   const [user, setUser] = useState(() => getUser())
   const [selectedBranch, setSelectedBranch] = useState(() => getSelectedBranch())
   const [isCheckingSession, setIsCheckingSession] = useState(() => Boolean(getAccessToken()))
@@ -249,20 +248,10 @@ function App() {
     clearSession()
     setUser(null)
     setSelectedBranch(null)
-    setActivePage("owner-dashboard")
+    setActivePage("pos")
   }
 
   const renderPage = () => {
-    if (activePage === "owner-dashboard") {
-      return (
-        <OwnerDashboardPage
-          onNavigate={setSafeActivePage}
-          selectedBranch={selectedBranch}
-          user={user}
-        />
-      )
-    }
-
     if (activePage === "staff-dashboard") {
       return (
         <StaffDashboardPage

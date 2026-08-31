@@ -13,7 +13,6 @@ import {
 } from "lucide-react"
 
 const ICONS = {
-  "owner-dashboard": LayoutDashboard,
   "staff-dashboard": LayoutDashboard,
   pos: ShoppingCart,
   quotations: ClipboardList,

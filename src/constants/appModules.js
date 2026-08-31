@@ -1,4 +1,4 @@
-﻿import { USER_ROLES } from "./roles"
+import { USER_ROLES } from "./roles"
 
 const OWNER_ADMIN_ROLES = [
   USER_ROLES.SUPER_OWNER,
@@ -25,12 +25,6 @@ const SALES_OPERATION_ROLES = [
 ]
 
 export const APP_MODULES = [
-  {
-    key: "owner-dashboard",
-    label: "Owner Dashboard",
-    group: "Dashboard",
-    roles: OWNER_ADMIN_ROLES,
-  },
   {
     key: "staff-dashboard",
     label: "Staff Dashboard",
@@ -175,6 +169,6 @@ export function canRoleAccessModule(role, moduleKey) {
 }
 
 export function getDefaultModuleForRole(role) {
-  if (OWNER_ADMIN_ROLES.includes(role)) return "owner-dashboard"
+  if (OWNER_ADMIN_ROLES.includes(role)) return "pos"
   return "staff-dashboard"
 }

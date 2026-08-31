@@ -839,6 +839,325 @@ export function reportDocument({
   }
 }
 
+export function exportWarrantyReceiptPdf(sale, context = {}) {
+  // Strict A4 portrait format: 210mm x 297mm
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  })
+
+  const margin = 12
+  const pageWidth = 210
+  const contentWidth = pageWidth - margin * 2 // 186mm
+
+  const branch = sale?.branch || context?.branch || {}
+  const customer = sale?.customer || {}
+  const cashier = sale?.cashier || {}
+  const quotation = sale?.quotation || {}
+  const technician =
+    sale?.technician?.fullName ||
+    quotation?.serviceDoneBy?.fullName ||
+    context?.technician ||
+    "—"
+
+  let paymentType = "CASH"
+  if ((sale?.payments || []).length > 0) {
+    paymentType = sale.payments
+      .map((p) => String(p.paymentMethod || "").replaceAll("_", " "))
+      .join(", ")
+  } else if (sale?.creditAccount) {
+    paymentType = `${String(sale.creditAccount.provider || "").replaceAll("_", " ")} Receivable`
+  }
+
+  const terms =
+    sale?.creditAccount?.term
+      ? `${String(sale.creditAccount.term).replaceAll("_", " ")}`
+      : "FULL / OUTRIGHT"
+
+  // -----------------------------------------------------------------
+  // 1. HEADER SECTION (Store Details on Left, Meta on Right)
+  // Left column: 0 to 96mm. Right column: starts at 102mm.
+  // Guaranteed 6mm clear gap between columns to eliminate collision.
+  // -----------------------------------------------------------------
+  const leftColX = margin
+  const leftColWidth = 96
+
+  const rightColX = margin + 102
+  const rightLabelWidth = 26
+  const rightValX = rightColX + rightLabelWidth
+  const rightValWidth = contentWidth - 102 - rightLabelWidth // 58mm
+
+  // Left side: Company Name & Address
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.setTextColor(0, 0, 0)
+  const storeTitleLines = doc.splitTextToSize(
+    "ARUNAFELTZ COMPUTER PARTS AND ACCESSORIES SHOP",
+    leftColWidth
+  )
+  doc.text(storeTitleLines, leftColX, 14)
+
+  let leftY = 14 + storeTitleLines.length * 3.8 + 0.5
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(50, 50, 50)
+  const branchAddress =
+    branch.address ||
+    "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+  const addressLines = doc.splitTextToSize(branchAddress, leftColWidth)
+  doc.text(addressLines, leftColX, leftY)
+
+  leftY += addressLines.length * 3.4 + 1
+  const branchContact = branch.contactNo || "0961-873-5798 / 045-404-0673"
+  doc.text(branchContact, leftColX, leftY)
+  leftY += 4
+
+  // Right side: Transaction Metadata
+  let rightY = 14
+  const saleDateFormatted = sale?.saleDate
+    ? new Date(sale.saleDate).toLocaleDateString("en-PH", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).toUpperCase()
+    : "—"
+
+  const metaRows = [
+    ["Date:", saleDateFormatted],
+    ["Customer Name:", (customer.fullName || "Walk-in customer").toUpperCase()],
+    ["Address:", customer.address || "—"],
+    ["Contact No.:", customer.mobileNumber || customer.email || "—"],
+    ["Salesman:", (cashier.fullName || cashier.username || "—").toUpperCase()],
+    ["Payment Type:", paymentType],
+    ["TERMS:", terms],
+    ["TECHNICIAN:", technician.toUpperCase()],
+  ]
+
+  for (const [lbl, val] of metaRows) {
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7.5)
+    doc.setTextColor(70, 70, 70)
+    doc.text(lbl, rightColX, rightY)
+
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(0, 0, 0)
+    const valLines = doc.splitTextToSize(String(val || "—"), rightValWidth)
+    doc.text(valLines, rightValX, rightY)
+
+    rightY += Math.max(3.4, valLines.length * 3.1 + 0.3)
+  }
+
+  // -----------------------------------------------------------------
+  // 2. BANNER: EXACT ORIGINAL "WARRANTY RECEIPT" (Navy Blue Bold Italic)
+  // -----------------------------------------------------------------
+  const bannerY = Math.max(leftY, rightY) + 5
+
+  // Centered Title Banner exactly like Excel: Bold Italic, Color #002060
+  doc.setFont("helvetica", "bolditalic")
+  doc.setFontSize(11)
+  doc.setTextColor(0, 32, 96) // #002060 Navy Blue
+  doc.text("WARRANTY RECEIPT", margin + contentWidth / 2 - 8, bannerY, { align: "center" })
+
+  // Receipt Number on Right
+  doc.setFont("helvetica", "bolditalic")
+  doc.setFontSize(9)
+  doc.setTextColor(0, 32, 96)
+  doc.text("No.", margin + contentWidth - 28, bannerY)
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(10)
+  doc.setTextColor(0, 32, 96)
+  doc.text(sale?.receiptCode || "—", margin + contentWidth, bannerY, { align: "right" })
+
+  // Underline for receipt number like in Excel border
+  const codeWidth = doc.getTextWidth(sale?.receiptCode || "—")
+  doc.setLineWidth(0.3)
+  doc.setDrawColor(0, 32, 96)
+  doc.line(margin + contentWidth - codeWidth - 1, bannerY + 1.2, margin + contentWidth, bannerY + 1.2)
+
+  // -----------------------------------------------------------------
+  // 3. ITEMS TABLE
+  // -----------------------------------------------------------------
+  const tableStartY = bannerY + 6
+
+  const tableHead = [["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "UNIT PRICE", "AMOUNT"]]
+  const tableBody = (sale?.items || []).map((item) => {
+    const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
+    const isSerialized = item.serial?.serialNumber || item.serialNumber
+    const serialText = isSerialized ? ` | S/N: ${isSerialized}` : ""
+    const warrantyBadge = (item.warrantyDuration || (item.item?.hasWarranty ? "1 YEAR WARRANTY" : "")).trim()
+    const warrantyText = warrantyBadge ? ` | ${warrantyBadge}` : ""
+    const fullDescription = `${item.description || item.item?.itemName || "Item"}${warrantyText}${serialText}`
+
+    const qty = String(Number(item.quantity || 0))
+    const unitPrice = Number(item.unitPrice || 0).toLocaleString("en-PH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    const lineTotal = Number(item.lineTotal || 0).toLocaleString("en-PH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+
+    return [itemCode, fullDescription, qty, unitPrice, lineTotal]
+  })
+
+  autoTable(doc, {
+    startY: tableStartY,
+    head: tableHead,
+    body: tableBody,
+    theme: "plain",
+    margin: { left: margin, right: margin },
+    styles: {
+      font: "helvetica",
+      fontSize: 7.5,
+      cellPadding: { top: 1.6, bottom: 1.6, left: 1.2, right: 1.2 },
+      textColor: [0, 0, 0],
+      overflow: "linebreak",
+      valign: "middle",
+    },
+    headStyles: {
+      fontStyle: "bold",
+      textColor: [0, 0, 0],
+      fontSize: 8,
+      lineWidth: { top: 0.7, bottom: 0.7 },
+      lineColor: [0, 0, 0],
+      cellPadding: { top: 2, bottom: 2, left: 1.2, right: 1.2 },
+    },
+    columnStyles: {
+      0: { cellWidth: 22, fontStyle: "bold" },
+      1: { cellWidth: "auto" },
+      2: { cellWidth: 14, halign: "center" },
+      3: { cellWidth: 25, halign: "right" },
+      4: { cellWidth: 27, halign: "right", fontStyle: "bold" },
+    },
+  })
+
+  let finalY = doc.lastAutoTable?.finalY || tableStartY + 20
+
+  // Double bottom line after items
+  doc.setLineWidth(0.6)
+  doc.setDrawColor(0, 0, 0)
+  doc.line(margin, finalY + 1, margin + contentWidth, finalY + 1)
+  doc.line(margin, finalY + 1.8, margin + contentWidth, finalY + 1.8)
+
+  finalY += 5
+
+  // -----------------------------------------------------------------
+  // 4. TOTALS & FINANCIAL SUMMARY
+  // -----------------------------------------------------------------
+  // Left: Non-BIR disclaimer
+  doc.setFont("helvetica", "italic")
+  doc.setFontSize(8)
+  doc.setTextColor(60, 60, 60)
+  doc.text("This receipt is not valid for input tax.", margin, finalY + 4)
+
+  // Right: Financials
+  const totalsLabelX = margin + contentWidth - 65
+  const totalsValueX = margin + contentWidth
+
+  const totalAmount = Number(sale?.grandTotal || sale?.subtotal || 0)
+  const paidAmount = Number(sale?.amountPaid || 0)
+  const balanceToPay = Math.max(0, totalAmount - paidAmount)
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.setTextColor(0, 0, 0)
+
+  doc.text("TOTAL AMOUNT", totalsLabelX, finalY + 4)
+  doc.text(
+    totalAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    totalsValueX,
+    finalY + 4,
+    { align: "right" }
+  )
+
+  doc.text("CASH DOWNPAYMENT / PAID", totalsLabelX, finalY + 8)
+  doc.text(
+    paidAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    totalsValueX,
+    finalY + 8,
+    { align: "right" }
+  )
+
+  doc.text("BALANCE TO PAY", totalsLabelX, finalY + 12)
+  doc.text(
+    balanceToPay.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    totalsValueX,
+    finalY + 12,
+    { align: "right" }
+  )
+
+  finalY += 19
+
+  // -----------------------------------------------------------------
+  // 5. WARRANTY DISCLAIMERS (Centered)
+  // -----------------------------------------------------------------
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(7.5)
+  doc.setTextColor(0, 0, 0)
+  doc.text(
+    "NO WARRANTY ON SOFTWARE/S (O.S. - WINDOWS and MS OFFICE), IF ANY",
+    margin + contentWidth / 2,
+    finalY,
+    { align: "center" }
+  )
+
+  doc.setFontSize(7)
+  doc.text(
+    "Pls. read all WARRANTY GUIDELINES & PROCEDURES at the back of this page. (BRING –IN WARRANTY)",
+    margin + contentWidth / 2,
+    finalY + 3.6,
+    { align: "center" }
+  )
+
+  finalY += 9
+
+  // -----------------------------------------------------------------
+  // 6. SIGNATURES SECTION
+  // -----------------------------------------------------------------
+  const sigColWidth = contentWidth / 4
+
+  // Received notice placed on its own line above the 4th column
+  doc.setFont("helvetica", "italic")
+  doc.setFontSize(7.5)
+  doc.setTextColor(50, 50, 50)
+  doc.text(
+    "Received Items in good order and Condition",
+    margin + sigColWidth * 3 + (sigColWidth - 4) / 2,
+    finalY,
+    { align: "center" }
+  )
+
+  finalY += 5
+
+  const sigs = [
+    { label: "Prepared by:", name: (cashier.fullName || cashier.username || "Staff").toUpperCase() },
+    { label: "Warehouse:", name: "Staff" },
+    { label: "Releasing:", name: "Staff" },
+    { label: "Received by:", name: "Signature over Printed Name" },
+  ]
+
+  sigs.forEach((sig, index) => {
+    const x = margin + index * sigColWidth
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7.5)
+    doc.setTextColor(0, 0, 0)
+    doc.text(sig.label, x, finalY)
+
+    doc.setLineWidth(0.3)
+    doc.line(x, finalY + 11, x + sigColWidth - 4, finalY + 11)
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(6.5)
+    doc.setTextColor(70, 70, 70)
+    doc.text(sig.name, x + (sigColWidth - 4) / 2, finalY + 14.5, { align: "center" })
+  })
+
+  doc.save(`Warranty_Receipt_${sale?.receiptCode || "receipt"}.pdf`)
+}
+
 export function exportPurchaseOrderPdf(order, context) {
   exportBusinessPdf(purchaseOrderDocument(order, context))
 }
@@ -870,4 +1189,5 @@ export function exportReportPdf(options) {
 export function printReport(options) {
   printBusinessDocument(reportDocument(options))
 }
+
 

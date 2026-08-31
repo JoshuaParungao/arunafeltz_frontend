@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Download,
   Eye,
   LoaderCircle,
   PackageSearch,
@@ -40,6 +41,7 @@ import {
   getSales,
 } from "../../features/sales/sales.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
+import { exportWarrantyReceiptPdf } from "../../utils/businessDocumentExport"
 
 const SALE_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -337,7 +339,7 @@ function SaleDetailDialog({
   onClose,
   onReturnItems,
   sale,
-  title = "Sale details",
+  title = "Warranty Receipt · Customer Copy",
 }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -348,132 +350,210 @@ function SaleDetailDialog({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [onClose])
 
+  const branchAddress =
+    sale?.branch?.address ||
+    "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+  const branchContact = sale?.branch?.contactNo || "0961-873-5798 / 045-404-0673"
+
+  const paymentType = useMemo(() => {
+    if ((sale?.payments || []).length > 0) {
+      return sale.payments
+        .map((p) => formatStatus(p.paymentMethod))
+        .join(", ")
+    }
+    if (sale?.creditAccount) {
+      return `${formatStatus(sale.creditAccount.provider)} Receivable`
+    }
+    return "CASH"
+  }, [sale])
+
+  const termsText = useMemo(() => {
+    if (sale?.creditAccount?.term) {
+      return formatStatus(sale.creditAccount.term)
+    }
+    return "FULL / OUTRIGHT"
+  }, [sale])
+
+  const technicianName = useMemo(() => {
+    return (
+      sale?.technician?.fullName ||
+      sale?.quotation?.serviceDoneBy?.fullName ||
+      "—"
+    )
+  }, [sale])
+
+  const totalAmount = Number(sale?.grandTotal || sale?.subtotal || 0)
+  const paidAmount = Number(sale?.amountPaid || 0)
+  const balanceToPay = Math.max(0, totalAmount - paidAmount)
+
   return createPortal(
     <div
       aria-labelledby="sale-detail-title"
       aria-modal="true"
-      className="sale-receipt-print-overlay fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-3 sm:p-6"
+      className="sale-receipt-print-overlay fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-2 sm:p-6"
       role="dialog"
     >
-      <div className="sale-receipt-print-shell mx-auto min-h-full max-w-4xl py-4 sm:py-8">
-        <section className="sale-receipt-print-document overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl">
-          <header className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5 sm:p-6">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-maroon)]">
-                  {title}
-                </p>
-                {Boolean(sale?.quotation?.isPcBuild || sale?.remarks?.includes("[PC BUILD]") || sale?.isPcBuild) ? (
-                  <span className="rounded-full bg-[var(--color-maroon)] px-2.5 py-0.5 text-xs font-black text-white shadow-xs">
-                    🖥️ PC Build / PC Set
-                  </span>
-                ) : null}
-              </div>
-              <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]" id="sale-detail-title">
-                {sale?.receiptCode || "Loading receipt…"}
-              </h2>
-              {sale?.saleDate ? (
-                <p className="mt-1 text-sm text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
+      <div className="sale-receipt-print-shell mx-auto min-h-full max-w-4xl py-2 sm:py-6">
+        <section className="sale-receipt-print-document overflow-hidden rounded-2xl border border-slate-300 bg-white text-slate-900 shadow-2xl">
+          {/* Top Bar for Dialog Controls */}
+          <header className="sale-receipt-print-actions flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-maroon)] px-2.5 py-1 text-xs font-bold text-white">
+                <ReceiptText size={14} /> WARRANTY RECEIPT
+              </span>
+              {Boolean(sale?.quotation?.isPcBuild || sale?.remarks?.includes("[PC BUILD]") || sale?.isPcBuild) ? (
+                <span className="rounded-md bg-slate-800 px-2 py-1 text-xs font-bold text-white">
+                  🖥️ PC Build / Set
+                </span>
               ) : null}
             </div>
-            <div className="sale-receipt-print-actions flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <button
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
-                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100"
+                onClick={() => exportWarrantyReceiptPdf(sale)}
+                title="Export as PDF file"
                 type="button"
               >
-                <Printer size={16} /> Print receipt
+                <Download size={15} /> Export PDF
+              </button>
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+                onClick={() => window.print()}
+                title="Print receipt"
+                type="button"
+              >
+                <Printer size={15} /> Print receipt
               </button>
               <button
                 aria-label="Close sale details"
-                className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+                className="rounded-xl border border-slate-300 p-2 text-slate-500 transition hover:bg-slate-100"
                 onClick={onClose}
                 type="button"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
           </header>
 
           {isLoading ? (
-            <div className="flex items-center gap-3 p-6 text-sm font-semibold text-[var(--color-muted)]">
+            <div className="flex items-center gap-3 p-8 text-sm font-semibold text-slate-500">
               <LoaderCircle className="animate-spin" size={18} />
-              Loading the complete sale record…
+              Loading warranty receipt…
             </div>
           ) : errorMessage ? (
-            <div className="p-5 sm:p-6">
+            <div className="p-6">
               <ErrorBanner>{errorMessage}</ErrorBanner>
             </div>
           ) : sale ? (
-            <div className="space-y-5 p-5 sm:p-6">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Status</p>
-                  <div className="mt-2"><StatusBadge status={sale.status} /></div>
-                </div>
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Payment</p>
-                  <div className="mt-2"><StatusBadge status={sale.paymentStatus} /></div>
-                </div>
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Customer</p>
-                  <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-                    {sale.customer?.fullName || "Walk-in customer"}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Sales Agent</p>
-                  <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-                    {sale.cashier?.fullName || "—"}
-                  </p>
-                </div>
-              </div>
+            <div className="p-6 sm:p-8 space-y-6">
+              {/* Receipt Body Matching WARRANTY-RECEIPT.xlsx */}
+              <div className="border border-slate-300 p-5 rounded-xl bg-white shadow-xs font-sans text-xs text-slate-900">
+                {/* Header Grid: Left = Store info, Right = Customer & Sale meta */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pb-4 border-b border-slate-200">
+                  {/* Left Store Info */}
+                  <div className="md:col-span-6 space-y-1">
+                    <h1 className="text-sm font-black tracking-tight text-slate-950 uppercase leading-snug">
+                      ARUNAFELTZ COMPUTER PARTS AND ACCESSORIES SHOP
+                    </h1>
+                    <p className="text-[11px] text-slate-700 leading-normal">
+                      {branchAddress}
+                    </p>
+                    <p className="text-[11px] font-semibold text-slate-800">
+                      {branchContact}
+                    </p>
+                  </div>
 
-              <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[680px] text-left text-sm">
-                    <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
-                      <tr>
-                        <th className="px-4 py-3">Item / service</th>
-                        <th className="px-4 py-3 text-right">Qty</th>
-                        <th className="px-4 py-3 text-right">Unit price</th>
-                        <th className="px-4 py-3 text-right">Discount</th>
-                        <th className="px-4 py-3 text-right">Total</th>
+                  {/* Right Customer / Sales Meta */}
+                  <div className="md:col-span-6 grid grid-cols-3 gap-y-1 text-[11px]">
+                    <span className="font-bold text-slate-600">Date:</span>
+                    <span className="col-span-2 font-bold uppercase">{formatDate(sale.saleDate)}</span>
+
+                    <span className="font-bold text-slate-600">Customer Name:</span>
+                    <span className="col-span-2 font-bold uppercase">{sale.customer?.fullName || "WALK-IN CUSTOMER"}</span>
+
+                    <span className="font-bold text-slate-600">Address:</span>
+                    <span className="col-span-2">{sale.customer?.address || "—"}</span>
+
+                    <span className="font-bold text-slate-600">Contact No.:</span>
+                    <span className="col-span-2">{sale.customer?.mobileNumber || sale.customer?.email || "—"}</span>
+
+                    <span className="font-bold text-slate-600">Salesman:</span>
+                    <span className="col-span-2 font-bold uppercase">{sale.cashier?.fullName || sale.cashier?.username || "—"}</span>
+
+                    <span className="font-bold text-slate-600">Payment Type:</span>
+                    <span className="col-span-2">{paymentType}</span>
+
+                    <span className="font-bold text-slate-600">TERMS:</span>
+                    <span className="col-span-2">{termsText}</span>
+
+                    <span className="font-bold text-slate-600">TECHNICIAN:</span>
+                    <span className="col-span-2 font-bold uppercase">{technicianName}</span>
+                  </div>
+                </div>
+
+                {/* Banner: Exact Original WARRANTY RECEIPT & Receipt No */}
+                <div className="py-2.5 my-1 flex items-center justify-between">
+                  <div className="flex-1 text-center pl-12">
+                    <h2 className="text-base font-bold italic tracking-wide text-[#002060] uppercase leading-none">
+                      WARRANTY RECEIPT
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-right text-xs">
+                    <span className="font-bold italic text-[#002060]">No.</span>
+                    <span className="font-mono font-bold text-[#002060] text-sm border-b border-[#002060] pb-0.5">
+                      {sale.receiptCode}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Items Table with Exact Columns & Style */}
+                <div className="overflow-x-auto my-2">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-t-2 border-b-2 border-slate-900 text-slate-900 font-bold uppercase text-[11px]">
+                        <th className="py-2 px-2 w-[16%]">ITEM CODE</th>
+                        <th className="py-2 px-2 w-[48%]">ITEM DESCRIPTION</th>
+                        <th className="py-2 px-2 text-center w-[10%]">QTY.</th>
+                        <th className="py-2 px-2 text-right w-[13%]">UNIT PRICE</th>
+                        <th className="py-2 px-2 text-right w-[13%]">AMOUNT</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--color-border)]">
+                    <tbody className="divide-y divide-slate-100 font-sans">
                       {(sale.items || []).map((item) => {
-                        const isPcBuildSale = Boolean(sale.quotation?.isPcBuild || sale.remarks?.includes("[PC BUILD]") || sale.isPcBuild)
-                        const serialNum = item.serialNumber || item.serial?.serialNumber
+                        const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
+                        const isSerialized = item.serialNumber || item.serial?.serialNumber
+                        const warrantyBadge = item.warrantyDuration || (item.item?.hasWarranty ? "1 YEAR WARRANTY" : null)
+
                         return (
-                          <tr key={item.id || item.lineNo}>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-bold text-[var(--color-text-strong)]">{item.description}</p>
-                                {isPcBuildSale && item.itemId ? (
-                                  <span className="inline-flex items-center rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
-                                    PC Part
-                                  </span>
-                                ) : null}
-                                {item.item?.hasWarranty ? (
-                                  <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                                    🛡️ Warranty
-                                  </span>
-                                ) : null}
-                              </div>
-                              {serialNum ? (
-                                <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-800 border border-slate-200">
-                                  <span className="text-slate-500 font-sans text-[11px]">SN:</span> {serialNum}
+                          <tr className="hover:bg-slate-50/50" key={item.id || item.lineNo}>
+                            <td className="py-2 px-2 font-mono font-semibold text-slate-700 align-top">
+                              {itemCode}
+                            </td>
+                            <td className="py-2 px-2 align-top space-y-0.5">
+                              <p className="font-medium text-slate-900">
+                                {item.description || item.item?.itemName}
+                                {warrantyBadge ? ` | ${warrantyBadge}` : ""}
+                              </p>
+                              {isSerialized ? (
+                                <p className="text-[11px] font-mono text-slate-600">
+                                  S/N: <strong className="text-slate-800">{isSerialized}</strong>
                                 </p>
                               ) : null}
                               {Number(item.returnedQuantity || 0) > 0 ? (
-                                <p className="mt-1 text-xs font-semibold text-orange-700">Returned {Number(item.returnedQuantity)} · remaining {Number(item.remainingReturnQuantity || 0)}</p>
+                                <p className="text-[10px] font-bold text-orange-700">
+                                  Returned: {Number(item.returnedQuantity)}
+                                </p>
                               ) : null}
                             </td>
-                            <td className="px-4 py-4 text-right">{Number(item.quantity || 0)}</td>
-                            <td className="px-4 py-4 text-right">{formatMoney(item.unitPrice)}</td>
-                            <td className="px-4 py-4 text-right">{formatMoney(item.discountAmount)}</td>
-                            <td className="px-4 py-4 text-right font-bold">{formatMoney(item.lineTotal)}</td>
+                            <td className="py-2 px-2 text-center font-bold align-top">
+                              {Number(item.quantity || 0)}
+                            </td>
+                            <td className="py-2 px-2 text-right align-top">
+                              {formatMoney(item.unitPrice)}
+                            </td>
+                            <td className="py-2 px-2 text-right font-bold align-top">
+                              {formatMoney(item.lineTotal)}
+                            </td>
                           </tr>
                         )
                       })}
@@ -481,159 +561,155 @@ function SaleDetailDialog({
                   </table>
                 </div>
 
-                <div className="divide-y divide-[var(--color-border)] md:hidden">
-                  {(sale.items || []).map((item) => {
-                    const isPcBuildSale = Boolean(sale.quotation?.isPcBuild || sale.remarks?.includes("[PC BUILD]") || sale.isPcBuild)
-                    const serialNum = item.serialNumber || item.serial?.serialNumber
-                    return (
-                      <div className="space-y-2 p-4" key={item.id || item.lineNo}>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-bold text-[var(--color-text-strong)]">{item.description}</p>
-                          {isPcBuildSale && item.itemId ? (
-                            <span className="inline-flex items-center rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
-                              PC Part
-                            </span>
-                          ) : null}
-                          {item.item?.hasWarranty ? (
-                            <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                              🛡️ Warranty
-                            </span>
-                          ) : null}
-                        </div>
-                        {serialNum ? (
-                          <p className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-800 border border-slate-200">
-                            <span className="text-slate-500 font-sans text-[11px]">SN:</span> {serialNum}
-                          </p>
-                        ) : null}
-                        {Number(item.returnedQuantity || 0) > 0 ? <p className="text-xs font-semibold text-orange-700">Returned {Number(item.returnedQuantity)} · remaining {Number(item.remainingReturnQuantity || 0)}</p> : null}
-                        <div className="grid grid-cols-2 gap-2 text-xs text-[var(--color-muted)]">
-                          <span>Qty {Number(item.quantity || 0)}</span>
-                          <span className="text-right">{formatMoney(item.unitPrice)} each</span>
-                          <span>Discount {formatMoney(item.discountAmount)}</span>
-                          <span className="text-right font-bold text-[var(--color-text-strong)]">{formatMoney(item.lineTotal)}</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+                {/* Double Border Separator */}
+                <div className="border-t-2 border-b border-slate-900 my-1 pt-0.5" />
 
-              <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-                <div className="space-y-3 text-sm">
-                  <p><span className="font-bold text-[var(--color-text-strong)]">Branch:</span> {sale.branch?.code || "—"} · {sale.branch?.name || "—"}</p>
-                  {sale.quotation?.quotationCode ? (
-                    <p><span className="font-bold text-[var(--color-text-strong)]">Quotation:</span> {sale.quotation.quotationCode}</p>
-                  ) : null}
-                  {sale.remarks ? (
-                    <p className="whitespace-pre-wrap"><span className="font-bold text-[var(--color-text-strong)]">Remarks:</span> {sale.remarks}</p>
-                  ) : null}
-                  {sale.cancellationReason ? (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
-                      <p className="font-bold">Cancellation reason</p>
-                      <p className="mt-1 whitespace-pre-wrap">{sale.cancellationReason}</p>
-                      <p className="mt-2 text-xs">Cancelled {formatDate(sale.cancelledAt)} by {sale.cancelledBy?.fullName || "authorized user"}.</p>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="rounded-2xl border border-[var(--color-border)] p-4 text-sm">
-                  <div className="flex justify-between gap-4"><span>Subtotal</span><strong>{formatMoney(sale.subtotal)}</strong></div>
-                  <div className="mt-2 flex justify-between gap-4"><span>Discount</span><strong>-{formatMoney(sale.totalDiscount)}</strong></div>
-                  <div className="mt-2 flex justify-between gap-4"><span>Additional charge</span><strong>{formatMoney(sale.serviceCharge)}</strong></div>
-                  <div className="mt-3 flex justify-between gap-4 border-t border-[var(--color-border)] pt-3 text-lg"><strong>Grand total</strong><strong>{formatMoney(sale.grandTotal)}</strong></div>
-                  <div className="mt-3 flex justify-between gap-4"><span>Amount paid</span><strong>{formatMoney(sale.amountPaid)}</strong></div>
-                  <div className="mt-2 flex justify-between gap-4"><span>Change</span><strong>{formatMoney(sale.changeAmount)}</strong></div>
-                </div>
-              </div>
-
-              {(sale.payments || []).length > 0 ? (
-                <section>
-                  <h3 className="text-sm font-black uppercase tracking-wide text-[var(--color-text-strong)]">Payment record</h3>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    {sale.payments.map((payment) => (
-                      <div className="rounded-2xl border border-[var(--color-border)] p-4 text-sm" key={payment.id}>
-                        <div className="flex items-center justify-between gap-3">
-                          <strong>{formatStatus(payment.paymentMethod)}</strong>
-                          <strong>{formatMoney(payment.amount)}</strong>
-                        </div>
-                        {payment.referenceNo ? <p className="mt-2 text-xs text-[var(--color-muted)]">Reference: {payment.referenceNo}</p> : null}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-
-              {sale.creditAccount ? (
-                <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                  <p className="font-black">Accounts receivable · {sale.creditAccount.creditCode}</p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    <p><span className="font-semibold">Provider:</span> {formatStatus(sale.creditAccount.provider)}</p>
-                    <p><span className="font-semibold">Source total:</span> {formatMoney(sale.creditAccount.sourceTotalAmountSnapshot)}</p>
-                    <p><span className="font-semibold">Balance:</span> {formatMoney(sale.creditAccount.remainingBalance)}</p>
-                    <p><span className="font-semibold">Term:</span> {sale.creditAccount.term ? formatStatus(sale.creditAccount.term) : "Not applicable"}</p>
-                  </div>
-                  <p className="mt-3 text-xs leading-5 text-blue-800">This balance remains receivable until posted collections settle it.</p>
-                </section>
-              ) : null}
-
-              {(sale.returnRequests || []).length > 0 ? (
-                <section>
-                  <h3 className="text-sm font-black uppercase tracking-wide text-[var(--color-text-strong)]">Completed returns</h3>
-                  <div className="mt-3 space-y-3">
-                    {sale.returnRequests.map((request) => (
-                      <article className="rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-950" key={request.id}>
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="font-black">{request.returnCode}</p>
-                            <p className="mt-1 text-xs">{formatDate(request.completedAt)} · {formatStatus(request.refundMethod)}</p>
-                          </div>
-                          <strong>{formatMoney(request.totalRefundAmount)}</strong>
-                        </div>
-                        <p className="mt-3 font-semibold">{request.reason}</p>
-                        <div className="mt-3 space-y-2">
-                          {(request.items || []).map((item) => (
-                            <div className="flex justify-between gap-4 border-t border-orange-200 pt-2 text-xs" key={item.id}>
-                              <span>{item.description} · Qty {Number(item.quantity || 0)}{item.serial?.serialNumber ? ` · ${item.serial.serialNumber}` : ""}</span>
-                              <strong>{formatMoney(item.lineRefundAmount)}</strong>
-                            </div>
-                          ))}
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-
-              {(canCancel || canReturn) && ["COMPLETED", "PARTIALLY_REFUNDED"].includes(sale.status) ? (
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/60 p-4 space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                    Audit Actions & Reversals
-                  </p>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-[var(--color-muted)] max-w-md">
-                      Authorized staff can process either a specific item return/refund or void the entire sale receipt.
+                {/* Totals & Non-BIR Notice */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 py-3 items-start">
+                  <div className="sm:col-span-6 space-y-2">
+                    <p className="italic text-xs font-semibold text-slate-600">
+                      This receipt is not valid for input tax.
                     </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {canReturn && !sale.creditAccount && (sale.items || []).some((item) => item.itemId && Number(item.remainingReturnQuantity || 0) > 0) ? (
-                        <button
-                          className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-orange-700"
-                          onClick={() => onReturnItems(sale)}
-                          type="button"
-                        >
-                          <RotateCcw size={15} /> Specific Item Refund / Return
-                        </button>
-                      ) : null}
-                      {canCancel && sale.status === "COMPLETED" ? (
-                        <button
-                          className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
-                          onClick={() => onCancelSale(sale)}
-                          type="button"
-                        >
-                          <X size={15} /> Cancel Whole Sale (Void)
-                        </button>
-                      ) : null}
+                  </div>
+
+                  <div className="sm:col-span-6 space-y-1.5 text-xs text-right">
+                    <div className="flex justify-between font-bold text-slate-900 text-sm">
+                      <span>TOTAL AMOUNT</span>
+                      <span>{formatMoney(totalAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-700">
+                      <span>CASH DOWNPAYMENT / PAID</span>
+                      <span>{formatMoney(paidAmount)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
+                      <span>BALANCE TO PAY</span>
+                      <span>{formatMoney(balanceToPay)}</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Warranty Disclaimers */}
+                <div className="border-t border-slate-200 pt-3 text-center space-y-1">
+                  <p className="font-bold text-[11px] text-slate-900 uppercase">
+                    NO WARRANTY ON SOFTWARE/S (O.S. - WINDOWS and MS OFFICE), IF ANY
+                  </p>
+                  <p className="text-[10px] text-slate-600">
+                    Pls. read all WARRANTY GUIDELINES &amp; PROCEDURES at the back of this page. (BRING –IN WARRANTY)
+                  </p>
+                </div>
+
+                {/* Signatures Section */}
+                <div className="mt-8 pt-4 border-t border-slate-200">
+                  <p className="text-right text-[10px] italic text-slate-600 mb-6">
+                    Received Items in good order and Condition
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center text-xs">
+                    <div className="space-y-6">
+                      <p className="text-left font-bold text-slate-600 text-[11px]">Prepared by:</p>
+                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] uppercase">
+                        {sale.cashier?.fullName || sale.cashier?.username || "Staff"}
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <p className="text-left font-bold text-slate-600 text-[11px]">Warehouse:</p>
+                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400">
+                        Staff
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <p className="text-left font-bold text-slate-600 text-[11px]">Releasing:</p>
+                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400">
+                        Staff
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <p className="text-left font-bold text-slate-600 text-[11px]">Received by:</p>
+                      <div className="border-b border-slate-400 pt-2 text-[10px] text-slate-500">
+                        Signature over Printed Name
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional Administrative Actions for Authorized Staff (Excluded from Print via sale-receipt-print-actions) */}
+              {(sale.payments || []).length > 0 || sale.creditAccount || (sale.returnRequests || []).length > 0 || canCancel || canReturn ? (
+                <div className="sale-receipt-print-actions space-y-4 pt-2">
+                  {sale.creditAccount ? (
+                    <section className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 text-xs text-blue-900">
+                      <p className="font-black text-sm">Accounts receivable · {sale.creditAccount.creditCode}</p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <p><span className="font-semibold">Provider:</span> {formatStatus(sale.creditAccount.provider)}</p>
+                        <p><span className="font-semibold">Source total:</span> {formatMoney(sale.creditAccount.sourceTotalAmountSnapshot)}</p>
+                        <p><span className="font-semibold">Balance:</span> {formatMoney(sale.creditAccount.remainingBalance)}</p>
+                        <p><span className="font-semibold">Term:</span> {sale.creditAccount.term ? formatStatus(sale.creditAccount.term) : "Not applicable"}</p>
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {(sale.returnRequests || []).length > 0 ? (
+                    <section>
+                      <h3 className="text-xs font-black uppercase tracking-wide text-slate-700">Completed returns</h3>
+                      <div className="mt-2 space-y-2">
+                        {sale.returnRequests.map((request) => (
+                          <article className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs text-orange-950" key={request.id}>
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="font-black">{request.returnCode}</p>
+                                <p className="mt-0.5 text-[11px] text-orange-800">{formatDate(request.completedAt)} · {formatStatus(request.refundMethod)}</p>
+                              </div>
+                              <strong>{formatMoney(request.totalRefundAmount)}</strong>
+                            </div>
+                            <p className="mt-2 font-semibold">{request.reason}</p>
+                            <div className="mt-2 space-y-1">
+                              {(request.items || []).map((item) => (
+                                <div className="flex justify-between gap-4 border-t border-orange-200 pt-1 text-[11px]" key={item.id}>
+                                  <span>{item.description} · Qty {Number(item.quantity || 0)}{item.serial?.serialNumber ? ` · ${item.serial.serialNumber}` : ""}</span>
+                                  <strong>{formatMoney(item.lineRefundAmount)}</strong>
+                                </div>
+                              ))}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {(canCancel || canReturn) && ["COMPLETED", "PARTIALLY_REFUNDED"].includes(sale.status) ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Audit Actions & Reversals
+                      </p>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs text-slate-500 max-w-md">
+                          Authorized staff can process an item refund/return or void the whole sale receipt.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {canReturn && !sale.creditAccount && (sale.items || []).some((item) => item.itemId && Number(item.remainingReturnQuantity || 0) > 0) ? (
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-orange-700"
+                              onClick={() => onReturnItems(sale)}
+                              type="button"
+                            >
+                              <RotateCcw size={14} /> Item Refund / Return
+                            </button>
+                          ) : null}
+                          {canCancel && sale.status === "COMPLETED" ? (
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                              onClick={() => onCancelSale(sale)}
+                              type="button"
+                            >
+                              <X size={14} /> Void Receipt
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -1144,7 +1220,7 @@ function PosSalesPage({ selectedBranch, user }) {
           customSerialNumber: preselectedSerial?.serialNumber || "",
           isCustomSerial: !preselectedSerial,
           warrantyType: item.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
-          warrantyDuration: item.isSerialized ? "12 Months Major Parts (7D Outright)" : "30 Days (7D Outright)",
+          warrantyDuration: item.isSerialized || item.hasWarranty ? "1 YEAR WARRANTY" : "1 MONTH WARRANTY",
           batches,
           serials,
         },
@@ -1982,19 +2058,21 @@ function PosSalesPage({ selectedBranch, user }) {
                               </span>
                               <div className="flex gap-1 flex-wrap">
                                 {[
-                                  { label: "Major Parts", type: "MAJOR_PARTS", duration: "12 Months Major Parts (7D Outright)" },
-                                  { label: "Accessories", type: "ACCESSORIES", duration: "30 Days (7D Outright)" },
-                                  { label: "Outright Only", type: "OUTRIGHT_ONLY", duration: "7 Days Outright Replacement" },
-                                  { label: "No Warranty", type: "NO_WARRANTY", duration: "No Warranty" },
+                                  { label: "1 Year", duration: "1 YEAR WARRANTY" },
+                                  { label: "2 Years", duration: "2 YEARS WARRANTY" },
+                                  { label: "6 Months", duration: "6 MONTHS WARRANTY" },
+                                  { label: "1 Month", duration: "1 MONTH WARRANTY" },
+                                  { label: "7 Days", duration: "7 DAYS REPLACEMENT" },
+                                  { label: "No Warranty", duration: "NO WARRANTY" },
                                 ].map((preset) => (
                                   <button
-                                    key={preset.type}
+                                    key={preset.duration}
                                     type="button"
-                                    onClick={() => updateCartLine(line.localId, { warrantyType: preset.type, warrantyDuration: preset.duration })}
+                                    onClick={() => updateCartLine(line.localId, { warrantyDuration: preset.duration })}
                                     className={`rounded-lg px-2 py-1 text-[10px] font-bold transition ${
-                                      line.warrantyType === preset.type
+                                      (line.warrantyDuration || "").trim().toUpperCase() === preset.duration
                                         ? "bg-[var(--color-maroon)] text-white shadow-xs"
-                                        : "bg-white text-[var(--color-text-strong)] hover:bg-slate-100"
+                                        : "bg-white text-[var(--color-text-strong)] hover:bg-slate-100 border border-slate-200"
                                     }`}
                                   >
                                     {preset.label}
@@ -2004,8 +2082,8 @@ function PosSalesPage({ selectedBranch, user }) {
                             </div>
                             <input
                               type="text"
-                              className="w-full rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
-                              placeholder="e.g. 12 Months Major Parts (7D Outright)"
+                              className="w-full rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)] text-slate-800"
+                              placeholder="e.g. 1 YEAR WARRANTY, 3 YEARS DISTRO WARRANTY, etc."
                               value={line.warrantyDuration || ""}
                               onChange={(e) => updateCartLine(line.localId, { warrantyDuration: e.target.value })}
                             />
@@ -2314,7 +2392,7 @@ function PosSalesPage({ selectedBranch, user }) {
       </section>
 
       {completedSale ? (
-        <SaleDetailDialog canCancel={false} canReturn={false} errorMessage="" isLoading={false} onCancelSale={() => {}} onClose={() => setCompletedSale(null)} onReturnItems={() => {}} sale={completedSale} title="Sale completed · customer receipt" />
+        <SaleDetailDialog canCancel={false} canReturn={false} errorMessage="" isLoading={false} onCancelSale={() => {}} onClose={() => setCompletedSale(null)} onReturnItems={() => {}} sale={completedSale} title="Warranty Receipt · Customer Copy" />
       ) : null}
 
       {isDetailOpen ? (

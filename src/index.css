@@ -336,6 +336,11 @@ html.dark .shadow-card,
     background: #ffffff;
   }
 
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 10mm 12mm;
+  }
+
   body > *:not(.quotation-print-overlay):not(.job-order-print-overlay):not(.sale-receipt-print-overlay) {
     display: none !important;
   }
@@ -364,12 +369,20 @@ html.dark .shadow-card,
     padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
-    color: #111827 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
   }
 
   .sale-receipt-print-document,
   .sale-receipt-print-document table {
-    color: #111827 !important;
+    color: #000000 !important;
+  }
+
+  .sale-receipt-print-document table,
+  .sale-receipt-print-document tr,
+  .sale-receipt-print-document td,
+  .sale-receipt-print-document th {
+    page-break-inside: avoid !important;
   }
 
   .quotation-print-overlay {
