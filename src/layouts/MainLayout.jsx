@@ -1,4 +1,4 @@
-﻿import { useState } from "react"
+import { useState } from "react"
 
 import { APP_MODULES } from "../constants/appModules"
 import Sidebar from "./Sidebar"
@@ -13,6 +13,7 @@ function MainLayout({
   canSwitchBranch = false,
   onSwitchBranch,
   onLogout,
+  onOpenSearch,
   children,
 }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -59,6 +60,7 @@ function MainLayout({
             isDesktopSidebarCollapsed={isDesktopSidebarCollapsed}
             onLogout={onLogout}
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+            onOpenSearch={onOpenSearch}
             onSwitchBranch={onSwitchBranch}
             onToggleDesktopSidebar={() =>
               setIsDesktopSidebarCollapsed((currentValue) => !currentValue)

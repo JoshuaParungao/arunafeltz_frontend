@@ -13,6 +13,7 @@ function Topbar({
   onOpenMobileSidebar,
   onToggleDesktopSidebar,
   isDesktopSidebarCollapsed,
+  onOpenSearch,
 }) {
   const branchCode = selectedBranch?.code || user?.branch?.code || "ALL"
   const { resolvedTheme, toggleTheme } = useTheme()
@@ -52,16 +53,22 @@ function Topbar({
         </div>
 
         <div className="ml-auto hidden min-w-0 flex-1 justify-center px-4 md:flex">
-          <label className="flex h-11 w-full max-w-2xl items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-white px-4 shadow-card">
-            <Search className="size-4 shrink-0 text-[var(--color-muted)]" />
-            <input
-              aria-label="Module search is available inside each workspace"
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--color-muted)]"
-              disabled
-              placeholder="Use search inside a module"
-              type="search"
-            />
-          </label>
+          <button
+            aria-label="Open Omnisearch (Ctrl+K)"
+            className="flex h-11 w-full max-w-2xl items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-white px-4 text-left shadow-card transition hover:border-[#002060]/50"
+            onClick={onOpenSearch}
+            type="button"
+          >
+            <div className="flex items-center gap-3 text-slate-400">
+              <Search className="size-4 shrink-0 text-[var(--color-muted)]" />
+              <span className="text-sm font-normal text-[var(--color-muted)]">
+                Search products, serials, receipts, quotations...
+              </span>
+            </div>
+            <kbd className="hidden items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-500 sm:inline-flex">
+              Ctrl + K
+            </kbd>
+          </button>
         </div>
 
         <button
@@ -121,16 +128,17 @@ function Topbar({
       </div>
 
       <div className="mx-auto mt-3 w-full max-w-screen-2xl md:hidden">
-        <label className="flex h-11 w-full items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-white px-4 shadow-card">
+        <button
+          aria-label="Open Omnisearch"
+          className="flex h-11 w-full items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-white px-4 text-left shadow-card"
+          onClick={onOpenSearch}
+          type="button"
+        >
           <Search className="size-4 shrink-0 text-[var(--color-muted)]" />
-          <input
-            aria-label="Module search is available inside each workspace"
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--color-muted)]"
-            disabled
-            placeholder="Use search inside a module"
-            type="search"
-          />
-        </label>
+          <span className="text-sm font-normal text-[var(--color-muted)]">
+            Search products, serials, receipts...
+          </span>
+        </button>
 
         <button
           className={`mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm font-bold text-[var(--color-text-strong)] shadow-card ${

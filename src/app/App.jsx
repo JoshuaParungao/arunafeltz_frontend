@@ -22,6 +22,10 @@ import {
   saveSelectedBranch,
   saveUser,
 } from "../lib/sessionStorage"
+import CommandPaletteModal from "../components/common/CommandPaletteModal"
+import QuotationDetailDialog from "../components/quotations/QuotationDetailDialog"
+import { getSaleById } from "../features/sales/sales.api"
+import { getQuotationById } from "../features/quotations/quotations.api"
 
 const StaffDashboardPage = lazy(() => import("../pages/dashboard/StaffDashboardPage"))
 const SettingsPage = lazy(() => import("../pages/settings/SettingsPage"))
@@ -71,6 +75,20 @@ function App() {
   const [selectedBranch, setSelectedBranch] = useState(() => getSelectedBranch())
   const [isCheckingSession, setIsCheckingSession] = useState(() => Boolean(getAccessToken()))
   const [hasAssignedCashBoxAccess, setHasAssignedCashBoxAccess] = useState(false)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [omniPreviewQuotation, setOmniPreviewQuotation] = useState(null)
+
+  // Global Ctrl + K / Cmd + K shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault()
+        setIsCommandPaletteOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
 
   const isCashBoxStaff = [
     USER_ROLES.CASHIER,
@@ -394,20 +412,55 @@ function App() {
   }
 
   return (
-    <MainLayout
-      activePage={activePage}
-      canSwitchBranch={user?.role === USER_ROLES.SUPER_OWNER}
-      modules={allowedModules}
-      onChangePage={(pageKey) => setSafeActivePage(pageKey)}
-      onLogout={handleLogout}
-      onSwitchBranch={handleSwitchBranch}
-      selectedBranch={selectedBranch}
-      user={user}
-    >
-      <Suspense fallback={<PageLoadingFallback />}>
-        {renderPage()}
-      </Suspense>
-    </MainLayout>
+    <>
+      <MainLayout
+        activePage={activePage}
+        canSwitchBranch={user?.role === USER_ROLES.SUPER_OWNER}
+        modules={allowedModules}
+        onChangePage={(pageKey) => setSafeActivePage(pageKey)}
+        onLogout={handleLogout}
+        onOpenSearch={() => setIsCommandPaletteOpen(true)}
+        onSwitchBranch={handleSwitchBranch}
+        selectedBranch={selectedBranch}
+        user={user}
+      >
+        <Suspense fallback={<PageLoadingFallback />}>
+          {renderPage()}
+        </Suspense>
+      </MainLayout>
+
+      <CommandPaletteModal
+        allowedModules={allowedModules}
+        branchId={selectedBranch?.id || user?.branch?.id}
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigate={(pageKey) => setSafeActivePage(pageKey)}
+        onSelectQuotation={async (quoteSummary) => {
+          setIsCommandPaletteOpen(false)
+          try {
+            const res = await getQuotationById(quoteSummary.id)
+            const detail = res?.data || res
+            if (detail?.id) {
+              setOmniPreviewQuotation(detail)
+            }
+          } catch (err) {
+            console.warn("Unable to load quotation for omni preview:", err)
+            setSafeActivePage("quotations")
+          }
+        }}
+        onSelectSale={(saleSummary) => {
+          setIsCommandPaletteOpen(false)
+          setSafeActivePage("pos")
+        }}
+      />
+
+      {omniPreviewQuotation ? (
+        <QuotationDetailDialog
+          onClose={() => setOmniPreviewQuotation(null)}
+          quotation={omniPreviewQuotation}
+        />
+      ) : null}
+    </>
   )
 }
 
