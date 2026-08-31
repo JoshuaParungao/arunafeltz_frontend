@@ -26,7 +26,7 @@ import {
 } from "lucide-react"
 
 import { USER_ROLES } from "../../constants/roles"
-import { getCustomers } from "../../features/customers/customers.api"
+import { createCustomer, getCustomers } from "../../features/customers/customers.api"
 import {
   getInventoryBatches,
   getInventorySerials,
@@ -911,9 +911,24 @@ function PosSalesPage({ selectedBranch, user }) {
   const [customerSearch, setCustomerSearch] = useState("")
   const [customers, setCustomers] = useState([])
   const [selectedCustomerId, setSelectedCustomerId] = useState("")
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
+  const [selectedPriceTier, setSelectedPriceTier] = useState(1)
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
   const [customerMessage, setCustomerMessage] = useState("")
   const customerRequestIdRef = useRef(0)
+  const customerDropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target)) {
+        setIsCustomerDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   const [cart, setCart] = useState([])
   const [cartMessage, setCartMessage] = useState("")
@@ -1205,7 +1220,7 @@ function PosSalesPage({ selectedBranch, user }) {
         : (batches[0]?.id || "")
 
       const activeCustomer = customers.find((c) => c.id === selectedCustomerId)
-      const targetTier = activeCustomer?.priceTier ? Number(activeCustomer.priceTier) : null
+      const targetTier = selectedPriceTier || (activeCustomer?.priceTier ? Number(activeCustomer.priceTier) : null)
       const itemTiers = availablePriceTiers(item)
       const chosenTier = targetTier && itemTiers.includes(targetTier) ? targetTier : defaultPriceTier(item)
 
@@ -1464,6 +1479,8 @@ function PosSalesPage({ selectedBranch, user }) {
     setCart([])
     setSelectedCustomerId("")
     setCustomerSearch("")
+    setIsCustomerDropdownOpen(false)
+    setSelectedPriceTier(1)
     setServiceCharge("0")
     setRemarks("")
     setIsPcBuild(false)
@@ -1507,13 +1524,37 @@ function PosSalesPage({ selectedBranch, user }) {
     }))
 
     try {
+      let effectiveCustomerId = selectedCustomerId || undefined
+      const trimmedCustomerName = customerSearch.trim()
+
+      if (
+        !effectiveCustomerId &&
+        trimmedCustomerName &&
+        trimmedCustomerName.toLowerCase() !== "walk-in" &&
+        trimmedCustomerName.toLowerCase() !== "walk-in customer"
+      ) {
+        try {
+          const newCustRes = await createCustomer({
+            fullName: trimmedCustomerName,
+            branchId,
+            priceTier: selectedPriceTier || 1,
+          })
+          const createdCust = newCustRes?.data || newCustRes
+          if (createdCust?.id) {
+            effectiveCustomerId = createdCust.id
+          }
+        } catch (custError) {
+          console.warn("Auto-registering customer failed, continuing as walk-in:", custError)
+        }
+      }
+
       const settlementAmount = Number(effectivePaymentAmount || 0)
       const formattedRemarks = isPcBuild
         ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
         : remarks.trim() || undefined
       const salePayload = {
         branchId,
-        customerId: selectedCustomerId || undefined,
+        customerId: effectiveCustomerId,
         serviceCharge: Number(serviceCharge || 0),
         remarks: formattedRemarks,
         items: cart.map((line) => {
@@ -1810,53 +1851,199 @@ function PosSalesPage({ selectedBranch, user }) {
             </section>
 
             <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:p-5">
-              <div className="flex items-start gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700"><UserRound size={20} /></span>
-                <div>
-                  <h2 className="font-black text-[var(--color-text-strong)]">Customer</h2>
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">Optional. Leave as walk-in when no customer record is needed.</p>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700"><UserRound size={20} /></span>
+                  <div>
+                    <h2 className="font-black text-[var(--color-text-strong)]">Customer</h2>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">Type name to search existing records, or enter new name for walk-in / new customer.</p>
+                  </div>
+                </div>
+                {selectedCustomerId || customerSearch.trim() ? (
+                  <button
+                    className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] px-2.5 py-1 text-xs font-bold text-[var(--color-muted)] transition hover:bg-white hover:text-red-700"
+                    onClick={() => {
+                      setSelectedCustomerId("")
+                      setCustomerSearch("")
+                      setIsCustomerDropdownOpen(false)
+                      setSelectedPriceTier(1)
+                    }}
+                    title="Reset to anonymous walk-in"
+                    type="button"
+                  >
+                    <X size={12} /> Walk-in
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Combobox container */}
+              <div className="relative mt-4" ref={customerDropdownRef}>
+                <div className="relative">
+                  <input
+                    aria-label="Search or enter customer name"
+                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-4 pr-10 text-sm outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
+                    onChange={(event) => {
+                      setCustomerSearch(event.target.value)
+                      setIsCustomerDropdownOpen(true)
+                      if (!event.target.value.trim()) {
+                        setSelectedCustomerId("")
+                      }
+                    }}
+                    onFocus={() => setIsCustomerDropdownOpen(true)}
+                    placeholder="Type customer name (e.g. Joshua Garcia)..."
+                    value={customerSearch}
+                  />
+                  {customerSearch.trim() ? (
+                    <button
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--color-muted)] hover:bg-gray-200 hover:text-[var(--color-text-strong)]"
+                      onClick={() => {
+                        setCustomerSearch("")
+                        setSelectedCustomerId("")
+                        setIsCustomerDropdownOpen(false)
+                      }}
+                      type="button"
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : null}
+                </div>
+
+                {/* Floating Autocomplete Dropdown */}
+                {isCustomerDropdownOpen && customerSearch.trim() ? (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-72 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-white shadow-xl">
+                    {customers.length > 0 ? (
+                      <div>
+                        <div className="border-b border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                          Existing Customers
+                        </div>
+                        {customers.slice(0, 10).map((customer) => (
+                          <button
+                            className="block w-full border-b border-[var(--color-border)] px-4 py-2.5 text-left text-sm transition last:border-b-0 hover:bg-blue-50"
+                            key={customer.id}
+                            onClick={() => {
+                              setSelectedCustomerId(customer.id)
+                              setCustomerSearch(customer.fullName)
+                              setIsCustomerDropdownOpen(false)
+                              const tier = customer.priceTier ? Number(customer.priceTier) : 1
+                              setSelectedPriceTier(tier)
+                              setCart((current) =>
+                                current.map((line) => {
+                                  if (line.type !== "PRODUCT" || !line.item) return line
+                                  const available = availablePriceTiers(line.item)
+                                  if (available.includes(tier)) {
+                                    return { ...line, priceTier: tier }
+                                  }
+                                  return line
+                                }),
+                              )
+                            }}
+                            type="button"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-[var(--color-text-strong)]">{customer.fullName}</span>
+                              {customer.priceTier ? (
+                                <span className="shrink-0 rounded-lg bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
+                                  Price {customer.priceTier}
+                                </span>
+                              ) : null}
+                            </div>
+                            {customer.companyName || customer.mobileNumber ? (
+                              <p className="mt-0.5 text-xs text-[var(--color-muted)]">
+                                {customer.companyName ? customer.companyName : ""}{customer.companyName && customer.mobileNumber ? " · " : ""}{customer.mobileNumber ? customer.mobileNumber : ""}
+                              </p>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {/* Free-text option for new customer / walk-in name */}
+                    <div className="border-t border-[var(--color-border)] p-2">
+                      <button
+                        className="flex w-full items-center gap-2 rounded-xl bg-[var(--color-soft)] px-3 py-2.5 text-left text-xs font-bold text-[var(--color-maroon)] transition hover:bg-[var(--color-maroon-soft)]"
+                        onClick={() => {
+                          setSelectedCustomerId("")
+                          setIsCustomerDropdownOpen(false)
+                        }}
+                        type="button"
+                      >
+                        <Plus size={14} />
+                        <span>Use as new customer: <strong className="text-[var(--color-text-strong)]">"{customerSearch.trim()}"</strong></span>
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Active selection banner */}
+              {selectedCustomerId ? (
+                (() => {
+                  const cust = customers.find((c) => c.id === selectedCustomerId)
+                  return cust ? (
+                    <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-3 text-xs">
+                      <div>
+                        <span className="font-bold text-blue-900">{cust.fullName}</span>
+                        <span className="ml-2 text-blue-700">· Existing Customer</span>
+                        {cust.mobileNumber ? <span className="ml-1 text-blue-600">({cust.mobileNumber})</span> : null}
+                      </div>
+                      <span className="rounded-lg bg-blue-200 px-2 py-0.5 font-black text-blue-900">
+                        Default Price {cust.priceTier || 1}
+                      </span>
+                    </div>
+                  ) : null
+                })()
+              ) : customerSearch.trim() && !isCustomerDropdownOpen ? (
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-3 text-xs">
+                  <div>
+                    <span className="font-bold text-amber-900">{customerSearch.trim()}</span>
+                    <span className="ml-2 text-amber-700">· New Customer (will auto-register on sale)</span>
+                  </div>
+                  <span className="rounded-lg bg-amber-200 px-2 py-0.5 font-black text-amber-900">
+                    Price {selectedPriceTier}
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Price Tier Selector Buttons */}
+              <div className="mt-4 border-t border-[var(--color-border)] pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Sale Price Tier:</span>
+                  <span className="text-xs font-semibold text-[var(--color-maroon)]">Active: Price {selectedPriceTier}</span>
+                </div>
+                <div className="mt-2 grid grid-cols-5 gap-1.5">
+                  {[1, 2, 3, 4, 5].map((tier) => {
+                    const isSelected = selectedPriceTier === tier
+                    return (
+                      <button
+                        className={`rounded-xl py-2 text-xs font-black transition ${
+                          isSelected
+                            ? "bg-[var(--color-maroon)] text-white shadow-sm"
+                            : "border border-[var(--color-border)] bg-[var(--color-soft)] text-[var(--color-text-strong)] hover:border-[var(--color-maroon)] hover:bg-white"
+                        }`}
+                        key={tier}
+                        onClick={() => {
+                          setSelectedPriceTier(tier)
+                          setCart((current) =>
+                            current.map((line) => {
+                              if (line.type !== "PRODUCT" || !line.item) return line
+                              const available = availablePriceTiers(line.item)
+                              if (available.includes(tier)) {
+                                return { ...line, priceTier: tier }
+                              }
+                              return line
+                            }),
+                          )
+                        }}
+                        type="button"
+                      >
+                        Price {tier}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
-              <input
-                aria-label="Search customers"
-                className="mt-4 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)] focus:bg-white"
-                onChange={(event) => setCustomerSearch(event.target.value)}
-                placeholder="Search customer by name, mobile, or company"
-                value={customerSearch}
-              />
-              <select
-                aria-label="Select customer"
-                className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
-                onChange={(event) => {
-                  const newCustId = event.target.value
-                  setSelectedCustomerId(newCustId)
-                  const targetCustomer = customers.find((c) => c.id === newCustId)
-                  if (targetCustomer?.priceTier) {
-                    const tier = Number(targetCustomer.priceTier)
-                    setCart((current) =>
-                      current.map((line) => {
-                        if (line.type !== "PRODUCT" || !line.item) return line
-                        const available = availablePriceTiers(line.item)
-                        if (available.includes(tier)) {
-                          return { ...line, priceTier: tier }
-                        }
-                        return line
-                      }),
-                    )
-                  }
-                }}
-                value={selectedCustomerId}
-              >
-                <option value="">Walk-in customer</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.fullName}
-                    {customer.companyName ? ` (${customer.companyName})` : ""}
-                    {customer.priceTier ? ` · Price ${customer.priceTier}` : ""}
-                  </option>
-                ))}
-              </select>
-              {isLoadingCustomers ? <p className="mt-2 text-xs text-[var(--color-muted)]">Loading customers…</p> : null}
+
+              {isLoadingCustomers ? <p className="mt-2 text-xs text-[var(--color-muted)]">Loading customer records…</p> : null}
               {customerMessage ? <p className="mt-2 text-xs font-semibold text-amber-700">{customerMessage}</p> : null}
             </section>
 
