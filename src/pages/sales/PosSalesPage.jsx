@@ -1626,10 +1626,15 @@ function PosSalesPage({ selectedBranch, user }) {
     try {
       const response = await getSaleById(sale.id)
       const detail = response?.data
-      if (!response?.success || !detail) throw new Error("Invalid sale detail response")
-      setDetailSale(detail)
+      if (response?.success && detail) {
+        setDetailSale(detail)
+      }
     } catch (error) {
-      setDetailMessage(getApiErrorMessage(error, "Unable to load the complete sale record."))
+      console.warn("Sale detail fetch failed, falling back to cached sale item:", error)
+      // Do not block viewing if we already have the sale record from list
+      if (!sale?.items || sale.items.length === 0) {
+        setDetailMessage(getApiErrorMessage(error, "Unable to load the complete sale record."))
+      }
     } finally {
       setIsLoadingDetail(false)
     }
