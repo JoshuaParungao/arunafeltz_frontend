@@ -857,11 +857,27 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   const customer = sale?.customer || {}
   const cashier = sale?.cashier || {}
   const quotation = sale?.quotation || {}
-  const technician =
+  let technician =
     sale?.technician?.fullName ||
     quotation?.serviceDoneBy?.fullName ||
     context?.technician ||
-    "—"
+    ""
+
+  if (!technician || technician === "—") {
+    const serviceItemWithDoneBy = (sale?.items || []).find((item) =>
+      typeof item.description === "string" && item.description.includes("[Done by:")
+    )
+    if (serviceItemWithDoneBy) {
+      const match = serviceItemWithDoneBy.description.match(/\[Done by:\s*([^\]]+)\]/)
+      if (match && match[1]) {
+        technician = match[1].trim()
+      }
+    }
+  }
+
+  if (!technician) {
+    technician = "—"
+  }
 
   let paymentType = "CASH"
   if ((sale?.payments || []).length > 0) {

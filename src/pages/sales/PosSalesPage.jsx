@@ -25,13 +25,14 @@ import {
   X,
 } from "lucide-react"
 
-import { USER_ROLES } from "../../constants/roles"
+import { USER_ROLES, getRoleLabel } from "../../constants/roles"
 import { createCustomer, getCustomers } from "../../features/customers/customers.api"
 import {
   getInventoryBatches,
   getInventorySerials,
 } from "../../features/inventory/inventory.api"
 import { getItems } from "../../features/items/items.api"
+import { getQuotationServiceStaff } from "../../features/quotations/quotations.api"
 import { generateUUID } from "../../utils/uuid"
 import {
   cancelSale,
@@ -339,7 +340,6 @@ function SaleDetailDialog({
   onClose,
   onReturnItems,
   sale,
-  title = "Warranty Receipt · Customer Copy",
 }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -375,11 +375,24 @@ function SaleDetailDialog({
   }, [sale])
 
   const technicianName = useMemo(() => {
-    return (
+    let name =
       sale?.technician?.fullName ||
       sale?.quotation?.serviceDoneBy?.fullName ||
-      "—"
-    )
+      ""
+
+    if (!name) {
+      const itemWithDoneBy = (sale?.items || []).find((item) =>
+        typeof item.description === "string" && item.description.includes("[Done by:")
+      )
+      if (itemWithDoneBy) {
+        const match = itemWithDoneBy.description.match(/\[Done by:\s*([^\]]+)\]/)
+        if (match && match[1]) {
+          name = match[1].trim()
+        }
+      }
+    }
+
+    return name || "—"
   }, [sale])
 
   const totalAmount = Number(sale?.grandTotal || sale?.subtotal || 0)
@@ -401,7 +414,7 @@ function SaleDetailDialog({
               <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-maroon)] px-2.5 py-1 text-xs font-bold text-white">
                 <ReceiptText size={14} /> WARRANTY RECEIPT
               </span>
-              {Boolean(sale?.quotation?.isPcBuild || sale?.remarks?.includes("[PC BUILD]") || sale?.isPcBuild) ? (
+              {sale?.quotation?.isPcBuild || sale?.remarks?.includes("[PC BUILD]") || sale?.isPcBuild ? (
                 <span className="rounded-md bg-slate-800 px-2 py-1 text-xs font-bold text-white">
                   🖥️ PC Build / Set
                 </span>
@@ -918,10 +931,20 @@ function PosSalesPage({ selectedBranch, user }) {
   const customerRequestIdRef = useRef(0)
   const customerDropdownRef = useRef(null)
 
+  const [serviceStaffList, setServiceStaffList] = useState([])
+  const [isLoadingServiceStaff, setIsLoadingServiceStaff] = useState(false)
+  const [selectedServiceStaffId, setSelectedServiceStaffId] = useState("")
+  const [serviceStaffSearch, setServiceStaffSearch] = useState("")
+  const [isServiceStaffDropdownOpen, setIsServiceStaffDropdownOpen] = useState(false)
+  const serviceStaffDropdownRef = useRef(null)
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target)) {
         setIsCustomerDropdownOpen(false)
+      }
+      if (serviceStaffDropdownRef.current && !serviceStaffDropdownRef.current.contains(event.target)) {
+        setIsServiceStaffDropdownOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -1149,6 +1172,39 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }, [customerSearch, loadCustomers])
 
+  useEffect(() => {
+    let isMounted = true
+    const timer = window.setTimeout(() => {
+      if (!branchId) {
+        setServiceStaffList([])
+        setSelectedServiceStaffId("")
+        return
+      }
+
+      setIsLoadingServiceStaff(true)
+      getQuotationServiceStaff({ branchId })
+        .then((response) => {
+          if (!isMounted) return
+          const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []
+          setServiceStaffList(rows)
+          if (user?.id && rows.some((staff) => staff.id === user.id)) {
+            setSelectedServiceStaffId((prev) => prev || user.id)
+          }
+        })
+        .catch(() => {
+          if (isMounted) setServiceStaffList([])
+        })
+        .finally(() => {
+          if (isMounted) setIsLoadingServiceStaff(false)
+        })
+    }, 0)
+
+    return () => {
+      isMounted = false
+      window.clearTimeout(timer)
+    }
+  }, [branchId, user?.id])
+
   const loadSales = useCallback(async () => {
     if (!branchId) {
       setSales([])
@@ -1361,6 +1417,8 @@ function PosSalesPage({ selectedBranch, user }) {
       return
     }
 
+    const assignedStaff = serviceStaffList.find((s) => s.id === selectedServiceStaffId)
+
     setCart((current) => [
       ...current,
       {
@@ -1372,6 +1430,9 @@ function PosSalesPage({ selectedBranch, user }) {
         markupPercent: serviceMarkup,
         unitPrice: String(unitPrice),
         discountAmount: String(discountAmount),
+        serviceStaffId: assignedStaff?.id || null,
+        serviceStaffName: assignedStaff?.fullName || null,
+        serviceStaffRole: assignedStaff ? getRoleLabel(assignedStaff.role) : null,
       },
     ])
     setServiceDescription("")
@@ -1559,8 +1620,13 @@ function PosSalesPage({ selectedBranch, user }) {
         remarks: formattedRemarks,
         items: cart.map((line) => {
           if (line.type === "SERVICE") {
+            const rawDescription = line.description.trim()
+            const finalDescription = line.serviceStaffName
+              ? `${rawDescription} [Done by: ${line.serviceStaffName}]`
+              : rawDescription
+
             return {
-              description: line.description.trim(),
+              description: finalDescription,
               quantity: Number(line.quantity),
               unitPrice: Number(line.baseUnitPrice ?? line.unitPrice),
               markupPercent:
@@ -2063,6 +2129,148 @@ function PosSalesPage({ selectedBranch, user }) {
 
               {showServiceForm ? (
                 <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={addServiceLine}>
+                  {/* Service Done By (Gagawa) Searchable Combobox & Quick Select */}
+                  <div className="sm:col-span-2 space-y-2 rounded-2xl border border-violet-100 bg-violet-50/50 p-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-black uppercase tracking-wide text-violet-900 flex items-center gap-1.5">
+                        <UserRound size={15} /> Sino ang Gagawa (Service Performer)
+                      </span>
+                      {selectedServiceStaffId ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedServiceStaffId("")}
+                          className="text-[11px] font-bold text-violet-700 hover:text-red-700 transition"
+                        >
+                          Clear assignment
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {/* Searchable Combobox Input */}
+                    <div className="relative" ref={serviceStaffDropdownRef}>
+                      {(() => {
+                        const selectedStaff = serviceStaffList.find((s) => s.id === selectedServiceStaffId)
+                        const filteredStaff = serviceStaffList.filter((s) => {
+                          const query = serviceStaffSearch.toLowerCase().trim()
+                          if (!query) return true
+                          const roleName = getRoleLabel(s.role).toLowerCase()
+                          return s.fullName.toLowerCase().includes(query) || roleName.includes(query)
+                        })
+
+                        return (
+                          <>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                className="w-full rounded-xl border border-violet-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200 transition"
+                                placeholder={
+                                  isLoadingServiceStaff
+                                    ? "Loading branch staff…"
+                                    : selectedStaff
+                                    ? `${selectedStaff.fullName} (${getRoleLabel(selectedStaff.role)})`
+                                    : "Type name or role (e.g. Joshua, Technician)…"
+                                }
+                                value={serviceStaffSearch}
+                                onChange={(e) => {
+                                  setServiceStaffSearch(e.target.value)
+                                  setIsServiceStaffDropdownOpen(true)
+                                }}
+                                onFocus={() => setIsServiceStaffDropdownOpen(true)}
+                              />
+                              {serviceStaffSearch ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setServiceStaffSearch("")}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:text-slate-600"
+                                >
+                                  <X size={14} />
+                                </button>
+                              ) : null}
+                            </div>
+
+                            {/* Dropdown Suggestions */}
+                            {isServiceStaffDropdownOpen && (
+                              <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+                                {filteredStaff.length === 0 ? (
+                                  <div className="p-3 text-center text-xs text-slate-500">
+                                    No staff matching "{serviceStaffSearch}"
+                                  </div>
+                                ) : (
+                                  filteredStaff.map((staff) => {
+                                    const isSelected = staff.id === selectedServiceStaffId
+                                    return (
+                                      <button
+                                        key={staff.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedServiceStaffId(staff.id)
+                                          setServiceStaffSearch("")
+                                          setIsServiceStaffDropdownOpen(false)
+                                        }}
+                                        className={`flex w-full items-center justify-between px-3.5 py-2.5 text-left text-xs transition ${
+                                          isSelected
+                                            ? "bg-violet-100 font-bold text-violet-950"
+                                            : "hover:bg-slate-50 text-slate-700"
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="grid h-6 w-6 place-items-center rounded-full bg-violet-200 text-violet-800 font-bold text-[10px]">
+                                            {staff.fullName.charAt(0).toUpperCase()}
+                                          </span>
+                                          <div>
+                                            <p className="font-bold text-slate-900">{staff.fullName}</p>
+                                            <p className="text-[10px] text-slate-500">{getRoleLabel(staff.role)}</p>
+                                          </div>
+                                        </div>
+                                        {isSelected ? (
+                                          <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                            Selected
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-slate-400 font-semibold">
+                                            {getRoleLabel(staff.role)}
+                                          </span>
+                                        )}
+                                      </button>
+                                    )
+                                  })
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </div>
+
+                    {/* Quick-Select Staff Pills */}
+                    {serviceStaffList.length > 0 ? (
+                      <div className="pt-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-violet-800 mb-1.5">
+                          Quick Select Staff:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {serviceStaffList.map((staff) => {
+                            const isSelected = staff.id === selectedServiceStaffId
+                            return (
+                              <button
+                                key={staff.id}
+                                type="button"
+                                onClick={() => setSelectedServiceStaffId(staff.id)}
+                                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                                  isSelected
+                                    ? "bg-violet-700 text-white shadow-xs"
+                                    : "bg-white text-slate-700 border border-violet-200 hover:bg-violet-100/60"
+                                }`}
+                              >
+                                {staff.fullName} <span className="opacity-75 text-[10px]">({getRoleLabel(staff.role)})</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
                   <label className="sm:col-span-2">
                     <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Description</span>
                     <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setServiceDescription(event.target.value)} placeholder="Labor, setup, delivery service…" value={serviceDescription} />
@@ -2142,6 +2350,13 @@ function PosSalesPage({ selectedBranch, user }) {
                           </div>
                           <h3 className="mt-1 truncate font-black text-[var(--color-text-strong)]">{line.item?.itemName || line.description}</h3>
                           {line.item ? <p className="mt-1 text-xs text-[var(--color-muted)]">{line.item.itemCode}{line.item.isSerialized ? " · Serialized" : ""}</p> : null}
+                          {line.type === "SERVICE" && line.serviceStaffName ? (
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-violet-700 font-semibold">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-2 py-0.5 border border-violet-200">
+                                👤 {line.serviceStaffName} {line.serviceStaffRole ? `• ${line.serviceStaffRole}` : ""}
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
                         <button aria-label="Remove line" className="rounded-xl p-2 text-red-700 transition hover:bg-red-50" onClick={() => removeCartLine(line.localId)} type="button"><Trash2 size={17} /></button>
                       </div>
