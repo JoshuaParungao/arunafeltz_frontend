@@ -20,6 +20,7 @@ import { createSale } from "../../features/sales/sales.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
 import { getRoleLabel } from "../../constants/roles"
 import { generateUUID } from "../../utils/uuid"
+import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 
 const IMMEDIATE_PAYMENT_METHODS = [
   ["CASH", "Cash"],
@@ -135,204 +136,6 @@ function getQuotationRows(response) {
   if (Array.isArray(result.quotations)) return result.quotations
 
   return []
-}
-
-function QuotationPrintPreview({ quotation, onClose }) {
-  const items = quotation.items || []
-  const hasCustomServiceLines = items.some((item) => !item.itemId)
-  const customer = quotation.customer
-  const branch = quotation.branch
-
-  return createPortal(
-    <div
-      aria-labelledby="quotation-print-title"
-      aria-modal="true"
-      className="quotation-print-overlay"
-      role="dialog"
-    >
-      <div className="quotation-print-shell">
-        <div className="quotation-print-actions">
-          <div>
-            <p className="text-sm font-bold text-white">Customer quotation preview</p>
-            <p className="text-xs text-white/70">Only customer-facing information will print.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/20"
-              onClick={onClose}
-              type="button"
-            >
-              Close preview
-            </button>
-            <button
-              className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-[var(--color-maroon)] transition hover:bg-[var(--color-soft)]"
-              onClick={() => window.print()}
-              type="button"
-            >
-              Print
-            </button>
-          </div>
-        </div>
-
-        <article className="quotation-print-document">
-          <header className="border-b-2 border-[var(--color-maroon)] pb-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--color-maroon)]">
-                  Arunafeltz Computer
-                </p>
-                <h1
-                  className="mt-2 text-3xl font-black tracking-tight text-[var(--color-text-strong)]"
-                  id="quotation-print-title"
-                >
-                  Customer Quotation
-                </h1>
-                <p className="mt-2 text-sm text-[var(--color-muted)]">
-                  {branch?.name || "Arunafeltz Computer branch"}
-                  {branch?.code ? ` • ${branch.code}` : ""}
-                </p>
-              </div>
-              <div className="text-left sm:text-right">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-                  Quotation number
-                </p>
-                <p className="mt-1 text-lg font-black text-[var(--color-text-strong)]">
-                  {quotation.quotationCode || "—"}
-                </p>
-                <p className="mt-2 text-sm text-[var(--color-muted)]">
-                  Date: {formatDate(quotation.createdAt)}
-                </p>
-                <p className="text-sm text-[var(--color-muted)]">
-                  Valid until: {formatDate(quotation.validUntil)}
-                </p>
-              </div>
-            </div>
-          </header>
-
-          <section className="grid gap-5 border-b border-[var(--color-border)] py-5 sm:grid-cols-2">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-                Quotation for
-              </p>
-              <p className="mt-2 text-lg font-black text-[var(--color-text-strong)]">
-                {customer?.fullName || "Walk-in customer"}
-              </p>
-              {customer?.companyName ? (
-                <p className="mt-1 text-sm text-[var(--color-text)]">{customer.companyName}</p>
-              ) : null}
-              {customer?.address ? (
-                <p className="mt-1 text-sm text-[var(--color-text)]">{customer.address}</p>
-              ) : null}
-              {(customer?.mobileNumber || customer?.email) ? (
-                <p className="mt-1 text-sm text-[var(--color-muted)]">
-                  {[customer.mobileNumber, customer.email].filter(Boolean).join(" • ")}
-                </p>
-              ) : null}
-            </div>
-            <div className="sm:text-right">
-              {quotation.title ? (
-                <>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-                    Subject
-                  </p>
-                  <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-                    {quotation.title}
-                  </p>
-                </>
-              ) : null}
-            </div>
-          </section>
-
-          <div className="overflow-x-auto py-5">
-            <table className="w-full min-w-[680px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-y border-[var(--color-border)] bg-[var(--color-soft)] text-xs uppercase tracking-[0.12em] text-[var(--color-muted)]">
-                  <th className="px-3 py-3">Item / service</th>
-                  <th className="px-3 py-3 text-right">Qty</th>
-                  <th className="px-3 py-3 text-right">Unit price</th>
-                  <th className="px-3 py-3 text-right">Discount</th>
-                  <th className="px-3 py-3 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr
-                    className="quotation-print-row border-b border-[var(--color-border)]"
-                    key={item.id || item.lineNo}
-                  >
-                    <td className="px-3 py-4">
-                      <p className="font-bold text-[var(--color-text-strong)]">{item.description}</p>
-                      {item.remarks ? (
-                        <p className="mt-1 text-xs text-[var(--color-muted)]">{item.remarks}</p>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-4 text-right">{Number(item.quantity || 0)}</td>
-                    <td className="px-3 py-4 text-right">₱{money(item.unitPrice)}</td>
-                    <td className="px-3 py-4 text-right">₱{money(item.discountAmount)}</td>
-                    <td className="px-3 py-4 text-right font-bold text-[var(--color-text-strong)]">
-                      ₱{money(item.lineTotal)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <section className="ml-auto w-full max-w-sm border-t-2 border-[var(--color-text-strong)] pt-4">
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span>Subtotal</span>
-              <span className="font-bold">₱{money(quotation.subtotal)}</span>
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-4 text-sm">
-              <span>Total discount</span>
-              <span className="font-bold">₱{money(quotation.totalDiscount)}</span>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-4 border-t border-[var(--color-border)] pt-3 text-lg font-black text-[var(--color-text-strong)]">
-              <span>Grand total</span>
-              <span>₱{money(quotation.grandTotal)}</span>
-            </div>
-          </section>
-
-          <section className="mt-8 grid gap-5 border-t border-[var(--color-border)] pt-5 sm:grid-cols-2">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-                Prepared by
-              </p>
-              <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-                {quotation.preparedBy?.fullName || "—"}
-              </p>
-            </div>
-            {hasCustomServiceLines ? (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-                  Service done by
-                </p>
-                <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-                  {quotation.serviceDoneBy?.fullName || "—"}
-                </p>
-              </div>
-            ) : null}
-          </section>
-
-          {quotation.notes ? (
-            <section className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-                Notes
-              </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-strong)]">
-                {quotation.notes}
-              </p>
-            </section>
-          ) : null}
-
-          <footer className="mt-8 border-t border-[var(--color-border)] pt-4 text-center text-xs text-[var(--color-muted)]">
-            Thank you for choosing Arunafeltz Computer. This quotation is subject to the stated validity date.
-          </footer>
-        </article>
-      </div>
-    </div>,
-    document.body,
-  )
 }
 
 function QuotationsPage({ selectedBranch, user }) {
@@ -1676,7 +1479,10 @@ function QuotationsPage({ selectedBranch, user }) {
                         <button
                           className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
                           disabled={isLoadingDetails}
-                          onClick={() => loadQuotationDetails(quotation)}
+                          onClick={async () => {
+                            await loadQuotationDetails(quotation)
+                            setIsPrintPreviewOpen(true)
+                          }}
                           type="button"
                         >
                           View
@@ -2976,8 +2782,12 @@ function QuotationsPage({ selectedBranch, user }) {
       ) : null}
 
       {isPrintPreviewOpen && selectedQuotation ? (
-        <QuotationPrintPreview
+        <QuotationDetailDialog
           onClose={() => setIsPrintPreviewOpen(false)}
+          onConvertToSale={() => {
+            setIsPrintPreviewOpen(false)
+            openQuotationConversion()
+          }}
           quotation={selectedQuotation}
         />
       ) : null}

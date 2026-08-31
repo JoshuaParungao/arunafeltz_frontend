@@ -9,6 +9,7 @@ import {
   CreditCard,
   Download,
   Eye,
+  FileText,
   LoaderCircle,
   PackageSearch,
   Plus,
@@ -32,7 +33,7 @@ import {
   getInventorySerials,
 } from "../../features/inventory/inventory.api"
 import { getItems } from "../../features/items/items.api"
-import { getQuotationServiceStaff } from "../../features/quotations/quotations.api"
+import { createQuotation, getQuotationServiceStaff } from "../../features/quotations/quotations.api"
 import { generateUUID } from "../../utils/uuid"
 import {
   cancelSale,
@@ -42,7 +43,11 @@ import {
   getSales,
 } from "../../features/sales/sales.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
-import { exportWarrantyReceiptPdf, printWarrantyReceipt } from "../../utils/businessDocumentExport"
+import {
+  exportWarrantyReceiptPdf,
+  printWarrantyReceipt,
+} from "../../utils/businessDocumentExport"
+import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 
 const SALE_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -980,6 +985,10 @@ function PosSalesPage({ selectedBranch, user }) {
   const [isSubmittingSale, setIsSubmittingSale] = useState(false)
   const [checkoutMessage, setCheckoutMessage] = useState("")
   const [completedSale, setCompletedSale] = useState(null)
+  const [activeQuotationDoc, setActiveQuotationDoc] = useState(null)
+  const [isQuotationDocOpen, setIsQuotationDocOpen] = useState(false)
+  const [isQuotationPreviewMode, setIsQuotationPreviewMode] = useState(false)
+  const [isCreatingQuotation, setIsCreatingQuotation] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -1726,6 +1735,148 @@ function PosSalesPage({ selectedBranch, user }) {
       setCheckoutMessage(getApiErrorMessage(error, "Unable to complete the sale. No success receipt was returned."))
     } finally {
       setIsSubmittingSale(false)
+    }
+  }
+
+  const openCartPreview = () => {
+    if (cart.length === 0) return
+    const matchedCustomer = customers.find((c) => c.id === selectedCustomerId)
+    const customerObj = matchedCustomer || (customerSearch.trim() ? { fullName: customerSearch.trim() } : { fullName: "Walk-in customer" })
+
+    const previewQuotation = {
+      quotationCode: "PREVIEW",
+      createdAt: new Date().toISOString(),
+      branch: activeBranch,
+      customer: customerObj,
+      preparedBy: user,
+      isPcBuild,
+      subtotal: totals.subtotal,
+      totalDiscount: totals.totalDiscount,
+      grandTotal: totals.grandTotal,
+      items: cart.map((line, index) => ({
+        id: line.localId || `item-${index}`,
+        lineNo: index + 1,
+        itemCodeSnapshot: line.item?.itemCode || "—",
+        description: line.type === "SERVICE" ? (line.description || "Service") : (line.item?.itemName || "Item"),
+        quantity: Number(line.quantity || 1),
+        unitPrice: getLineUnitPrice(line),
+        baseUnitPrice: getLineBaseUnitPrice(line),
+        discountAmount: Number(line.discountAmount || 0),
+        lineTotal: getLineTotal(line),
+        warrantyDuration: line.warrantyDuration || (line.item?.hasWarranty ? "1 YEAR WARRANTY" : ""),
+        isPcBuildPart: isPcBuild,
+      })),
+    }
+
+    setActiveQuotationDoc(previewQuotation)
+    setIsQuotationPreviewMode(true)
+    setIsQuotationDocOpen(true)
+  }
+
+  const submitQuotation = async () => {
+    if (cart.length === 0 || isCreatingQuotation || !branchId) return
+    setCheckoutMessage("")
+    setIsCreatingQuotation(true)
+
+    try {
+      let effectiveCustomerId = selectedCustomerId || undefined
+      const trimmedCustomerName = customerSearch.trim()
+
+      if (
+        !effectiveCustomerId &&
+        trimmedCustomerName &&
+        trimmedCustomerName.toLowerCase() !== "walk-in" &&
+        trimmedCustomerName.toLowerCase() !== "walk-in customer"
+      ) {
+        try {
+          const newCustRes = await createCustomer({
+            fullName: trimmedCustomerName,
+            branchId,
+            priceTier: selectedPriceTier || 1,
+          })
+          const createdCust = newCustRes?.data || newCustRes
+          if (createdCust?.id) {
+            effectiveCustomerId = createdCust.id
+          }
+        } catch (custErr) {
+          console.warn("Auto-registering customer for quotation failed, proceeding:", custErr)
+        }
+      }
+
+      // Check if there is any service line with serviceDoneById
+      const serviceLineWithDoneBy = cart.find(
+        (l) => l.type === "SERVICE" && l.serviceStaffId
+      )
+      const serviceDoneById = serviceLineWithDoneBy?.serviceStaffId || undefined
+
+      const formattedRemarks = isPcBuild
+        ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
+        : remarks.trim() || undefined
+
+      const quotationPayload = {
+        branchId,
+        customerId: effectiveCustomerId,
+        serviceDoneById,
+        title: isPcBuild ? "PC Build Quotation" : (formattedRemarks || undefined),
+        notes: remarks.trim() || undefined,
+        isPcBuild,
+        items: cart.map((line) => {
+          if (line.type === "SERVICE") {
+            const rawDesc = line.description.trim()
+            const finalDesc = line.serviceStaffName
+              ? `${rawDesc} [Done by: ${line.serviceStaffName}]`
+              : rawDesc
+
+            return {
+              description: finalDesc,
+              priceTier: 1,
+              quantity: Number(line.quantity),
+              unitPrice: Number(line.baseUnitPrice ?? line.unitPrice),
+              markupPercent:
+                line.markupPercent === "" ||
+                line.markupPercent === undefined ||
+                line.markupPercent === null
+                  ? 0
+                  : Number(line.markupPercent),
+              discountAmount: Number(line.discountAmount || 0),
+              isPcBuildPart: isPcBuild,
+            }
+          }
+
+          return {
+            itemId: line.itemId,
+            priceTier: Number(line.priceTier),
+            markupPercent:
+              line.markupPercent === "" ||
+              line.markupPercent === undefined ||
+              line.markupPercent === null
+                ? 0
+                : Number(line.markupPercent),
+            quantity: Number(line.quantity),
+            discountAmount: Number(line.discountAmount || 0),
+            isPcBuildPart: isPcBuild,
+            warrantyDuration: line.warrantyDuration || undefined,
+          }
+        }),
+      }
+
+      const response = await createQuotation(quotationPayload)
+      const createdQuote = response?.data || response
+
+      if (!createdQuote?.id) {
+        throw new Error("Invalid quotation response")
+      }
+
+      const displayCode = String(createdQuote.quotationCode || "").match(/\d+$/)?.[0]?.padStart(5, "0") || createdQuote.quotationCode
+
+      setNoticeMessage(`Quotation No. ${displayCode} created successfully!`)
+      setActiveQuotationDoc(createdQuote)
+      setIsQuotationPreviewMode(false)
+      setIsQuotationDocOpen(true)
+    } catch (error) {
+      setCheckoutMessage(getApiErrorMessage(error, "Unable to create quotation."))
+    } finally {
+      setIsCreatingQuotation(false)
     }
   }
 
@@ -2641,23 +2792,52 @@ function PosSalesPage({ selectedBranch, user }) {
 
               {checkoutMessage ? <ErrorBanner>{checkoutMessage}</ErrorBanner> : null}
 
-              <button
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-5 py-4 text-sm font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={cart.length === 0 || isSubmittingSale || !branchId}
-                onClick={submitSale}
-                type="button"
-              >
-                {isSubmittingSale ? (
-                  <LoaderCircle className="animate-spin" size={18} />
-                ) : (
-                  <ReceiptText size={18} />
-                )}
-                {isSubmittingSale
-                  ? "Completing sale…"
-                  : isReceivableCheckout
-                    ? `Complete AR sale · ${formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}`
-                    : `Complete sale · ${formatMoney(totals.grandTotal)}`}
-              </button>
+              {/* Action Buttons Toolbar: Preview, Quote, and Complete Sale */}
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-slate-300 bg-white px-4 py-3.5 text-sm font-bold text-slate-800 shadow-xs transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={cart.length === 0}
+                  onClick={openCartPreview}
+                  title="Preview quotation or receipt before finalizing"
+                  type="button"
+                >
+                  <Eye size={17} />
+                  Preview
+                </button>
+
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-[#002060] bg-blue-50/50 px-4 py-3.5 text-sm font-bold text-[#002060] shadow-xs transition hover:bg-blue-100/70 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={cart.length === 0 || isCreatingQuotation || !branchId}
+                  onClick={submitQuotation}
+                  title="Save active cart as formal quotation"
+                  type="button"
+                >
+                  {isCreatingQuotation ? (
+                    <LoaderCircle className="animate-spin" size={17} />
+                  ) : (
+                    <FileText size={17} />
+                  )}
+                  {isCreatingQuotation ? "Saving Quote…" : "Quote"}
+                </button>
+
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-3.5 text-sm font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1"
+                  disabled={cart.length === 0 || isSubmittingSale || !branchId}
+                  onClick={submitSale}
+                  type="button"
+                >
+                  {isSubmittingSale ? (
+                    <LoaderCircle className="animate-spin" size={17} />
+                  ) : (
+                    <ReceiptText size={17} />
+                  )}
+                  {isSubmittingSale
+                    ? "Completing…"
+                    : isReceivableCheckout
+                      ? `Complete AR · ${formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}`
+                      : `Complete sale · ${formatMoney(totals.grandTotal)}`}
+                </button>
+              </div>
             </div>
           </section>
         </div>
@@ -2810,6 +2990,18 @@ function PosSalesPage({ selectedBranch, user }) {
 
       {saleToReturn ? (
         <ReturnSaleItemsDialog isSaving={isReturningSale} onClose={() => setSaleToReturn(null)} onConfirm={confirmSaleReturn} sale={saleToReturn} />
+      ) : null}
+
+      {isQuotationDocOpen && activeQuotationDoc ? (
+        <QuotationDetailDialog
+          installmentCalculation={isReceivableCheckout ? installmentCalculation : null}
+          isPreview={isQuotationPreviewMode}
+          onClose={() => {
+            setIsQuotationDocOpen(false)
+            setActiveQuotationDoc(null)
+          }}
+          quotation={activeQuotationDoc}
+        />
       ) : null}
     </div>
   )

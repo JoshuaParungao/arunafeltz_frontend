@@ -1196,6 +1196,330 @@ export function printWarrantyReceipt(sale) {
   exportWarrantyReceiptPdf(sale, { autoPrint: true })
 }
 
+export function exportCustomerQuotationPdf(quotation, options = {}) {
+  const context = options.context || {}
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+    compress: true,
+  })
+
+  const margin = 12
+  const pageWidth = 210
+  const contentWidth = pageWidth - margin * 2 // 186mm
+
+  const branch = quotation?.branch || context?.branch || {}
+  const customer = quotation?.customer || context?.customer || {}
+  const salesman =
+    quotation?.preparedBy?.fullName ||
+    quotation?.preparedBy?.username ||
+    quotation?.cashier?.fullName ||
+    quotation?.cashier?.username ||
+    context?.preparedBy ||
+    context?.salesman ||
+    "—"
+
+  // -----------------------------------------------------------------
+  // 1. HEADER SECTION
+  // -----------------------------------------------------------------
+  const leftColX = margin
+  const leftColWidth = 96
+
+  const rightColX = margin + 102
+  const rightLabelWidth = 26
+  const rightValX = rightColX + rightLabelWidth
+  const rightValWidth = contentWidth - 102 - rightLabelWidth
+
+  // Left side: Store Details
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.setTextColor(0, 0, 0)
+  const storeTitleLines = doc.splitTextToSize(
+    "ARUNAFELTZ COMPUTER PARTS AND ACCESSORIES SHOP",
+    leftColWidth
+  )
+  doc.text(storeTitleLines, leftColX, 14)
+
+  let leftY = 14 + storeTitleLines.length * 3.8 + 0.5
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(50, 50, 50)
+  const branchAddress =
+    branch.address ||
+    "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+  const addressLines = doc.splitTextToSize(branchAddress, leftColWidth)
+  doc.text(addressLines, leftColX, leftY)
+
+  leftY += addressLines.length * 3.4 + 1
+  const branchContact = branch.contactNo || "0961-873-5798 / 045-404-0673"
+  doc.text(branchContact, leftColX, leftY)
+  leftY += 4
+
+  // Right side: Customer & Meta Details
+  let rightY = 14
+  const quoteDate = quotation?.createdAt || quotation?.quotationDate || new Date()
+  const formattedDate = new Date(quoteDate).toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).toUpperCase()
+
+  const metaRows = [
+    ["Date:", formattedDate],
+    ["Customer Name:", (customer.fullName || "Walk-in customer").toUpperCase()],
+    ["Address:", customer.address || "—"],
+    ["Contact No.:", customer.mobileNumber || customer.email || "—"],
+    ["Salesman:", String(salesman).toUpperCase()],
+  ]
+
+  for (const [lbl, val] of metaRows) {
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7.5)
+    doc.setTextColor(70, 70, 70)
+    doc.text(lbl, rightColX, rightY)
+
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(0, 0, 0)
+    const valLines = doc.splitTextToSize(String(val || "—"), rightValWidth)
+    doc.text(valLines, rightValX, rightY)
+
+    rightY += Math.max(3.4, valLines.length * 3.1 + 0.3)
+  }
+
+  // -----------------------------------------------------------------
+  // 2. BANNER: QUOTATION & Pure Numeric Code
+  // -----------------------------------------------------------------
+  const bannerY = Math.max(leftY, rightY) + 5
+
+  doc.setFont("helvetica", "bolditalic")
+  doc.setFontSize(11)
+  doc.setTextColor(0, 32, 96) // Navy Blue
+  doc.text("QUOTATION", margin + contentWidth / 2 - 8, bannerY, { align: "center" })
+
+  const rawCode = String(quotation?.quotationCode || quotation?.code || "—").trim()
+  const numericCodeMatch = rawCode.match(/\d+$/)
+  const displayCode = numericCodeMatch ? numericCodeMatch[0].padStart(5, "0") : rawCode
+
+  doc.setFont("helvetica", "bolditalic")
+  doc.setFontSize(9)
+  doc.setTextColor(0, 32, 96)
+  doc.text("No.", margin + contentWidth - 28, bannerY)
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(10)
+  doc.setTextColor(0, 32, 96)
+  doc.text(displayCode, margin + contentWidth, bannerY, { align: "right" })
+
+  const codeWidth = doc.getTextWidth(displayCode)
+  doc.setLineWidth(0.3)
+  doc.setDrawColor(0, 32, 96)
+  doc.line(margin + contentWidth - codeWidth - 1, bannerY + 1.2, margin + contentWidth, bannerY + 1.2)
+
+  // -----------------------------------------------------------------
+  // 3. ITEMS TABLE (Exactly matching QUOTATION-FOR-NEW-SYSTEM (4).xlsx)
+  // -----------------------------------------------------------------
+  const tableStartY = bannerY + 6
+  const tableHead = [["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "CASH DISCOUNTED PRICE", "AMOUNT"]]
+
+  const items = quotation?.items || []
+  const tableBody = items.map((item) => {
+    const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
+    const desc = item.description || item.item?.itemName || "Item"
+    const qty = String(Number(item.quantity || 0))
+    const unitPrice = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
+    const lineTotal = Number(item.lineTotal ?? (qty * unitPrice - (Number(item.discountAmount) || 0)))
+
+    return [
+      itemCode,
+      desc,
+      qty,
+      unitPrice.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      lineTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    ]
+  })
+
+  autoTable(doc, {
+    startY: tableStartY,
+    head: tableHead,
+    body: tableBody,
+    theme: "plain",
+    margin: { left: margin, right: margin },
+    styles: {
+      font: "helvetica",
+      fontSize: 7.5,
+      cellPadding: { top: 1.6, bottom: 1.6, left: 1.2, right: 1.2 },
+      textColor: [0, 0, 0],
+      overflow: "linebreak",
+      valign: "middle",
+    },
+    headStyles: {
+      fontStyle: "bold",
+      textColor: [0, 0, 0],
+      fontSize: 8,
+      lineWidth: { top: 0.7, bottom: 0.7 },
+      lineColor: [0, 0, 0],
+      cellPadding: { top: 2, bottom: 2, left: 1.2, right: 1.2 },
+    },
+    columnStyles: {
+      0: { cellWidth: 22, fontStyle: "bold" },
+      1: { cellWidth: "auto" },
+      2: { cellWidth: 14, halign: "center" },
+      3: { cellWidth: 38, halign: "right" },
+      4: { cellWidth: 27, halign: "right", fontStyle: "bold" },
+    },
+  })
+
+  let finalY = doc.lastAutoTable?.finalY || tableStartY + 20
+
+  doc.setLineWidth(0.6)
+  doc.setDrawColor(0, 0, 0)
+  doc.line(margin, finalY + 1, margin + contentWidth, finalY + 1)
+  doc.line(margin, finalY + 1.8, margin + contentWidth, finalY + 1.8)
+
+  finalY += 5
+
+  // -----------------------------------------------------------------
+  // 4. TOTALS & PRICING SUMMARY (Cash Discounted, SRP, Regular Price / AR)
+  // -----------------------------------------------------------------
+  const cashPromoTotal = Number(quotation?.grandTotal || quotation?.subtotal || 0)
+  const srpTotal = Math.round((cashPromoTotal / 0.96) * 100) / 100
+  const regularTotal = Math.round((cashPromoTotal / 0.875) * 100) / 100
+
+  // Left: Warranty & PC Build Disclaimers (Exactly matching Excel Rows 22-23, 50-52)
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(7.5)
+  doc.setTextColor(0, 0, 0)
+
+  let noteY = finalY + 3
+  const isPcBuild = quotation?.isPcBuild || options?.isPcBuild
+  if (isPcBuild) {
+    doc.text("(FREE PC BUILD, CABLE MANAGEMENT & ESSENTIAL APP INSTALLATION)", margin, noteY)
+    noteY += 3.4
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(6.5)
+    doc.text(
+      "Exclusive to complete PC builds purchased from us. Not applicable to individual component purchases.",
+      margin,
+      noteY
+    )
+    noteY += 4.5
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7.5)
+  }
+
+  doc.text("ONE (1) YEAR WARRANTY ON MAJOR PARTS & ONE (1) MONTH ON ACCESSORIES", margin, noteY)
+  noteY += 3.4
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(6.5)
+  doc.text(
+    "COMPLETE BOX & INCLUSIONS (7 DAYS OUTRIGHT REPLACEMENT EXCEPT FOR PRINTERS)",
+    margin,
+    noteY
+  )
+  noteY += 3.6
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(7)
+  doc.setTextColor(150, 0, 0)
+  doc.text(
+    "CASH DISCOUNTED PRICE APPLIES ONLY FOR CASH, GCASH, BANK TRANSFER",
+    margin,
+    noteY
+  )
+
+  // Right: Price breakdown
+  const totalsLabelX = margin + contentWidth - 75
+  const totalsValueX = margin + contentWidth
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.setTextColor(0, 0, 0)
+
+  doc.text("TOTAL CASH DISCOUNTED PRICE", totalsLabelX, finalY + 4)
+  doc.text(
+    cashPromoTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    totalsValueX,
+    finalY + 4,
+    { align: "right" }
+  )
+
+  doc.text("SUGGESTED RETAIL PRICE", totalsLabelX, finalY + 8.5)
+  doc.text(
+    srpTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    totalsValueX,
+    finalY + 8.5,
+    { align: "right" }
+  )
+
+  doc.text("REGULAR PRICE (CREDIT / AR)", totalsLabelX, finalY + 13)
+  doc.text(
+    regularTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    totalsValueX,
+    finalY + 13,
+    { align: "right" }
+  )
+
+  // If specific installment calculation provided in options
+  if (options.installmentCalculation) {
+    const calc = options.installmentCalculation
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7.5)
+    doc.setTextColor(0, 32, 96)
+    doc.text(`SELECTED AR (${calc.months} MOS):`, totalsLabelX, finalY + 17.5)
+    doc.text(
+      `${calc.monthlyDueAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
+      totalsValueX,
+      finalY + 17.5,
+      { align: "right" }
+    )
+  }
+
+  finalY = Math.max(noteY + 8, finalY + 23)
+
+  // -----------------------------------------------------------------
+  // 5. SIGNATURES SECTION (Prepared by & Conforme matching Excel Rows 56-59)
+  // -----------------------------------------------------------------
+  const leftSigX = margin
+  const rightSigX = margin + contentWidth - 75
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(7.5)
+  doc.setTextColor(0, 0, 0)
+  doc.text("Prepared by:", leftSigX, finalY)
+  doc.text("CONFORME:", rightSigX, finalY)
+
+  doc.setLineWidth(0.3)
+  doc.line(leftSigX, finalY + 12, leftSigX + 65, finalY + 12)
+  doc.line(rightSigX, finalY + 12, rightSigX + 75, finalY + 12)
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(7)
+  doc.setTextColor(60, 60, 60)
+  doc.text(String(salesman).toUpperCase(), leftSigX + 32.5, finalY + 15.5, { align: "center" })
+  doc.text("Signature over Printed Name/ Date", rightSigX + 37.5, finalY + 15.5, { align: "center" })
+
+  if (options.autoPrint) {
+    doc.autoPrint()
+    const pdfUrl = doc.output("bloburl")
+    const printWindow = window.open(pdfUrl, "_blank")
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
+    } else {
+      doc.save(`Quotation_${displayCode}.pdf`)
+    }
+    return
+  }
+
+  doc.save(`Quotation_${displayCode}.pdf`)
+}
+
+export function printCustomerQuotation(quotation, options = {}) {
+  exportCustomerQuotationPdf(quotation, { ...options, autoPrint: true })
+}
+
 export function exportPurchaseOrderPdf(order, context) {
   exportBusinessPdf(purchaseOrderDocument(order, context))
 }
