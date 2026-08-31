@@ -2118,7 +2118,7 @@ function PosSalesPage({ selectedBranch, user }) {
                 <div className="flex items-start gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-violet-50 text-violet-700"><Wrench size={20} /></span>
                   <div>
-                    <h2 className="font-black text-[var(--color-text-strong)]">Service / custom line</h2>
+                    <h2 className="font-black text-[var(--color-text-strong)]">Service</h2>
                     <p className="mt-1 text-xs text-[var(--color-muted)]">Add optional labor, setup, delivery, or other non-inventory revenue.</p>
                   </div>
                 </div>
