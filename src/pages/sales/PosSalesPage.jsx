@@ -33,7 +33,13 @@ import {
   getInventorySerials,
 } from "../../features/inventory/inventory.api"
 import { getItems } from "../../features/items/items.api"
-import { createQuotation, getQuotationServiceStaff } from "../../features/quotations/quotations.api"
+import {
+  createQuotation,
+  getQuotationById,
+  getQuotations,
+  getQuotationServiceStaff,
+  updateQuotationStatus,
+} from "../../features/quotations/quotations.api"
 import { generateUUID } from "../../utils/uuid"
 import {
   cancelSale,
@@ -48,6 +54,8 @@ import {
   printWarrantyReceipt,
 } from "../../utils/businessDocumentExport"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
+import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
+import { serializeQuotationNotes } from "../../utils/quotationSettlement"
 
 const SALE_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -1015,6 +1023,19 @@ function PosSalesPage({ selectedBranch, user }) {
   const [salesMessage, setSalesMessage] = useState("")
   const salesRequestIdRef = useRef(0)
 
+  // Quotation History in POS
+  const [historyTab, setHistoryTab] = useState("SALES") // "SALES" | "QUOTATIONS"
+  const [quotations, setQuotations] = useState([])
+  const [quotationsMeta, setQuotationsMeta] = useState(null)
+  const [quotationsPage, setQuotationsPage] = useState(1)
+  const [quotationStatusFilter, setQuotationStatusFilter] = useState("")
+  const [isLoadingQuotations, setIsLoadingQuotations] = useState(false)
+  const [quotationsMessage, setQuotationsMessage] = useState("")
+  const [quotationToConvert, setQuotationToConvert] = useState(null)
+  const [quotationToView, setQuotationToView] = useState(null)
+  const [isCancellingQuotation, setIsCancellingQuotation] = useState(false)
+  const quotationRequestIdRef = useRef(0)
+
   const [detailSale, setDetailSale] = useState(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
@@ -1252,6 +1273,50 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }, [branchId, paymentStatus, salesPage, salesSearch, salesStatus])
 
+  const loadQuotations = useCallback(async () => {
+    if (!branchId) {
+      setQuotations([])
+      setQuotationsMeta(null)
+      return
+    }
+
+    const requestId = quotationRequestIdRef.current + 1
+    quotationRequestIdRef.current = requestId
+    setIsLoadingQuotations(true)
+    setQuotationsMessage("")
+
+    try {
+      const response = await getQuotations({
+        branchId,
+        page: quotationsPage,
+        limit: 20,
+        search: salesSearch.trim() || undefined,
+        status: quotationStatusFilter || undefined,
+      })
+      if (requestId !== quotationRequestIdRef.current) return
+
+      const rows = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.quotations)
+          ? response.quotations
+          : Array.isArray(response)
+            ? response
+            : []
+      const pagination = response?.pagination || response?.meta || null
+
+      setQuotations(rows)
+      setQuotationsMeta(pagination)
+      if (rows.length === 0) setQuotationsMessage("No quotations match the current search.")
+    } catch (error) {
+      if (requestId !== quotationRequestIdRef.current) return
+      setQuotations([])
+      setQuotationsMeta(null)
+      setQuotationsMessage(getApiErrorMessage(error, "Unable to load quotations."))
+    } finally {
+      if (requestId === quotationRequestIdRef.current) setIsLoadingQuotations(false)
+    }
+  }, [branchId, quotationStatusFilter, quotationsPage, salesSearch])
+
   useEffect(() => {
     const timer = window.setTimeout(loadSales, salesSearch.trim() ? 300 : 0)
     return () => {
@@ -1259,6 +1324,14 @@ function PosSalesPage({ selectedBranch, user }) {
       salesRequestIdRef.current += 1
     }
   }, [loadSales, salesSearch])
+
+  useEffect(() => {
+    const timer = window.setTimeout(loadQuotations, salesSearch.trim() ? 300 : 0)
+    return () => {
+      window.clearTimeout(timer)
+      quotationRequestIdRef.current += 1
+    }
+  }, [loadQuotations, salesSearch])
 
   const addProduct = async (item, preselectedSerial = null) => {
     if (!branchId || addingItemId) return
@@ -1834,12 +1907,23 @@ function PosSalesPage({ selectedBranch, user }) {
         ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
         : remarks.trim() || undefined
 
+      const settlementConfig = {
+        paymentMethod,
+        settlementMethod,
+        paymentAmount: Number(effectivePaymentAmount) || 0,
+        paymentReference: paymentReference.trim() || undefined,
+        creditTerm: isReceivableCheckout ? creditTerm : undefined,
+        creditDueDay: isReceivableCheckout ? creditDueDay : undefined,
+        creditFirstDueDate: isReceivableCheckout ? creditFirstDueDate : undefined,
+        providerReference: isReceivableCheckout ? providerReference.trim() : undefined,
+      }
+
       const quotationPayload = {
         branchId,
         customerId: effectiveCustomerId,
         serviceDoneById,
         title: isPcBuild ? "PC Build Quotation" : (formattedRemarks || undefined),
-        notes: remarks.trim() || undefined,
+        notes: serializeQuotationNotes(remarks.trim(), settlementConfig),
         isPcBuild,
         items: cart.map((line) => {
           if (line.type === "SERVICE") {
@@ -2887,135 +2971,508 @@ function PosSalesPage({ selectedBranch, user }) {
 
       <section className="min-w-0 overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
         <div className="border-b border-[var(--color-border)] p-4 sm:p-5">
-          <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><ReceiptText size={20} /></span><div><h2 className="font-black text-[var(--color-text-strong)]">Sales history</h2><p className="text-xs text-[var(--color-muted)]">Records for the active branch.</p></div></div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span className={`grid h-10 w-10 place-items-center rounded-2xl ${historyTab === "QUOTATIONS" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"}`}>
+                {historyTab === "QUOTATIONS" ? <FileText size={20} /> : <ReceiptText size={20} />}
+              </span>
+              <div>
+                <h2 className="font-black text-[var(--color-text-strong)]">
+                  {historyTab === "QUOTATIONS" ? "Customer Quotations" : "Sales history"}
+                </h2>
+                <p className="text-xs text-[var(--color-muted)]">Records for the active branch.</p>
+              </div>
+            </div>
+
+            <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-1">
+              <button
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition ${
+                  historyTab === "SALES"
+                    ? "bg-white text-[var(--color-text-strong)] shadow-xs"
+                    : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                }`}
+                onClick={() => setHistoryTab("SALES")}
+                type="button"
+              >
+                <ReceiptText size={15} />
+                Sales History
+                {salesMeta?.total !== undefined ? (
+                  <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                    {salesMeta.total}
+                  </span>
+                ) : null}
+              </button>
+              <button
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition ${
+                  historyTab === "QUOTATIONS"
+                    ? "bg-white text-[var(--color-text-strong)] shadow-xs"
+                    : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                }`}
+                onClick={() => setHistoryTab("QUOTATIONS")}
+                type="button"
+              >
+                <FileText size={15} />
+                Quotations (Convert to Sale)
+                {quotationsMeta?.totalItems !== undefined || quotationsMeta?.total !== undefined ? (
+                  <span className="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-extrabold text-blue-800">
+                    {quotationsMeta?.totalItems ?? quotationsMeta?.total}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          </div>
+
           <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <label className="relative md:col-span-1"><Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={17} /><input className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-11 pr-4 text-sm outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSalesSearch(event.target.value); setSalesPage(1) }} placeholder="Receipt code or remarks" value={salesSearch} /></label>
-            <select className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-semibold" onChange={(event) => { setSalesStatus(event.target.value); setSalesPage(1) }} value={salesStatus}><option value="">All sale statuses</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option><option value="REFUNDED">Refunded</option><option value="PARTIALLY_REFUNDED">Partially refunded</option></select>
-            <select className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-semibold" onChange={(event) => { setPaymentStatus(event.target.value); setSalesPage(1) }} value={paymentStatus}><option value="">All payment statuses</option><option value="PAID">Paid</option><option value="PARTIALLY_PAID">Partially paid</option><option value="UNPAID">Unpaid</option><option value="REFUNDED">Refunded</option></select>
+            <label className="relative md:col-span-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={17} />
+              <input
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-11 pr-4 text-sm outline-none focus:border-[var(--color-maroon)]"
+                onChange={(event) => {
+                  setSalesSearch(event.target.value)
+                  setSalesPage(1)
+                  setQuotationsPage(1)
+                }}
+                placeholder={historyTab === "QUOTATIONS" ? "Search customer name, quote no, or title" : "Search customer name, receipt code, or remarks"}
+                value={salesSearch}
+              />
+            </label>
+
+            {historyTab === "SALES" ? (
+              <>
+                <select className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-semibold" onChange={(event) => { setSalesStatus(event.target.value); setSalesPage(1) }} value={salesStatus}>
+                  <option value="">All sale statuses</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                  <option value="REFUNDED">Refunded</option>
+                  <option value="PARTIALLY_REFUNDED">Partially refunded</option>
+                </select>
+                <select className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-semibold" onChange={(event) => { setPaymentStatus(event.target.value); setSalesPage(1) }} value={paymentStatus}>
+                  <option value="">All payment statuses</option>
+                  <option value="PAID">Paid</option>
+                  <option value="PARTIALLY_PAID">Partially paid</option>
+                  <option value="UNPAID">Unpaid</option>
+                  <option value="REFUNDED">Refunded</option>
+                </select>
+              </>
+            ) : (
+              <select
+                className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-semibold md:col-span-2"
+                onChange={(event) => {
+                  setQuotationStatusFilter(event.target.value)
+                  setQuotationsPage(1)
+                }}
+                value={quotationStatusFilter}
+              >
+                <option value="">All quotation statuses</option>
+                <option value="DRAFT">Draft</option>
+                <option value="SENT">Sent</option>
+                <option value="APPROVED">Approved</option>
+                <option value="CONVERTED">Converted</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            )}
           </div>
         </div>
 
-        {isLoadingSales ? (
-          <div className="flex items-center gap-3 p-6 text-sm font-semibold text-[var(--color-muted)]"><LoaderCircle className="animate-spin" size={18} />Loading sales…</div>
-        ) : sales.length === 0 ? (
-          <div className="grid place-items-center p-10 text-center"><ReceiptText className="text-[var(--color-muted)]" size={40} /><p className="mt-3 font-bold text-[var(--color-text-strong)]">{salesMessage || "No sales yet"}</p><p className="mt-1 text-sm text-[var(--color-muted)]">Completed transactions will appear here.</p></div>
-        ) : (
-          <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
-                  <tr>
-                    <th className="px-4 py-3">Receipt</th>
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Sales Agent</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Payment</th>
-                    <th className="px-4 py-3 text-right">Total</th>
-                    <th className="px-4 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
-                  {sales.map((sale) => (
-                    <tr className="transition hover:bg-[var(--color-soft)]" key={sale.id}>
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-[var(--color-text-strong)]">{sale.receiptCode}</p>
+        {historyTab === "SALES" ? (
+          isLoadingSales ? (
+            <div className="flex items-center gap-3 p-6 text-sm font-semibold text-[var(--color-muted)]"><LoaderCircle className="animate-spin" size={18} />Loading sales…</div>
+          ) : sales.length === 0 ? (
+            <div className="grid place-items-center p-10 text-center"><ReceiptText className="text-[var(--color-muted)]" size={40} /><p className="mt-3 font-bold text-[var(--color-text-strong)]">{salesMessage || "No sales yet"}</p><p className="mt-1 text-sm text-[var(--color-muted)]">Completed transactions will appear here.</p></div>
+          ) : (
+            <>
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                    <tr>
+                      <th className="px-4 py-3">Receipt</th>
+                      <th className="px-4 py-3">Customer</th>
+                      <th className="px-4 py-3">Sales Agent</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Payment</th>
+                      <th className="px-4 py-3 text-right">Total</th>
+                      <th className="px-4 py-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {sales.map((sale) => (
+                      <tr className="transition hover:bg-[var(--color-soft)]" key={sale.id}>
+                        <td className="px-4 py-4">
+                          <p className="font-bold text-[var(--color-text-strong)]">{sale.receiptCode}</p>
+                          <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
+                        </td>
+                        <td className="px-4 py-4">{sale.customer?.fullName || "Walk-in"}</td>
+                        <td className="px-4 py-4">{sale.cashier?.fullName || "—"}</td>
+                        <td className="px-4 py-4"><StatusBadge status={sale.status} /></td>
+                        <td className="px-4 py-4"><StatusBadge status={sale.paymentStatus} /></td>
+                        <td className="px-4 py-4 text-right font-black">{formatMoney(sale.grandTotal)}</td>
+                        <td className="px-4 py-4 text-right">
+                          <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-bold transition hover:bg-[var(--color-soft)]"
+                              onClick={() => openSaleDetails(sale)}
+                              type="button"
+                            >
+                              <Eye size={13} /> View
+                            </button>
+                            {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                              <button
+                                className="inline-flex items-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-bold text-orange-800 transition hover:bg-orange-100"
+                                onClick={() => handleOpenReturn(sale)}
+                                type="button"
+                                title="Refund or return specific items"
+                              >
+                                <RotateCcw size={13} /> Refund
+                              </button>
+                            ) : null}
+                            {canCancelSale && sale.status === "COMPLETED" ? (
+                              <button
+                                className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                                onClick={() => handleOpenCancel(sale)}
+                                type="button"
+                                title="Cancel whole sale"
+                              >
+                                <X size={13} /> Cancel
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="grid gap-3 p-4 lg:hidden">
+                {sales.map((sale) => (
+                  <article className="rounded-2xl border border-[var(--color-border)] p-4" key={sale.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-black text-[var(--color-text-strong)]">{sale.receiptCode}</p>
                         <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
-                      </td>
-                      <td className="px-4 py-4">{sale.customer?.fullName || "Walk-in"}</td>
-                      <td className="px-4 py-4">{sale.cashier?.fullName || "—"}</td>
-                      <td className="px-4 py-4"><StatusBadge status={sale.status} /></td>
-                      <td className="px-4 py-4"><StatusBadge status={sale.paymentStatus} /></td>
-                      <td className="px-4 py-4 text-right font-black">{formatMoney(sale.grandTotal)}</td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                      </div>
+                      <p className="font-black text-[var(--color-text-strong)]">{formatMoney(sale.grandTotal)}</p>
+                    </div>
+                    <p className="mt-3 text-sm">{sale.customer?.fullName || "Walk-in customer"}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <StatusBadge status={sale.status} />
+                      <StatusBadge status={sale.paymentStatus} />
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold"
+                        onClick={() => openSaleDetails(sale)}
+                        type="button"
+                      >
+                        <Eye size={14} /> View
+                      </button>
+                      {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                        <button
+                          className="inline-flex items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800"
+                          onClick={() => handleOpenReturn(sale)}
+                          type="button"
+                        >
+                          <RotateCcw size={14} /> Refund
+                        </button>
+                      ) : null}
+                      {canCancelSale && sale.status === "COMPLETED" ? (
+                        <button
+                          className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
+                          onClick={() => handleOpenCancel(sale)}
+                          type="button"
+                        >
+                          <X size={14} /> Cancel
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          )
+        ) : (
+          /* Quotations History View with Direct Convert to Sale */
+          isLoadingQuotations ? (
+            <div className="flex items-center gap-3 p-6 text-sm font-semibold text-[var(--color-muted)]">
+              <LoaderCircle className="animate-spin" size={18} />
+              Loading customer quotations…
+            </div>
+          ) : quotations.length === 0 ? (
+            <div className="grid place-items-center p-10 text-center">
+              <FileText className="text-[var(--color-muted)]" size={40} />
+              <p className="mt-3 font-bold text-[var(--color-text-strong)]">{quotationsMessage || "No quotations found"}</p>
+              <p className="mt-1 text-sm text-[var(--color-muted)]">
+                Quotations created in POS or saved for customers will appear here ready to convert.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                    <tr>
+                      <th className="px-4 py-3">Quotation no.</th>
+                      <th className="px-4 py-3">Customer</th>
+                      <th className="px-4 py-3">Items</th>
+                      <th className="px-4 py-3">Prepared by</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 text-right">Grand total</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {quotations.map((quote) => {
+                      const displayCode = String(quote.quotationCode || "").match(/\d+$/)?.[0]?.padStart(5, "0") || quote.quotationCode
+                      const itemCount = quote._count?.items ?? quote.items?.length ?? "—"
+                      const canConvert = !["CONVERTED", "CANCELLED", "REJECTED"].includes(quote.status)
+                      const canCancel = !["CONVERTED", "CANCELLED"].includes(quote.status)
+
+                      return (
+                        <tr className="transition hover:bg-[var(--color-soft)]" key={quote.id}>
+                          <td className="px-4 py-4">
+                            <p className="font-mono font-bold text-[var(--color-text-strong)]">#{displayCode}</p>
+                            <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(quote.createdAt)}</p>
+                          </td>
+                          <td className="px-4 py-4 font-semibold text-[var(--color-text-strong)]">
+                            {quote.customer?.fullName || "Walk-in customer"}
+                          </td>
+                          <td className="px-4 py-4 font-medium text-[var(--color-muted)]">
+                            {itemCount} item(s)
+                          </td>
+                          <td className="px-4 py-4 text-xs text-[var(--color-muted)]">
+                            {quote.preparedBy?.fullName || "—"}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+                              quote.status === "CONVERTED"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : quote.status === "CANCELLED"
+                                  ? "bg-rose-100 text-rose-800"
+                                  : "bg-blue-100 text-blue-800"
+                            }`}>
+                              {quote.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-right font-black text-[var(--color-text-strong)]">
+                            {formatMoney(quote.grandTotal)}
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                              <button
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-bold transition hover:bg-[var(--color-soft)]"
+                                onClick={async () => {
+                                  try {
+                                    const detailed = await getQuotationById(quote.id)
+                                    setQuotationToView(detailed?.data || detailed)
+                                  } catch {
+                                    setQuotationToView(quote)
+                                  }
+                                }}
+                                type="button"
+                              >
+                                <Eye size={13} /> View
+                              </button>
+
+                              {canConvert ? (
+                                <button
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+                                  onClick={async () => {
+                                    try {
+                                      const detailed = await getQuotationById(quote.id)
+                                      setQuotationToConvert(detailed?.data || detailed)
+                                    } catch (err) {
+                                      setNoticeMessage(getApiErrorMessage(err, "Failed to load quotation items for conversion."))
+                                    }
+                                  }}
+                                  type="button"
+                                  title="Convert directly into a completed sale"
+                                >
+                                  <ReceiptText size={13} /> Convert to Sale
+                                </button>
+                              ) : null}
+
+                              {canCancel ? (
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                                  disabled={isCancellingQuotation}
+                                  onClick={async () => {
+                                    if (!window.confirm(`Are you sure you want to cancel Quotation #${displayCode}?`)) {
+                                      return
+                                    }
+                                    try {
+                                      setIsCancellingQuotation(true)
+                                      await updateQuotationStatus(quote.id, {
+                                        status: "CANCELLED",
+                                        remarks: "Cancelled from POS history",
+                                      })
+                                      setNoticeMessage(`Quotation #${displayCode} cancelled.`)
+                                      await loadQuotations()
+                                    } catch (err) {
+                                      setNoticeMessage(getApiErrorMessage(err, "Failed to cancel quotation."))
+                                    } finally {
+                                      setIsCancellingQuotation(false)
+                                    }
+                                  }}
+                                  type="button"
+                                  title="Cancel quotation"
+                                >
+                                  <X size={13} /> Cancel
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile view for quotations */}
+              <div className="grid gap-3 p-4 lg:hidden">
+                {quotations.map((quote) => {
+                  const displayCode = String(quote.quotationCode || "").match(/\d+$/)?.[0]?.padStart(5, "0") || quote.quotationCode
+                  const canConvert = !["CONVERTED", "CANCELLED", "REJECTED"].includes(quote.status)
+                  const canCancel = !["CONVERTED", "CANCELLED"].includes(quote.status)
+
+                  return (
+                    <article className="rounded-2xl border border-[var(--color-border)] p-4" key={quote.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-mono font-black text-[var(--color-text-strong)]">#{displayCode}</p>
+                          <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(quote.createdAt)}</p>
+                        </div>
+                        <p className="font-black text-[var(--color-text-strong)]">{formatMoney(quote.grandTotal)}</p>
+                      </div>
+                      <p className="mt-3 text-sm font-semibold">{quote.customer?.fullName || "Walk-in customer"}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                          {quote.status}
+                        </span>
+                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                          {quote._count?.items ?? quote.items?.length ?? 0} items
+                        </span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold"
+                          onClick={async () => {
+                            try {
+                              const detailed = await getQuotationById(quote.id)
+                              setQuotationToView(detailed?.data || detailed)
+                            } catch {
+                              setQuotationToView(quote)
+                            }
+                          }}
+                          type="button"
+                        >
+                          <Eye size={14} /> View
+                        </button>
+                        {canConvert ? (
                           <button
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-bold transition hover:bg-[var(--color-soft)]"
-                            onClick={() => openSaleDetails(sale)}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-emerald-700"
+                            onClick={async () => {
+                              try {
+                                const detailed = await getQuotationById(quote.id)
+                                setQuotationToConvert(detailed?.data || detailed)
+                              } catch (err) {
+                                setNoticeMessage(getApiErrorMessage(err, "Failed to load quotation items for conversion."))
+                              }
+                            }}
                             type="button"
                           >
-                            <Eye size={13} /> View
+                            <ReceiptText size={14} /> Convert
                           </button>
-                          {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
-                            <button
-                              className="inline-flex items-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-bold text-orange-800 transition hover:bg-orange-100"
-                              onClick={() => handleOpenReturn(sale)}
-                              type="button"
-                              title="Refund or return specific items"
-                            >
-                              <RotateCcw size={13} /> Refund
-                            </button>
-                          ) : null}
-                          {canCancelSale && sale.status === "COMPLETED" ? (
-                            <button
-                              className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
-                              onClick={() => handleOpenCancel(sale)}
-                              type="button"
-                              title="Cancel whole sale"
-                            >
-                              <X size={13} /> Cancel
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="grid gap-3 p-4 lg:hidden">
-              {sales.map((sale) => (
-                <article className="rounded-2xl border border-[var(--color-border)] p-4" key={sale.id}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-black text-[var(--color-text-strong)]">{sale.receiptCode}</p>
-                      <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
-                    </div>
-                    <p className="font-black text-[var(--color-text-strong)]">{formatMoney(sale.grandTotal)}</p>
-                  </div>
-                  <p className="mt-3 text-sm">{sale.customer?.fullName || "Walk-in customer"}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <StatusBadge status={sale.status} />
-                    <StatusBadge status={sale.paymentStatus} />
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold"
-                      onClick={() => openSaleDetails(sale)}
-                      type="button"
-                    >
-                      <Eye size={14} /> View
-                    </button>
-                    {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
-                      <button
-                        className="inline-flex items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800"
-                        onClick={() => handleOpenReturn(sale)}
-                        type="button"
-                      >
-                        <RotateCcw size={14} /> Refund
-                      </button>
-                    ) : null}
-                    {canCancelSale && sale.status === "COMPLETED" ? (
-                      <button
-                        className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
-                        onClick={() => handleOpenCancel(sale)}
-                        type="button"
-                      >
-                        <X size={14} /> Cancel
-                      </button>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </>
+                        ) : null}
+                        {canCancel ? (
+                          <button
+                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
+                            disabled={isCancellingQuotation}
+                            onClick={async () => {
+                              if (!window.confirm(`Are you sure you want to cancel Quotation #${displayCode}?`)) {
+                                return
+                              }
+                              try {
+                                setIsCancellingQuotation(true)
+                                await updateQuotationStatus(quote.id, {
+                                  status: "CANCELLED",
+                                  remarks: "Cancelled from POS history",
+                                })
+                                setNoticeMessage(`Quotation #${displayCode} cancelled.`)
+                                await loadQuotations()
+                              } catch (err) {
+                                setNoticeMessage(getApiErrorMessage(err, "Failed to cancel quotation."))
+                              } finally {
+                                setIsCancellingQuotation(false)
+                              }
+                            }}
+                            type="button"
+                          >
+                            <X size={14} /> Cancel
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            </>
+          )
         )}
 
-        {!isLoadingSales && sales.length > 0 ? (
-          <div className="flex flex-col gap-3 border-t border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-semibold text-[var(--color-muted)]">Page {salesMeta?.page || salesPage} of {totalPages} · {salesMeta?.total ?? sales.length} sale(s)</p>
-            <div className="grid grid-cols-2 gap-2 sm:flex"><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40" disabled={salesPage <= 1} onClick={() => setSalesPage((current) => Math.max(1, current - 1))} type="button"><ChevronLeft size={16} />Previous</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40" disabled={salesPage >= totalPages} onClick={() => setSalesPage((current) => current + 1)} type="button">Next<ChevronRight size={16} /></button></div>
-          </div>
-        ) : null}
+        {/* Pagination footer */}
+        {historyTab === "SALES" ? (
+          !isLoadingSales && sales.length > 0 ? (
+            <div className="flex flex-col gap-3 border-t border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-semibold text-[var(--color-muted)]">
+                Page {salesMeta?.page || salesPage} of {totalPages} · {salesMeta?.total ?? sales.length} sale(s)
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40"
+                  disabled={salesPage <= 1}
+                  onClick={() => setSalesPage((current) => Math.max(1, current - 1))}
+                  type="button"
+                >
+                  <ChevronLeft size={16} /> Previous
+                </button>
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40"
+                  disabled={salesPage >= totalPages}
+                  onClick={() => setSalesPage((current) => current + 1)}
+                  type="button"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          ) : null
+        ) : (
+          !isLoadingQuotations && quotations.length > 0 ? (
+            <div className="flex flex-col gap-3 border-t border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-semibold text-[var(--color-muted)]">
+                Page {quotationsMeta?.page || quotationsPage} of {quotationsMeta?.totalPages || 1} · {quotationsMeta?.totalItems ?? quotations.length} quotation(s)
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40"
+                  disabled={quotationsPage <= 1}
+                  onClick={() => setQuotationsPage((current) => Math.max(1, current - 1))}
+                  type="button"
+                >
+                  <ChevronLeft size={16} /> Previous
+                </button>
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40"
+                  disabled={quotationsPage >= (quotationsMeta?.totalPages || 1)}
+                  onClick={() => setQuotationsPage((current) => current + 1)}
+                  type="button"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          ) : null
+        )}
       </section>
 
       {completedSale ? (
@@ -3045,6 +3502,34 @@ function PosSalesPage({ selectedBranch, user }) {
           }}
           onSaveQuotation={isQuotationPreviewMode ? submitQuotation : null}
           quotation={activeQuotationDoc}
+        />
+      ) : null}
+
+      {quotationToView ? (
+        <QuotationDetailDialog
+          onClose={() => setQuotationToView(null)}
+          onConvertToSale={(quote) => {
+            setQuotationToView(null)
+            setQuotationToConvert(quote)
+          }}
+          quotation={quotationToView}
+        />
+      ) : null}
+
+      {quotationToConvert ? (
+        <QuotationConversionDialog
+          branchId={branchId}
+          installmentRates={installmentRates}
+          onClose={() => setQuotationToConvert(null)}
+          onSuccess={(createdSale) => {
+            setQuotationToConvert(null)
+            setNoticeMessage(`Sale ${createdSale.receiptCode} completed successfully from quotation!`)
+            setCompletedSale(createdSale)
+            loadSales()
+            loadQuotations()
+            loadItems()
+          }}
+          quotation={quotationToConvert}
         />
       ) : null}
     </div>

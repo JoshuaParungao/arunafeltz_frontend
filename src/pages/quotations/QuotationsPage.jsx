@@ -1331,10 +1331,10 @@ function QuotationsPage({ selectedBranch, user }) {
         <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="brand-text text-3xl font-bold text-[var(--color-text-strong)]">
-              Quotation Module
+              Quotation Records
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-muted)]">
-              Create product, service, and mixed quotations before converting them to sales.
+              Archive of customer quotations created in POS. View details, export PDF/print, or cancel quotations.
             </p>
           </div>
 
@@ -1368,10 +1368,10 @@ function QuotationsPage({ selectedBranch, user }) {
 
         <div className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-            Status
+            Active quotations
           </p>
-          <p className="mt-2 text-sm font-semibold text-[var(--color-text-strong)]">
-            {isLoading ? "Loading quotations..." : "Backend list connected"}
+          <p className="mt-2 text-2xl font-bold text-[var(--color-text-strong)]">
+            {quotations.filter((quote) => ["DRAFT", "SENT", "APPROVED"].includes(quote.status)).length}
           </p>
         </div>
       </div>
@@ -1409,14 +1409,6 @@ function QuotationsPage({ selectedBranch, user }) {
             >
               {isLoading ? "Refreshing..." : "Refresh"}
             </button>
-
-            <button
-              className="rounded-2xl bg-[var(--color-maroon)] px-5 py-3 text-sm font-bold text-white shadow-soft transition hover:opacity-90"
-              onClick={openNewQuotationForm}
-              type="button"
-            >
-              New quotation
-            </button>
           </div>
         </div>
 
@@ -1438,28 +1430,28 @@ function QuotationsPage({ selectedBranch, user }) {
                   <th className="px-5 py-4">Quotation no.</th>
                   <th className="px-5 py-4">Customer</th>
                   <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4 text-right">Lines</th>
+                  <th className="px-5 py-4 text-right">Items</th>
                   <th className="px-5 py-4">Prepared by</th>
-                  <th className="px-5 py-4 text-right">Amount</th>
+                  <th className="px-5 py-4 text-right">Grand total</th>
                   <th className="px-5 py-4">Date</th>
-                  <th className="px-5 py-4 text-right">Action</th>
+                  <th className="px-5 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[var(--color-border)]">
                 {filteredQuotations.map((quotation) => (
                   <tr
-                    className="border-t border-[var(--color-border)] text-[var(--color-text)]"
-                    key={quotation.id || quotation.quotationCode}
+                    className="transition hover:bg-[var(--color-soft)]/50"
+                    key={quotation.id}
                   >
-                    <td className="px-5 py-4 font-bold text-[var(--color-text-strong)]">
-                      {quotation.quotationCode || quotation.code || "—"}
+                    <td className="px-5 py-4 font-mono font-bold text-[var(--color-text-strong)]">
+                      {quotation.quotationCode || "—"}
                     </td>
                     <td className="px-5 py-4">
-                      {quotation.customer?.fullName || quotation.customerName || "Walk-in / No customer"}
+                      {quotation.customer?.fullName || "Walk-in"}
                     </td>
                     <td className="px-5 py-4">
                       <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-xs font-bold text-[var(--color-text-strong)]">
-                        {quotation.status || "DRAFT"}
+                        {quotation.status}
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right font-bold text-[var(--color-text-strong)]">
@@ -1496,9 +1488,33 @@ function QuotationsPage({ selectedBranch, user }) {
                               setIsConversionOpen(true)
                             }}
                             type="button"
-                            title="Directly convert quotation to sale"
+                            title="Convert quotation to sale"
                           >
                             Convert
+                          </button>
+                        ) : null}
+                        {!["CONVERTED", "CANCELLED"].includes(quotation.status) ? (
+                          <button
+                            className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                            disabled={isLoadingDetails || isUpdatingStatus}
+                            onClick={async () => {
+                              if (!window.confirm(`Are you sure you want to cancel Quotation ${quotation.quotationCode}? This action cannot be undone.`)) {
+                                return
+                              }
+                              try {
+                                await updateQuotationStatus(quotation.id, {
+                                  status: "CANCELLED",
+                                  remarks: "Cancelled from quotation archive",
+                                })
+                                await loadQuotations()
+                              } catch (err) {
+                                alert(err?.response?.data?.message || "Failed to cancel quotation.")
+                              }
+                            }}
+                            type="button"
+                            title="Cancel / Delete quotation"
+                          >
+                            Cancel
                           </button>
                         ) : null}
                       </div>
