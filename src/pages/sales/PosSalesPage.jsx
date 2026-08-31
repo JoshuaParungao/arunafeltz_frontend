@@ -935,6 +935,7 @@ function PosSalesPage({ selectedBranch, user }) {
   const [customerMessage, setCustomerMessage] = useState("")
   const customerRequestIdRef = useRef(0)
   const customerDropdownRef = useRef(null)
+  const customerInputRef = useRef(null)
 
   const [serviceStaffList, setServiceStaffList] = useState([])
   const [isLoadingServiceStaff, setIsLoadingServiceStaff] = useState(false)
@@ -1455,7 +1456,13 @@ function PosSalesPage({ selectedBranch, user }) {
 
   const validateCart = () => {
     if (!branchId) return "Select a branch before creating a sale."
-    if (cart.length === 0) return "Add at least one product or service line."
+    if (cart.length === 0) return "Cart is empty."
+
+    const hasCustomer = Boolean(selectedCustomerId || customerSearch.trim())
+    if (!hasCustomer) {
+      customerInputRef.current?.focus()
+      return "Customer name is required before proceeding. Please enter or select a customer."
+    }
 
     const serialIds = new Set()
     const batchQuantities = new Map()
@@ -1740,6 +1747,14 @@ function PosSalesPage({ selectedBranch, user }) {
 
   const openCartPreview = () => {
     if (cart.length === 0) return
+    const hasCustomer = Boolean(selectedCustomerId || customerSearch.trim())
+    if (!hasCustomer) {
+      setCheckoutMessage("Customer name is required before previewing quotation. Please enter or select a customer.")
+      customerInputRef.current?.focus()
+      return
+    }
+    setCheckoutMessage("")
+
     const matchedCustomer = customers.find((c) => c.id === selectedCustomerId)
     const customerObj = matchedCustomer || (customerSearch.trim() ? { fullName: customerSearch.trim() } : { fullName: "Walk-in customer" })
 
@@ -1775,6 +1790,12 @@ function PosSalesPage({ selectedBranch, user }) {
 
   const submitQuotation = async () => {
     if (cart.length === 0 || isCreatingQuotation || !branchId) return
+    const hasCustomer = Boolean(selectedCustomerId || customerSearch.trim())
+    if (!hasCustomer) {
+      setCheckoutMessage("Customer name is required before creating a quotation. Please enter or select a customer.")
+      customerInputRef.current?.focus()
+      return
+    }
     setCheckoutMessage("")
     setIsCreatingQuotation(true)
 
@@ -2072,8 +2093,12 @@ function PosSalesPage({ selectedBranch, user }) {
                 <div className="flex items-start gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700"><UserRound size={20} /></span>
                   <div>
-                    <h2 className="font-black text-[var(--color-text-strong)]">Customer</h2>
-                    <p className="mt-1 text-xs text-[var(--color-muted)]">Type name to search existing records, or enter new name for walk-in / new customer.</p>
+                    <h2 className="font-black text-[var(--color-text-strong)] flex items-center gap-1.5">
+                      Customer <span className="text-red-500 font-bold text-sm">*</span>
+                    </h2>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">
+                      Required. Type customer name to search existing records, or enter new name.
+                    </p>
                   </div>
                 </div>
                 {selectedCustomerId || customerSearch.trim() ? (
@@ -2085,10 +2110,10 @@ function PosSalesPage({ selectedBranch, user }) {
                       setIsCustomerDropdownOpen(false)
                       setSelectedPriceTier(1)
                     }}
-                    title="Reset to anonymous walk-in"
+                    title="Clear customer name"
                     type="button"
                   >
-                    <X size={12} /> Walk-in
+                    <X size={12} /> Clear
                   </button>
                 ) : null}
               </div>
@@ -2097,8 +2122,13 @@ function PosSalesPage({ selectedBranch, user }) {
               <div className="relative mt-4" ref={customerDropdownRef}>
                 <div className="relative">
                   <input
+                    ref={customerInputRef}
                     aria-label="Search or enter customer name"
-                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-4 pr-10 text-sm outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
+                    className={`w-full rounded-2xl border bg-[var(--color-soft)] py-3 pl-4 pr-10 text-sm outline-none transition focus:bg-white ${
+                      !selectedCustomerId && !customerSearch.trim() && checkoutMessage?.includes("Customer name is required")
+                        ? "border-red-500 focus:border-red-600 focus:ring-2 focus:ring-red-200"
+                        : "border-[var(--color-border)] focus:border-[var(--color-maroon)]"
+                    }`}
                     onChange={(event) => {
                       setCustomerSearch(event.target.value)
                       setIsCustomerDropdownOpen(true)
@@ -2107,7 +2137,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       }
                     }}
                     onFocus={() => setIsCustomerDropdownOpen(true)}
-                    placeholder="Type customer name (e.g. Joshua Garcia)..."
+                    placeholder="Type customer name (e.g. Joshua Garcia) *required..."
                     value={customerSearch}
                   />
                   {customerSearch.trim() ? (
@@ -2790,15 +2820,30 @@ function PosSalesPage({ selectedBranch, user }) {
                 </div>
               </div>
 
+              {cart.length > 0 && !selectedCustomerId && !customerSearch.trim() ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-900 shadow-2xs">
+                  <span className="font-semibold">
+                    ⚠️ Customer name is required to Preview, Quote, or Complete sale.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => customerInputRef.current?.focus()}
+                    className="font-bold text-[var(--color-maroon)] underline hover:opacity-80 shrink-0"
+                  >
+                    Enter Customer Name ↑
+                  </button>
+                </div>
+              ) : null}
+
               {checkoutMessage ? <ErrorBanner>{checkoutMessage}</ErrorBanner> : null}
 
               {/* Action Buttons Toolbar: Preview, Quote, and Complete Sale */}
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-slate-300 bg-white px-4 py-3.5 text-sm font-bold text-slate-800 shadow-xs transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={cart.length === 0}
+                  disabled={cart.length === 0 || (!selectedCustomerId && !customerSearch.trim())}
                   onClick={openCartPreview}
-                  title="Preview quotation or receipt before finalizing"
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Preview quotation before finalizing"}
                   type="button"
                 >
                   <Eye size={17} />
@@ -2807,9 +2852,9 @@ function PosSalesPage({ selectedBranch, user }) {
 
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-[#002060] bg-blue-50/50 px-4 py-3.5 text-sm font-bold text-[#002060] shadow-xs transition hover:bg-blue-100/70 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={cart.length === 0 || isCreatingQuotation || !branchId}
+                  disabled={cart.length === 0 || isCreatingQuotation || !branchId || (!selectedCustomerId && !customerSearch.trim())}
                   onClick={submitQuotation}
-                  title="Save active cart as formal quotation"
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Save active cart as formal quotation"}
                   type="button"
                 >
                   {isCreatingQuotation ? (
@@ -2822,8 +2867,9 @@ function PosSalesPage({ selectedBranch, user }) {
 
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-3.5 text-sm font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1"
-                  disabled={cart.length === 0 || isSubmittingSale || !branchId}
+                  disabled={cart.length === 0 || isSubmittingSale || !branchId || (!selectedCustomerId && !customerSearch.trim())}
                   onClick={submitSale}
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Complete sale"}
                   type="button"
                 >
                   {isSubmittingSale ? (
