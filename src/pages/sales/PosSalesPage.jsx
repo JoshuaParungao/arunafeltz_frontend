@@ -2133,7 +2133,7 @@ function PosSalesPage({ selectedBranch, user }) {
                   <div className="sm:col-span-2 space-y-2 rounded-2xl border border-violet-100 bg-violet-50/50 p-3.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-black uppercase tracking-wide text-violet-900 flex items-center gap-1.5">
-                        <UserRound size={15} /> Sino ang Gagawa (Service Performer)
+                        <UserRound size={15} /> Service Performer
                       </span>
                       {selectedServiceStaffId ? (
                         <button
