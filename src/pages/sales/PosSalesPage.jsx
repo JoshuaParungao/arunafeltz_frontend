@@ -1204,6 +1204,11 @@ function PosSalesPage({ selectedBranch, user }) {
         ? (preselectedSerial?.batch?.id || serials[0]?.batch?.id || "")
         : (batches[0]?.id || "")
 
+      const activeCustomer = customers.find((c) => c.id === selectedCustomerId)
+      const targetTier = activeCustomer?.priceTier ? Number(activeCustomer.priceTier) : null
+      const itemTiers = availablePriceTiers(item)
+      const chosenTier = targetTier && itemTiers.includes(targetTier) ? targetTier : defaultPriceTier(item)
+
       setCart((current) => [
         ...current,
         {
@@ -1211,7 +1216,7 @@ function PosSalesPage({ selectedBranch, user }) {
           type: "PRODUCT",
           item,
           itemId: item.id,
-          priceTier: defaultPriceTier(item),
+          priceTier: chosenTier,
           quantity: "1",
           markupPercent: "",
           discountAmount: "0",
@@ -1816,18 +1821,39 @@ function PosSalesPage({ selectedBranch, user }) {
                 aria-label="Search customers"
                 className="mt-4 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)] focus:bg-white"
                 onChange={(event) => setCustomerSearch(event.target.value)}
-                placeholder="Search customer code, name, mobile, or company"
+                placeholder="Search customer by name, mobile, or company"
                 value={customerSearch}
               />
               <select
                 aria-label="Select customer"
                 className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
-                onChange={(event) => setSelectedCustomerId(event.target.value)}
+                onChange={(event) => {
+                  const newCustId = event.target.value
+                  setSelectedCustomerId(newCustId)
+                  const targetCustomer = customers.find((c) => c.id === newCustId)
+                  if (targetCustomer?.priceTier) {
+                    const tier = Number(targetCustomer.priceTier)
+                    setCart((current) =>
+                      current.map((line) => {
+                        if (line.type !== "PRODUCT" || !line.item) return line
+                        const available = availablePriceTiers(line.item)
+                        if (available.includes(tier)) {
+                          return { ...line, priceTier: tier }
+                        }
+                        return line
+                      }),
+                    )
+                  }
+                }}
                 value={selectedCustomerId}
               >
                 <option value="">Walk-in customer</option>
                 {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>{customer.customerCode} · {customer.fullName}</option>
+                  <option key={customer.id} value={customer.id}>
+                    {customer.fullName}
+                    {customer.companyName ? ` (${customer.companyName})` : ""}
+                    {customer.priceTier ? ` · Price ${customer.priceTier}` : ""}
+                  </option>
                 ))}
               </select>
               {isLoadingCustomers ? <p className="mt-2 text-xs text-[var(--color-muted)]">Loading customers…</p> : null}

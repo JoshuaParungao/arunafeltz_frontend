@@ -1308,7 +1308,7 @@ export default function WarrantyPage({ selectedBranch, user }) {
                     <option value="">Walk-in / Unlinked customer</option>
                     {customers.map((customer) => (
                       <option key={customer.id} value={customer.id}>
-                        {customer.fullName} · {customer.customerCode}
+                        {customer.fullName}{customer.companyName ? ` (${customer.companyName})` : ""}
                       </option>
                     ))}
                   </select>

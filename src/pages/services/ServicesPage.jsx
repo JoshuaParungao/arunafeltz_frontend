@@ -1216,7 +1216,11 @@ export default function ServicesPage({ selectedBranch, user }) {
                 <Field label="Customer record (optional)">
                   <select className={FIELD_CLASS} onChange={(event) => setCreateForm((form) => ({ ...form, customerId: event.target.value }))} value={createForm.customerId}>
                     <option value="">Walk-in / receiving snapshot</option>
-                    {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.fullName} · {customer.customerCode}</option>)}
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.fullName}{customer.companyName ? ` (${customer.companyName})` : ""}
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Assigned technician (optional at intake; not Service Done By)">

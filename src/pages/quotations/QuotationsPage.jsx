@@ -790,7 +790,7 @@ function QuotationsPage({ selectedBranch, user }) {
     setSelectedCustomerId(selectedQuotation.customer?.id || "")
     setCustomerSearch(
       selectedQuotation.customer
-        ? `${selectedQuotation.customer.customerCode} - ${selectedQuotation.customer.fullName}`
+        ? selectedQuotation.customer.fullName
         : "",
     )
     setSelectedServiceDoneById(selectedQuotation.serviceDoneBy?.id || "")
@@ -1795,13 +1795,21 @@ function QuotationsPage({ selectedBranch, user }) {
                         key={customer.id}
                         onClick={() => {
                           setSelectedCustomerId(customer.id)
-                          setCustomerSearch(`${customer.customerCode} - ${customer.fullName}`)
+                          setCustomerSearch(customer.fullName)
                           setIsCustomerSearchOpen(false)
+                          if (customer.priceTier) {
+                            setSelectedItemPriceTier(String(customer.priceTier))
+                          }
                         }}
                         type="button"
                       >
                         <span className="block font-bold text-[var(--color-text-strong)]">
-                          {customer.customerCode} - {customer.fullName}
+                          {customer.fullName}
+                          {customer.priceTier ? (
+                            <span className="ml-2 inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">
+                              Price {customer.priceTier}
+                            </span>
+                          ) : null}
                         </span>
                         <span className="mt-1 block text-xs text-[var(--color-muted)]">
                           {customer.mobileNumber || "No mobile"} • {customer.companyName || customer.email || "No company/email"}

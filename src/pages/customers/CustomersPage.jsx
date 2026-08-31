@@ -13,6 +13,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Tag,
   UsersRound,
   X,
 } from "lucide-react"
@@ -196,6 +197,7 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
     companyName: customer?.companyName || "",
     address: customer?.address || "",
     notes: customer?.notes || "",
+    priceTier: customer?.priceTier ? String(customer.priceTier) : "1",
   }))
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
@@ -232,6 +234,7 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
       companyName: toNullableText(form.companyName),
       address: toNullableText(form.address),
       notes: toNullableText(form.notes),
+      priceTier: Number(form.priceTier) || 1,
     }
 
     if (customerCode) payload.customerCode = customerCode
@@ -314,15 +317,29 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
               />
             </FormField>
 
-            <FormField label={isEdit ? "Customer code" : "Customer code (optional)"} required={isEdit}>
+            <FormField label={isEdit ? "Customer code (system reference)" : "Customer code (optional)"} required={isEdit}>
               <input
                 className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold uppercase text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
                 maxLength={80}
                 onChange={(event) => updateField("customerCode", event.target.value)}
-                placeholder={isEdit ? "Customer code" : "Generated automatically when blank"}
+                placeholder={isEdit ? "Customer code" : "Auto-generated if left blank"}
                 required={isEdit}
                 value={form.customerCode}
               />
+            </FormField>
+
+            <FormField label="Assigned Price Number / Tier" required>
+              <select
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                onChange={(event) => updateField("priceTier", event.target.value)}
+                value={form.priceTier}
+              >
+                <option value="1">Price 1 (Standard / Retail)</option>
+                <option value="2">Price 2 (Wholesale / Regular)</option>
+                <option value="3">Price 3 (Special / Dealer)</option>
+                <option value="4">Price 4 (VIP / Partner)</option>
+                <option value="5">Price 5 (Special Project)</option>
+              </select>
             </FormField>
 
             <FormField label="Mobile number">
@@ -573,6 +590,38 @@ function QuotationHistory({ data }) {
               </p>
             </div>
           </div>
+
+          {Array.isArray(quotation.items) && quotation.items.length > 0 ? (
+            <div className="mt-3 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]">
+              <div className="border-b border-[var(--color-border)] bg-slate-50 px-3 py-2 text-xs font-bold text-[var(--color-muted)]">
+                Quoted Items ({quotation.items.length})
+              </div>
+              <div className="divide-y divide-[var(--color-border)] text-xs">
+                {quotation.items.map((line, idx) => (
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2" key={line.id || idx}>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold text-[var(--color-text-strong)]">
+                        {line.quantity}× {line.description}
+                      </span>
+                      {line.warrantyDuration ? (
+                        <span className="ml-2 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                          {line.warrantyDuration}
+                        </span>
+                      ) : null}
+                      {line.priceTier ? (
+                        <span className="ml-1.5 text-[10px] font-semibold text-[var(--color-muted)]">
+                          (Price {line.priceTier})
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-right font-medium text-[var(--color-text-strong)]">
+                      {formatMoney(line.lineTotal)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </article>
       ))}
       {data.totalItems > items.length ? (
@@ -621,6 +670,43 @@ function SalesHistory({ data }) {
               </p>
             </div>
           </div>
+
+          {Array.isArray(sale.items) && sale.items.length > 0 ? (
+            <div className="mt-3 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]">
+              <div className="border-b border-[var(--color-border)] bg-slate-50 px-3 py-2 text-xs font-bold text-[var(--color-muted)]">
+                Purchased Items ({sale.items.length})
+              </div>
+              <div className="divide-y divide-[var(--color-border)] text-xs">
+                {sale.items.map((line, idx) => (
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2" key={line.id || idx}>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold text-[var(--color-text-strong)]">
+                        {line.quantity}× {line.description}
+                      </span>
+                      {line.serial?.serialNumber ? (
+                        <span className="ml-2 inline-block rounded bg-indigo-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-indigo-700">
+                          S/N: {line.serial.serialNumber}
+                        </span>
+                      ) : null}
+                      {line.warrantyDuration ? (
+                        <span className="ml-1.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                          {line.warrantyDuration}
+                        </span>
+                      ) : null}
+                      {line.priceTier ? (
+                        <span className="ml-1 text-[10px] font-semibold text-[var(--color-muted)]">
+                          (Price {line.priceTier})
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-right font-medium text-[var(--color-text-strong)]">
+                      {formatMoney(line.lineTotal)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </article>
       ))}
       {data.totalItems > items.length ? (
@@ -807,6 +893,9 @@ function CustomerDetailModal({
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-bold text-[var(--color-accent)]">Customer profile</p>
             <StatusBadge status={customer.status} />
+            <span className="rounded-xl bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+              Price {customer.priceTier || 1}
+            </span>
           </div>
           <h2
             className="mt-1 break-words text-xl font-bold text-[var(--color-text-strong)] sm:text-2xl"
@@ -814,9 +903,11 @@ function CustomerDetailModal({
           >
             {customer.fullName}
           </h2>
-          <p className="mt-1 text-sm font-semibold text-[var(--color-muted)]">
-            {customer.customerCode}
-          </p>
+          {customer.companyName ? (
+            <p className="mt-1 text-sm font-semibold text-[var(--color-muted)]">
+              {customer.companyName}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -870,6 +961,9 @@ function CustomerDetailModal({
               ? `${customer.branch.code} · ${customer.branch.name}`
               : customer.branch?.code || "—"}
           </DetailValue>
+          <DetailValue icon={Tag} label="Price Tier">
+            Price {customer.priceTier || 1}
+          </DetailValue>
           <DetailValue icon={Phone} label="Mobile number">
             {customer.mobileNumber || "—"}
           </DetailValue>
@@ -879,7 +973,7 @@ function CustomerDetailModal({
           <DetailValue icon={Building2} label="Company">
             {customer.companyName || "—"}
           </DetailValue>
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-1 lg:col-span-3">
             <DetailValue icon={MapPin} label="Address">
               {customer.address || "—"}
             </DetailValue>
@@ -994,9 +1088,11 @@ function CustomerMobileCard({ canManage, customer, onEdit, onRequestStatus, onVi
           <p className="break-words font-bold text-[var(--color-text-strong)]">
             {customer.fullName}
           </p>
-          <p className="mt-1 text-xs font-bold text-[var(--color-muted)]">
-            {customer.customerCode}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+              Price {customer.priceTier || 1}
+            </span>
+          </div>
         </div>
         <StatusBadge status={customer.status} />
       </div>
@@ -1373,9 +1469,11 @@ function CustomersPage({ selectedBranch, user }) {
                         <p className="font-bold text-[var(--color-text-strong)]">
                           {customer.fullName}
                         </p>
-                        <p className="mt-1 text-xs font-bold text-[var(--color-muted)]">
-                          {customer.customerCode}
-                        </p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                            Price {customer.priceTier || 1}
+                          </span>
+                        </div>
                       </td>
                       <td className="min-w-52 px-4 py-4 text-[var(--color-muted)]">
                         <p className="break-all">{customer.mobileNumber || "—"}</p>
