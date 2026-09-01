@@ -32,128 +32,133 @@ export const APP_MODULES = [
     roles: STAFF_OPERATION_ROLES,
   },
 
+  // --- OPERATIONS & SALES ---
   {
     key: "pos",
-    label: "POS",
-    group: "Core Operations",
+    label: "POS Cashiering",
+    group: "Operations",
     roles: SALES_OPERATION_ROLES,
   },
   {
     key: "quotations",
     label: "Quotations",
-    group: "Core Operations",
-    roles: BRANCH_OPERATION_ROLES,
-  },
-  {
-    key: "inventory",
-    label: "Inventory",
-    group: "Core Operations",
-    roles: BRANCH_OPERATION_ROLES,
-  },
-  {
-    key: "items",
-    label: "Item Catalog",
-    group: "Core Operations",
-    roles: BRANCH_OPERATION_ROLES,
-  },
-  {
-    key: "customers",
-    label: "Customers",
-    group: "Core Operations",
+    group: "Operations",
     roles: BRANCH_OPERATION_ROLES,
   },
   {
     key: "services",
     label: "Services / Job Orders",
-    group: "Core Operations",
+    group: "Operations",
     roles: BRANCH_OPERATION_ROLES,
   },
   {
     key: "warranty",
     label: "Warranty Claims",
-    group: "Core Operations",
+    group: "Operations",
+    roles: BRANCH_OPERATION_ROLES,
+  },
+
+  // --- INVENTORY & PURCHASING ---
+  {
+    key: "inventory",
+    label: "Branch Inventory",
+    group: "Inventory & Purchasing",
     roles: BRANCH_OPERATION_ROLES,
   },
   {
     key: "serials",
     label: "Serial Monitoring",
-    group: "Core Operations",
-    roles: BRANCH_OPERATION_ROLES,
-  },
-
-  {
-    key: "suppliers",
-    label: "Suppliers",
-    group: "Supply / Stock",
-    roles: OWNER_ADMIN_ROLES,
-  },
-  {
-    key: "purchase-orders",
-    label: "Purchase Orders",
-    group: "Supply / Stock",
-    roles: BRANCH_OPERATION_ROLES,
-  },
-  {
-    key: "receivings",
-    label: "Receiving / Deliveries",
-    group: "Supply / Stock",
+    group: "Inventory & Purchasing",
     roles: BRANCH_OPERATION_ROLES,
   },
   {
     key: "stock-transfers",
     label: "Stock Transfers",
-    group: "Supply / Stock",
+    group: "Inventory & Purchasing",
+    roles: BRANCH_OPERATION_ROLES,
+  },
+  {
+    key: "purchase-orders",
+    label: "Purchase Orders",
+    group: "Inventory & Purchasing",
+    roles: BRANCH_OPERATION_ROLES,
+  },
+  {
+    key: "receivings",
+    label: "Receiving / Deliveries",
+    group: "Inventory & Purchasing",
     roles: BRANCH_OPERATION_ROLES,
   },
 
+  // --- FINANCE & CREDITS ---
   {
     key: "cash-box",
-    label: "Cash Box",
-    group: "Finance",
+    label: "Cash Register & Vault",
+    group: "Finance & Credits",
     roles: [USER_ROLES.SUPER_OWNER, USER_ROLES.ADMIN],
   },
   {
     key: "credits",
-    label: "Credits / Installments",
-    group: "Finance",
+    label: "Credits & Installments",
+    group: "Finance & Credits",
     roles: BRANCH_OPERATION_ROLES,
   },
   {
     key: "incentives",
-    label: "Incentives",
-    group: "Finance",
+    label: "Staff Incentives",
+    group: "Finance & Credits",
     roles: [...OWNER_ADMIN_ROLES, ...STAFF_OPERATION_ROLES],
   },
 
+  // --- FILE MAINTENANCE (MASTER DATA) ---
   {
-    key: "reports",
-    label: "Reports",
-    group: "Monitoring",
-    roles: OWNER_ADMIN_ROLES,
+    key: "items",
+    label: "Products & Pricing (Items)",
+    group: "File Maintenance",
+    roles: BRANCH_OPERATION_ROLES,
   },
   {
-    key: "alerts",
-    label: "Alerts",
-    group: "Monitoring",
-    roles: OWNER_ADMIN_ROLES,
+    key: "customers",
+    label: "Customer Directory",
+    group: "File Maintenance",
+    roles: BRANCH_OPERATION_ROLES,
   },
   {
-    key: "audit-logs",
-    label: "Audit Logs",
-    group: "Monitoring",
-    roles: OWNER_ADMIN_ROLES,
-  },
-
-  {
-    key: "settings",
-    label: "Settings",
-    group: "Management",
+    key: "suppliers",
+    label: "Supplier Directory",
+    group: "File Maintenance",
     roles: OWNER_ADMIN_ROLES,
   },
   {
     key: "users",
-    label: "Users / Account Types",
-    group: "Management",
+    label: "Users & Staff Accounts",
+    group: "File Maintenance",
+    roles: OWNER_ADMIN_ROLES,
+  },
+  {
+    key: "settings",
+    label: "System Rules & Settings",
+    group: "File Maintenance",
+    roles: OWNER_ADMIN_ROLES,
+  },
+
+  // --- REPORTS & AUDIT ---
+  {
+    key: "reports",
+    label: "Reports & Analytics",
+    group: "Reports & Audit",
+    roles: OWNER_ADMIN_ROLES,
+  },
+  {
+    key: "alerts",
+    label: "Action Alerts",
+    group: "Reports & Audit",
+    roles: OWNER_ADMIN_ROLES,
+  },
+  {
+    key: "audit-logs",
+    label: "Activity Audit Logs",
+    group: "Reports & Audit",
     roles: OWNER_ADMIN_ROLES,
   },
 ]
