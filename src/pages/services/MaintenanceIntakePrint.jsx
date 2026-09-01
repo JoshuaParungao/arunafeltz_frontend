@@ -71,11 +71,11 @@ export default function MaintenanceIntakePrint({ isBlank = false, job = {} }) {
 
         <div className="jo-intake-unit-type-grid">
           {UNIT_TYPES.map((type) => {
-            const isChecked = selectedUnitType === type || (type === "Other" && !UNIT_TYPES.slice(0, 6).includes(selectedUnitType))
+            const isChecked = Boolean(selectedUnitType) && (selectedUnitType === type || (type === "Other" && !UNIT_TYPES.slice(0, 6).includes(selectedUnitType)))
             return (
               <label className="jo-intake-check-label" key={type}>
                 <span className="jo-print-box">{isChecked ? "☑" : "☐"}</span>
-                <span>{type === "Other" && isChecked && selectedUnitType !== "Other" ? `Other: ${selectedUnitType}` : type}</span>
+                <span>{type === "Other" && isChecked && selectedUnitType && selectedUnitType !== "Other" ? `Other: ${selectedUnitType}` : type}</span>
               </label>
             )
           })}

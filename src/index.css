@@ -631,20 +631,21 @@ html.dark .shadow-card,
   background: #ffffff !important;
   color: #000000 !important;
   font-family: Arial, Helvetica, sans-serif !important;
-  font-size: 9pt;
-  line-height: 1.25;
+  font-size: 8pt;
+  line-height: 1.18;
   padding: 2mm 3mm;
+  box-sizing: border-box;
 }
 
 .jo-intake-header-center {
   text-align: center;
   border-bottom: 1.5px solid #000000;
-  padding-bottom: 2mm;
-  margin-bottom: 2mm;
+  padding-bottom: 1.2mm;
+  margin-bottom: 1.5mm;
 }
 
 .jo-intake-main-title {
-  font-size: 13pt;
+  font-size: 11.5pt;
   font-weight: bold;
   color: #1e3a8a !important;
   letter-spacing: 0.03em;
@@ -654,25 +655,25 @@ html.dark .shadow-card,
 .jo-intake-top-fields {
   display: flex;
   flex-direction: column;
-  gap: 2mm;
-  margin-bottom: 3mm;
+  gap: 1.2mm;
+  margin-bottom: 1.8mm;
 }
 
 .jo-intake-row {
   display: flex;
   align-items: flex-end;
-  gap: 4mm;
+  gap: 3mm;
   width: 100%;
 }
 
 .jo-intake-field-group {
   display: flex;
   align-items: flex-end;
-  gap: 2mm;
+  gap: 1.5mm;
 }
 
 .jo-intake-field-label {
-  font-size: 8.5pt;
+  font-size: 8pt;
   color: #000000;
   white-space: nowrap;
 }
@@ -680,17 +681,17 @@ html.dark .shadow-card,
 .jo-intake-field-line {
   flex: 1 1 auto;
   border-bottom: 1px solid #000000;
-  min-height: 4mm;
-  font-size: 9pt;
-  padding: 0 3px;
+  min-height: 3.6mm;
+  font-size: 8pt;
+  padding: 0 2px;
   color: #000000;
 }
 
 .jo-intake-unit-type-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.5mm 4mm;
-  margin: 1.5mm 0;
+  gap: 1mm 3mm;
+  margin: 0.8mm 0;
   padding-left: 2mm;
 }
 
@@ -698,154 +699,157 @@ html.dark .shadow-card,
 .jo-intake-check-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 8.2pt;
+  gap: 4px;
+  font-size: 7.8pt;
   cursor: default;
 }
 
 .jo-print-box {
-  font-size: 11pt;
+  font-size: 9.5pt;
   line-height: 1;
   font-family: monospace;
 }
 
 .jo-intake-section {
   border-top: 1px solid #000000;
-  padding-top: 2mm;
-  margin-top: 2.5mm;
+  padding-top: 1.2mm;
+  margin-top: 1.5mm;
 }
 
 .jo-intake-section-title {
-  font-size: 9.5pt;
+  font-size: 8.5pt;
   font-weight: bold;
-  margin-bottom: 1.5mm;
+  margin-bottom: 0.8mm;
   color: #000000;
 }
 
 .jo-intake-instruction {
-  font-size: 8pt;
+  font-size: 7.2pt;
   font-style: italic;
-  margin-bottom: 1.5mm;
+  margin-bottom: 0.8mm;
   color: #334155;
 }
 
 .jo-intake-lines-box {
   border: 1px solid #94a3b8;
   background: #fdfdfd;
-  min-height: 14mm;
-  padding: 2mm 3mm;
+  min-height: 10mm;
+  padding: 1.5mm 2.5mm;
   border-radius: 2px;
 }
 
 .jo-intake-text-fill {
-  font-size: 8.5pt;
+  font-size: 8pt;
   white-space: pre-wrap;
   margin: 0;
 }
 
 .jo-intake-q-block {
-  margin-bottom: 2mm;
+  margin-bottom: 1.2mm;
 }
 
 .jo-intake-q-text {
-  font-size: 8.5pt;
-  margin-bottom: 1mm;
+  font-size: 7.8pt;
+  margin-bottom: 0.6mm;
 }
 
 .jo-intake-radio-row {
   display: flex;
   align-items: center;
-  padding-left: 4mm;
+  padding-left: 3mm;
 }
 
 .jo-inline-underline {
   border-bottom: 1px solid #000000;
-  padding: 0 4px;
+  padding: 0 3px;
 }
 
 .jo-intake-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5mm 4mm;
+  gap: 1mm 3mm;
   padding-left: 2mm;
 }
 
 .jo-intake-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.5mm 4mm;
+  gap: 1mm 3mm;
   padding-left: 2mm;
 }
 
 .jo-intake-grid-4 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5mm 3mm;
+  gap: 1mm 2.5mm;
   padding-left: 2mm;
 }
 
 .jo-intake-declaration-box {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
-  padding: 2.5mm 3.5mm;
-  font-size: 7.8pt;
+  padding: 1.8mm 2.5mm;
+  font-size: 7.2pt;
 }
 
 .jo-declaration-text {
-  margin: 0 0 1.5mm;
+  margin: 0 0 1mm;
+  line-height: 1.15;
 }
 
 .jo-ack-bullets {
   list-style: none;
-  padding-left: 2mm;
+  padding-left: 1.5mm;
   margin: 0;
+  line-height: 1.15;
 }
 
 .jo-ack-bullets li {
-  margin-bottom: 0.8mm;
+  margin-bottom: 0.5mm;
 }
 
 .jo-intake-sig-row {
   display: flex;
   justify-content: flex-end;
-  gap: 8mm;
+  gap: 6mm;
+  margin-top: 2.5mm;
 }
 
 .jo-intake-sig-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 48mm;
+  min-width: 44mm;
 }
 
 .jo-sig-underline {
   border-bottom: 1px solid #000000;
   width: 100%;
   text-align: center;
-  font-size: 8.5pt;
+  font-size: 8pt;
   font-weight: bold;
-  min-height: 4.5mm;
+  min-height: 4mm;
 }
 
 .jo-sig-caption {
-  font-size: 7.2pt;
+  font-size: 6.8pt;
   margin-top: 1px;
   color: #475569;
 }
 
 .jo-intake-shop-use-section {
   border: 1.5px solid #000000;
-  padding: 2.5mm 3.5mm;
-  margin-top: 3mm;
+  padding: 1.8mm 2.5mm;
+  margin-top: 1.8mm;
   background: #ffffff;
 }
 
 .jo-shop-use-banner {
-  font-size: 9pt;
+  font-size: 8.2pt;
   letter-spacing: 0.05em;
   border-bottom: 1px solid #000000;
-  padding-bottom: 1mm;
-  margin-bottom: 2mm;
+  padding-bottom: 0.6mm;
+  margin-bottom: 1.2mm;
 }
 
 .jo-intake-flex-row {
@@ -861,25 +865,22 @@ html.dark .shadow-card,
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    margin: 0;
   }
 
   body {
     min-width: 0;
     min-height: 0;
     overflow: visible;
-    background: #ffffff;
-  }
-
-  @page {
-    size: A4 portrait;
-    margin: 10mm 12mm 10mm 12mm;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 
   body > *:not(.quotation-print-overlay):not(.job-order-print-overlay):not(.sale-receipt-print-overlay) {
     display: none !important;
   }
 
+  /* Sale Receipt Print */
   .sale-receipt-print-overlay {
     position: static !important;
     overflow: visible !important;
@@ -920,6 +921,7 @@ html.dark .shadow-card,
     page-break-inside: avoid !important;
   }
 
+  /* Quotation Print */
   .quotation-print-overlay {
     position: static;
     overflow: visible;
@@ -953,17 +955,21 @@ html.dark .shadow-card,
     page-break-inside: avoid;
   }
 
+  /* Job Order & Intake Form Print */
   .job-order-print-overlay {
-    position: static;
-    overflow: visible;
-    background: #ffffff;
-    padding: 0;
+    position: static !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    inset: auto !important;
   }
 
   .job-order-print-shell {
-    width: 100%;
-    max-width: none;
-    margin: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .job-order-print-actions {
@@ -971,50 +977,66 @@ html.dark .shadow-card,
   }
 
   .job-order-print-document {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding: 0;
-    box-shadow: none;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
+    display: block !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
   }
 
   .jo-dual-receipt-page {
-    width: 100% !important;
-    height: 275mm !important;
-    max-height: 275mm !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    margin: 0 auto !important;
+    padding: 4mm 8mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
   }
 
   .jo-receipt-half {
     flex: 1 1 48% !important;
-    max-height: 133mm !important;
+    max-height: 138mm !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    padding: 2.5mm 3.5mm !important;
+    padding: 2mm 3.5mm !important;
+    box-sizing: border-box !important;
   }
 
   .jo-sheet-cut-divider {
-    margin: 1.5mm 0 !important;
+    margin: 1mm 0 !important;
   }
 
   .jo-intake-print-sheet {
-    width: 100% !important;
-    height: 275mm !important;
-    max-height: 275mm !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    margin: 0 auto !important;
+    padding: 5mm 8mm 4mm 8mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
