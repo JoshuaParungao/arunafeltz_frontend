@@ -9,7 +9,6 @@ import {
   CreditCard,
   FileSpreadsheet,
   History,
-  LayoutDashboard,
   PackageCheck,
   PackageSearch,
   ShieldCheck,
@@ -24,7 +23,6 @@ import {
 } from "lucide-react"
 
 const ICONS = {
-  "staff-dashboard": LayoutDashboard,
   pos: ShoppingCart,
   quotations: ClipboardList,
   services: Wrench,
@@ -106,7 +104,7 @@ function Sidebar({
 
             <div className="space-y-1">
               {items.map((item) => {
-                const Icon = ICONS[item.key] || LayoutDashboard
+                const Icon = ICONS[item.key] || ShoppingCart
                 const isActive = activePage === item.key
 
                 return (

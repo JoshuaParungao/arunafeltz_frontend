@@ -25,13 +25,6 @@ const SALES_OPERATION_ROLES = [
 ]
 
 export const APP_MODULES = [
-  {
-    key: "staff-dashboard",
-    label: "Staff Dashboard",
-    group: "Dashboard",
-    roles: STAFF_OPERATION_ROLES,
-  },
-
   // --- OPERATIONS & SALES ---
   {
     key: "pos",
@@ -174,6 +167,6 @@ export function canRoleAccessModule(role, moduleKey) {
 }
 
 export function getDefaultModuleForRole(role) {
-  if (OWNER_ADMIN_ROLES.includes(role)) return "pos"
-  return "staff-dashboard"
+  if (role === USER_ROLES.TECHNICIAN) return "services"
+  return "pos"
 }

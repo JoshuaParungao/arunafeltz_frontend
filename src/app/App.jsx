@@ -24,7 +24,6 @@ import {
 } from "../lib/sessionStorage"
 import CommandPaletteModal from "../components/common/CommandPaletteModal"
 import QuotationDetailDialog from "../components/quotations/QuotationDetailDialog"
-import { getSaleById } from "../features/sales/sales.api"
 import { getQuotationById } from "../features/quotations/quotations.api"
 
 const StaffDashboardPage = lazy(() => import("../pages/dashboard/StaffDashboardPage"))
@@ -448,7 +447,7 @@ function App() {
             setSafeActivePage("quotations")
           }
         }}
-        onSelectSale={(saleSummary) => {
+        onSelectSale={() => {
           setIsCommandPaletteOpen(false)
           setSafeActivePage("pos")
         }}
