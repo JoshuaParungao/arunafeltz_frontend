@@ -16,18 +16,18 @@ function formatDate(dateValue) {
   return `${mm}/${dd}/${yyyy}`
 }
 
-export default function DiagnosticIntakePrint({ job }) {
-  const intake = extractIntakeRecord(job) || {}
-  const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in"
-  const customerAddress = intake.customerAddress || job.customer?.address || "—"
-  const customerContact = job.customerContactSnapshot || job.customer?.mobileNumber || job.customer?.email || "—"
-  const receivedDate = formatDate(job.receivedAt)
-  const receivedByName = job.receivedBy?.fullName || job.createdBy?.fullName || "Staff"
+export default function DiagnosticIntakePrint({ isBlank = false, job = {} }) {
+  const intake = isBlank ? {} : (extractIntakeRecord(job) || {})
+  const customerName = isBlank ? "" : (job.customerNameSnapshot || job.customer?.fullName || "Walk-in")
+  const customerAddress = isBlank ? "" : (intake.customerAddress || job.customer?.address || "—")
+  const customerContact = isBlank ? "" : (job.customerContactSnapshot || job.customer?.mobileNumber || job.customer?.email || "—")
+  const receivedDate = isBlank ? "" : formatDate(job.receivedAt)
+  const receivedByName = isBlank ? "" : (job.receivedBy?.fullName || job.createdBy?.fullName || "Staff")
 
-  const selectedUnitType = intake.unitType || "Laptop"
-  const selectedAccessories = intake.receivedAccessories || []
-  const selectedConditions = intake.physicalConditions || []
-  const selectedPreviousRepairs = intake.previousRepairs || []
+  const selectedUnitType = isBlank ? null : (intake.unitType || "Laptop")
+  const selectedAccessories = isBlank ? [] : (intake.receivedAccessories || [])
+  const selectedConditions = isBlank ? [] : (intake.physicalConditions || [])
+  const selectedPreviousRepairs = isBlank ? [] : (intake.previousRepairs || [])
 
   return (
     <div className="jo-intake-print-sheet">
@@ -82,11 +82,11 @@ export default function DiagnosticIntakePrint({ job }) {
         <div className="jo-intake-row" style={{ marginTop: "6px" }}>
           <div className="jo-intake-field-group" style={{ flex: "1 1 50%" }}>
             <span className="jo-intake-field-label jo-bold">Brand & Model:</span>
-            <span className="jo-intake-field-line jo-bold">{intake.brandModel || job.deviceDescription || "—"}</span>
+            <span className="jo-intake-field-line jo-bold">{isBlank ? "" : (intake.brandModel || job.deviceDescription || "")}</span>
           </div>
           <div className="jo-intake-field-group" style={{ flex: "1 1 50%" }}>
             <span className="jo-intake-field-label jo-bold">Serial Number (if available):</span>
-            <span className="jo-intake-field-line">{intake.serialNumber || job.serialNumber || "—"}</span>
+            <span className="jo-intake-field-line">{isBlank ? "" : (intake.serialNumber || job.serialNumber || "")}</span>
           </div>
         </div>
       </div>
@@ -96,11 +96,11 @@ export default function DiagnosticIntakePrint({ job }) {
         <div className="jo-intake-section-title jo-bold">Reported Problem</div>
         <p className="jo-intake-instruction">Please describe the issue or symptoms you are experiencing:</p>
         <div className="jo-intake-lines-box">
-          <p className="jo-intake-text-fill">{intake.problemSymptoms || job.problemDescription || "—"}</p>
+          <p className="jo-intake-text-fill">{isBlank ? "" : (intake.problemSymptoms || job.problemDescription || "")}</p>
         </div>
         <div className="jo-intake-row" style={{ marginTop: "6px" }}>
           <span className="jo-intake-field-label">When did the problem start?</span>
-          <span className="jo-intake-field-line" style={{ flex: 1, marginLeft: "8px" }}>{intake.whenProblemStarted || "—"}</span>
+          <span className="jo-intake-field-line" style={{ flex: 1, marginLeft: "8px" }}>{isBlank ? "" : (intake.whenProblemStarted || "")}</span>
         </div>
       </div>
 
@@ -112,10 +112,10 @@ export default function DiagnosticIntakePrint({ job }) {
           <p className="jo-intake-q-text jo-bold">1. Has this unit been checked, diagnosed, or repaired by another repair shop or technician?</p>
           <div className="jo-intake-radio-row">
             <span className="jo-intake-check-item">
-              <span className="jo-print-box">{intake.checkedByOtherShop === "Yes" ? "☑" : "☐"}</span> Yes
+              <span className="jo-print-box">{!isBlank && intake.checkedByOtherShop === "Yes" ? "☑" : "☐"}</span> Yes
             </span>
             <span className="jo-intake-check-item" style={{ marginLeft: "24px" }}>
-              <span className="jo-print-box">{intake.checkedByOtherShop !== "Yes" ? "☑" : "☐"}</span> No
+              <span className="jo-print-box">{!isBlank && intake.checkedByOtherShop === "No" ? "☑" : "☐"}</span> No
             </span>
           </div>
         </div>
@@ -123,13 +123,13 @@ export default function DiagnosticIntakePrint({ job }) {
         <div className="jo-intake-q-block" style={{ marginTop: "4px" }}>
           <p className="jo-intake-q-text">
             <strong>2. If YES,</strong> how many repair shops or technicians have handled this unit before bringing it to us?
-            <span className="jo-inline-underline" style={{ minWidth: "120px", marginLeft: "8px", display: "inline-block" }}>{intake.numShopsHandled || "—"}</span>
+            <span className="jo-inline-underline" style={{ minWidth: "120px", marginLeft: "8px", display: "inline-block" }}>{isBlank ? "" : (intake.numShopsHandled || "")}</span>
           </p>
         </div>
 
         <div className="jo-intake-q-block" style={{ marginTop: "4px" }}>
           <p className="jo-intake-q-text"><strong>3. Please list the shop(s) or technician(s), if known:</strong></p>
-          <div className="jo-intake-field-line" style={{ marginTop: "2px" }}>{intake.otherShopsList || "None"}</div>
+          <div className="jo-intake-field-line" style={{ marginTop: "2px" }}>{isBlank ? "" : (intake.otherShopsList || "")}</div>
         </div>
 
         <div className="jo-intake-q-block" style={{ marginTop: "6px" }}>
@@ -151,10 +151,10 @@ export default function DiagnosticIntakePrint({ job }) {
           <p className="jo-intake-q-text jo-bold">5. Were any components removed, replaced, or modified?</p>
           <div className="jo-intake-radio-row">
             <span className="jo-intake-check-item">
-              <span className="jo-print-box">{intake.componentsModified === "Yes" ? "☑" : "☐"}</span> Yes
+              <span className="jo-print-box">{!isBlank && intake.componentsModified === "Yes" ? "☑" : "☐"}</span> Yes
             </span>
             <span className="jo-intake-check-item" style={{ marginLeft: "24px" }}>
-              <span className="jo-print-box">{intake.componentsModified !== "Yes" ? "☑" : "☐"}</span> No
+              <span className="jo-print-box">{!isBlank && intake.componentsModified === "No" ? "☑" : "☐"}</span> No
             </span>
           </div>
         </div>
@@ -233,7 +233,7 @@ export default function DiagnosticIntakePrint({ job }) {
         <div className="jo-intake-row" style={{ marginTop: "6px" }}>
           <div className="jo-intake-field-group" style={{ width: "100%" }}>
             <span className="jo-intake-field-label jo-bold" style={{ fontSize: "12px" }}>Job Order No.:</span>
-            <span className="jo-intake-field-line jo-bold" style={{ fontSize: "14px", color: "var(--color-maroon)" }}>{job.jobCode}</span>
+            <span className="jo-intake-field-line jo-bold" style={{ fontSize: "14px", color: "var(--color-maroon)" }}>{isBlank ? "" : job.jobCode}</span>
           </div>
         </div>
       </div>

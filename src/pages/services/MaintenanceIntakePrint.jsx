@@ -17,19 +17,19 @@ function formatDate(dateValue) {
   return `${mm}/${dd}/${yyyy}`
 }
 
-export default function MaintenanceIntakePrint({ job }) {
-  const intake = extractIntakeRecord(job) || {}
-  const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in"
-  const customerAddress = intake.customerAddress || job.customer?.address || "—"
-  const customerContact = job.customerContactSnapshot || job.customer?.mobileNumber || job.customer?.email || "—"
-  const receivedDate = formatDate(job.receivedAt)
-  const receivedByName = job.receivedBy?.fullName || job.createdBy?.fullName || "Staff"
+export default function MaintenanceIntakePrint({ isBlank = false, job = {} }) {
+  const intake = isBlank ? {} : (extractIntakeRecord(job) || {})
+  const customerName = isBlank ? "" : (job.customerNameSnapshot || job.customer?.fullName || "Walk-in")
+  const customerAddress = isBlank ? "" : (intake.customerAddress || job.customer?.address || "—")
+  const customerContact = isBlank ? "" : (job.customerContactSnapshot || job.customer?.mobileNumber || job.customer?.email || "—")
+  const receivedDate = isBlank ? "" : formatDate(job.receivedAt)
+  const receivedByName = isBlank ? "" : (job.receivedBy?.fullName || job.createdBy?.fullName || "Staff")
 
-  const selectedUnitType = intake.unitType || "Desktop / System Unit"
-  const selectedAccessories = intake.receivedAccessories || []
-  const selectedConditions = intake.physicalConditions || []
-  const selectedServices = intake.requestedServices || []
-  const selectedAttention = intake.specialAttention || []
+  const selectedUnitType = isBlank ? null : (intake.unitType || "Desktop / System Unit")
+  const selectedAccessories = isBlank ? [] : (intake.receivedAccessories || [])
+  const selectedConditions = isBlank ? [] : (intake.physicalConditions || [])
+  const selectedServices = isBlank ? [] : (intake.requestedServices || [])
+  const selectedAttention = isBlank ? [] : (intake.specialAttention || [])
 
   return (
     <div className="jo-intake-print-sheet">
@@ -84,11 +84,11 @@ export default function MaintenanceIntakePrint({ job }) {
         <div className="jo-intake-row" style={{ marginTop: "6px" }}>
           <div className="jo-intake-field-group" style={{ flex: "1 1 50%" }}>
             <span className="jo-intake-field-label jo-bold">Brand & Model:</span>
-            <span className="jo-intake-field-line jo-bold">{intake.brandModel || job.deviceDescription || "—"}</span>
+            <span className="jo-intake-field-line jo-bold">{isBlank ? "" : (intake.brandModel || job.deviceDescription || "")}</span>
           </div>
           <div className="jo-intake-field-group" style={{ flex: "1 1 50%" }}>
             <span className="jo-intake-field-label jo-bold">Serial Number (if available):</span>
-            <span className="jo-intake-field-line">{intake.serialNumber || job.serialNumber || "—"}</span>
+            <span className="jo-intake-field-line">{isBlank ? "" : (intake.serialNumber || job.serialNumber || "")}</span>
           </div>
         </div>
       </div>
@@ -110,7 +110,7 @@ export default function MaintenanceIntakePrint({ job }) {
         <div className="jo-intake-row" style={{ marginTop: "6px" }}>
           <span className="jo-intake-field-label jo-bold">Customer Requests:</span>
           <span className="jo-intake-field-line" style={{ flex: 1, marginLeft: "8px" }}>
-            {intake.otherRequestedService || intake.problemSymptoms || job.problemDescription || "—"}
+            {isBlank ? "" : (intake.otherRequestedService || intake.problemSymptoms || job.problemDescription || "")}
           </span>
         </div>
       </div>
@@ -123,10 +123,10 @@ export default function MaintenanceIntakePrint({ job }) {
           <p className="jo-intake-q-text jo-bold">1. Is this the first time this unit has undergone maintenance or preventive cleaning?</p>
           <div className="jo-intake-radio-row">
             <span className="jo-intake-check-item">
-              <span className="jo-print-box">{intake.firstTimeMaintenance?.includes("Yes") ? "☑" : "☐"}</span> Yes (First Maintenance)
+              <span className="jo-print-box">{!isBlank && intake.firstTimeMaintenance?.includes("Yes") ? "☑" : "☐"}</span> Yes (First Maintenance)
             </span>
             <span className="jo-intake-check-item" style={{ marginLeft: "24px" }}>
-              <span className="jo-print-box">{intake.firstTimeMaintenance === "No" ? "☑" : "☐"}</span> No
+              <span className="jo-print-box">{!isBlank && intake.firstTimeMaintenance === "No" ? "☑" : "☐"}</span> No
             </span>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function MaintenanceIntakePrint({ job }) {
           <p className="jo-intake-q-text">
             <strong>2. If NO,</strong> how many times has this unit been maintained or cleaned?
             <span className="jo-inline-underline" style={{ minWidth: "120px", marginLeft: "8px", display: "inline-block" }}>
-              {intake.numTimesMaintained ? `${intake.numTimesMaintained} Time(s)` : "—"}
+              {isBlank ? "" : (intake.numTimesMaintained ? `${intake.numTimesMaintained} Time(s)` : "")}
             </span>
           </p>
         </div>
@@ -145,7 +145,7 @@ export default function MaintenanceIntakePrint({ job }) {
           <div className="jo-intake-flex-row" style={{ marginTop: "2px", gap: "16px" }}>
             {["Less than 6 months ago", "6–12 months ago", "More than 1 year ago", "Unknown"].map((opt) => (
               <span className="jo-intake-check-item" key={opt}>
-                <span className="jo-print-box">{intake.lastMaintenanceWhen === opt ? "☑" : "☐"}</span> {opt}
+                <span className="jo-print-box">{!isBlank && intake.lastMaintenanceWhen === opt ? "☑" : "☐"}</span> {opt}
               </span>
             ))}
           </div>
@@ -156,7 +156,7 @@ export default function MaintenanceIntakePrint({ job }) {
           <div className="jo-intake-flex-row" style={{ marginTop: "2px", gap: "16px" }}>
             {["Our Shop", "Another Repair Shop", "Self-Maintenance", "Unknown"].map((opt) => (
               <span className="jo-intake-check-item" key={opt}>
-                <span className="jo-print-box">{intake.lastMaintenanceWho === opt ? "☑" : "☐"}</span> {opt}
+                <span className="jo-print-box">{!isBlank && intake.lastMaintenanceWho === opt ? "☑" : "☐"}</span> {opt}
               </span>
             ))}
           </div>
@@ -166,11 +166,11 @@ export default function MaintenanceIntakePrint({ job }) {
           <p className="jo-intake-q-text jo-bold">5. Were any components upgraded or replaced during the previous maintenance?</p>
           <div className="jo-intake-radio-row">
             <span className="jo-intake-check-item">
-              <span className="jo-print-box">{intake.upgradedDuringMaintenance !== "Yes" ? "☑" : "☐"}</span> No
+              <span className="jo-print-box">{!isBlank && intake.upgradedDuringMaintenance === "No" ? "☑" : "☐"}</span> No
             </span>
             <span className="jo-intake-check-item" style={{ marginLeft: "24px" }}>
-              <span className="jo-print-box">{intake.upgradedDuringMaintenance === "Yes" ? "☑" : "☐"}</span> Yes (Please specify):
-              <span className="jo-inline-underline" style={{ minWidth: "180px", marginLeft: "6px", display: "inline-block" }}>{intake.upgradedSpecify || "—"}</span>
+              <span className="jo-print-box">{!isBlank && intake.upgradedDuringMaintenance === "Yes" ? "☑" : "☐"}</span> Yes (Please specify):
+              <span className="jo-inline-underline" style={{ minWidth: "180px", marginLeft: "6px", display: "inline-block" }}>{isBlank ? "" : (intake.upgradedSpecify || "")}</span>
             </span>
           </div>
         </div>
@@ -258,7 +258,7 @@ export default function MaintenanceIntakePrint({ job }) {
         <div className="jo-intake-row" style={{ marginTop: "6px" }}>
           <div className="jo-intake-field-group" style={{ width: "100%" }}>
             <span className="jo-intake-field-label jo-bold" style={{ fontSize: "12px" }}>Job Order No.:</span>
-            <span className="jo-intake-field-line jo-bold" style={{ fontSize: "14px", color: "var(--color-maroon)" }}>{job.jobCode}</span>
+            <span className="jo-intake-field-line jo-bold" style={{ fontSize: "14px", color: "var(--color-maroon)" }}>{isBlank ? "" : job.jobCode}</span>
           </div>
         </div>
       </div>

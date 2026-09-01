@@ -10,22 +10,22 @@ function formatDate(dateValue) {
   return `${mm}/${dd}/${yyyy}`
 }
 
-function SingleReceiptCopy({ copyType, job, intake }) {
+function SingleReceiptCopy({ copyType, intake = {}, isBlank = false, job = {} }) {
   const branch = job.branch || {}
   const shopName = branch.name || DEFAULT_SHOP_INFO.name
   const shopAddress = branch.address || DEFAULT_SHOP_INFO.address
   const shopContact = branch.contactNo || DEFAULT_SHOP_INFO.contactNo
 
-  const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in"
-  const customerContact = job.customerContactSnapshot || job.customer?.mobileNumber || job.customer?.email || ""
-  const customerAddress = intake?.customerAddress || job.customer?.address || ""
+  const customerName = isBlank ? "" : (job.customerNameSnapshot || job.customer?.fullName || "Walk-in")
+  const customerContact = isBlank ? "" : (job.customerContactSnapshot || job.customer?.mobileNumber || job.customer?.email || "")
+  const customerAddress = isBlank ? "" : (intake?.customerAddress || job.customer?.address || "")
 
-  const technicianName = job.assignedTechnician?.fullName || job.serviceDoneBy?.fullName || ""
-  const receivedByName = job.receivedBy?.fullName || job.createdBy?.fullName || ""
+  const technicianName = isBlank ? "" : (job.assignedTechnician?.fullName || job.serviceDoneBy?.fullName || "")
+  const receivedByName = isBlank ? "" : (job.receivedBy?.fullName || job.createdBy?.fullName || "")
 
   // Combined unit description and accessories
-  const unitText = [job.deviceDescription, job.accessoriesReceived ? `Accessories: ${job.accessoriesReceived}` : ""].filter(Boolean).join(" / ")
-  const conditionText = [job.problemDescription, job.receivingRemarks ? `[Condition: ${job.receivingRemarks}]` : ""].filter(Boolean).join(" / ")
+  const unitText = isBlank ? "" : [job.deviceDescription, job.accessoriesReceived ? `Accessories: ${job.accessoriesReceived}` : ""].filter(Boolean).join(" / ")
+  const conditionText = isBlank ? "" : [job.problemDescription, job.receivingRemarks ? `[Condition: ${job.receivingRemarks}]` : ""].filter(Boolean).join(" / ")
 
   return (
     <div className="jo-receipt-half">
@@ -40,7 +40,7 @@ function SingleReceiptCopy({ copyType, job, intake }) {
         <div className="jo-receipt-meta-block">
           <div className="jo-receipt-meta-row">
             <span className="jo-meta-label jo-bold">J.O. #</span>
-            <span className="jo-meta-value jo-jo-num">{job.jobCode}</span>
+            <span className="jo-meta-value jo-jo-num">{isBlank ? "" : job.jobCode}</span>
           </div>
           <div className="jo-receipt-meta-row">
             <span className="jo-meta-label jo-bold">TECHNICIAN:</span>
@@ -48,7 +48,7 @@ function SingleReceiptCopy({ copyType, job, intake }) {
           </div>
           <div className="jo-receipt-meta-row">
             <span className="jo-meta-label">DATE:</span>
-            <span className="jo-meta-value">{formatDate(job.receivedAt)}</span>
+            <span className="jo-meta-value">{isBlank ? "" : formatDate(job.receivedAt)}</span>
           </div>
         </div>
       </div>
@@ -113,20 +113,31 @@ function SingleReceiptCopy({ copyType, job, intake }) {
         </div>
       </div>
 
-      {/* Disclaimer */}
-      <div className="jo-receipt-disclaimer-section">
-        <div className="jo-disclaimer-title jo-bold">Disclaimer:</div>
-        <p className="jo-disclaimer-intro">
-          By proceeding with our Desktop PC/ Laptop Checking or Cleaning services, you acknowledge and agree to the following:
-        </p>
-        <p className="jo-disclaimer-item">
-          <strong>a. Data Loss:</strong> While we take every precaution to protect your data, we are not responsible for any data loss or corruption that may occur during the checking or cleaning process. It is strongly recommended that you back up all important files before we begin.
-        </p>
-        <p className="jo-disclaimer-item">
-          <strong>b. Hardware Damage:</strong> We are not responsible for pre-existing hardware damage or any damage that may occur during the cleaning process due to unforeseen circumstances. We will exercise reasonable care, but hardware failure is always a possibility.
-        </p>
-        <p className="jo-disclaimer-item">
-          <strong>c. Software Issues:</strong> We will not be held responsible for resolving any software issues or problems that are not directly related to the checking or physical cleaning of your PC.
+      {/* 3-part Disclaimers */}
+      <div className="jo-disclaimer-block">
+        <div className="jo-disclaimer-grid">
+          <div className="jo-disclaimer-col">
+            <strong className="jo-disc-title">1. Data Loss Disclaimer</strong>
+            <p>
+              We are not responsible for any data loss that may occur during the repair/service process. It is the customer's responsibility to back up all important files, documents, and data before surrendering the unit.
+            </p>
+          </div>
+          <div className="jo-disclaimer-col">
+            <strong className="jo-disc-title">2. Hardware Damage Disclaimer</strong>
+            <p>
+              While we take utmost care with your device, unforeseen hardware failures may occur during disassembly, testing, or repair—especially on aged, previously repaired, or liquid-damaged units. We are not liable for pre-existing internal degradation or component failure resulting from prior conditions.
+            </p>
+          </div>
+          <div className="jo-disclaimer-col">
+            <strong className="jo-disc-title">3. Software Issues Disclaimer</strong>
+            <p>
+              We are not liable for software malfunctions, corruption, OS errors, license deactivations, or third-party app conflicts that arise during or after repairs. Customers must ensure legitimate licenses and re-installation media.
+            </p>
+          </div>
+        </div>
+
+        <p className="jo-disclaimer-highlight">
+          Any claims for repair defects must be reported within <strong>seven (7) days</strong> from the date of release.
         </p>
         <p className="jo-disclaimer-closing">
           By agreeing to our service, you understand and accept the limitations of liability outlined above. We recommend that you carefully review this disclaimer before proceeding.
@@ -145,16 +156,16 @@ function SingleReceiptCopy({ copyType, job, intake }) {
   )
 }
 
-export default function JobOrderReceiptPrint({ job }) {
-  const intake = extractIntakeRecord(job)
+export default function JobOrderReceiptPrint({ isBlank = false, job = {} }) {
+  const intake = isBlank ? {} : extractIntakeRecord(job)
 
   return (
     <div className="jo-dual-receipt-page">
-      <SingleReceiptCopy copyType="CUSTOMER COPY" intake={intake} job={job} />
+      <SingleReceiptCopy copyType="CUSTOMER COPY" intake={intake} isBlank={isBlank} job={job} />
       <div className="jo-sheet-cut-divider">
         <span>✄ CUT HERE</span>
       </div>
-      <SingleReceiptCopy copyType="STORE COPY" intake={intake} job={job} />
+      <SingleReceiptCopy copyType="STORE COPY" intake={intake} isBlank={isBlank} job={job} />
     </div>
   )
 }
