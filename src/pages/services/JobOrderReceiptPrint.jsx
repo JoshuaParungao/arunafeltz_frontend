@@ -29,7 +29,7 @@ function SingleReceiptCopy({ copyType, intake = {}, isBlank = false, job = {} })
 
   return (
     <div className="jo-receipt-half">
-      {/* Header section */}
+      {/* 1. Header section */}
       <div className="jo-receipt-header-grid">
         <div className="jo-receipt-logo-block">
           <h2 className="jo-receipt-brand-title">{shopName}</h2>
@@ -53,18 +53,18 @@ function SingleReceiptCopy({ copyType, intake = {}, isBlank = false, job = {} })
         </div>
       </div>
 
-      {/* Title banner */}
+      {/* 2. Title banner */}
       <div className="jo-receipt-title-banner">
         <span>JOB ORDER/ REPAIR/S RECEIPT</span>
         <span className="jo-copy-tag">({copyType})</span>
       </div>
 
-      {/* Notice Banner */}
+      {/* 3. Notice Banner */}
       <div className="jo-receipt-notice-box">
         FOR LAPTOP ALWAYS TEST BATTERY STATUS, NO TEST NO ACCEPTANCE POLICY
       </div>
 
-      {/* Customer & Unit Details Table */}
+      {/* 4. Customer & Unit Details Table */}
       <div className="jo-receipt-details-table">
         <div className="jo-detail-row">
           <div className="jo-detail-cell jo-cell-label">Received from:</div>
@@ -86,7 +86,7 @@ function SingleReceiptCopy({ copyType, intake = {}, isBlank = false, job = {} })
         </div>
       </div>
 
-      {/* Middle Row: Policy & Received By */}
+      {/* 5. Middle Row: Policy & Received By */}
       <div className="jo-receipt-policy-row">
         <div className="jo-no-claim-box">
           NO RECEIPT, NO CLAIM POLICY
@@ -98,7 +98,7 @@ function SingleReceiptCopy({ copyType, intake = {}, isBlank = false, job = {} })
         </div>
       </div>
 
-      {/* Terms and Conditions */}
+      {/* 6. Terms and Conditions */}
       <div className="jo-receipt-terms-section">
         <div className="jo-terms-title jo-bold">Terms and Conditions:</div>
         <ol className="jo-terms-list">
@@ -113,35 +113,26 @@ function SingleReceiptCopy({ copyType, intake = {}, isBlank = false, job = {} })
         </div>
       </div>
 
-      {/* 3-part Disclaimers */}
-      <div className="jo-disclaimer-block">
-        <div className="jo-disclaimer-grid">
-          <div className="jo-disclaimer-col">
-            <strong className="jo-disc-title">1. Data Loss Disclaimer</strong>
-            <p>
-              We are not responsible for any data loss that may occur during the repair/service process. It is the customer's responsibility to back up all important files, documents, and data before surrendering the unit.
-            </p>
-          </div>
-          <div className="jo-disclaimer-col">
-            <strong className="jo-disc-title">2. Hardware Damage Disclaimer</strong>
-            <p>
-              While we take utmost care with your device, unforeseen hardware failures may occur during disassembly, testing, or repair—especially on aged, previously repaired, or liquid-damaged units. We are not liable for pre-existing internal degradation or component failure resulting from prior conditions.
-            </p>
-          </div>
-          <div className="jo-disclaimer-col">
-            <strong className="jo-disc-title">3. Software Issues Disclaimer</strong>
-            <p>
-              We are not liable for software malfunctions, corruption, OS errors, license deactivations, or third-party app conflicts that arise during or after repairs. Customers must ensure legitimate licenses and re-installation media.
-            </p>
-          </div>
+      {/* 7. Disclaimer & Conforme */}
+      <div className="jo-receipt-disclaimer-section">
+        <div className="jo-disclaimer-left-text">
+          <div className="jo-disclaimer-title jo-bold">Disclaimer:</div>
+          <p className="jo-disclaimer-intro">
+            By proceeding with our Desktop PC/ Laptop Checking or Cleaning services, you acknowledge and agree to the following:
+          </p>
+          <p className="jo-disclaimer-item">
+            <strong>a. Data Loss:</strong> While we take every precaution to protect your data, we are not responsible for any data loss or corruption that may occur during the checking or cleaning process. It is strongly recommended that you back up all important files before we begin.
+          </p>
+          <p className="jo-disclaimer-item">
+            <strong>b. Hardware Damage:</strong> We are not responsible for pre-existing hardware damage or any damage that may occur during the cleaning process due to unforeseen circumstances. We will exercise reasonable care, but hardware failure is always a possibility.
+          </p>
+          <p className="jo-disclaimer-item">
+            <strong>c. Software Issues:</strong> We will not be held responsible for resolving any software issues or problems that are not directly related to the checking or physical cleaning of your PC.
+          </p>
+          <p className="jo-disclaimer-closing">
+            By agreeing to our service, you understand and accept the limitations of liability outlined above. We recommend that you carefully review this disclaimer before proceeding.
+          </p>
         </div>
-
-        <p className="jo-disclaimer-highlight">
-          Any claims for repair defects must be reported within <strong>seven (7) days</strong> from the date of release.
-        </p>
-        <p className="jo-disclaimer-closing">
-          By agreeing to our service, you understand and accept the limitations of liability outlined above. We recommend that you carefully review this disclaimer before proceeding.
-        </p>
 
         {/* Conforme signature box */}
         <div className="jo-conforme-box">

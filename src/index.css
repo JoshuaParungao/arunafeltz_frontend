@@ -199,10 +199,14 @@ html.dark .shadow-card,
 }
 
 .job-order-print-document {
-  background: #ffffff;
-  color: #111827;
-  padding: 8mm;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+  background: #ffffff !important;
+  color: #000000 !important;
+  padding: 0;
+  width: 210mm;
+  max-width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
 
 .job-order-print-copy {
@@ -330,30 +334,42 @@ html.dark .shadow-card,
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 100%;
+  width: 210mm;
+  max-width: 210mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  margin: 0 auto;
+  padding: 4mm 8mm;
+  box-sizing: border-box;
   background: #ffffff !important;
   color: #000000 !important;
-  font-family: "Arial Narrow", Arial, sans-serif !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  overflow: hidden;
 }
 
 .jo-receipt-half {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  height: 139mm;
+  max-height: 139mm;
   border: 1px solid #000000;
-  padding: 3mm 4mm;
+  padding: 2.2mm 3.5mm;
+  box-sizing: border-box;
   background: #ffffff !important;
   color: #000000 !important;
-  font-size: 9pt;
+  font-size: 8pt;
   line-height: 1.15;
+  overflow: hidden;
 }
 
 .jo-receipt-header-grid {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 4mm;
-  border-bottom: 1.5px solid #000000;
-  padding-bottom: 2mm;
+  gap: 3mm;
+  border-bottom: 1.2px solid #000000;
+  padding-bottom: 1mm;
 }
 
 .jo-receipt-logo-block {
@@ -361,7 +377,7 @@ html.dark .shadow-card,
 }
 
 .jo-receipt-brand-title {
-  font-size: 9.5pt;
+  font-size: 8.8pt;
   font-weight: bold;
   letter-spacing: 0.02em;
   margin: 0;
@@ -371,38 +387,38 @@ html.dark .shadow-card,
 
 .jo-receipt-brand-sub,
 .jo-receipt-brand-contact {
-  font-size: 8pt;
-  margin: 1px 0 0;
+  font-size: 7.2pt;
+  margin: 0.5px 0 0;
   color: #111827 !important;
 }
 
 .jo-receipt-meta-block {
   flex: 0 0 auto;
-  min-width: 48mm;
+  min-width: 44mm;
   text-align: right;
-  font-size: 8.5pt;
+  font-size: 7.5pt;
 }
 
 .jo-receipt-meta-row {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
-  margin-bottom: 1px;
+  gap: 5px;
+  margin-bottom: 0.5px;
 }
 
 .jo-meta-label {
-  font-size: 8.5pt;
+  font-size: 7.5pt;
   color: #000000 !important;
 }
 
 .jo-meta-value {
-  font-size: 8.5pt;
-  min-width: 24mm;
+  font-size: 7.5pt;
+  min-width: 22mm;
   text-align: left;
 }
 
 .jo-jo-num {
-  font-size: 11pt !important;
+  font-size: 10pt !important;
   font-weight: bold !important;
   color: #b91c1c !important;
 }
@@ -413,17 +429,17 @@ html.dark .shadow-card,
   justify-content: space-between;
   background: #000000;
   color: #ffffff !important;
-  padding: 1.5px 6px;
-  margin-top: 1.5mm;
-  font-size: 9.5pt;
+  padding: 1px 5px;
+  margin-top: 1mm;
+  font-size: 8.5pt;
   font-weight: bold;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 }
 
 .jo-copy-tag {
-  font-size: 7.5pt;
+  font-size: 7pt;
   font-weight: normal;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .jo-receipt-notice-box {
@@ -431,22 +447,22 @@ html.dark .shadow-card,
   background: #f8fafc;
   color: #000000 !important;
   font-weight: bold;
-  font-size: 7.8pt;
+  font-size: 6.8pt;
   text-align: center;
-  padding: 1.5px 4px;
-  margin-top: 1.5mm;
+  padding: 1px 3px;
+  margin-top: 1mm;
   letter-spacing: 0.02em;
 }
 
 .jo-receipt-details-table {
   border: 1px solid #000000;
-  margin-top: 1.5mm;
-  font-size: 8.5pt;
+  margin-top: 1mm;
+  font-size: 7.5pt;
 }
 
 .jo-detail-row {
   display: grid;
-  grid-template-columns: 24mm 1fr 24mm 38mm;
+  grid-template-columns: 22mm 1fr 22mm 34mm;
   border-bottom: 1px solid #cbd5e1;
 }
 
@@ -455,7 +471,7 @@ html.dark .shadow-card,
 }
 
 .jo-detail-cell {
-  padding: 1.5px 4px;
+  padding: 1px 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -479,15 +495,15 @@ html.dark .shadow-card,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4mm;
-  margin-top: 1.5mm;
-  padding: 1mm 0;
+  gap: 3mm;
+  margin-top: 1mm;
+  padding: 0.5mm 0;
 }
 
 .jo-no-claim-box {
-  font-size: 9.5pt;
+  font-size: 8.5pt;
   font-weight: bold;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   color: #000000 !important;
 }
 
@@ -495,43 +511,44 @@ html.dark .shadow-card,
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  min-width: 55mm;
+  min-width: 50mm;
 }
 
 .jo-received-label {
-  font-size: 7.5pt;
+  font-size: 6.8pt;
   color: #475569;
 }
 
 .jo-staff-name-line {
-  width: 52mm;
+  width: 48mm;
   border-bottom: 1px solid #000000;
   text-align: center;
-  font-size: 8.5pt;
+  font-size: 7.8pt;
   font-weight: bold;
-  padding-bottom: 1px;
-  min-height: 4mm;
+  padding-bottom: 0.5px;
+  min-height: 3.5mm;
 }
 
 .jo-signature-caption {
-  font-size: 6.8pt;
+  font-size: 6.2pt;
   color: #475569;
   text-align: center;
-  width: 52mm;
-  margin-top: 1px;
+  width: 48mm;
+  margin-top: 0.5px;
 }
 
 .jo-receipt-terms-section {
   border-top: 1px solid #000000;
-  padding-top: 1.5mm;
-  margin-top: 1mm;
-  font-size: 7.2pt;
-  line-height: 1.2;
+  padding-top: 0.8mm;
+  margin-top: 0.8mm;
+  font-size: 6.2pt;
+  line-height: 1.15;
 }
 
 .jo-terms-title {
-  font-size: 7.8pt;
-  margin-bottom: 1px;
+  font-size: 6.8pt;
+  font-weight: bold;
+  margin-bottom: 0.5px;
 }
 
 .jo-terms-list {
@@ -541,42 +558,47 @@ html.dark .shadow-card,
 }
 
 .jo-terms-list li {
-  margin-bottom: 0.5px;
+  margin-bottom: 0.3px;
 }
 
 .jo-claim-status-row {
   display: flex;
-  gap: 15mm;
-  margin-top: 1.5mm;
+  gap: 12mm;
+  margin-top: 0.8mm;
   font-weight: bold;
-  font-size: 7.8pt;
+  font-size: 6.8pt;
 }
 
 .jo-receipt-disclaimer-section {
   border-top: 1px solid #000000;
-  padding-top: 1.5mm;
-  margin-top: 1.5mm;
-  font-size: 6.8pt;
-  line-height: 1.2;
+  padding-top: 0.8mm;
+  margin-top: 0.8mm;
+  font-size: 5.6pt;
+  line-height: 1.15;
   position: relative;
+  min-height: 23mm;
+}
+
+.jo-disclaimer-left-text {
+  padding-right: 56mm;
 }
 
 .jo-disclaimer-title {
-  font-size: 7.5pt;
+  font-size: 6.5pt;
+  font-weight: bold;
 }
 
 .jo-disclaimer-intro {
   font-weight: bold;
-  margin: 0.5px 0;
+  margin: 0.3px 0;
 }
 
 .jo-disclaimer-item {
-  margin: 0.5px 0;
+  margin: 0.3px 0;
 }
 
 .jo-disclaimer-closing {
-  margin-top: 1px;
-  max-width: 125mm;
+  margin-top: 0.5px;
 }
 
 .jo-conforme-box {
@@ -591,7 +613,7 @@ html.dark .shadow-card,
 
 .jo-conforme-label {
   align-self: flex-start;
-  font-size: 7.5pt;
+  font-size: 6.8pt;
   font-weight: bold;
 }
 
@@ -599,9 +621,9 @@ html.dark .shadow-card,
   width: 100%;
   border-bottom: 1px solid #000000;
   text-align: center;
-  font-size: 8.5pt;
+  font-size: 7.8pt;
   font-weight: bold;
-  min-height: 4mm;
+  min-height: 3.8mm;
 }
 
 .jo-sheet-cut-divider {
@@ -609,8 +631,8 @@ html.dark .shadow-card,
   align-items: center;
   justify-content: center;
   border-top: 1px dashed #64748b;
-  margin: 2mm 0;
-  font-size: 7.5pt;
+  margin: 1mm 0;
+  font-size: 7pt;
   font-weight: bold;
   color: #64748b;
   position: relative;
