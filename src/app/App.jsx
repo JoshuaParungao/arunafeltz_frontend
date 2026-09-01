@@ -16,9 +16,11 @@ import {
   clearSelectedBranch,
   clearSession,
   getAccessToken,
+  getActivePage,
   getSelectedBranch,
   getUser,
   saveAccessToken,
+  saveActivePage,
   saveSelectedBranch,
   saveUser,
 } from "../lib/sessionStorage"
@@ -69,8 +71,13 @@ function getInitialBranch(currentUser) {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState("pos")
   const [user, setUser] = useState(() => getUser())
+  const [activePage, setActivePage] = useState(() => {
+    const cachedUser = getUser()
+    const saved = cachedUser ? getActivePage(cachedUser.id) : null
+    if (saved) return saved
+    return cachedUser ? getDefaultModuleForRole(cachedUser.role) : "pos"
+  })
   const [selectedBranch, setSelectedBranch] = useState(() => getSelectedBranch())
   const [isCheckingSession, setIsCheckingSession] = useState(() => Boolean(getAccessToken()))
   const [hasAssignedCashBoxAccess, setHasAssignedCashBoxAccess] = useState(false)
@@ -122,10 +129,13 @@ function App() {
 
     if (canAccessRequestedPage) {
       setActivePage(pageKey)
+      saveActivePage(currentUser.id, pageKey)
       return
     }
 
-    setActivePage(getDefaultModuleForRole(currentUser.role))
+    const defaultPage = getDefaultModuleForRole(currentUser.role)
+    setActivePage(defaultPage)
+    saveActivePage(currentUser.id, defaultPage)
   }
 
   useEffect(() => {
@@ -139,32 +149,40 @@ function App() {
 
       try {
         const response = await getCurrentUser()
-        const currentUser = response?.data?.user
+        const authenticatedUser = response?.data?.user || response?.user || response
 
-        if (!response?.success || !currentUser) {
+        if (!response?.success && !authenticatedUser?.id) {
           throw new Error("Invalid session response.")
         }
 
-        saveUser(currentUser)
-        setUser(currentUser)
-        setActivePage((currentPage) =>
-          canRoleAccessModule(currentUser.role, currentPage)
-            ? currentPage
-            : getDefaultModuleForRole(currentUser.role),
-        )
+        saveUser(authenticatedUser)
+        setUser(authenticatedUser)
 
-        if (currentUser.role !== USER_ROLES.SUPER_OWNER) {
-          const branch = getInitialBranch(currentUser)
+        const savedPage = getActivePage(authenticatedUser.id)
+        if (savedPage && canRoleAccessModule(authenticatedUser.role, savedPage)) {
+          setActivePage(savedPage)
+        } else {
+          setActivePage(getDefaultModuleForRole(authenticatedUser.role))
+        }
+
+        if (authenticatedUser.role !== USER_ROLES.SUPER_OWNER) {
+          const branch = getInitialBranch(authenticatedUser)
 
           if (branch) {
             saveSelectedBranch(branch)
             setSelectedBranch(branch)
+          }
+        } else {
+          const savedBranch = getSelectedBranch()
+          if (savedBranch) {
+            setSelectedBranch(savedBranch)
           }
         }
       } catch {
         clearSession()
         setUser(null)
         setSelectedBranch(null)
+        setActivePage("pos")
       } finally {
         setIsCheckingSession(false)
       }
@@ -223,16 +241,24 @@ function App() {
     saveUser(loginUser)
 
     const response = await getCurrentUser()
-    const currentUser = response?.data?.user
+    const currentUser = response?.data?.user || response?.user || loginUser
 
-    if (!response?.success || !currentUser) {
+    if (!currentUser) {
       clearSession()
       throw new Error("Unable to verify logged-in user.")
     }
 
     saveUser(currentUser)
     setUser(currentUser)
-    setActivePage(getDefaultModuleForRole(currentUser.role))
+
+    const savedPage = getActivePage(currentUser.id)
+    const targetPage =
+      savedPage && canRoleAccessModule(currentUser.role, savedPage)
+        ? savedPage
+        : getDefaultModuleForRole(currentUser.role)
+
+    setActivePage(targetPage)
+    saveActivePage(currentUser.id, targetPage)
 
     if (currentUser.role !== USER_ROLES.SUPER_OWNER) {
       const branch = getInitialBranch(currentUser)

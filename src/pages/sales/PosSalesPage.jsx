@@ -56,6 +56,7 @@ import {
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
 import { serializeQuotationNotes } from "../../utils/quotationSettlement"
+import { saveFormDraft, getFormDraft, clearFormDraft } from "../../lib/sessionStorage"
 
 const SALE_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -934,11 +935,20 @@ function PosSalesPage({ selectedBranch, user }) {
   const [addingItemId, setAddingItemId] = useState("")
   const itemRequestIdRef = useRef(0)
 
-  const [customerSearch, setCustomerSearch] = useState("")
+  const [customerSearch, setCustomerSearch] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.customerSearch || ""
+  })
   const [customers, setCustomers] = useState([])
-  const [selectedCustomerId, setSelectedCustomerId] = useState("")
+  const [selectedCustomerId, setSelectedCustomerId] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.selectedCustomerId || ""
+  })
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
-  const [selectedPriceTier, setSelectedPriceTier] = useState(1)
+  const [selectedPriceTier, setSelectedPriceTier] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.selectedPriceTier || 1
+  })
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
   const [customerMessage, setCustomerMessage] = useState("")
   const customerRequestIdRef = useRef(0)
@@ -947,8 +957,14 @@ function PosSalesPage({ selectedBranch, user }) {
 
   const [serviceStaffList, setServiceStaffList] = useState([])
   const [isLoadingServiceStaff, setIsLoadingServiceStaff] = useState(false)
-  const [selectedServiceStaffId, setSelectedServiceStaffId] = useState("")
-  const [serviceStaffSearch, setServiceStaffSearch] = useState("")
+  const [selectedServiceStaffId, setSelectedServiceStaffId] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.selectedServiceStaffId || ""
+  })
+  const [serviceStaffSearch, setServiceStaffSearch] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.serviceStaffSearch || ""
+  })
   const [isServiceStaffDropdownOpen, setIsServiceStaffDropdownOpen] = useState(false)
   const serviceStaffDropdownRef = useRef(null)
 
@@ -967,7 +983,10 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }, [])
 
-  const [cart, setCart] = useState([])
+  const [cart, setCart] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return Array.isArray(draft?.cart) ? draft.cart : []
+  })
   const [cartMessage, setCartMessage] = useState("")
   const [showServiceForm, setShowServiceForm] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
@@ -976,16 +995,40 @@ function PosSalesPage({ selectedBranch, user }) {
   const [serviceMarkup, setServiceMarkup] = useState("")
   const [serviceDiscount, setServiceDiscount] = useState("0")
   const [serviceCharge, setServiceCharge] = useState("0")
-  const [remarks, setRemarks] = useState("")
-  const [isPcBuild, setIsPcBuild] = useState(false)
+  const [remarks, setRemarks] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.remarks || ""
+  })
+  const [isPcBuild, setIsPcBuild] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return Boolean(draft?.isPcBuild)
+  })
 
-  const [paymentMethod, setPaymentMethod] = useState("CASH")
-  const [settlementMethod, setSettlementMethod] = useState("CASH")
-  const [paymentAmount, setPaymentAmount] = useState("0")
+  const [paymentMethod, setPaymentMethod] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.paymentMethod || "CASH"
+  })
+  const [settlementMethod, setSettlementMethod] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.settlementMethod || "CASH"
+  })
+  const [paymentAmount, setPaymentAmount] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.paymentAmount || "0"
+  })
   const [paymentAmountTouched, setPaymentAmountTouched] = useState(false)
-  const [paymentReference, setPaymentReference] = useState("")
-  const [paymentRemarks, setPaymentRemarks] = useState("")
-  const [creditTerm, setCreditTerm] = useState("MONTH_3")
+  const [paymentReference, setPaymentReference] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.paymentReference || ""
+  })
+  const [paymentRemarks, setPaymentRemarks] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.paymentRemarks || ""
+  })
+  const [creditTerm, setCreditTerm] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.creditTerm || "MONTH_3"
+  })
   const [creditDueDay, setCreditDueDay] = useState("")
   const [creditFirstDueDate, setCreditFirstDueDate] = useState("")
   const [creditRemarks, setCreditRemarks] = useState("")
@@ -1012,6 +1055,48 @@ function PosSalesPage({ selectedBranch, user }) {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!branchId || !user?.id) return
+    const draftKey = `pos_draft_${user.id}_${branchId}`
+    if (cart.length > 0 || customerSearch || remarks || selectedCustomerId) {
+      saveFormDraft(draftKey, {
+        cart,
+        selectedCustomerId,
+        customerSearch,
+        selectedPriceTier,
+        remarks,
+        isPcBuild,
+        paymentMethod,
+        settlementMethod,
+        paymentAmount,
+        paymentReference,
+        paymentRemarks,
+        creditTerm,
+        selectedServiceStaffId,
+        serviceStaffSearch,
+      })
+    } else {
+      clearFormDraft(draftKey)
+    }
+  }, [
+    branchId,
+    user?.id,
+    cart,
+    selectedCustomerId,
+    customerSearch,
+    selectedPriceTier,
+    remarks,
+    isPcBuild,
+    paymentMethod,
+    settlementMethod,
+    paymentAmount,
+    paymentReference,
+    paymentRemarks,
+    creditTerm,
+    selectedServiceStaffId,
+    serviceStaffSearch,
+  ])
 
   const [sales, setSales] = useState([])
   const [salesMeta, setSalesMeta] = useState(null)
@@ -1647,6 +1732,9 @@ function PosSalesPage({ selectedBranch, user }) {
     setProviderReference("")
     setCheckoutMessage("")
     setCartMessage("")
+    if (user?.id && branchId) {
+      clearFormDraft(`pos_draft_${user.id}_${branchId}`)
+    }
   }
 
   const submitSale = async () => {

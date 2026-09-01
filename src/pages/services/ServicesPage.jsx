@@ -21,6 +21,7 @@ import {
 
 import { getCustomers } from "../../features/customers/customers.api"
 import { generateUUID } from "../../utils/uuid"
+import { saveFormDraft, getFormDraft, clearFormDraft } from "../../lib/sessionStorage"
 import {
   cancelServicePayment,
   createServiceJob,
@@ -588,8 +589,42 @@ export default function ServicesPage({ selectedBranch, user }) {
   const [errorMessage, setErrorMessage] = useState("")
   const [notice, setNotice] = useState("")
 
-  const [showCreate, setShowCreate] = useState(false)
-  const [createForm, setCreateForm] = useState(EMPTY_CREATE)
+  const [createForm, setCreateForm] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`service_create_draft_${user.id}_${branchId}`) : null
+    return draft?.createForm || EMPTY_CREATE
+  })
+  const [showCreate, setShowCreate] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`service_create_draft_${user.id}_${branchId}`) : null
+    return Boolean(draft?.showCreate)
+  })
+
+  useEffect(() => {
+    if (!branchId || !user?.id) return
+    const draftKey = `service_create_draft_${user.id}_${branchId}`
+    const isFormDirty =
+      showCreate &&
+      (createForm.customerNameSnapshot ||
+        createForm.deviceDescription ||
+        createForm.serialNumber ||
+        createForm.problemDescription ||
+        createForm.brandModel ||
+        createForm.baseServiceCharge)
+
+    if (isFormDirty) {
+      saveFormDraft(draftKey, { showCreate, createForm })
+    } else if (!showCreate) {
+      clearFormDraft(draftKey)
+    }
+  }, [branchId, user?.id, showCreate, createForm])
+
+  const handleCloseCreateModal = () => {
+    setShowCreate(false)
+    setCreateForm(EMPTY_CREATE)
+    if (user?.id && branchId) {
+      clearFormDraft(`service_create_draft_${user.id}_${branchId}`)
+    }
+  }
+
   const [actionStatus, setActionStatus] = useState("")
   const [actionForm, setActionForm] = useState({
     diagnosis: "",
@@ -837,6 +872,9 @@ export default function ServicesPage({ selectedBranch, user }) {
       const created = response?.data
       setCreateForm(EMPTY_CREATE)
       setShowCreate(false)
+      if (user?.id && branchId) {
+        clearFormDraft(`service_create_draft_${user.id}_${branchId}`)
+      }
       setNotice(`${created?.jobCode || "Job order"} received.`)
       setPage(1)
       await loadJobs()
@@ -1384,7 +1422,7 @@ export default function ServicesPage({ selectedBranch, user }) {
       </section>
 
       {showCreate ? (
-        <Modal onClose={() => setShowCreate(false)} title="Receive service / create Job Order" width="max-w-4xl">
+        <Modal onClose={handleCloseCreateModal} title="Receive service / create Job Order" width="max-w-4xl">
           <form onSubmit={submitCreate}>
             <div className="max-h-[76vh] space-y-5 overflow-y-auto p-5 sm:p-6">
               {/* Quick Blank Print Banner for Customer */}

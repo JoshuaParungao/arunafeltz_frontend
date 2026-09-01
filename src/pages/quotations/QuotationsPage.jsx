@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 
-import { createPortal } from "react-dom"
-
 import {
   createQuotation,
   getQuotationById,
@@ -21,6 +19,7 @@ import { getInstallmentBasisSettings } from "../../features/settings/settings.ap
 import { getRoleLabel } from "../../constants/roles"
 import { generateUUID } from "../../utils/uuid"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
+import { saveFormDraft, getFormDraft, clearFormDraft } from "../../lib/sessionStorage"
 
 const IMMEDIATE_PAYMENT_METHODS = [
   ["CASH", "Cash"],
@@ -139,6 +138,9 @@ function getQuotationRows(response) {
 }
 
 function QuotationsPage({ selectedBranch, user }) {
+  const branchName = selectedBranch?.name || user?.branch?.name || "Selected branch"
+  const branchId = selectedBranch?.id || user?.branch?.id || user?.branchId || ""
+
   const [quotations, setQuotations] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
@@ -146,26 +148,56 @@ function QuotationsPage({ selectedBranch, user }) {
   const [selectedQuotation, setSelectedQuotation] = useState(null)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const [detailMessage, setDetailMessage] = useState("")
-  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isFormOpen, setIsFormOpen] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return Boolean(draft?.isFormOpen)
+  })
   const [editingQuotationId, setEditingQuotationId] = useState("")
   const [isSavingQuotation, setIsSavingQuotation] = useState(false)
   const [formMessage, setFormMessage] = useState("")
-  const [formTitle, setFormTitle] = useState("")
-  const [formNotes, setFormNotes] = useState("")
-  const [formInternalNotes, setFormInternalNotes] = useState("")
-  const [formValidUntil, setFormValidUntil] = useState("")
-  const [formIsPcBuild, setFormIsPcBuild] = useState(false)
-  const [formQuotationType, setFormQuotationType] = useState("MIXED")
+  const [formTitle, setFormTitle] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return draft?.formTitle || ""
+  })
+  const [formNotes, setFormNotes] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return draft?.formNotes || ""
+  })
+  const [formInternalNotes, setFormInternalNotes] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return draft?.formInternalNotes || ""
+  })
+  const [formValidUntil, setFormValidUntil] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return draft?.formValidUntil || ""
+  })
+  const [formIsPcBuild, setFormIsPcBuild] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return Boolean(draft?.formIsPcBuild)
+  })
+  const [formQuotationType, setFormQuotationType] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return draft?.formQuotationType || "MIXED"
+  })
   const [availableCustomers, setAvailableCustomers] = useState([])
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
   const [customerMessage, setCustomerMessage] = useState("")
-  const [selectedCustomerId, setSelectedCustomerId] = useState("")
-  const [customerSearch, setCustomerSearch] = useState("")
+  const [selectedCustomerId, setSelectedCustomerId] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return draft?.selectedCustomerId || ""
+  })
+  const [customerSearch, setCustomerSearch] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return draft?.customerSearch || ""
+  })
   const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false)
   const [availableServiceStaff, setAvailableServiceStaff] = useState([])
   const [isLoadingServiceStaff, setIsLoadingServiceStaff] = useState(false)
   const [serviceStaffMessage, setServiceStaffMessage] = useState("")
-  const [selectedServiceDoneById, setSelectedServiceDoneById] = useState("")
+  const [selectedServiceDoneById, setSelectedServiceDoneById] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return draft?.selectedServiceDoneById || ""
+  })
   const [detailServiceDoneById, setDetailServiceDoneById] = useState("")
   const [isSavingServiceDoneBy, setIsSavingServiceDoneBy] = useState(false)
   const [serviceDoneByMessage, setServiceDoneByMessage] = useState("")
@@ -204,7 +236,10 @@ function QuotationsPage({ selectedBranch, user }) {
   const [productMarkup, setProductMarkup] = useState("")
   const [productDiscount, setProductDiscount] = useState("0")
   const [productRemarks, setProductRemarks] = useState("")
-  const [quotationLines, setQuotationLines] = useState([])
+  const [quotationLines, setQuotationLines] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`quotation_create_draft_${user.id}_${branchId}`) : null
+    return Array.isArray(draft?.quotationLines) ? draft.quotationLines : []
+  })
   const localLineSequenceRef = useRef(0)
   const conversionRequestRef = useRef({ signature: "", key: "" })
   const detailPanelRef = useRef(null)
@@ -226,13 +261,48 @@ function QuotationsPage({ selectedBranch, user }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!branchId || !user?.id || editingQuotationId) return
+    const draftKey = `quotation_create_draft_${user.id}_${branchId}`
+    if (quotationLines.length > 0 || formTitle || formNotes || customerSearch || selectedCustomerId) {
+      saveFormDraft(draftKey, {
+        quotationLines,
+        formTitle,
+        formNotes,
+        formInternalNotes,
+        formValidUntil,
+        formIsPcBuild,
+        formQuotationType,
+        selectedCustomerId,
+        customerSearch,
+        selectedServiceDoneById,
+        isFormOpen,
+      })
+    } else {
+      clearFormDraft(draftKey)
+    }
+  }, [
+    branchId,
+    user?.id,
+    editingQuotationId,
+    quotationLines,
+    formTitle,
+    formNotes,
+    formInternalNotes,
+    formValidUntil,
+    formIsPcBuild,
+    formQuotationType,
+    selectedCustomerId,
+    customerSearch,
+    selectedServiceDoneById,
+    isFormOpen,
+  ])
+
   const nextLocalLineId = (prefix) => {
     localLineSequenceRef.current += 1
     return `${prefix}-${localLineSequenceRef.current}`
   }
 
-  const branchName = selectedBranch?.name || user?.branch?.name || "Selected branch"
-  const branchId = selectedBranch?.id || user?.branch?.id || user?.branchId || ""
   const isConversionReceivable = RECEIVABLE_PROVIDER_VALUES.has(
     conversionPaymentMethod,
   )
@@ -529,6 +599,9 @@ function QuotationsPage({ selectedBranch, user }) {
     setProductRemarks("")
     setQuotationLines([])
     setFormMessage("")
+    if (user?.id && branchId) {
+      clearFormDraft(`quotation_create_draft_${user.id}_${branchId}`)
+    }
   }
 
   const openNewQuotationForm = () => {
@@ -543,10 +616,11 @@ function QuotationsPage({ selectedBranch, user }) {
     }, 100)
   }
 
-  const openEditQuotationForm = () => {
-    if (!selectedQuotation?.id || selectedQuotation.status !== "DRAFT") return
+  const openEditQuotationForm = (quotationToEdit) => {
+    const target = quotationToEdit || selectedQuotation
+    if (!target?.id || target.status !== "DRAFT") return
 
-    const detailLines = (selectedQuotation.items || []).map((item, index) => {
+    const detailLines = (target.items || []).map((item, index) => {
       const quantity = Number(item.quantity || 0)
       const unitPrice = Number(item.unitPrice || 0)
       const discountAmount = Number(item.discountAmount || 0)
@@ -579,24 +653,24 @@ function QuotationsPage({ selectedBranch, user }) {
     const hasCustom = detailLines.some((line) => line.type === "CUSTOM")
 
     resetQuotationForm()
-    setEditingQuotationId(selectedQuotation.id)
-    setFormTitle(selectedQuotation.title || "")
-    setFormNotes(selectedQuotation.notes || "")
-    setFormInternalNotes(selectedQuotation.internalNotes || "")
+    setEditingQuotationId(target.id)
+    setFormTitle(target.title || "")
+    setFormNotes(target.notes || "")
+    setFormInternalNotes(target.internalNotes || "")
     setFormValidUntil(
-      selectedQuotation.validUntil
-        ? new Date(selectedQuotation.validUntil).toISOString().slice(0, 10)
+      target.validUntil
+        ? new Date(target.validUntil).toISOString().slice(0, 10)
         : "",
     )
-    setFormIsPcBuild(Boolean(selectedQuotation.isPcBuild))
+    setFormIsPcBuild(Boolean(target.isPcBuild))
     setFormQuotationType(hasProduct && hasCustom ? "MIXED" : hasCustom ? "SERVICE" : "PRODUCT")
-    setSelectedCustomerId(selectedQuotation.customer?.id || "")
+    setSelectedCustomerId(target.customer?.id || "")
     setCustomerSearch(
-      selectedQuotation.customer
-        ? selectedQuotation.customer.fullName
+      target.customer
+        ? target.customer.fullName
         : "",
     )
-    setSelectedServiceDoneById(selectedQuotation.serviceDoneBy?.id || "")
+    setSelectedServiceDoneById(target.serviceDoneBy?.id || "")
     setQuotationLines(detailLines)
     setIsFormOpen(true)
 
@@ -931,8 +1005,12 @@ function QuotationsPage({ selectedBranch, user }) {
     }
   }
 
-  const openQuotationConversion = async () => {
-    if (!selectedQuotation?.id || ["CONVERTED", "CANCELLED", "REJECTED"].includes(selectedQuotation.status)) return
+  const openQuotationConversion = async (quotationToConvert) => {
+    const target = quotationToConvert || selectedQuotation
+    if (!target?.id || ["CONVERTED", "CANCELLED", "REJECTED"].includes(target.status)) return
+    if (target !== selectedQuotation) {
+      setSelectedQuotation(target)
+    }
 
     setIsConversionOpen(true)
     setIsLoadingConversionStock(true)
@@ -951,7 +1029,7 @@ function QuotationsPage({ selectedBranch, user }) {
 
     try {
       const preparedLineGroups = await Promise.all(
-        (selectedQuotation.items || []).map(async (item) => {
+        (target.items || []).map(async (item) => {
           if (!item.itemId) {
             return [{
               ...item,
@@ -1400,6 +1478,14 @@ function QuotationsPage({ selectedBranch, user }) {
             </select>
 
             <button
+              className="rounded-2xl bg-[var(--color-maroon)] px-5 py-3 text-sm font-bold text-white shadow hover:opacity-95"
+              onClick={openNewQuotationForm}
+              type="button"
+            >
+              + New quotation
+            </button>
+
+            <button
               className="rounded-2xl border border-[var(--color-border)] bg-white px-5 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
               disabled={isLoading}
               onClick={loadQuotations}
@@ -1477,6 +1563,32 @@ function QuotationsPage({ selectedBranch, user }) {
                         >
                           View
                         </button>
+                        {quotation.status === "DRAFT" ? (
+                          <button
+                            className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                            disabled={isLoadingDetails}
+                            onClick={async () => {
+                              const res = await getQuotationById(quotation.id)
+                              openEditQuotationForm(res?.data || quotation)
+                            }}
+                            type="button"
+                          >
+                            Edit
+                          </button>
+                        ) : null}
+                        {quotation.status === "DRAFT" || quotation.status === "APPROVED" ? (
+                          <button
+                            className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+                            disabled={isLoadingDetails}
+                            onClick={async () => {
+                              await loadQuotationDetails(quotation)
+                              openQuotationConversion(quotation)
+                            }}
+                            type="button"
+                          >
+                            Convert
+                          </button>
+                        ) : null}
                         {!["CONVERTED", "CANCELLED"].includes(quotation.status) ? (
                           <button
                             className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100"
