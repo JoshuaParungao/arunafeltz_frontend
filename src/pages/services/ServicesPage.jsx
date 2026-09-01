@@ -171,19 +171,16 @@ function getMarkupAdjustedPrice(basePrice, markupPercent) {
   return roundMoney(base / (1 - markup / 100))
 }
 
-function isSeniorTechnician(technician) {
-  return technician?.incentiveClassification === "SENIOR_TECHNICIAN"
-}
-
-function isEligibleForRepairType(technician, repairType) {
-  return repairType !== "BOARD_LEVEL_REPAIR" || isSeniorTechnician(technician)
+function isEligibleForRepairType() {
+  return true
 }
 
 function technicianLabel(technician) {
-  const name = technician?.fullName || technician?.username || "Technician"
+  const name = technician?.fullName || technician?.username || "Staff"
+  const role = technician?.role ? friendly(technician.role) : ""
   return technician?.incentiveClassification
     ? `${name} · ${friendly(technician.incentiveClassification)}`
-    : name
+    : role ? `${name} (${role})` : name
 }
 
 function dateTime(value) {
@@ -482,6 +479,35 @@ export default function ServicesPage({ selectedBranch, user }) {
   const paymentRequestRef = useRef({ signature: "", key: "" })
   const [printPreviewState, setPrintPreviewState] = useState({ isOpen: false, defaultDoc: "RECEIPT" })
 
+  const [customerSearch, setCustomerSearch] = useState("")
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
+  const customerDropdownRef = useRef(null)
+  const customerInputRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        customerDropdownRef.current &&
+        !customerDropdownRef.current.contains(event.target)
+      ) {
+        setIsCustomerDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const filteredCustomers = useMemo(() => {
+    const q = (createForm.customerNameSnapshot || customerSearch || "").trim().toLowerCase()
+    if (!q) return customers.slice(0, 10)
+    return customers.filter((c) =>
+      c.fullName?.toLowerCase().includes(q) ||
+      c.mobileNumber?.toLowerCase().includes(q) ||
+      c.address?.toLowerCase().includes(q) ||
+      c.companyName?.toLowerCase().includes(q)
+    ).slice(0, 10)
+  }, [customers, createForm.customerNameSnapshot, customerSearch])
+
   const loadJobs = useCallback(async () => {
     const response = await getServiceJobs({
       ...(branchId ? { branchId } : {}),
@@ -552,8 +578,8 @@ export default function ServicesPage({ selectedBranch, user }) {
       setErrorMessage("Base service charge must be a valid non-negative amount.")
       return
     }
-    if (!isValidMarkup(createForm.markupPercent)) {
-      setErrorMessage("Markup must be at least 0% and less than 100%.")
+    if (!createForm.customerId && !createForm.customerNameSnapshot?.trim()) {
+      setErrorMessage("Please enter a customer name.")
       return
     }
 
@@ -563,10 +589,9 @@ export default function ServicesPage({ selectedBranch, user }) {
     if (
       createForm.assignedTechnicianId &&
       (!selectedAssignee ||
-        !isEligibleForRepairType(selectedAssignee, createForm.repairType) ||
         (user?.role === "TECHNICIAN" && selectedAssignee.id !== user.id))
     ) {
-      setErrorMessage("Choose an eligible technician for this repair category.")
+      setErrorMessage("Choose an eligible staff member/technician.")
       return
     }
 
@@ -1026,34 +1051,20 @@ export default function ServicesPage({ selectedBranch, user }) {
   const selectedIsActive = selectedJob && ACTIVE_STATUSES.has(selectedJob.status)
   const selectedTechnicianId =
     selectedJob?.assignedTechnicianId || selectedJob?.assignedTechnician?.id
-  const currentTechnician =
-    technicians.find((technician) => technician.id === user?.id) || user
-  const actionableRepairTypes =
-    user?.role === "TECHNICIAN" && !isSeniorTechnician(currentTechnician)
-      ? REPAIR_TYPES.filter((type) => type.value === "ORDINARY_REPAIR")
-      : REPAIR_TYPES
-  const technicianOptionsFor = (repairType) =>
+  const actionableRepairTypes = REPAIR_TYPES
+  const technicianOptionsFor = () =>
     technicians.filter(
       (technician) =>
-        isEligibleForRepairType(technician, repairType) &&
         (user?.role !== "TECHNICIAN" || technician.id === user.id),
     )
-  const createTechnicianOptions = technicianOptionsFor(createForm.repairType)
+  const createTechnicianOptions = technicianOptionsFor()
   const selectedRepairType = selectedJob?.repairType || ""
   const actionRepairType = selectedRepairType || actionForm.repairType
   const releaseRepairType = selectedRepairType || releaseForm.repairType
-  const assignmentTechnicianOptions = selectedRepairType
-    ? technicianOptionsFor(selectedRepairType)
-    : []
-  const actionPerformerOptions = actionRepairType
-    ? technicianOptionsFor(actionRepairType)
-    : []
-  const releasePerformerOptions = releaseRepairType
-    ? technicianOptionsFor(releaseRepairType)
-    : []
-  const technicianCanHandleSelectedRepair =
-    user?.role !== "TECHNICIAN" ||
-    isEligibleForRepairType(currentTechnician, selectedRepairType)
+  const assignmentTechnicianOptions = technicianOptionsFor()
+  const actionPerformerOptions = technicianOptionsFor()
+  const releasePerformerOptions = technicianOptionsFor()
+  const technicianCanHandleSelectedRepair = true
   const canActOnSelected =
     canUpdateLifecycle &&
     technicianCanHandleSelectedRepair &&
@@ -1269,61 +1280,173 @@ export default function ServicesPage({ selectedBranch, user }) {
                 <span><strong className="block text-sm text-amber-900 dark:text-amber-200">Quick / same-day service</strong><span className="text-xs text-amber-800 dark:text-amber-300">Skips IN PROGRESS and may move directly from received to service performed.</span></span>
               </label>
 
-              {/* Top Meta: Repair Category, Customer, Assigned Technician */}
-              <div className="grid gap-4 sm:grid-cols-3">
+              {/* Top Meta: Repair Category & Assigned Staff/Technician */}
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Repair category *">
                   <select
                     className={FIELD_CLASS}
                     onChange={(event) => {
                       const repairType = event.target.value
-                      setCreateForm((form) => {
-                        const currentAssignee = technicians.find(
-                          (technician) => technician.id === form.assignedTechnicianId,
-                        )
-                        return {
-                          ...form,
-                          repairType,
-                          assignedTechnicianId:
-                            currentAssignee && isEligibleForRepairType(currentAssignee, repairType)
-                              ? form.assignedTechnicianId
-                              : "",
-                        }
-                      })
+                      setCreateForm((form) => ({
+                        ...form,
+                        repairType,
+                      }))
                     }}
                     required
                     value={createForm.repairType}
                   >
-                    {actionableRepairTypes.map((repairType) => <option key={repairType.value} value={repairType.value}>{repairType.label}</option>)}
-                  </select>
-                </Field>
-                <Field label="Customer record (optional)">
-                  <select className={FIELD_CLASS} onChange={(event) => setCreateForm((form) => ({ ...form, customerId: event.target.value }))} value={createForm.customerId}>
-                    <option value="">Walk-in / receiving snapshot</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.fullName}{customer.companyName ? ` (${customer.companyName})` : ""}
+                    {actionableRepairTypes.map((repairType) => (
+                      <option key={repairType.value} value={repairType.value}>
+                        {repairType.label}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Assigned technician (optional at intake)">
-                  <select className={FIELD_CLASS} onChange={(event) => setCreateForm((form) => ({ ...form, assignedTechnicianId: event.target.value }))} value={createForm.assignedTechnicianId}>
+                <Field label="Assigned staff / technician (optional)">
+                  <select
+                    className={FIELD_CLASS}
+                    onChange={(event) =>
+                      setCreateForm((form) => ({
+                        ...form,
+                        assignedTechnicianId: event.target.value,
+                      }))
+                    }
+                    value={createForm.assignedTechnicianId}
+                  >
                     <option value="">Unassigned</option>
-                    {createTechnicianOptions.map((technician) => <option key={technician.id} value={technician.id}>{technicianLabel(technician)}</option>)}
+                    {createTechnicianOptions.map((technician) => (
+                      <option key={technician.id} value={technician.id}>
+                        {technicianLabel(technician)}
+                      </option>
+                    ))}
                   </select>
                 </Field>
               </div>
 
-              {/* Customer Contact & Address Snapshot */}
-              <div className="grid gap-4 rounded-2xl bg-[var(--color-soft)] p-4 sm:grid-cols-3">
-                {!createForm.customerId ? (
-                  <>
-                    <Field label="Walk-in customer name"><input className={FIELD_CLASS} maxLength="180" onChange={(event) => setCreateForm((form) => ({ ...form, customerNameSnapshot: event.target.value }))} placeholder="e.g. Marc Hernandez" value={createForm.customerNameSnapshot} /></Field>
-                    <Field label="Customer contact"><input className={FIELD_CLASS} maxLength="250" onChange={(event) => setCreateForm((form) => ({ ...form, customerContactSnapshot: event.target.value }))} placeholder="09XX-XXX-XXXX" value={createForm.customerContactSnapshot} /></Field>
-                  </>
-                ) : null}
-                <div className={!createForm.customerId ? "" : "sm:col-span-3"}>
-                  <Field label="Customer address (printed on intake)"><input className={FIELD_CLASS} maxLength="250" onChange={(event) => setCreateForm((form) => ({ ...form, customerAddressSnapshot: event.target.value }))} placeholder="Barangay, City, Province" value={createForm.customerAddressSnapshot} /></Field>
+              {/* Customer Input & Autocomplete (Same as in POS) */}
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+                    Customer Information
+                  </span>
+                  {createForm.customerId ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+                      ✓ Linked Existing Customer
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-[var(--color-muted)]">
+                      Walk-in / Direct Input
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="relative sm:col-span-1" ref={customerDropdownRef}>
+                    <Field label="Customer Name (Search or type walk-in) *">
+                      <div className="relative mt-1.5">
+                        <input
+                          ref={customerInputRef}
+                          autoComplete="off"
+                          className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3.5 py-2.5 pr-8 text-sm font-semibold outline-none transition focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-[var(--color-maroon)]/10"
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setCustomerSearch(val)
+                            setIsCustomerDropdownOpen(true)
+                            setCreateForm((form) => ({
+                              ...form,
+                              customerId: "",
+                              customerNameSnapshot: val,
+                            }))
+                          }}
+                          onFocus={() => setIsCustomerDropdownOpen(true)}
+                          placeholder="e.g. Juan dela Cruz..."
+                          value={createForm.customerNameSnapshot}
+                        />
+                        {createForm.customerNameSnapshot ? (
+                          <button
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--color-muted)] hover:bg-gray-200 hover:text-[var(--color-text-strong)]"
+                            onClick={() => {
+                              setCustomerSearch("")
+                              setIsCustomerDropdownOpen(false)
+                              setCreateForm((form) => ({
+                                ...form,
+                                customerId: "",
+                                customerNameSnapshot: "",
+                                customerContactSnapshot: "",
+                                customerAddressSnapshot: "",
+                              }))
+                            }}
+                            title="Clear customer"
+                            type="button"
+                          >
+                            <X size={13} />
+                          </button>
+                        ) : null}
+                      </div>
+                    </Field>
+
+                    {/* Floating Autocomplete Dropdown */}
+                    {isCustomerDropdownOpen && filteredCustomers.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-white dark:bg-slate-900 shadow-xl">
+                        <div className="border-b border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                          Matching Existing Customers
+                        </div>
+                        {filteredCustomers.map((cust) => (
+                          <button
+                            className="block w-full border-b border-[var(--color-border)] px-3.5 py-2 text-left text-xs transition last:border-b-0 hover:bg-blue-50 dark:hover:bg-slate-800"
+                            key={cust.id}
+                            onClick={() => {
+                              setCreateForm((form) => ({
+                                ...form,
+                                customerId: cust.id,
+                                customerNameSnapshot: cust.fullName,
+                                customerContactSnapshot: cust.mobileNumber || cust.email || form.customerContactSnapshot,
+                                customerAddressSnapshot: cust.address || form.customerAddressSnapshot,
+                              }))
+                              setCustomerSearch(cust.fullName)
+                              setIsCustomerDropdownOpen(false)
+                            }}
+                            type="button"
+                          >
+                            <p className="font-bold text-[var(--color-text-strong)]">{cust.fullName}</p>
+                            <p className="text-[11px] text-[var(--color-muted)]">
+                              {[cust.companyName, cust.mobileNumber, cust.address].filter(Boolean).join(" · ") || "No additional contact"}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <Field label="Customer Contact / Phone">
+                    <input
+                      className={FIELD_CLASS}
+                      maxLength="250"
+                      onChange={(event) =>
+                        setCreateForm((form) => ({
+                          ...form,
+                          customerContactSnapshot: event.target.value,
+                        }))
+                      }
+                      placeholder="09XX-XXX-XXXX"
+                      value={createForm.customerContactSnapshot}
+                    />
+                  </Field>
+
+                  <Field label="Customer Address (Printed on intake)">
+                    <input
+                      className={FIELD_CLASS}
+                      maxLength="250"
+                      onChange={(event) =>
+                        setCreateForm((form) => ({
+                          ...form,
+                          customerAddressSnapshot: event.target.value,
+                        }))
+                      }
+                      placeholder="Barangay, City, Province"
+                      value={createForm.customerAddressSnapshot}
+                    />
+                  </Field>
                 </div>
               </div>
 
