@@ -1340,14 +1340,14 @@ export default function ServicesPage({ selectedBranch, user }) {
                   )}
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3 items-start">
                   <div className="relative sm:col-span-1" ref={customerDropdownRef}>
-                    <Field label="Customer Name (Search or type walk-in) *">
-                      <div className="relative mt-1.5">
+                    <Field label="Customer Name *">
+                      <div className="relative">
                         <input
                           ref={customerInputRef}
                           autoComplete="off"
-                          className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3.5 py-2.5 pr-8 text-sm font-semibold outline-none transition focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-[var(--color-maroon)]/10"
+                          className={FIELD_CLASS}
                           onChange={(e) => {
                             const val = e.target.value
                             setCustomerSearch(val)
@@ -1418,7 +1418,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                     )}
                   </div>
 
-                  <Field label="Customer Contact / Phone">
+                  <Field label="Customer Contact">
                     <input
                       className={FIELD_CLASS}
                       maxLength="250"
@@ -1433,7 +1433,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                     />
                   </Field>
 
-                  <Field label="Customer Address (Printed on intake)">
+                  <Field label="Customer Address">
                     <input
                       className={FIELD_CLASS}
                       maxLength="250"
