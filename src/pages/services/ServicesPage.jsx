@@ -178,9 +178,19 @@ function isEligibleForRepairType() {
 function technicianLabel(technician) {
   const name = technician?.fullName || technician?.username || "Staff"
   const role = technician?.role ? friendly(technician.role) : ""
-  return technician?.incentiveClassification
-    ? `${name} · ${friendly(technician.incentiveClassification)}`
-    : role ? `${name} (${role})` : name
+  const classification =
+    technician?.incentiveClassification &&
+    technician.incentiveClassification !== "NONE"
+      ? friendly(technician.incentiveClassification)
+      : ""
+
+  if (classification) {
+    return `${name} · ${classification}`
+  }
+  if (role) {
+    return `${name} (${role})`
+  }
+  return name
 }
 
 function dateTime(value) {
@@ -256,6 +266,146 @@ function Field({ children, label }) {
       {label}
       {children}
     </label>
+  )
+}
+
+function StaffCombobox({
+  value,
+  onChange,
+  options = [],
+  placeholder = "Search or select staff / technician...",
+  label = "Assigned staff / technician (optional)",
+  required = false,
+}) {
+  const [typedQuery, setTypedQuery] = useState(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+
+  const selectedStaff = useMemo(
+    () => options.find((opt) => opt.id === value),
+    [options, value],
+  )
+
+  const selectedLabel = selectedStaff ? technicianLabel(selectedStaff) : ""
+  const displayValue = typedQuery !== null ? typedQuery : selectedLabel
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+        setTypedQuery(null)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const filteredOptions = useMemo(() => {
+    const q = (typedQuery ?? "").trim().toLowerCase()
+    if (!q) return options
+    return options.filter((opt) => {
+      const labelText = technicianLabel(opt).toLowerCase()
+      const username = (opt.username || "").toLowerCase()
+      const role = (opt.role || "").toLowerCase()
+      return (
+        labelText.includes(q) ||
+        username.includes(q) ||
+        role.includes(q)
+      )
+    })
+  }, [options, typedQuery])
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <Field label={label}>
+        <div className="relative">
+          <input
+            autoComplete="off"
+            className={FIELD_CLASS}
+            onChange={(e) => {
+              const val = e.target.value
+              setTypedQuery(val)
+              setIsOpen(true)
+              if (value && val !== selectedLabel) {
+                onChange("")
+              }
+            }}
+            onFocus={() => {
+              setIsOpen(true)
+              setTypedQuery("")
+            }}
+            placeholder={placeholder}
+            required={required && !value}
+            value={displayValue}
+          />
+          {value ? (
+            <button
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--color-muted)] hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-[var(--color-text-strong)]"
+              onClick={() => {
+                onChange("")
+                setTypedQuery(null)
+                setIsOpen(false)
+              }}
+              title="Clear / Unassign"
+              type="button"
+            >
+              <X size={13} />
+            </button>
+          ) : null}
+        </div>
+      </Field>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-white dark:bg-slate-900 shadow-xl">
+          {!required ? (
+            <button
+              className={`block w-full border-b border-[var(--color-border)] px-3.5 py-2 text-left text-xs font-semibold transition hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                !value ? "bg-[var(--color-maroon)]/10 text-[var(--color-maroon)] font-black" : "text-[var(--color-muted)]"
+              }`}
+              onClick={() => {
+                onChange("")
+                setTypedQuery(null)
+                setIsOpen(false)
+              }}
+              type="button"
+            >
+              — Unassigned —
+            </button>
+          ) : null}
+          {filteredOptions.map((opt) => {
+            const isSelected = opt.id === value
+            return (
+              <button
+                className={`block w-full border-b border-[var(--color-border)] px-3.5 py-2 text-left text-xs transition last:border-b-0 hover:bg-blue-50 dark:hover:bg-slate-800 ${
+                  isSelected ? "bg-blue-100/70 dark:bg-blue-950/50 font-bold" : ""
+                }`}
+                key={opt.id}
+                onClick={() => {
+                  onChange(opt.id)
+                  setTypedQuery(null)
+                  setIsOpen(false)
+                }}
+                type="button"
+              >
+                <p className="font-bold text-[var(--color-text-strong)]">
+                  {technicianLabel(opt)}
+                </p>
+                {opt.username ? (
+                  <p className="text-[11px] text-[var(--color-muted)]">
+                    @{opt.username} · {friendly(opt.role)}
+                  </p>
+                ) : null}
+              </button>
+            )
+          })}
+          {filteredOptions.length === 0 ? (
+            <div className="p-3 text-center text-xs text-[var(--color-muted)]">
+              No matching staff found
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -1302,25 +1452,18 @@ export default function ServicesPage({ selectedBranch, user }) {
                     ))}
                   </select>
                 </Field>
-                <Field label="Assigned staff / technician (optional)">
-                  <select
-                    className={FIELD_CLASS}
-                    onChange={(event) =>
-                      setCreateForm((form) => ({
-                        ...form,
-                        assignedTechnicianId: event.target.value,
-                      }))
-                    }
-                    value={createForm.assignedTechnicianId}
-                  >
-                    <option value="">Unassigned</option>
-                    {createTechnicianOptions.map((technician) => (
-                      <option key={technician.id} value={technician.id}>
-                        {technicianLabel(technician)}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                <StaffCombobox
+                  label="Assigned staff / technician (optional)"
+                  onChange={(id) =>
+                    setCreateForm((form) => ({
+                      ...form,
+                      assignedTechnicianId: id,
+                    }))
+                  }
+                  options={createTechnicianOptions}
+                  placeholder="Search or type staff / technician..."
+                  value={createForm.assignedTechnicianId}
+                />
               </div>
 
               {/* Customer Input & Autocomplete (Same as in POS) */}
@@ -1888,12 +2031,14 @@ export default function ServicesPage({ selectedBranch, user }) {
                     <p><strong>Repair category:</strong> {friendly(actionRepairType)}</p>
                     <p className="mt-1 text-xs">Service Done By is the actual performer and remains separate from the assigned technician and the user recording this action.</p>
                   </div>
-                  <Field label="Service Done By *">
-                    <select className={FIELD_CLASS} onChange={(event) => setActionForm((form) => ({ ...form, serviceDoneById: event.target.value }))} required value={actionForm.serviceDoneById}>
-                      <option value="">Select the actual service performer</option>
-                      {actionPerformerOptions.map((technician) => <option key={technician.id} value={technician.id}>{technicianLabel(technician)}</option>)}
-                    </select>
-                  </Field>
+                  <StaffCombobox
+                    label="Service Done By *"
+                    onChange={(id) => setActionForm((form) => ({ ...form, serviceDoneById: id }))}
+                    options={actionPerformerOptions}
+                    placeholder="Search or type performer name..."
+                    required
+                    value={actionForm.serviceDoneById}
+                  />
                   {actionRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists are available for specialized work. Backend eligibility checks remain authoritative.</p> : null}
                   <ServicePricingFields
                     baseServiceCharge={actionForm.baseServiceCharge}
@@ -1918,15 +2063,13 @@ export default function ServicesPage({ selectedBranch, user }) {
             <div className="space-y-4 p-5 sm:p-6">
               <p className="text-sm text-[var(--color-muted)]">Assignment is for workflow ownership only. The actual performer and incentive beneficiary are captured separately as Service Done By when work is marked ready.</p>
               <p className="rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-700">Repair category: {friendly(selectedRepairType)}</p>
-              <Field label="Assigned technician">
-                <select className={FIELD_CLASS} onChange={(event) => setAssignmentId(event.target.value)} value={assignmentId}>
-                  <option value="">Unassigned</option>
-                  {assignmentId && !assignmentTechnicianOptions.some((technician) => technician.id === assignmentId) ? (
-                    <option disabled value={assignmentId}>{selectedJob?.assignedTechnician ? `${technicianLabel(selectedJob.assignedTechnician)} · not eligible for this category` : "Current assignment is not eligible"}</option>
-                  ) : null}
-                  {assignmentTechnicianOptions.map((technician) => <option key={technician.id} value={technician.id}>{technicianLabel(technician)}</option>)}
-                </select>
-              </Field>
+              <StaffCombobox
+                label="Assigned technician"
+                onChange={(id) => setAssignmentId(id)}
+                options={assignmentTechnicianOptions}
+                placeholder="Search or type staff / technician..."
+                value={assignmentId}
+              />
               {selectedRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists may be assigned to specialized repairs. Backend validation remains authoritative.</p> : null}
             </div>
             <div className="flex justify-end gap-2 border-t border-[var(--color-border)] p-4 sm:px-6"><button className="rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={() => setShowAssignment(false)} type="button">Cancel</button><button className="rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white" disabled={isSaving} type="submit">{isSaving ? "Saving…" : "Save assignment"}</button></div>
@@ -1956,12 +2099,14 @@ export default function ServicesPage({ selectedBranch, user }) {
               </div>
               {releaseIsCompleted ? (
                 <>
-                  <Field label="Service Done By *">
-                    <select className={FIELD_CLASS} onChange={(event) => setReleaseForm((form) => ({ ...form, serviceDoneById: event.target.value }))} required value={releaseForm.serviceDoneById}>
-                      <option value="">Select the actual service performer</option>
-                      {releasePerformerOptions.map((technician) => <option key={technician.id} value={technician.id}>{technicianLabel(technician)}</option>)}
-                    </select>
-                  </Field>
+                  <StaffCombobox
+                    label="Service Done By *"
+                    onChange={(id) => setReleaseForm((form) => ({ ...form, serviceDoneById: id }))}
+                    options={releasePerformerOptions}
+                    placeholder="Search or type performer name..."
+                    required
+                    value={releaseForm.serviceDoneById}
+                  />
                   <p className="text-xs text-[var(--color-muted)]">Service Done By must be confirmed explicitly and is never copied from Assigned Technician. Technician accounts may select only themselves.</p>
                   {releaseRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists are available for specialized work. Backend eligibility checks remain authoritative.</p> : null}
                 </>
