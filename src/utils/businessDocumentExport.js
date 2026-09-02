@@ -1350,7 +1350,7 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   const tableStartY = bannerY + 6
   const tableHead = [["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "REGULAR PRICE", "REGULAR AMOUNT", "CASH PROMO", "CASH AMOUNT"]]
 
-  const termRate = Number(options.installmentCalculation?.termBasis || 0.875)
+  const termRate = Number(options.installmentCalculation?.termBasis || 0.96)
   const items = quotation?.items || []
   const tableBody = items.map((item) => {
     const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"

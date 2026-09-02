@@ -65,13 +65,15 @@ export default function QuotationDetailDialog({
     return Number(quotation?.grandTotal || quotation?.subtotal || 0)
   }, [quotation])
 
+  const defaultTermRate = Number(installmentCalculation?.termBasis || 0.96)
+
   const srpTotal = useMemo(() => {
     return Math.round((cashPromoTotal / 0.96) * 100) / 100
   }, [cashPromoTotal])
 
   const regularTotal = useMemo(() => {
-    return Math.round((cashPromoTotal / 0.875) * 100) / 100
-  }, [cashPromoTotal])
+    return Math.round((cashPromoTotal / defaultTermRate) * 100) / 100
+  }, [cashPromoTotal, defaultTermRate])
 
   const quoteDate = quotation?.createdAt || quotation?.quotationDate || new Date()
   const isPcBuild = quotation?.isPcBuild || false
@@ -232,7 +234,7 @@ export default function QuotationDetailDialog({
                       const cashUnit = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
                       const cashTotal = Number(item.lineTotal ?? (qty * cashUnit - (Number(item.discountAmount) || 0)))
 
-                      const termRate = Number(installmentCalculation?.termBasis || 0.875)
+                      const termRate = Number(installmentCalculation?.termBasis || defaultTermRate)
                       const regUnit = Math.round((cashUnit / termRate) * 100) / 100
                       const regTotal = Math.round((cashTotal / termRate) * 100) / 100
 
