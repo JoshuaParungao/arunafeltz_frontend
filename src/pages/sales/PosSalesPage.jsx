@@ -2715,23 +2715,48 @@ function PosSalesPage({ selectedBranch, user }) {
 
                       {line.type === "PRODUCT" ? (
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                          <label>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Price tier</span>
+                          {/* Price Tier */}
+                          <label className="block">
+                            <div className="flex h-5 items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                                Price Tier
+                              </span>
                               {line.isRememberedTier ? (
                                 <span className="rounded-md bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
-                                  ⭐ Remembered Item Tier
+                                  ⭐ Remembered
                                 </span>
                               ) : null}
                             </div>
-                            <select className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => updateCartLine(line.localId, { priceTier: Number(event.target.value), isRememberedTier: false })} value={line.priceTier}>
-                              {availablePriceTiers(line.item).map((tier) => <option key={tier} value={tier}>Price {tier} · {formatMoney(line.item[`price${tier}`])}</option>)}
+                            <select
+                              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                              onChange={(event) =>
+                                updateCartLine(line.localId, {
+                                  priceTier: Number(event.target.value),
+                                  isRememberedTier: false,
+                                })
+                              }
+                              value={line.priceTier}
+                            >
+                              {availablePriceTiers(line.item).map((tier) => (
+                                <option key={tier} value={tier}>
+                                  Price {tier} · {formatMoney(line.item[`price${tier}`])}
+                                </option>
+                              ))}
                             </select>
+                            <p className="mt-1 text-xs text-[var(--color-muted)]">
+                              Base: {formatMoney(getLineBaseUnitPrice(line))}
+                            </p>
                           </label>
-                          <label>
-                            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Mark up %</span>
+
+                          {/* Markup % */}
+                          <label className="block">
+                            <div className="flex h-5 items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                                Mark Up %
+                              </span>
+                            </div>
                             <input
-                              className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)]"
+                              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
                               max="99.9999"
                               min="0"
                               onChange={(event) =>
@@ -2745,15 +2770,51 @@ function PosSalesPage({ selectedBranch, user }) {
                               value={line.markupPercent ?? ""}
                             />
                             <p className="mt-1 text-xs text-[var(--color-muted)]">
-                              Base {formatMoney(getLineBaseUnitPrice(line))} · Final {formatMoney(getLineUnitPrice(line))}
+                              Final: {formatMoney(getLineUnitPrice(line))}
                             </p>
                           </label>
 
-                          <label>
-                            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Quantity</span>
-                            <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]" disabled={line.item.isSerialized} min="0.01" onChange={(event) => updateCartLine(line.localId, { quantity: event.target.value })} step="0.01" type="number" value={line.quantity} />
+                          {/* Quantity */}
+                          <label className="block">
+                            <div className="flex h-5 items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                                Quantity
+                              </span>
+                            </div>
+                            <input
+                              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
+                              disabled={line.item.isSerialized}
+                              min="0.01"
+                              onChange={(event) =>
+                                updateCartLine(line.localId, { quantity: event.target.value })
+                              }
+                              step="0.01"
+                              type="number"
+                              value={line.quantity}
+                            />
                           </label>
 
+                          {/* Exact Discount */}
+                          <label className="block">
+                            <div className="flex h-5 items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                                Exact Discount
+                              </span>
+                            </div>
+                            <input
+                              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                              max={gross}
+                              min="0"
+                              onChange={(event) =>
+                                updateCartLine(line.localId, { discountAmount: event.target.value })
+                              }
+                              step="0.01"
+                              type="number"
+                              value={line.discountAmount}
+                            />
+                          </label>
+
+                          {/* Serial or Source Batch */}
                           {line.item.isSerialized ? (
                             <div className="sm:col-span-2 space-y-2">
                               <div className="flex items-center justify-between">
@@ -2797,7 +2858,7 @@ function PosSalesPage({ selectedBranch, user }) {
                               ) : (
                                 <div>
                                   <select
-                                    className="w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                                    className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
                                     onChange={(event) =>
                                       updateCartLine(line.localId, { serialId: event.target.value })
                                     }
@@ -2824,25 +2885,39 @@ function PosSalesPage({ selectedBranch, user }) {
                               )}
                             </div>
                           ) : (
-                            <label className="sm:col-span-2">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Source batch</span>
-                              <select className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => updateCartLine(line.localId, { batchId: event.target.value })} value={line.batchId}>
+                            <label className="sm:col-span-2 block">
+                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Source Batch</span>
+                              <select
+                                className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                                onChange={(event) => updateCartLine(line.localId, { batchId: event.target.value })}
+                                value={line.batchId}
+                              >
                                 <option value="">Select active batch</option>
-                                {line.batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchCode} · {Number(batch.quantityAvailable || 0)} available</option>)}
+                                {line.batches.map((batch) => (
+                                  <option key={batch.id} value={batch.id}>
+                                    {batch.batchCode} · {Number(batch.quantityAvailable || 0)} available
+                                  </option>
+                                ))}
                               </select>
                             </label>
                           )}
 
-                          <label>
-                            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Exact discount</span>
-                            <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[var(--color-maroon)]" max={gross} min="0" onChange={(event) => updateCartLine(line.localId, { discountAmount: event.target.value })} step="0.01" type="number" value={line.discountAmount} />
-                          </label>
-                          <div className="rounded-xl bg-[var(--color-soft)] p-3 text-right text-sm">
-                            <p className="text-xs text-[var(--color-muted)]">Line total preview</p>
-                            <p className="mt-1 font-black text-[var(--color-text-strong)]">{formatMoney(getLineTotal(line))}</p>
-                            {!line.item.isSerialized && selectedBatch ? <p className="mt-1 text-xs text-[var(--color-muted)]">Batch stock {Number(selectedBatch.quantityAvailable || 0)}</p> : null}
+                          {/* Line Total Summary Preview */}
+                          <div className="sm:col-span-2 flex items-center justify-between rounded-xl bg-[var(--color-soft)] p-3.5 text-sm">
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Line Net Total</p>
+                              {!line.item.isSerialized && selectedBatch ? (
+                                <p className="text-xs text-[var(--color-muted)]">
+                                  Batch stock: {Number(selectedBatch.quantityAvailable || 0)} available
+                                </p>
+                              ) : null}
+                            </div>
+                            <p className="font-mono text-lg font-black text-[var(--color-text-strong)]">
+                              {formatMoney(getLineTotal(line))}
+                            </p>
                           </div>
 
+                          {/* Warranty Coverage Chip */}
                           <div className="sm:col-span-2 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]/50 px-3.5 py-2.5">
                             <span className="text-xs font-bold text-[var(--color-muted)] flex items-center gap-1.5">
                               <ShieldCheck size={15} className="text-emerald-600" />
