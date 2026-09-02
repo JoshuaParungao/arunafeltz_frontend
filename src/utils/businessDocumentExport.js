@@ -1427,10 +1427,20 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
       0: { cellWidth: 18, fontStyle: "bold" },
       1: { cellWidth: "auto" },
       2: { cellWidth: 10, halign: "center" },
-      3: { cellWidth: 23, halign: "right" },
-      4: { cellWidth: 23, halign: "right" },
-      5: { cellWidth: 23, halign: "right" },
-      6: { cellWidth: 24, halign: "right", fontStyle: "bold" },
+      3: { cellWidth: 23, halign: "right", textColor: options.installmentCalculation ? [0, 0, 0] : [130, 130, 130] },
+      4: {
+        cellWidth: 23,
+        halign: "right",
+        fontStyle: options.installmentCalculation ? "bold" : "normal",
+        textColor: options.installmentCalculation ? [0, 32, 96] : [130, 130, 130],
+      },
+      5: { cellWidth: 23, halign: "right", textColor: !options.installmentCalculation ? [0, 0, 0] : [130, 130, 130] },
+      6: {
+        cellWidth: 24,
+        halign: "right",
+        fontStyle: !options.installmentCalculation ? "bold" : "normal",
+        textColor: !options.installmentCalculation ? [0, 0, 0] : [130, 130, 130],
+      },
     },
   })
 
@@ -1449,6 +1459,7 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   const cashPromoTotal = Number(quotation?.grandTotal || quotation?.subtotal || 0)
   const srpTotal = Math.round((cashPromoTotal / 0.96) * 100) / 100
   const regularTotal = Math.round((cashPromoTotal / termRate) * 100) / 100
+  const isAR = Boolean(options.installmentCalculation)
 
   // Left: Warranty & PC Build Disclaimers (Exactly matching Excel Rows 22-23, 50-52)
   doc.setFont("helvetica", "bold")
@@ -1497,40 +1508,56 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
-  doc.setTextColor(0, 0, 0)
 
-  doc.text("TOTAL CASH PROMO", totalsLabelX, finalY + 4)
-  doc.text(
-    cashPromoTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    totalsValueX,
-    finalY + 4,
-    { align: "right" }
-  )
-
-  doc.text("REGULAR PRICE", totalsLabelX, finalY + 8.5)
-  doc.text(
-    regularTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    totalsValueX,
-    finalY + 8.5,
-    { align: "right" }
-  )
-
-  // If specific installment calculation provided in options
-  if (options.installmentCalculation) {
-    const calc = options.installmentCalculation
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(7.5)
-    doc.setTextColor(0, 32, 96)
-    doc.text(`SELECTED AR (${calc.months} MOS):`, totalsLabelX, finalY + 13)
+  if (isAR) {
+    doc.setTextColor(120, 120, 120)
+    doc.text("TOTAL CASH PROMO", totalsLabelX, finalY + 4)
     doc.text(
-      `${calc.monthlyDueAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
+      cashPromoTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      totalsValueX,
+      finalY + 4,
+      { align: "right" }
+    )
+
+    const calc = options.installmentCalculation
+    doc.setTextColor(0, 32, 96)
+    doc.text(`REGULAR PRICE (${calc?.months || 1} MOS)`, totalsLabelX, finalY + 8.5)
+    doc.text(
+      regularTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      totalsValueX,
+      finalY + 8.5,
+      { align: "right" }
+    )
+
+    doc.setFontSize(7.5)
+    doc.text(`SELECTED AR (${calc?.months || 1} MOS):`, totalsLabelX, finalY + 13)
+    doc.text(
+      `${Number(calc?.monthlyDueAmount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
       totalsValueX,
       finalY + 13,
       { align: "right" }
     )
+  } else {
+    doc.setTextColor(0, 0, 0)
+    doc.text("TOTAL CASH PROMO", totalsLabelX, finalY + 4)
+    doc.text(
+      cashPromoTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      totalsValueX,
+      finalY + 4,
+      { align: "right" }
+    )
+
+    doc.setTextColor(120, 120, 120)
+    doc.text("REGULAR PRICE (3 MOS)", totalsLabelX, finalY + 8.5)
+    doc.text(
+      regularTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      totalsValueX,
+      finalY + 8.5,
+      { align: "right" }
+    )
   }
 
-  finalY = Math.max(noteY + 8, finalY + 23)
+  finalY = Math.max(noteY + 8, finalY + (isAR ? 23 : 18))
 
   // -----------------------------------------------------------------
   // 5. SIGNATURES SECTION (Prepared by & Conforme matching Excel Rows 56-59)

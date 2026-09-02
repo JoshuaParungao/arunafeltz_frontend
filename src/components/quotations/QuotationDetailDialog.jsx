@@ -220,10 +220,18 @@ export default function QuotationDetailDialog({
                       <th className="py-2 px-2 w-[14%]">ITEM CODE</th>
                       <th className="py-2 px-2 w-[34%]">ITEM DESCRIPTION</th>
                       <th className="py-2 px-1.5 text-center w-[8%]">QTY.</th>
-                      <th className="py-2 px-2 text-right w-[11%]">REGULAR PRICE</th>
-                      <th className="py-2 px-2 text-right w-[11%]">REGULAR AMOUNT</th>
-                      <th className="py-2 px-2 text-right w-[11%]">CASH PROMO</th>
-                      <th className="py-2 px-2 text-right w-[11%]">CASH AMOUNT</th>
+                      <th className={`py-2 px-2 text-right w-[11%] ${Boolean(installmentCalculation) ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
+                        REGULAR PRICE
+                      </th>
+                      <th className={`py-2 px-2 text-right w-[11%] ${Boolean(installmentCalculation) ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
+                        REGULAR AMOUNT
+                      </th>
+                      <th className={`py-2 px-2 text-right w-[11%] ${!installmentCalculation ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
+                        CASH PROMO
+                      </th>
+                      <th className={`py-2 px-2 text-right w-[11%] ${!installmentCalculation ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
+                        CASH AMOUNT
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-sans">
@@ -237,6 +245,7 @@ export default function QuotationDetailDialog({
                       const termRate = Number(installmentCalculation?.termBasis || defaultTermRate)
                       const regUnit = Math.round((cashUnit / termRate) * 100) / 100
                       const regTotal = Math.round((cashTotal / termRate) * 100) / 100
+                      const isAR = Boolean(installmentCalculation)
 
                       return (
                         <tr className="hover:bg-slate-50/50" key={item.id || item.lineNo || index}>
@@ -252,16 +261,16 @@ export default function QuotationDetailDialog({
                           <td className="py-2 px-1.5 text-center font-bold align-top">
                             {qty}
                           </td>
-                          <td className="py-2 px-2 text-right align-top text-slate-600 font-mono">
+                          <td className={`py-2 px-2 text-right align-top font-mono ${isAR ? "text-slate-800 font-semibold" : "text-slate-400"}`}>
                             {formatMoney(regUnit)}
                           </td>
-                          <td className="py-2 px-2 text-right align-top text-slate-700 font-mono font-semibold">
+                          <td className={`py-2 px-2 text-right align-top font-mono ${isAR ? "text-[#002060] font-bold" : "text-slate-400"}`}>
                             {formatMoney(regTotal)}
                           </td>
-                          <td className="py-2 px-2 text-right align-top text-slate-600 font-mono">
+                          <td className={`py-2 px-2 text-right align-top font-mono ${!isAR ? "text-slate-800 font-semibold" : "text-slate-400"}`}>
                             {formatMoney(cashUnit)}
                           </td>
-                          <td className="py-2 px-2 text-right font-bold align-top text-slate-900 font-mono">
+                          <td className={`py-2 px-2 text-right align-top font-mono ${!isAR ? "text-slate-900 font-bold" : "text-slate-400"}`}>
                             {formatMoney(cashTotal)}
                           </td>
                         </tr>
@@ -274,24 +283,45 @@ export default function QuotationDetailDialog({
               {/* Double Border Separator */}
               <div className="border-t-2 border-b border-slate-900 my-1 pt-0.5" />
 
-              {/* Summary Bar: Total Amount with Regular vs Cash Promo side-by-side */}
+              {/* Summary Bar: Total Amount with Regular vs Cash Promo side-by-side (Dynamic Highlighting) */}
               <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
                 <span className="font-black uppercase tracking-wider text-slate-900 text-xs">
                   TOTAL AMOUNT:
                 </span>
                 <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-slate-500 font-bold uppercase text-[10px]">REGULAR:</span>
-                    <span className="font-mono text-slate-800 text-sm font-bold">
-                      {formatMoney(regularTotal)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[var(--color-maroon)] font-bold uppercase text-[10px]">CASH PROMO:</span>
-                    <span className="font-mono text-[var(--color-maroon)] text-sm font-black">
-                      {formatMoney(cashPromoTotal)}
-                    </span>
-                  </div>
+                  {Boolean(installmentCalculation) ? (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-400 font-bold uppercase text-[10px]">CASH PROMO:</span>
+                        <span className="font-mono text-slate-500 text-xs font-semibold">
+                          {formatMoney(cashPromoTotal)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[#002060] font-black uppercase text-xs">
+                          REGULAR ({installmentCalculation?.months ? `${installmentCalculation.months} MOS` : "AR"}):
+                        </span>
+                        <span className="font-mono text-[#002060] text-base font-black">
+                          {formatMoney(regularTotal)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-400 font-bold uppercase text-[10px]">REGULAR (3 MOS):</span>
+                        <span className="font-mono text-slate-500 text-xs font-semibold">
+                          {formatMoney(regularTotal)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[var(--color-maroon)] font-black uppercase text-xs">CASH PROMO:</span>
+                        <span className="font-mono text-[var(--color-maroon)] text-base font-black">
+                          {formatMoney(cashPromoTotal)}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -320,16 +350,16 @@ export default function QuotationDetailDialog({
                 </div>
 
                 <div className="sm:col-span-5 space-y-1.5 text-xs text-right">
-                  <div className="flex justify-between font-bold text-slate-900 text-xs">
+                  <div className={`flex justify-between ${!installmentCalculation ? "font-black text-slate-900 text-xs" : "text-slate-500 text-[11px]"}`}>
                     <span>TOTAL CASH DISCOUNTED PRICE</span>
                     <span className="font-mono">{formatMoney(cashPromoTotal)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-700 text-[11px]">
-                    <span>SUGGESTED RETAIL PRICE</span>
+                  <div className="flex justify-between text-slate-500 text-[11px]">
+                    <span>SUGGESTED RETAIL PRICE (3 MOS)</span>
                     <span className="font-mono">{formatMoney(srpTotal)}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-slate-800 text-[11px]">
-                    <span>REGULAR PRICE</span>
+                  <div className={`flex justify-between ${Boolean(installmentCalculation) ? "font-black text-slate-900 text-xs" : "text-slate-500 text-[11px]"}`}>
+                    <span>REGULAR PRICE {installmentCalculation?.months ? `(${installmentCalculation.months} MOS)` : ""}</span>
                     <span className="font-mono">{formatMoney(regularTotal)}</span>
                   </div>
 
