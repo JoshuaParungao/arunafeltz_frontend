@@ -361,6 +361,9 @@ function SaleDetailDialog({
   onClose,
   onReturnItems,
   sale,
+  isCheckoutPreview = false,
+  onConfirmCheckout = null,
+  isSubmittingCheckout = false,
 }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -432,8 +435,13 @@ function SaleDetailDialog({
           {/* Top Bar for Dialog Controls */}
           <header className="sale-receipt-print-actions flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-maroon)] px-2.5 py-1 text-xs font-bold text-white">
-                <ReceiptText size={14} /> WARRANTY RECEIPT
+              <span
+                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold text-white ${
+                  isCheckoutPreview ? "bg-amber-600" : "bg-[var(--color-maroon)]"
+                }`}
+              >
+                <ReceiptText size={14} />
+                {isCheckoutPreview ? "SALE CHECKOUT PREVIEW" : "WARRANTY RECEIPT"}
               </span>
               {sale?.quotation?.isPcBuild || sale?.remarks?.includes("[PC BUILD]") || sale?.isPcBuild ? (
                 <span className="rounded-md bg-slate-800 px-2 py-1 text-xs font-bold text-white">
@@ -442,22 +450,45 @@ function SaleDetailDialog({
               ) : null}
             </div>
             <div className="flex items-center gap-2">
-              <button
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100"
-                onClick={() => exportWarrantyReceiptPdf(sale)}
-                title="Export as PDF file"
-                type="button"
-              >
-                <Download size={15} /> Export PDF
-              </button>
-              <button
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
-                onClick={() => printWarrantyReceipt(sale)}
-                title="Print receipt"
-                type="button"
-              >
-                <Printer size={15} /> Print receipt
-              </button>
+              {isCheckoutPreview && onConfirmCheckout ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white shadow-soft transition hover:bg-emerald-700 disabled:opacity-50"
+                  disabled={isSubmittingCheckout}
+                  onClick={onConfirmCheckout}
+                  type="button"
+                >
+                  {isSubmittingCheckout ? (
+                    <>
+                      <LoaderCircle className="animate-spin" size={14} />
+                      Completing…
+                    </>
+                  ) : (
+                    <>
+                      <ReceiptText size={14} />
+                      Complete Sale · {formatMoney(totalAmount)}
+                    </>
+                  )}
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100"
+                    onClick={() => exportWarrantyReceiptPdf(sale)}
+                    title="Export as PDF file"
+                    type="button"
+                  >
+                    <Download size={15} /> Export PDF
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+                    onClick={() => printWarrantyReceipt(sale)}
+                    title="Print receipt"
+                    type="button"
+                  >
+                    <Printer size={15} /> Print receipt
+                  </button>
+                </>
+              )}
               <button
                 aria-label="Close sale details"
                 className="rounded-xl border border-slate-300 p-2 text-slate-500 transition hover:bg-slate-100"
@@ -668,6 +699,48 @@ function SaleDetailDialog({
                   </div>
                 </div>
               </div>
+
+              {/* Checkout Preview Confirmation Action Bar */}
+              {isCheckoutPreview && onConfirmCheckout ? (
+                <div className="sale-receipt-print-actions flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 shadow-2xs">
+                  <div>
+                    <p className="font-bold text-emerald-950 text-sm flex items-center gap-1.5">
+                      <span>⚡</span> Review Order Details Before Finalizing Sale
+                    </p>
+                    <p className="text-xs text-emerald-800 mt-0.5">
+                      Suriin ang mga items, serial numbers, customer details, at total amount. I-click ang <strong>Complete Sale</strong> para pormal na maibenta at ma-deduct sa inventory.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                      disabled={isSubmittingCheckout}
+                      onClick={onClose}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-soft hover:bg-emerald-700 transition disabled:opacity-50"
+                      disabled={isSubmittingCheckout}
+                      onClick={onConfirmCheckout}
+                      type="button"
+                    >
+                      {isSubmittingCheckout ? (
+                        <>
+                          <LoaderCircle className="animate-spin" size={15} />
+                          Completing Sale…
+                        </>
+                      ) : (
+                        <>
+                          <ReceiptText size={15} />
+                          Complete Sale · {formatMoney(totalAmount)}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               {/* Optional Administrative Actions for Authorized Staff (Excluded from Print via sale-receipt-print-actions) */}
               {(sale.payments || []).length > 0 || sale.creditAccount || (sale.returnRequests || []).length > 0 || canCancel || canReturn ? (
@@ -1137,6 +1210,7 @@ function PosSalesPage({ selectedBranch, user }) {
   const [saleToReturn, setSaleToReturn] = useState(null)
   const [isReturningSale, setIsReturningSale] = useState(false)
   const [noticeMessage, setNoticeMessage] = useState("")
+  const [saleCheckoutPreview, setSaleCheckoutPreview] = useState(null)
   const saleRequestRef = useRef({ signature: "", key: "" })
 
   const totals = useMemo(() => {
@@ -1761,6 +1835,97 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }
 
+  const openSaleCheckoutPreview = () => {
+    if (!canCreateSale || isSubmittingSale) return
+
+    const validationMessage = validateCart()
+    if (validationMessage) {
+      setCheckoutMessage(validationMessage)
+      return
+    }
+    setCheckoutMessage("")
+
+    const matchedCustomer = customers.find((c) => c.id === selectedCustomerId)
+    const customerObj =
+      matchedCustomer ||
+      (customerSearch.trim()
+        ? { fullName: customerSearch.trim() }
+        : { fullName: "Walk-in Customer" })
+
+    const grandTotalValue = isReceivableCheckout
+      ? (installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)
+      : totals.grandTotal
+
+    const serviceLineWithDoneBy = cart.find(
+      (l) => l.type === "SERVICE" && l.serviceStaffName
+    )
+    const technicianName = serviceLineWithDoneBy?.serviceStaffName || undefined
+
+    const previewSaleDoc = {
+      receiptCode: "CHECKOUT-PREVIEW",
+      saleDate: new Date().toISOString(),
+      branch: activeBranch,
+      customer: customerObj,
+      cashier: user,
+      technician: technicianName ? { fullName: technicianName } : null,
+      remarks: isPcBuild
+        ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
+        : remarks.trim() || undefined,
+      isPcBuild,
+      subtotal: totals.subtotal,
+      totalDiscount: totals.totalDiscount,
+      serviceCharge: totals.additionalCharge,
+      grandTotal: grandTotalValue,
+      amountPaid: Number(effectivePaymentAmount || 0),
+      payments:
+        Number(effectivePaymentAmount || 0) > 0
+          ? [
+              {
+                paymentMethod: isReceivableCheckout ? settlementMethod : paymentMethod,
+                amount: Number(effectivePaymentAmount || 0),
+              },
+            ]
+          : [],
+      creditAccount: isReceivableCheckout
+        ? {
+            provider: settlementMethod,
+            term: creditTerm,
+            initialPaymentAmount: Number(effectivePaymentAmount || 0),
+            principalAmount: installmentCalculation?.regularPriceTotalAmount || totals.grandTotal,
+          }
+        : null,
+      items: cart.map((line, index) => {
+        const lineDesc =
+          line.type === "SERVICE"
+            ? line.serviceStaffName
+              ? `${line.description.trim()} [Done by: ${line.serviceStaffName}]`
+              : line.description.trim()
+            : line.item?.itemName || "Item"
+
+        return {
+          id: line.localId || `item-${index}`,
+          lineNo: index + 1,
+          itemCodeSnapshot: line.item?.itemCode || "—",
+          itemNameSnapshot: line.item?.itemName || lineDesc,
+          description: lineDesc,
+          quantity: Number(line.quantity || 1),
+          unitPrice: getLineUnitPrice(line),
+          discountAmount: Number(line.discountAmount || 0),
+          lineTotal: getLineTotal(line),
+          warrantyDuration: line.warrantyDuration || (line.item?.hasWarranty ? "1 YEAR WARRANTY" : "—"),
+          serial: line.isCustomSerial
+            ? { serialNumber: line.customSerialNumber?.trim() || "PENDING SCAN" }
+            : line.serialId
+              ? { serialNumber: line.serials?.find((serial) => serial.id === line.serialId)?.serialNumber || "—" }
+              : null,
+          batch: line.batchId ? line.batches?.find((batch) => batch.id === line.batchId) : null,
+        }
+      }),
+    }
+
+    setSaleCheckoutPreview(previewSaleDoc)
+  }
+
   const submitSale = async () => {
     if (!canCreateSale || isSubmittingSale) return
 
@@ -1769,12 +1934,6 @@ function PosSalesPage({ selectedBranch, user }) {
       setCheckoutMessage(validationMessage)
       return
     }
-
-    const confirmPrompt = isReceivableCheckout
-      ? `Complete this AR sale for ${formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)} (Cash promo: ${formatMoney(totals.grandTotal)}, ${INSTALLMENT_TERMS.find(([v]) => v === creditTerm)?.[1] || creditTerm}) and deduct branch inventory?`
-      : `Complete this sale for ${formatMoney(totals.grandTotal)} and deduct branch inventory?`
-
-    if (!window.confirm(confirmPrompt)) return
 
     setIsSubmittingSale(true)
     setCheckoutMessage("")
@@ -1923,6 +2082,7 @@ function PosSalesPage({ selectedBranch, user }) {
         })),
       }
 
+      setSaleCheckoutPreview(null)
       setCompletedSale(receiptSale)
       setNoticeMessage(
         `Sale ${sale.receiptCode} completed successfully${sale.creditAccount ? ` with receivable ${sale.creditAccount.creditCode}` : ""}.`,
@@ -3112,20 +3272,24 @@ function PosSalesPage({ selectedBranch, user }) {
 
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-[#002060] bg-blue-50/50 px-4 py-3.5 text-sm font-bold text-[#002060] shadow-xs transition hover:bg-blue-100/70 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={cart.length === 0 || (!selectedCustomerId && !customerSearch.trim())}
-                  onClick={openCartPreview}
-                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Review quotation preview before saving"}
+                  disabled={cart.length === 0 || isCreatingQuotation || (!selectedCustomerId && !customerSearch.trim())}
+                  onClick={submitQuotation}
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Create official quotation"}
                   type="button"
                 >
-                  <FileText size={17} />
-                  Quote
+                  {isCreatingQuotation ? (
+                    <LoaderCircle className="animate-spin" size={17} />
+                  ) : (
+                    <FileText size={17} />
+                  )}
+                  {isCreatingQuotation ? "Creating Quote…" : "Quote"}
                 </button>
 
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-3.5 text-sm font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1"
                   disabled={cart.length === 0 || isSubmittingSale || !branchId || (!selectedCustomerId && !customerSearch.trim())}
-                  onClick={submitSale}
-                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Complete sale"}
+                  onClick={openSaleCheckoutPreview}
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Review and complete sale"}
                   type="button"
                 >
                   {isSubmittingSale ? (
@@ -3654,6 +3818,22 @@ function PosSalesPage({ selectedBranch, user }) {
           ) : null
         )}
       </section>
+
+      {saleCheckoutPreview ? (
+        <SaleDetailDialog
+          canCancel={false}
+          canReturn={false}
+          errorMessage=""
+          isCheckoutPreview={true}
+          isLoading={false}
+          isSubmittingCheckout={isSubmittingSale}
+          onCancelSale={() => {}}
+          onClose={() => setSaleCheckoutPreview(null)}
+          onConfirmCheckout={submitSale}
+          onReturnItems={() => {}}
+          sale={saleCheckoutPreview}
+        />
+      ) : null}
 
       {completedSale ? (
         <SaleDetailDialog canCancel={false} canReturn={false} errorMessage="" isLoading={false} onCancelSale={() => {}} onClose={() => setCompletedSale(null)} onReturnItems={() => {}} sale={completedSale} title="Warranty Receipt · Customer Copy" />
