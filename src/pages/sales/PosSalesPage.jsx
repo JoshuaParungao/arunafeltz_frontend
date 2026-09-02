@@ -56,6 +56,7 @@ import {
 } from "../../utils/businessDocumentExport"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
+import { serializeQuotationNotes } from "../../utils/quotationSettlement"
 import {
   saveFormDraft,
   getFormDraft,
