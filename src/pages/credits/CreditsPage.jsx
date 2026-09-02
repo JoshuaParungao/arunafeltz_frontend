@@ -84,13 +84,13 @@ function label(value) {
 function Status({ value }) {
   const className =
     value === "PAID" || value === "POSTED"
-      ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300"
+      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
       : value === "ACTIVE"
-        ? "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300"
-        : "bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300";
+        ? "bg-amber-50 text-amber-700 border border-amber-200"
+        : "bg-rose-50 text-rose-700 border border-rose-200";
   return (
     <span
-      className={`rounded-full px-2.5 py-1 text-xs font-black ${className}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${className}`}
     >
       {label(value)}
     </span>
@@ -268,86 +268,86 @@ export default function CreditsPage({ selectedBranch, user }) {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card sm:p-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--color-maroon)]">
+            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
               Finance
             </p>
-            <h1 className="mt-2 text-2xl font-black text-[var(--color-text-strong)]">
+            <h1 className="mt-1 text-2xl font-black text-slate-900">
               Accounts Receivable
             </h1>
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
+            <p className="mt-0.5 text-xs text-slate-500">
               Sale and service balances by provider, with auditable partial
               collections and reversals.
             </p>
           </div>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
             disabled={isLoading}
             onClick={loadAccounts}
             type="button"
           >
-            <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
+            <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} />
             Refresh
           </button>
         </div>
       </section>
 
       {message ? (
-        <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">
           {message}
         </div>
       ) : null}
       {notice ? (
-        <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">
           {notice}
         </div>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-3xl border bg-white p-5 shadow-card">
-          <p className="text-sm font-semibold text-[var(--color-muted)]">
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
             Visible remaining balance
           </p>
-          <p className="mt-2 text-2xl font-black">{money(totals.balance)}</p>
+          <p className="mt-1 font-mono text-xl font-black text-slate-900">{money(totals.balance)}</p>
         </div>
-        <div className="rounded-3xl border bg-white p-5 shadow-card">
-          <p className="text-sm font-semibold text-[var(--color-muted)]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
             Visible collections
           </p>
-          <p className="mt-2 text-2xl font-black">{money(totals.collected)}</p>
+          <p className="mt-1 font-mono text-xl font-black text-slate-900">{money(totals.collected)}</p>
         </div>
-        <div className="rounded-3xl border bg-white p-5 shadow-card">
-          <p className="text-sm font-semibold text-[var(--color-muted)]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
             Overdue on this page
           </p>
-          <p className="mt-2 text-2xl font-black text-rose-700">
+          <p className="mt-1 font-mono text-xl font-black text-rose-600">
             {totals.overdue}
           </p>
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card md:grid-cols-5">
+      <section className="grid gap-2.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs md:grid-cols-5">
         <label className="relative">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]"
-            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            size={15}
           />
           <input
             aria-label="Search receivables"
-            className="w-full rounded-xl border py-3 pl-10 pr-3 text-sm"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
             onChange={(event) => {
               setSearch(event.target.value);
               setPage(1);
             }}
-            placeholder="AR, customer, sale, service"
+            placeholder="AR, customer, sale, service…"
             value={search}
           />
         </label>
         <select
           aria-label="Filter receivables by status"
-          className="rounded-xl border px-3 py-3 text-sm"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
           onChange={(event) => {
             setStatus(event.target.value);
             setPage(1);
@@ -363,7 +363,7 @@ export default function CreditsPage({ selectedBranch, user }) {
         </select>
         <select
           aria-label="Filter receivables by source"
-          className="rounded-xl border px-3 py-3 text-sm"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
           onChange={(event) => {
             setSourceType(event.target.value);
             setPage(1);
@@ -379,7 +379,7 @@ export default function CreditsPage({ selectedBranch, user }) {
         </select>
         <select
           aria-label="Filter receivables by provider"
-          className="rounded-xl border px-3 py-3 text-sm"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
           onChange={(event) => {
             setProvider(event.target.value);
             setPage(1);
@@ -395,7 +395,7 @@ export default function CreditsPage({ selectedBranch, user }) {
         </select>
         <select
           aria-label="Filter receivables by installment term"
-          className="rounded-xl border px-3 py-3 text-sm"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
           onChange={(event) => {
             setTerm(event.target.value);
             setPage(1);
@@ -411,20 +411,20 @@ export default function CreditsPage({ selectedBranch, user }) {
         </select>
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 p-10 text-sm font-bold text-[var(--color-muted)]">
-            <LoaderCircle className="animate-spin" size={18} />
-            Loading receivables...
+          <div className="flex items-center justify-center gap-2 p-8 text-xs font-bold text-slate-400">
+            <LoaderCircle className="animate-spin" size={16} />
+            Loading receivables…
           </div>
         ) : accounts.length === 0 ? (
-          <div className="p-10 text-center">
+          <div className="p-8 text-center">
             <CreditCard
-              className="mx-auto text-[var(--color-muted)]"
-              size={38}
+              className="mx-auto text-slate-300"
+              size={32}
             />
-            <p className="mt-3 font-black">No matching receivables</p>
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
+            <p className="mt-2 text-xs font-bold text-slate-700">No matching receivables</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">
               Receivables are opened atomically from sale or service settlement
               flows.
             </p>
@@ -432,71 +432,71 @@ export default function CreditsPage({ selectedBranch, user }) {
         ) : (
           <>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[940px] text-left text-sm">
-                <thead className="bg-[var(--color-soft)] text-xs uppercase text-[var(--color-muted)]">
+              <table className="w-full min-w-[940px] text-left text-xs">
+                <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                   <tr>
                     <th className="px-4 py-3">Account</th>
-                    <th className="px-4 py-3">Customer / source</th>
-                    <th className="px-4 py-3">Provider / term</th>
-                    <th className="px-4 py-3">Next due</th>
+                    <th className="px-4 py-3">Customer / Source</th>
+                    <th className="px-4 py-3">Provider / Term</th>
+                    <th className="px-4 py-3">Next Due</th>
                     <th className="px-4 py-3 text-right">Remaining</th>
                     <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3" />
+                    <th className="px-4 py-3 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-slate-200">
                   {accounts.map((account) => (
                     <tr
-                      className={isOverdue(account) ? "bg-rose-50/40" : ""}
+                      className={`hover:bg-slate-50/50 transition ${isOverdue(account) ? "bg-rose-50/40" : ""}`}
                       key={account.id}
                     >
-                      <td className="px-4 py-4">
-                        <p className="font-black">{account.creditCode}</p>
-                        <p className="text-xs text-[var(--color-muted)]">
+                      <td className="px-4 py-3">
+                        <p className="font-mono font-bold text-slate-900">{account.creditCode}</p>
+                        <p className="text-[11px] text-slate-400">
                           {account.branch?.code}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
-                        <p className="font-semibold">
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-slate-800">
                           {account.customer?.fullName ||
                             account.serviceJob?.customerNameSnapshot ||
-                            "Walk-in / external provider"}
+                            "Walk-in / External"}
                         </p>
-                        <p className="text-xs text-[var(--color-muted)]">
+                        <p className="text-[11px] text-slate-400">
                           {account.sale?.receiptCode ||
                             account.serviceJob?.jobCode ||
-                            "Source unavailable"}
+                            "—"}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
-                        <p>{label(account.provider)}</p>
-                        <p className="text-xs text-[var(--color-muted)]">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800">{label(account.provider)}</p>
+                        <p className="text-[11px] text-slate-400">
                           {account.term
                             ? label(account.term)
-                            : "No installment term"}
+                            : "No term"}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
-                        <p>{dateTime(account.nextDueDate, true)}</p>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-700">{dateTime(account.nextDueDate, true)}</p>
                         {isOverdue(account) ? (
-                          <p className="text-xs font-black text-rose-700">
+                          <p className="text-[10px] font-bold text-rose-600">
                             OVERDUE
                           </p>
                         ) : null}
                       </td>
-                      <td className="px-4 py-4 text-right font-black">
+                      <td className="px-4 py-3 text-right font-mono font-black text-slate-900">
                         {money(account.remainingBalance)}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
                         <Status value={account.status} />
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3 text-right">
                         <button
-                          className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition"
                           onClick={() => openDetail(account)}
                           type="button"
                         >
-                          <Eye size={14} />
+                          <Eye size={13} />
                           View
                         </button>
                       </td>
@@ -505,21 +505,21 @@ export default function CreditsPage({ selectedBranch, user }) {
                 </tbody>
               </table>
             </div>
-            <div className="grid gap-3 p-4 lg:hidden">
+            <div className="grid gap-2.5 p-3 lg:hidden">
               {accounts.map((account) => (
                 <article
-                  className={`rounded-2xl border p-4 ${isOverdue(account) ? "border-rose-200 bg-rose-50/40" : ""}`}
+                  className={`rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-2xs ${isOverdue(account) ? "border-rose-200 bg-rose-50/40" : ""}`}
                   key={account.id}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-black">{account.creditCode}</p>
-                      <p className="mt-1 text-sm">
+                      <p className="font-mono font-bold text-slate-900">{account.creditCode}</p>
+                      <p className="mt-0.5 font-bold text-slate-800">
                         {account.customer?.fullName ||
                           account.serviceJob?.customerNameSnapshot ||
-                          "Walk-in / external provider"}
+                          "Walk-in / External"}
                       </p>
-                      <p className="text-xs text-[var(--color-muted)]">
+                      <p className="text-[11px] text-slate-400">
                         {label(account.provider)} ·{" "}
                         {account.sale?.receiptCode ||
                           account.serviceJob?.jobCode}
@@ -527,191 +527,194 @@ export default function CreditsPage({ selectedBranch, user }) {
                     </div>
                     <Status value={account.status} />
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-2 text-xs">
                     <div>
-                      <p className="text-xs text-[var(--color-muted)]">
+                      <p className="text-[10px] font-bold uppercase text-slate-400">
                         Remaining
                       </p>
-                      <p className="font-black">
+                      <p className="font-mono font-black text-slate-900">
                         {money(account.remainingBalance)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-[var(--color-muted)]">
-                        Next due
+                      <p className="text-[10px] font-bold uppercase text-slate-400">
+                        Next Due
                       </p>
-                      <p className="font-bold">
+                      <p className="font-semibold text-slate-700">
                         {dateTime(account.nextDueDate, true)}
                       </p>
                     </div>
                   </div>
                   <button
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold"
+                    className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
                     onClick={() => openDetail(account)}
                     type="button"
                   >
-                    <Eye size={15} />
-                    View account
+                    <Eye size={13} />
+                    View Account
                   </button>
                 </article>
               ))}
             </div>
           </>
         )}
-        <div className="flex items-center justify-between border-t p-4">
-          <p className="text-sm text-[var(--color-muted)]">
+        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 p-3 text-xs text-slate-500">
+          <p>
             Page {meta.page || page} of {totalPages} · {meta.total || 0}{" "}
             account(s)
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <button
-              className="rounded-xl border p-2 disabled:opacity-30"
+              className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30"
               disabled={page <= 1}
               onClick={() => setPage((value) => Math.max(1, value - 1))}
               type="button"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
             <button
-              className="rounded-xl border p-2 disabled:opacity-30"
+              className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30"
               disabled={page >= totalPages}
               onClick={() => setPage((value) => value + 1)}
               type="button"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
       </section>
 
       {detail ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 p-3 sm:p-6">
-          <section className="mx-auto max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <header className="flex items-start justify-between gap-4 border-b p-5">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <section className="my-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
-                <p className="text-xs font-black text-[var(--color-maroon)]">
-                  {detail.creditCode}
-                </p>
-                <h2 className="mt-1 text-xl font-black">
-                  {detail.customer?.fullName ||
-                    detail.serviceJob?.customerNameSnapshot ||
-                    "Walk-in / external provider"}
-                </h2>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-maroon)]">
+                    {detail.creditCode}
+                  </span>
                   <Status value={detail.status} />
                   {isOverdue(detail) ? (
-                    <span className="rounded-full bg-rose-600 px-2.5 py-1 text-xs font-black text-white">
+                    <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white">
                       OVERDUE
                     </span>
                   ) : null}
                 </div>
+                <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight">
+                  {detail.customer?.fullName ||
+                    detail.serviceJob?.customerNameSnapshot ||
+                    "Walk-in / External Provider"}
+                </h2>
               </div>
               <button
-                className="rounded-xl border p-2"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
                 onClick={() => setDetail(null)}
                 type="button"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </header>
             {isDetailLoading ? (
-              <div className="flex items-center justify-center gap-2 p-10">
-                <LoaderCircle className="animate-spin" size={18} />
-                Loading details...
+              <div className="flex items-center justify-center gap-2 p-10 text-xs font-bold text-slate-400">
+                <LoaderCircle className="animate-spin" size={16} />
+                Loading details…
               </div>
             ) : (
-              <div className="space-y-5 p-5">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-                    <p className="text-xs text-[var(--color-muted)]">
-                      Source total
+              <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+                <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                    <p className="text-[10px] font-bold uppercase text-slate-500">
+                      Source Total
                     </p>
-                    <p className="mt-1 font-black">
+                    <p className="mt-1 font-mono font-bold text-slate-900">
                       {money(detail.sourceTotalAmountSnapshot)}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-                    <p className="text-xs text-[var(--color-muted)]">
-                      Initial settlement
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                    <p className="text-[10px] font-bold uppercase text-slate-500">
+                      Initial Settlement
                     </p>
-                    <p className="mt-1 font-black">
+                    <p className="mt-1 font-mono font-bold text-slate-900">
                       {money(detail.downpaymentAmount)}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-                    <p className="text-xs text-[var(--color-muted)]">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                    <p className="text-[10px] font-bold uppercase text-slate-500">
                       Provider
                     </p>
-                    <p className="mt-1 font-black">
+                    <p className="mt-1 font-bold text-slate-900">
                       {label(detail.provider)}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-                    <p className="text-xs text-[var(--color-muted)]">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                    <p className="text-[10px] font-bold uppercase text-slate-500">
                       Remaining
                     </p>
-                    <p className="mt-1 font-black text-[var(--color-maroon)]">
+                    <p className="mt-1 font-mono font-black text-[var(--color-maroon)]">
                       {money(detail.remainingBalance)}
                     </p>
                   </div>
                 </div>
-                <div className="grid gap-4 rounded-2xl border p-4 sm:grid-cols-2 lg:grid-cols-4">
+
+                <div className="grid gap-2.5 rounded-xl border border-slate-200 bg-white p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
                   <div>
-                    <p className="text-xs text-[var(--color-muted)]">
-                      Term / saved basis
+                    <p className="text-[10px] font-bold uppercase text-slate-400">
+                      Term / Basis
                     </p>
-                    <p className="font-bold">
+                    <p className="mt-0.5 font-bold text-slate-800">
                       {detail.term
                         ? `${label(detail.term)} · ${Number(detail.termBasis).toFixed(4)}`
                         : "Not applicable"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-[var(--color-muted)]">
-                      Due schedule
+                    <p className="text-[10px] font-bold uppercase text-slate-400">
+                      Due Schedule
                     </p>
-                    <p className="font-bold">
+                    <p className="mt-0.5 font-bold text-slate-800">
                       {detail.dueDay
                         ? `Day ${detail.dueDay} · ${dateTime(detail.nextDueDate, true)}`
                         : "Not applicable"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-[var(--color-muted)]">
-                      Linked source
+                    <p className="text-[10px] font-bold uppercase text-slate-400">
+                      Linked Source
                     </p>
-                    <p className="font-bold">
+                    <p className="mt-0.5 font-bold text-slate-800">
                       {detail.sale?.receiptCode ||
                         detail.serviceJob?.jobCode ||
                         "—"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-[var(--color-muted)]">
-                      Total collected
+                    <p className="text-[10px] font-bold uppercase text-slate-400">
+                      Total Collected
                     </p>
-                    <p className="font-bold">{money(detail.totalCollected)}</p>
+                    <p className="mt-0.5 font-mono font-bold text-slate-800">{money(detail.totalCollected)}</p>
                   </div>
                 </div>
+
                 {detail.status === "ACTIVE" ? (
                   <div>
                     <button
-                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition"
                       onClick={() => setShowCollectionForm((value) => !value)}
                       type="button"
                     >
-                      <Banknote size={16} />
-                      Post collection
+                      <Banknote size={14} />
+                      Post Collection
                     </button>
                   </div>
                 ) : null}
+
                 {showCollectionForm && detail.status === "ACTIVE" ? (
                   <form
-                    className="grid gap-3 rounded-2xl border bg-[var(--color-soft)] p-4 md:grid-cols-2 lg:grid-cols-5"
+                    className="grid gap-2.5 rounded-xl border border-slate-200 bg-slate-50/75 p-3.5 md:grid-cols-2 lg:grid-cols-5"
                     onSubmit={submitCollection}
                   >
                     <input
-                      className="rounded-xl border px-3 py-3 text-sm"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                       max={Number(detail.remainingBalance)}
                       min="0.01"
                       onChange={(event) =>
@@ -727,7 +730,7 @@ export default function CreditsPage({ selectedBranch, user }) {
                       value={collectionForm.amount}
                     />
                     <select
-                      className="rounded-xl border px-3 py-3 text-sm"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                       onChange={(event) =>
                         setCollectionForm((form) => ({
                           ...form,
@@ -743,7 +746,7 @@ export default function CreditsPage({ selectedBranch, user }) {
                       ))}
                     </select>
                     <input
-                      className="rounded-xl border px-3 py-3 text-sm"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                       onChange={(event) =>
                         setCollectionForm((form) => ({
                           ...form,
@@ -754,7 +757,7 @@ export default function CreditsPage({ selectedBranch, user }) {
                       value={collectionForm.referenceNo}
                     />
                     <input
-                      className="rounded-xl border px-3 py-3 text-sm"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                       onChange={(event) =>
                         setCollectionForm((form) => ({
                           ...form,
@@ -765,45 +768,46 @@ export default function CreditsPage({ selectedBranch, user }) {
                       value={collectionForm.remarks}
                     />
                     <button
-                      className="rounded-xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+                      className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
                       disabled={isSaving}
                       type="submit"
                     >
-                      {isSaving ? "Posting..." : "Save collection"}
+                      {isSaving ? "Posting…" : "Save Collection"}
                     </button>
                   </form>
                 ) : null}
-                <section>
-                  <div className="flex items-center gap-2">
+
+                <section className="space-y-2">
+                  <div className="flex items-center gap-1.5">
                     <CalendarClock
                       className="text-[var(--color-maroon)]"
-                      size={18}
+                      size={15}
                     />
-                    <h3 className="font-black">Payment history</h3>
+                    <h3 className="text-xs font-black text-slate-900">Collection History</h3>
                   </div>
-                  <div className="mt-3 divide-y overflow-hidden rounded-2xl border">
+                  <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white text-xs">
                     {(detail.collections || []).map((collection) => (
                       <article
-                        className="grid gap-3 p-4 md:grid-cols-[1fr_auto_auto] md:items-center"
+                        className="grid gap-2 p-3 md:grid-cols-[1fr_auto_auto] md:items-center"
                         key={collection.id}
                       >
                         <div>
-                          <p className="font-black">
+                          <p className="font-mono font-bold text-slate-900">
                             {collection.collectionCode}
                           </p>
-                          <p className="mt-1 text-xs text-[var(--color-muted)]">
+                          <p className="mt-0.5 text-[11px] text-slate-500">
                             {dateTime(collection.paidAt)} ·{" "}
                             {label(collection.paymentMethod)} ·{" "}
                             {collection.collectedBy?.fullName || "System"}
                           </p>
                           {collection.referenceNo ? (
-                            <p className="mt-1 text-xs">
+                            <p className="mt-0.5 text-[10px] text-slate-400">
                               Ref: {collection.referenceNo}
                             </p>
                           ) : null}
                         </div>
                         <div className="md:text-right">
-                          <p className="font-black">
+                          <p className="font-mono font-bold text-slate-900">
                             {money(collection.amount)}
                           </p>
                           <Status value={collection.status} />
@@ -811,7 +815,7 @@ export default function CreditsPage({ selectedBranch, user }) {
                         {collection.status === "POSTED" &&
                         canCancelCollections ? (
                           <button
-                            className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700"
+                            className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 transition"
                             disabled={isSaving}
                             onClick={() => reverseCollection(collection)}
                             type="button"
@@ -824,7 +828,7 @@ export default function CreditsPage({ selectedBranch, user }) {
                       </article>
                     ))}
                     {(detail.collections || []).length === 0 ? (
-                      <p className="p-6 text-center text-sm text-[var(--color-muted)]">
+                      <p className="p-6 text-center text-xs font-bold text-slate-400">
                         No collections posted yet.
                       </p>
                     ) : null}
@@ -838,3 +842,4 @@ export default function CreditsPage({ selectedBranch, user }) {
     </div>
   );
 }
+

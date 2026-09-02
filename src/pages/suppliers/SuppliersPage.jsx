@@ -58,10 +58,53 @@ function SupplierForm({ initial, isSaving, onClose, onSave }) {
     Object.keys(EMPTY_FORM).map((key) => [key, initial?.[key] || ""]),
   ))
   const set = (field, value) => setForm((current) => ({ ...current, [field]: value }))
+
+  const inputClass =
+    "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
+  const labelClass = "text-[11px] font-bold uppercase tracking-wider text-slate-600 block"
+
   return (
-    <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); onSave(form) }}>
-      <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold">Supplier code<input className="mt-2 w-full rounded-xl border px-3 py-3 font-normal" onChange={(event) => set("supplierCode", event.target.value)} placeholder="Automatic when blank" value={form.supplierCode || ""} /></label><label className="text-sm font-bold">Supplier name<input className="mt-2 w-full rounded-xl border px-3 py-3 font-normal" onChange={(event) => set("name", event.target.value)} required value={form.name || ""} /></label><label className="text-sm font-bold">Contact person<input className="mt-2 w-full rounded-xl border px-3 py-3 font-normal" onChange={(event) => set("contactPerson", event.target.value)} value={form.contactPerson || ""} /></label><label className="text-sm font-bold">Contact number<input className="mt-2 w-full rounded-xl border px-3 py-3 font-normal" onChange={(event) => set("contactNo", event.target.value)} value={form.contactNo || ""} /></label><label className="text-sm font-bold">Email<input className="mt-2 w-full rounded-xl border px-3 py-3 font-normal" onChange={(event) => set("email", event.target.value)} type="email" value={form.email || ""} /></label><label className="text-sm font-bold">TIN<input className="mt-2 w-full rounded-xl border px-3 py-3 font-normal" onChange={(event) => set("tin", event.target.value)} value={form.tin || ""} /></label><label className="text-sm font-bold sm:col-span-2">Address<textarea className="mt-2 min-h-20 w-full rounded-xl border px-3 py-3 font-normal" onChange={(event) => set("address", event.target.value)} value={form.address || ""} /></label><label className="text-sm font-bold sm:col-span-2">Notes<textarea className="mt-2 min-h-20 w-full rounded-xl border px-3 py-3 font-normal" onChange={(event) => set("notes", event.target.value)} value={form.notes || ""} /></label></div>
-      <div className="flex justify-end gap-2"><button className="rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={onClose} type="button">Cancel</button><button className="rounded-xl bg-[var(--color-maroon)] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50" disabled={isSaving} type="submit">{isSaving ? "Saving..." : "Save supplier"}</button></div>
+    <form onSubmit={(event) => { event.preventDefault(); onSave(form) }}>
+      <div className="max-h-[75vh] overflow-y-auto p-5 space-y-3.5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className={labelClass}>
+            Supplier code
+            <input className={`${inputClass} uppercase font-mono`} onChange={(event) => set("supplierCode", event.target.value)} placeholder="Auto-generated if blank" value={form.supplierCode || ""} />
+          </label>
+          <label className={labelClass}>
+            Supplier name <span className="text-red-600">*</span>
+            <input className={inputClass} onChange={(event) => set("name", event.target.value)} placeholder="e.g. Apex Distribution Corp." required value={form.name || ""} />
+          </label>
+          <label className={labelClass}>
+            Contact person
+            <input className={inputClass} onChange={(event) => set("contactPerson", event.target.value)} placeholder="e.g. Juan Santos" value={form.contactPerson || ""} />
+          </label>
+          <label className={labelClass}>
+            Contact number
+            <input className={inputClass} inputMode="tel" onChange={(event) => set("contactNo", event.target.value)} placeholder="09xx xxx xxxx" value={form.contactNo || ""} />
+          </label>
+          <label className={labelClass}>
+            Email
+            <input className={inputClass} onChange={(event) => set("email", event.target.value)} placeholder="sales@supplier.com" type="email" value={form.email || ""} />
+          </label>
+          <label className={labelClass}>
+            TIN
+            <input className={`${inputClass} font-mono`} onChange={(event) => set("tin", event.target.value)} placeholder="000-000-000-000" value={form.tin || ""} />
+          </label>
+          <label className={`${labelClass} sm:col-span-2`}>
+            Address
+            <textarea className={`${inputClass} min-h-[50px] h-[50px] resize-none`} onChange={(event) => set("address", event.target.value)} placeholder="Warehouse or office address" value={form.address || ""} />
+          </label>
+          <label className={`${labelClass} sm:col-span-2`}>
+            Notes
+            <textarea className={`${inputClass} min-h-[50px] h-[50px] resize-none`} onChange={(event) => set("notes", event.target.value)} placeholder="Payment terms, delivery schedules, account notes…" value={form.notes || ""} />
+          </label>
+        </div>
+      </div>
+      <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+        <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition" onClick={onClose} type="button">Cancel</button>
+        <button className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50" disabled={isSaving} type="submit">{isSaving ? "Saving…" : "Save Supplier"}</button>
+      </div>
     </form>
   )
 }
@@ -158,15 +201,178 @@ export default function SuppliersPage({ selectedBranch, user }) {
   const totalPages = Math.max(1, pagination.totalPages || 1)
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-card sm:p-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--color-maroon)]">Supply chain</p><h1 className="mt-2 text-2xl font-black text-[var(--color-text-strong)]">Suppliers</h1><p className="mt-1 text-sm text-[var(--color-muted)]">Branch-safe supplier directory with purchase order and delivery history.</p></div><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white transition hover:opacity-90" onClick={() => setEditing({})} type="button"><Plus size={17} />New supplier</button></div></section>
-      {message ? <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">{message}</div> : null}{notice ? <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{notice}</div> : null}
-      <section className="grid gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-card sm:grid-cols-[1fr_240px]"><label className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={16} /><input className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] py-3 pl-10 pr-3 text-sm outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search name, code, contact, TIN" value={search} /></label><select className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)] font-bold" onChange={(event) => { setStatus(event.target.value); setPage(1) }} value={status}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></section>
-      <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">{isLoading ? <div className="flex items-center justify-center gap-2 p-10 font-bold text-[var(--color-muted)]"><LoaderCircle className="animate-spin" size={18} />Loading suppliers...</div> : suppliers.length === 0 ? <div className="p-10 text-center"><Building2 className="mx-auto text-[var(--color-muted)]" size={40} /><p className="mt-3 font-black text-[var(--color-text-strong)]">No matching suppliers</p></div> : <><div className="hidden overflow-x-auto lg:block"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-[var(--color-soft)] text-xs uppercase text-[var(--color-muted)]"><tr><th className="px-4 py-3">Supplier</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Branch</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-[var(--color-border)]">{suppliers.map((supplier) => <tr key={supplier.id}><td className="px-4 py-4"><p className="font-black text-[var(--color-text-strong)]">{supplier.supplierCode}</p><p>{supplier.name}</p></td><td className="px-4 py-4"><p>{supplier.contactPerson || "—"}</p><p className="text-xs text-[var(--color-muted)]">{supplier.contactNo || supplier.email || "No contact recorded"}</p></td><td className="px-4 py-4">{supplier.branch?.code || "GLOBAL"}</td><td className="px-4 py-4"><Status value={supplier.status} /></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><button className="rounded-xl border border-[var(--color-border)] p-2 hover:bg-[var(--color-soft)]" onClick={() => openDetail(supplier)} title="View" type="button"><Eye size={16} /></button><button className="rounded-xl border border-[var(--color-border)] p-2 hover:bg-[var(--color-soft)]" onClick={() => setEditing(supplier)} title="Edit" type="button"><Pencil size={16} /></button><button className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold hover:bg-[var(--color-soft)]" onClick={() => toggleStatus(supplier)} type="button">{supplier.status === "ACTIVE" ? "Deactivate" : "Activate"}</button></div></td></tr>)}</tbody></table></div><div className="grid gap-3 p-4 lg:hidden">{suppliers.map((supplier) => <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4" key={supplier.id}><div className="flex items-start justify-between gap-3"><div><p className="font-black text-[var(--color-text-strong)]">{supplier.supplierCode}</p><p className="mt-1">{supplier.name}</p></div><Status value={supplier.status} /></div><p className="mt-3 text-sm text-[var(--color-muted)]">{supplier.contactPerson || "No contact person"} · {supplier.contactNo || supplier.email || "No contact"}</p><div className="mt-4 grid grid-cols-2 gap-2"><button className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm font-bold" onClick={() => openDetail(supplier)} type="button">View</button><button className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm font-bold" onClick={() => setEditing(supplier)} type="button">Edit</button></div></article>)}</div></>}
-        <div className="flex items-center justify-between border-t border-[var(--color-border)] p-4"><p className="text-sm text-[var(--color-muted)]">Page {pagination.page || page} of {totalPages} · {pagination.totalItems || 0} supplier(s)</p><div className="flex gap-2"><button className="rounded-xl border border-[var(--color-border)] p-2 disabled:opacity-30" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button"><ChevronLeft size={18} /></button><button className="rounded-xl border border-[var(--color-border)] p-2 disabled:opacity-30" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={18} /></button></div></div></section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Supply chain</p>
+            <h1 className="mt-1 text-2xl font-black text-slate-900">Suppliers</h1>
+            <p className="mt-0.5 text-xs text-slate-500">Branch-safe supplier directory with purchase order and delivery history.</p>
+          </div>
+          <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
+            <Plus size={15} />New Supplier
+          </button>
+        </div>
+      </section>
 
-      {editing ? <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-3 sm:p-6 backdrop-blur-xs"><section className="mx-auto max-w-3xl rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] p-5 shadow-2xl"><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-black text-[var(--color-text-strong)]">{editing.id ? "Edit supplier" : "New supplier"}</h2><button className="rounded-xl border border-[var(--color-border)] p-2 hover:bg-[var(--color-soft)]" onClick={() => setEditing(null)} type="button"><X size={18} /></button></div><SupplierForm initial={editing} isSaving={isSaving} onClose={() => setEditing(null)} onSave={saveSupplier} /></section></div> : null}
+      {message ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">{message}</div> : null}
+      {notice ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{notice}</div> : null}
 
-      {detail ? <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-3 sm:p-6 backdrop-blur-xs"><section className="mx-auto max-w-5xl rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] shadow-2xl"><header className="flex items-start justify-between border-b border-[var(--color-border)] p-5"><div><p className="text-xs font-black text-[var(--color-maroon)]">{detail.supplierCode}</p><h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]">{detail.name}</h2><p className="mt-1 text-sm text-[var(--color-muted)]">{detail.branch?.name || "Global supplier"}</p></div><button className="rounded-xl border border-[var(--color-border)] p-2 hover:bg-[var(--color-soft)]" onClick={() => setDetail(null)} type="button"><X size={18} /></button></header>{isDetailLoading ? <div className="flex items-center justify-center gap-2 p-10 font-bold text-[var(--color-muted)]"><LoaderCircle className="animate-spin" size={18} />Loading history...</div> : <div className="space-y-5 p-5"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs text-[var(--color-muted)]">Contact</p><p className="mt-1 font-bold">{detail.contactPerson || "—"}</p></div><div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs text-[var(--color-muted)]">Phone / email</p><p className="mt-1 break-words font-bold">{detail.contactNo || detail.email || "—"}</p></div><div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs text-[var(--color-muted)]">TIN</p><p className="mt-1 font-bold">{detail.tin || "—"}</p></div><div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs text-[var(--color-muted)]">Status</p><p className="mt-2"><Status value={detail.status} /></p></div></div><div className="grid gap-5 lg:grid-cols-2"><section><h3 className="font-black text-[var(--color-text-strong)]">Recent purchase orders</h3><div className="mt-3 divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)]">{relatedOrders.map((order) => <div className="flex items-center justify-between gap-3 p-3 text-sm" key={order.id}><div><p className="font-bold text-[var(--color-text-strong)]">{order.poCode}</p><p className="text-xs text-[var(--color-muted)]">{dateOnly(order.orderDate)} · {formatStatus(order.status)}</p></div><p className="font-black text-[var(--color-text-strong)]">{money(order.grandTotal)}</p></div>)}{relatedOrders.length === 0 ? <p className="p-5 text-sm text-[var(--color-muted)]">No related purchase orders.</p> : null}</div></section><section><h3 className="font-black text-[var(--color-text-strong)]">Recent deliveries</h3><div className="mt-3 divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)]">{relatedReceivings.map((receiving) => <div className="flex items-center justify-between gap-3 p-3 text-sm" key={receiving.id}><div><p className="font-bold text-[var(--color-text-strong)]">{receiving.receivingCode}</p><p className="text-xs text-[var(--color-muted)]">{dateOnly(receiving.receivingDate)} · {formatStatus(receiving.status)}</p></div><p className="font-black text-[var(--color-text-strong)]">{money(receiving.grandTotal)}</p></div>)}{relatedReceivings.length === 0 ? <p className="p-5 text-sm text-[var(--color-muted)]">No related deliveries.</p> : null}</div></section></div></div>}</section></div> : null}
+      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
+        <label className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+          <input className="w-full rounded-xl border border-slate-200 bg-white text-slate-800 py-2 pl-9 pr-3 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search name, code, contact, TIN…" value={search} />
+        </label>
+        <select className="rounded-xl border border-slate-200 bg-white text-slate-800 px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)] font-semibold" onChange={(event) => { setStatus(event.target.value); setPage(1) }} value={status}>
+          <option value="">All statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2 p-10 text-xs font-bold text-slate-500">
+            <LoaderCircle className="animate-spin" size={16} />Loading suppliers…
+          </div>
+        ) : suppliers.length === 0 ? (
+          <div className="p-10 text-center">
+            <Building2 className="mx-auto text-slate-300" size={36} />
+            <p className="mt-2 text-xs font-bold text-slate-800">No matching suppliers</p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full min-w-[900px] text-left text-xs">
+                <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Supplier</th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3">Branch</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {suppliers.map((supplier) => (
+                    <tr key={supplier.id} className="hover:bg-slate-50/50 transition">
+                      <td className="px-4 py-3">
+                        <p className="font-mono font-bold text-slate-900">{supplier.supplierCode}</p>
+                        <p className="font-semibold text-slate-800">{supplier.name}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800">{supplier.contactPerson || "—"}</p>
+                        <p className="text-[11px] text-slate-500">{supplier.contactNo || supplier.email || "No contact"}</p>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700">{supplier.branch?.code || "GLOBAL"}</td>
+                      <td className="px-4 py-3"><Status value={supplier.status} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-1.5">
+                          <button className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 transition" onClick={() => openDetail(supplier)} title="View" type="button"><Eye size={14} /></button>
+                          <button className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 transition" onClick={() => setEditing(supplier)} title="Edit" type="button"><Pencil size={14} /></button>
+                          <button className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100 transition" onClick={() => toggleStatus(supplier)} type="button">{supplier.status === "ACTIVE" ? "Deactivate" : "Activate"}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid gap-2.5 p-3 lg:hidden">
+              {suppliers.map((supplier) => (
+                <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs text-xs" key={supplier.id}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-mono font-bold text-slate-900">{supplier.supplierCode}</p>
+                      <p className="font-bold text-slate-800">{supplier.name}</p>
+                    </div>
+                    <Status value={supplier.status} />
+                  </div>
+                  <p className="mt-2 text-slate-500">{supplier.contactPerson || "No contact person"} · {supplier.contactNo || supplier.email || "No contact"}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50" onClick={() => openDetail(supplier)} type="button">View</button>
+                    <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50" onClick={() => setEditing(supplier)} type="button">Edit</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 p-3 text-xs text-slate-500">
+          <p>Page {pagination.page || page} of {totalPages} · {pagination.totalItems || 0} supplier(s)</p>
+          <div className="flex gap-1.5">
+            <button className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button"><ChevronLeft size={16} /></button>
+            <button className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={16} /></button>
+          </div>
+        </div>
+      </section>
+
+      {editing ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <section className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Supplier Management</span>
+                <h2 className="text-base font-black text-slate-900 leading-tight">{editing.id ? "Edit Supplier" : "New Supplier"}</h2>
+              </div>
+              <button className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" onClick={() => setEditing(null)} type="button"><X size={16} /></button>
+            </div>
+            <SupplierForm initial={editing} isSaving={isSaving} onClose={() => setEditing(null)} onSave={saveSupplier} />
+          </section>
+        </div>
+      ) : null}
+
+      {detail ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <section className="my-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-maroon)]">{detail.supplierCode}</span>
+                <h2 className="text-base font-black text-slate-900 leading-tight">{detail.name}</h2>
+                <p className="text-xs text-slate-500">{detail.branch?.name || "Global Supplier"}</p>
+              </div>
+              <button className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" onClick={() => setDetail(null)} type="button"><X size={16} /></button>
+            </header>
+            {isDetailLoading ? (
+              <div className="flex items-center justify-center gap-2 p-10 text-xs font-bold text-slate-500"><LoaderCircle className="animate-spin" size={16} />Loading history…</div>
+            ) : (
+              <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+                <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Contact</p><p className="mt-1 font-bold text-slate-900">{detail.contactPerson || "—"}</p></div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Phone / Email</p><p className="mt-1 break-words font-bold text-slate-900">{detail.contactNo || detail.email || "—"}</p></div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">TIN</p><p className="mt-1 font-mono font-bold text-slate-900">{detail.tin || "—"}</p></div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Status</p><p className="mt-1.5"><Status value={detail.status} /></p></div>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2 text-xs">
+                  <section>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Recent Purchase Orders</h3>
+                    <div className="mt-2 divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50">
+                      {relatedOrders.map((order) => (
+                        <div className="flex items-center justify-between gap-3 p-2.5" key={order.id}>
+                          <div><p className="font-bold text-slate-900">{order.poCode}</p><p className="text-[11px] text-slate-500">{dateOnly(order.orderDate)} · {formatStatus(order.status)}</p></div>
+                          <p className="font-mono font-bold text-slate-900">{money(order.grandTotal)}</p>
+                        </div>
+                      ))}
+                      {relatedOrders.length === 0 ? <p className="p-4 text-slate-500">No related purchase orders.</p> : null}
+                    </div>
+                  </section>
+                  <section>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Recent Deliveries</h3>
+                    <div className="mt-2 divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50">
+                      {relatedReceivings.map((receiving) => (
+                        <div className="flex items-center justify-between gap-3 p-2.5" key={receiving.id}>
+                          <div><p className="font-bold text-slate-900">{receiving.receivingCode}</p><p className="text-[11px] text-slate-500">{dateOnly(receiving.receivingDate)} · {formatStatus(receiving.status)}</p></div>
+                          <p className="font-mono font-bold text-slate-900">{money(receiving.grandTotal)}</p>
+                        </div>
+                      ))}
+                      {relatedReceivings.length === 0 ? <p className="p-4 text-slate-500">No related deliveries.</p> : null}
+                    </div>
+                  </section>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
     </div>
   )
 }

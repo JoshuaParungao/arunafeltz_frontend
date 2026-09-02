@@ -159,14 +159,14 @@ function ModalFrame({ children, labelledBy, onClose, size = "max-w-3xl" }) {
     <div
       aria-labelledby={labelledBy}
       aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/45 px-3 py-5 sm:px-5"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
       role="dialog"
     >
       <section
-        className={`max-h-[calc(100svh-2.5rem)] w-full ${size} overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-white shadow-card`}
+        className={`max-h-[calc(100svh-2rem)] w-full ${size} overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         {children}
@@ -178,7 +178,7 @@ function ModalFrame({ children, labelledBy, onClose, size = "max-w-3xl" }) {
 function FormField({ children, label, required = false }) {
   return (
     <label className="block">
-      <span className="text-sm font-bold text-[var(--color-text-strong)]">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
         {label}
         {required ? <span className="ml-1 text-red-600">*</span> : null}
       </span>
@@ -266,88 +266,94 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
     }
   }
 
+  const inputClass =
+    "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
+
   return (
     <ModalFrame
       labelledBy="customer-editor-title"
       onClose={() => {
         if (!isSaving) onClose()
       }}
+      size="max-w-2xl"
     >
       <form onSubmit={handleSubmit}>
-        <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5 sm:p-6">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-[var(--color-accent)]">
-              {isEdit ? "Customer record" : "New customer"}
-            </p>
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              {isEdit ? "Customer Record" : "New Customer"}
+            </span>
             <h2
-              className="mt-1 text-xl font-bold text-[var(--color-text-strong)]"
+              className="text-base font-black text-slate-900 leading-tight"
               id="customer-editor-title"
             >
-              {isEdit ? `Edit ${customer.fullName}` : "Create customer"}
+              {isEdit ? `Edit ${customer.fullName}` : "Create Customer"}
             </h2>
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
+            <p className="text-xs text-slate-500">
               Branch: {activeBranch?.code || customer?.branch?.code || "Not selected"}
             </p>
           </div>
 
           <button
             aria-label="Close customer form"
-            className="rounded-2xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-5 p-5 sm:p-6">
+        <div className="max-h-[75vh] overflow-y-auto p-5 space-y-3.5">
           {errorMessage ? <ErrorBanner>{errorMessage}</ErrorBanner> : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Full name" required>
               <input
                 autoFocus
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                className={inputClass}
                 maxLength={200}
                 onChange={(event) => updateField("fullName", event.target.value)}
-                placeholder="Customer name"
+                placeholder="Customer full name"
                 required
                 value={form.fullName}
               />
             </FormField>
 
-            <FormField label={isEdit ? "Customer code (system reference)" : "Customer code (optional)"} required={isEdit}>
+            <FormField label={isEdit ? "Customer code" : "Customer code (optional)"} required={isEdit}>
               <input
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold uppercase text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                className={`${inputClass} uppercase font-mono`}
                 maxLength={80}
                 onChange={(event) => updateField("customerCode", event.target.value)}
-                placeholder={isEdit ? "Customer code" : "Auto-generated if left blank"}
+                placeholder={isEdit ? "Customer code" : "Auto-generated if blank"}
                 required={isEdit}
                 value={form.customerCode}
               />
             </FormField>
 
-            <FormField label="General / Base Price Tier (Default for New Items)" required>
-              <select
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-                onChange={(event) => updateField("priceTier", event.target.value)}
-                value={form.priceTier}
-              >
-                <option value="1">Price 1 (Standard / Retail)</option>
-                <option value="2">Price 2 (Wholesale / Regular)</option>
-                <option value="3">Price 3 (Special / Dealer)</option>
-                <option value="4">Price 4 (VIP / Partner)</option>
-                <option value="5">Price 5 (Special Project)</option>
-              </select>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">
-                Default tier for newly added products. When the customer buys an item at a different tier in POS, the system automatically remembers that specific item tier for them.
-              </p>
-            </FormField>
+            <div className="sm:col-span-2">
+              <FormField label="Base Price Tier (Default for New Items)" required>
+                <select
+                  className={inputClass}
+                  onChange={(event) => updateField("priceTier", event.target.value)}
+                  value={form.priceTier}
+                >
+                  <option value="1">Price 1 (Standard / Retail)</option>
+                  <option value="2">Price 2 (Wholesale / Regular)</option>
+                  <option value="3">Price 3 (Special / Dealer)</option>
+                  <option value="4">Price 4 (VIP / Partner)</option>
+                  <option value="5">Price 5 (Special Project)</option>
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Default tier for new items. Specific item prices bought in POS are remembered automatically per customer.
+                </p>
+              </FormField>
+            </div>
 
             <FormField label="Mobile number">
               <input
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                className={inputClass}
                 inputMode="tel"
                 maxLength={50}
                 onChange={(event) => updateField("mobileNumber", event.target.value)}
@@ -359,7 +365,7 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
 
             <FormField label="Email">
               <input
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                className={inputClass}
                 maxLength={200}
                 onChange={(event) => updateField("email", event.target.value)}
                 placeholder="name@example.com"
@@ -371,10 +377,10 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
             <div className="sm:col-span-2">
               <FormField label="Company name">
                 <input
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className={inputClass}
                   maxLength={200}
                   onChange={(event) => updateField("companyName", event.target.value)}
-                  placeholder="Optional business or organization"
+                  placeholder="Optional business or company name"
                   value={form.companyName}
                 />
               </FormField>
@@ -383,7 +389,7 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
             <div className="sm:col-span-2">
               <FormField label="Address">
                 <textarea
-                  className="mt-2 min-h-24 w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className={`${inputClass} min-h-[50px] h-[50px] resize-none`}
                   maxLength={500}
                   onChange={(event) => updateField("address", event.target.value)}
                   placeholder="Customer address"
@@ -395,26 +401,20 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
             <div className="sm:col-span-2">
               <FormField label="Internal notes">
                 <textarea
-                  className="mt-2 min-h-24 w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className={`${inputClass} min-h-[50px] h-[50px] resize-none`}
                   maxLength={1000}
                   onChange={(event) => updateField("notes", event.target.value)}
-                  placeholder="Optional notes for staff"
+                  placeholder="Optional notes for staff reference…"
                   value={form.notes}
                 />
               </FormField>
             </div>
           </div>
-
-          {!isEdit && !form.customerCode.trim() ? (
-            <p className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm leading-6 text-[var(--color-muted)]">
-              The next customer code for this branch will be generated automatically.
-            </p>
-          ) : null}
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-[var(--color-border)] p-5 sm:flex-row sm:justify-end sm:p-6">
+        <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
           <button
-            className="rounded-2xl border border-[var(--color-border)] bg-white px-5 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:opacity-60"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-60"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -422,11 +422,11 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
             Cancel
           </button>
           <button
-            className="rounded-2xl bg-[#7A1F2B] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#641824] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
             disabled={isSaving}
             type="submit"
           >
-            {isSaving ? "Saving..." : isEdit ? "Save changes" : "Create customer"}
+            {isSaving ? "Saving…" : isEdit ? "Save Changes" : "Create Customer"}
           </button>
         </div>
       </form>
@@ -467,55 +467,53 @@ function CustomerStatusDialog({ customer, onClose, onSaved, targetStatus }) {
       onClose={() => {
         if (!isSaving) onClose()
       }}
-      size="max-w-lg"
+      size="max-w-md"
     >
-      <div className="p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
+      <div>
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
           <div>
-            <p className="text-sm font-bold text-[var(--color-accent)]">Customer status</p>
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Customer Status</span>
             <h2
-              className="mt-1 text-xl font-bold text-[var(--color-text-strong)]"
+              className="text-base font-black text-slate-900 leading-tight"
               id="customer-status-title"
             >
-              {isDeactivation ? "Deactivate customer?" : "Reactivate customer?"}
+              {isDeactivation ? "Deactivate Customer?" : "Reactivate Customer?"}
             </h2>
           </div>
           <button
             aria-label="Close status confirmation"
-            className="rounded-2xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        <p className="mt-4 text-sm leading-6 text-[var(--color-muted)]">
-          <span className="font-bold text-[var(--color-text-strong)]">{customer.fullName}</span>{" "}
-          will be marked {formatStatus(targetStatus).toLowerCase()}.
-          {isDeactivation
-            ? " Existing quotations, sales, and credit history remain unchanged and auditable."
-            : " The customer can be selected again in supported workflows."}
-        </p>
+        <div className="p-5 space-y-3">
+          <p className="text-xs leading-5 text-slate-600">
+            <strong className="text-slate-900">{customer.fullName}</strong>{" "}
+            will be marked {formatStatus(targetStatus).toLowerCase()}.
+            {isDeactivation
+              ? " Existing quotations, sales, and credit history remain unchanged and fully auditable."
+              : " The customer can be selected again in supported workflows."}
+          </p>
 
-        {errorMessage ? (
-          <div className="mt-4">
-            <ErrorBanner>{errorMessage}</ErrorBanner>
-          </div>
-        ) : null}
+          {errorMessage ? <ErrorBanner>{errorMessage}</ErrorBanner> : null}
+        </div>
 
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
           <button
-            className="rounded-2xl border border-[var(--color-border)] bg-white px-5 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:opacity-60"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-60"
             disabled={isSaving}
             onClick={onClose}
             type="button"
           >
-            Keep current status
+            Cancel
           </button>
           <button
-            className={`rounded-2xl px-5 py-3 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-5 py-2 text-xs font-bold text-white shadow-xs transition disabled:opacity-50 ${
               isDeactivation
                 ? "bg-red-700 hover:bg-red-800"
                 : "bg-emerald-700 hover:bg-emerald-800"
@@ -525,10 +523,10 @@ function CustomerStatusDialog({ customer, onClose, onSaved, targetStatus }) {
             type="button"
           >
             {isSaving
-              ? "Updating..."
+              ? "Updating…"
               : isDeactivation
-                ? "Deactivate customer"
-                : "Reactivate customer"}
+                ? "Deactivate Customer"
+                : "Reactivate Customer"}
           </button>
         </div>
       </div>
@@ -538,12 +536,12 @@ function CustomerStatusDialog({ customer, onClose, onSaved, targetStatus }) {
 
 function DetailValue({ children, icon: Icon, label }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-[var(--color-soft)] p-4">
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-        <Icon size={15} />
+    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        <Icon size={13} />
         <span>{label}</span>
       </div>
-      <div className="mt-2 break-words text-sm font-bold leading-6 text-[var(--color-text-strong)]">
+      <div className="mt-1 break-words font-bold text-slate-900">
         {children || "—"}
       </div>
     </div>
@@ -552,10 +550,10 @@ function DetailValue({ children, icon: Icon, label }) {
 
 function EmptyHistory({ label }) {
   return (
-    <div className="grid place-items-center rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center">
-      <ClipboardList className="text-[var(--color-muted)]" size={34} />
-      <p className="mt-3 font-bold text-[var(--color-text-strong)]">No {label} yet</p>
-      <p className="mt-1 text-sm text-[var(--color-muted)]">
+    <div className="grid place-items-center rounded-xl border border-dashed border-slate-200 p-6 text-center">
+      <ClipboardList className="text-slate-400" size={28} />
+      <p className="mt-2 text-xs font-bold text-slate-800">No {label} yet</p>
+      <p className="text-[11px] text-slate-500">
         Activity linked to this customer will appear here.
       </p>
     </div>
@@ -568,56 +566,56 @@ function QuotationHistory({ data }) {
   if (items.length === 0) return <EmptyHistory label="quotation history" />
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {items.map((quotation) => (
         <article
-          className="rounded-2xl border border-[var(--color-border)] bg-white p-4"
+          className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs"
           key={quotation.id}
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <p className="font-bold text-[var(--color-text-strong)]">
+              <p className="font-bold text-slate-900">
                 {quotation.quotationCode}
               </p>
-              <p className="mt-1 text-sm text-[var(--color-muted)]">
+              <p className="mt-0.5 text-slate-500">
                 {quotation.title || "Quotation"} · {formatDate(quotation.createdAt, true)}
               </p>
-              <p className="mt-1 text-xs font-semibold text-[var(--color-muted)]">
+              <p className="text-[11px] font-medium text-slate-500">
                 Prepared by {quotation.preparedBy?.fullName || "Unassigned"}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <StatusBadge status={quotation.status} />
-              <p className="font-bold text-[var(--color-text-strong)]">
+              <p className="font-mono font-bold text-slate-900">
                 {formatMoney(quotation.grandTotal)}
               </p>
             </div>
           </div>
 
           {Array.isArray(quotation.items) && quotation.items.length > 0 ? (
-            <div className="mt-3 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]">
-              <div className="border-b border-[var(--color-border)] bg-slate-50 px-3 py-2 text-xs font-bold text-[var(--color-muted)]">
+            <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+              <div className="border-b border-slate-200 bg-slate-100/70 px-3 py-1.5 text-[11px] font-bold text-slate-600">
                 Quoted Items ({quotation.items.length})
               </div>
-              <div className="divide-y divide-[var(--color-border)] text-xs">
+              <div className="divide-y divide-slate-200 text-xs">
                 {quotation.items.map((line, idx) => (
-                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2" key={line.id || idx}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5" key={line.id || idx}>
                     <div className="min-w-0 flex-1">
-                      <span className="font-semibold text-[var(--color-text-strong)]">
+                      <span className="font-semibold text-slate-800">
                         {line.quantity}× {line.description}
                       </span>
                       {line.warrantyDuration ? (
-                        <span className="ml-2 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                        <span className="ml-2 inline-block rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
                           {line.warrantyDuration}
                         </span>
                       ) : null}
                       {line.priceTier ? (
-                        <span className="ml-1.5 text-[10px] font-semibold text-[var(--color-muted)]">
+                        <span className="ml-1 text-[10px] font-semibold text-slate-500">
                           (Price {line.priceTier})
                         </span>
                       ) : null}
                     </div>
-                    <div className="text-right font-medium text-[var(--color-text-strong)]">
+                    <div className="text-right font-mono font-medium text-slate-900">
                       {formatMoney(line.lineTotal)}
                     </div>
                   </div>
@@ -628,7 +626,7 @@ function QuotationHistory({ data }) {
         </article>
       ))}
       {data.totalItems > items.length ? (
-        <p className="text-center text-xs font-semibold text-[var(--color-muted)]">
+        <p className="text-center text-[11px] font-semibold text-slate-500">
           Showing the latest {items.length} of {data.totalItems} quotations.
         </p>
       ) : null}
@@ -642,67 +640,67 @@ function SalesHistory({ data }) {
   if (items.length === 0) return <EmptyHistory label="sales history" />
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {items.map((sale) => (
         <article
-          className="rounded-2xl border border-[var(--color-border)] bg-white p-4"
+          className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs"
           key={sale.id}
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <p className="font-bold text-[var(--color-text-strong)]">{sale.receiptCode}</p>
-              <p className="mt-1 text-sm text-[var(--color-muted)]">
-                {formatDate(sale.saleDate, true)} · Sales Agent: {sale.cashier?.fullName || "Unassigned"}
+              <p className="font-bold text-slate-900">{sale.receiptCode}</p>
+              <p className="mt-0.5 text-slate-500">
+                {formatDate(sale.saleDate, true)} · Cashier: {sale.cashier?.fullName || "Unassigned"}
               </p>
               {sale.quotation?.quotationCode ? (
-                <p className="mt-1 text-xs font-semibold text-[var(--color-muted)]">
+                <p className="text-[11px] font-medium text-slate-500">
                   From quotation {sale.quotation.quotationCode}
                 </p>
               ) : null}
             </div>
             <div className="sm:text-right">
-              <div className="flex flex-wrap gap-2 sm:justify-end">
+              <div className="flex flex-wrap gap-1.5 sm:justify-end">
                 <StatusBadge status={sale.status} />
                 <StatusBadge status={sale.paymentStatus} />
               </div>
-              <p className="mt-2 font-bold text-[var(--color-text-strong)]">
+              <p className="mt-1 font-mono font-bold text-slate-900">
                 {formatMoney(sale.grandTotal)}
               </p>
-              <p className="mt-1 text-xs font-semibold text-[var(--color-muted)]">
+              <p className="text-[11px] font-medium text-slate-500">
                 Paid {formatMoney(sale.amountPaid)}
               </p>
             </div>
           </div>
 
           {Array.isArray(sale.items) && sale.items.length > 0 ? (
-            <div className="mt-3 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]">
-              <div className="border-b border-[var(--color-border)] bg-slate-50 px-3 py-2 text-xs font-bold text-[var(--color-muted)]">
+            <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+              <div className="border-b border-slate-200 bg-slate-100/70 px-3 py-1.5 text-[11px] font-bold text-slate-600">
                 Purchased Items ({sale.items.length})
               </div>
-              <div className="divide-y divide-[var(--color-border)] text-xs">
+              <div className="divide-y divide-slate-200 text-xs">
                 {sale.items.map((line, idx) => (
-                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2" key={line.id || idx}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5" key={line.id || idx}>
                     <div className="min-w-0 flex-1">
-                      <span className="font-semibold text-[var(--color-text-strong)]">
+                      <span className="font-semibold text-slate-800">
                         {line.quantity}× {line.description}
                       </span>
                       {line.serial?.serialNumber ? (
-                        <span className="ml-2 inline-block rounded bg-indigo-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-indigo-700">
+                        <span className="ml-2 inline-block rounded bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-indigo-700">
                           S/N: {line.serial.serialNumber}
                         </span>
                       ) : null}
                       {line.warrantyDuration ? (
-                        <span className="ml-1.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                        <span className="ml-1.5 inline-block rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
                           {line.warrantyDuration}
                         </span>
                       ) : null}
                       {line.priceTier ? (
-                        <span className="ml-1 text-[10px] font-semibold text-[var(--color-muted)]">
+                        <span className="ml-1 text-[10px] font-semibold text-slate-500">
                           (Price {line.priceTier})
                         </span>
                       ) : null}
                     </div>
-                    <div className="text-right font-medium text-[var(--color-text-strong)]">
+                    <div className="text-right font-mono font-medium text-slate-900">
                       {formatMoney(line.lineTotal)}
                     </div>
                   </div>
@@ -713,7 +711,7 @@ function SalesHistory({ data }) {
         </article>
       ))}
       {data.totalItems > items.length ? (
-        <p className="text-center text-xs font-semibold text-[var(--color-muted)]">
+        <p className="text-center text-[11px] font-semibold text-slate-500">
           Showing the latest {items.length} of {data.totalItems} sales.
         </p>
       ) : null}
@@ -727,105 +725,69 @@ function CreditHistory({ data }) {
   if (items.length === 0) return <EmptyHistory label="credit history" />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       {items.map((account) => {
         const collections = Array.isArray(account.collections) ? account.collections : []
 
         return (
           <article
-            className="rounded-2xl border border-[var(--color-border)] bg-white p-4"
+            className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs"
             key={account.id}
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="font-bold text-[var(--color-text-strong)]">{account.creditCode}</p>
-                <p className="mt-1 text-sm text-[var(--color-muted)]">
+                <p className="font-bold text-slate-900">{account.creditCode}</p>
+                <p className="mt-0.5 text-slate-500">
                   {formatTerm(account.term)} · Opened {formatDate(account.createdAt)}
                 </p>
                 {account.sale?.receiptCode ? (
-                  <p className="mt-1 text-xs font-semibold text-[var(--color-muted)]">
+                  <p className="text-[11px] font-medium text-slate-500">
                     Sale {account.sale.receiptCode}
                   </p>
                 ) : null}
               </div>
               <div className="sm:text-right">
                 <StatusBadge status={account.status} />
-                <p className="mt-2 text-xs font-bold uppercase text-[var(--color-muted)]">
-                  Remaining balance
-                </p>
-                <p className="mt-1 font-bold text-[var(--color-text-strong)]">
-                  {formatMoney(account.remainingBalance)}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-[var(--color-soft)] p-3">
-                <p className="text-xs font-bold text-[var(--color-muted)]">Financed balance</p>
-                <p className="mt-1 text-sm font-bold text-[var(--color-text-strong)]">
+                <p className="mt-1 font-mono font-bold text-slate-900">
                   {formatMoney(account.balanceAmount)}
                 </p>
-              </div>
-              <div className="rounded-xl bg-[var(--color-soft)] p-3">
-                <p className="text-xs font-bold text-[var(--color-muted)]">Collected</p>
-                <p className="mt-1 text-sm font-bold text-[var(--color-text-strong)]">
-                  {formatMoney(account.totalCollected)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-[var(--color-soft)] p-3">
-                <p className="text-xs font-bold text-[var(--color-muted)]">Next due</p>
-                <p className="mt-1 text-sm font-bold text-[var(--color-text-strong)]">
-                  {formatDate(account.nextDueDate)}
+                <p className="text-[11px] text-slate-500">
+                  Principal {formatMoney(account.principalAmount)}
                 </p>
               </div>
             </div>
 
             {collections.length > 0 ? (
-              <div className="mt-4 border-t border-[var(--color-border)] pt-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                  Recent collections
-                </p>
-                <div className="mt-2 space-y-2">
-                  {collections.map((collection) => (
-                    <div
-                      className="flex flex-col gap-2 rounded-xl bg-[var(--color-soft)] p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-                      key={collection.id}
-                    >
+              <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <div className="border-b border-slate-200 bg-slate-100/70 px-3 py-1.5 text-[11px] font-bold text-slate-600">
+                  Payment Collections ({collections.length})
+                </div>
+                <div className="divide-y divide-slate-200 text-xs">
+                  {collections.map((coll) => (
+                    <div className="flex items-center justify-between px-3 py-1.5" key={coll.id}>
                       <div>
-                        <p className="font-bold text-[var(--color-text-strong)]">
-                          {collection.collectionCode}
-                        </p>
-                        <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-                          {formatDate(collection.paidAt, true)} · {formatStatus(collection.paymentMethod)}
-                        </p>
+                        <span className="font-semibold text-slate-800">
+                          {coll.receiptCode || "Payment"}
+                        </span>
+                        <span className="ml-2 text-[11px] text-slate-500">
+                          {formatDate(coll.collectionDate || coll.createdAt)}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-3 sm:justify-end">
-                        <StatusBadge status={collection.status} />
-                        <p className="font-bold text-[var(--color-text-strong)]">
-                          {formatMoney(collection.amount)}
-                        </p>
+                      <div className="font-mono font-bold text-emerald-700">
+                        {formatMoney(coll.amountPaid)}
                       </div>
                     </div>
                   ))}
                 </div>
-                {account._count?.collections > collections.length ? (
-                  <p className="mt-2 text-xs font-semibold text-[var(--color-muted)]">
-                    Showing the latest {collections.length} of {account._count.collections} collections.
-                  </p>
-                ) : null}
               </div>
             ) : null}
           </article>
         )
       })}
-      {data.totalItems > items.length ? (
-        <p className="text-center text-xs font-semibold text-[var(--color-muted)]">
-          Showing the latest {items.length} of {data.totalItems} credit accounts.
-        </p>
-      ) : null}
     </div>
   )
 }
+
 
 function CustomerDetailModal({
   canManage,
@@ -890,66 +852,66 @@ function CustomerDetailModal({
   ]
 
   return (
-    <ModalFrame labelledBy="customer-detail-title" onClose={onClose} size="max-w-5xl">
-      <div className="flex flex-col gap-4 border-b border-[var(--color-border)] p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+    <ModalFrame labelledBy="customer-detail-title" onClose={onClose} size="max-w-4xl">
+      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-bold text-[var(--color-accent)]">Customer profile</p>
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Customer Profile</span>
             <StatusBadge status={customer.status} />
-            <span className="rounded-xl bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+            <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
               Price {customer.priceTier || 1}
             </span>
           </div>
           <h2
-            className="mt-1 break-words text-xl font-bold text-[var(--color-text-strong)] sm:text-2xl"
+            className="mt-0.5 truncate text-base font-black text-slate-900 leading-tight"
             id="customer-detail-title"
           >
             {customer.fullName}
           </h2>
           {customer.companyName ? (
-            <p className="mt-1 text-sm font-semibold text-[var(--color-muted)]">
+            <p className="text-xs text-slate-500 font-medium">
               {customer.companyName}
             </p>
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             aria-label="Refresh customer details"
-            className="rounded-2xl border border-[var(--color-border)] p-2.5 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             disabled={isLoading}
             onClick={loadCustomer}
             type="button"
           >
-            <RefreshCw className={isLoading ? "animate-spin" : ""} size={17} />
+            <RefreshCw className={isLoading ? "animate-spin" : ""} size={15} />
           </button>
           {canManage ? (
             <button
-              className="inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
               onClick={() => onEdit(customer)}
               type="button"
             >
-              <Edit3 size={16} />
+              <Edit3 size={14} />
               Edit
             </button>
           ) : null}
           <button
             aria-label="Close customer details"
-            className="rounded-2xl border border-[var(--color-border)] p-2.5 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             onClick={onClose}
             type="button"
           >
-            <X size={17} />
+            <X size={15} />
           </button>
         </div>
       </div>
 
-      <div className="space-y-6 p-5 sm:p-6">
+      <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
         {errorMessage ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <ErrorBanner>{errorMessage}</ErrorBanner>
             <button
-              className="rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
               onClick={loadCustomer}
               type="button"
             >
@@ -958,7 +920,7 @@ function CustomerDetailModal({
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           <DetailValue icon={Building2} label="Branch">
             {customer.branch?.name
               ? `${customer.branch.code} · ${customer.branch.name}`
@@ -984,51 +946,51 @@ function CustomerDetailModal({
         </div>
 
         {customer.notes ? (
-          <div className="rounded-2xl border border-[var(--color-border)] p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+          <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               Internal notes
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-strong)]">
+            <p className="mt-1 whitespace-pre-wrap text-xs text-slate-700">
               {customer.notes}
             </p>
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold text-[var(--color-muted)]">Quotations</p>
-            <p className="mt-1 text-xl font-bold text-[var(--color-text-strong)]">
+        <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-center">
+            <p className="text-[10px] font-bold uppercase text-slate-500">Quotations</p>
+            <p className="mt-0.5 text-base font-bold text-slate-900">
               {summary.quotationCount || 0}
             </p>
           </div>
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold text-[var(--color-muted)]">Sales</p>
-            <p className="mt-1 text-xl font-bold text-[var(--color-text-strong)]">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-center">
+            <p className="text-[10px] font-bold uppercase text-slate-500">Sales</p>
+            <p className="mt-0.5 text-base font-bold text-slate-900">
               {summary.saleCount || 0}
             </p>
           </div>
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold text-[var(--color-muted)]">Credit accounts</p>
-            <p className="mt-1 text-xl font-bold text-[var(--color-text-strong)]">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-center">
+            <p className="text-[10px] font-bold uppercase text-slate-500">Credit Accounts</p>
+            <p className="mt-0.5 text-base font-bold text-slate-900">
               {summary.creditAccountCount || 0}
             </p>
           </div>
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold text-[var(--color-muted)]">Outstanding credit</p>
-            <p className="mt-1 text-xl font-bold text-[var(--color-text-strong)]">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-center">
+            <p className="text-[10px] font-bold uppercase text-slate-500">Outstanding Credit</p>
+            <p className="mt-0.5 text-base font-mono font-bold text-slate-900">
               {formatMoney(summary.outstandingCreditBalance)}
             </p>
           </div>
         </div>
 
         <section>
-          <div className="flex max-w-full gap-2 overflow-x-auto border-b border-[var(--color-border)] pb-3">
+          <div className="flex max-w-full gap-1.5 overflow-x-auto border-b border-slate-200 pb-2">
             {tabs.map((tab) => (
               <button
-                className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                   activeTab === tab.id
-                    ? "bg-[#7A1F2B] text-white"
-                    : "bg-[var(--color-soft)] text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                    ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                    : "bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200"
                 }`}
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -1039,10 +1001,10 @@ function CustomerDetailModal({
             ))}
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             {errorMessage ? null : isLoading ? (
-              <div className="rounded-2xl bg-[var(--color-soft)] p-6 text-sm font-semibold text-[var(--color-muted)]">
-                Loading customer history...
+              <div className="rounded-xl bg-slate-50 p-4 text-xs font-semibold text-slate-500 text-center">
+                Loading customer history…
               </div>
             ) : activeTab === "quotations" ? (
               <QuotationHistory data={history.quotations} />
@@ -1054,27 +1016,27 @@ function CustomerDetailModal({
           </div>
         </section>
 
-        <div className="flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-[var(--color-muted)]">
+        <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-slate-500 text-[11px]">
             <p>Created {formatDate(customer.createdAt, true)}</p>
-            <p className="mt-1">
+            <p>
               Last updated {formatDate(customer.updatedAt, true)}
               {customer.updatedBy?.fullName ? ` by ${customer.updatedBy.fullName}` : ""}
             </p>
           </div>
           {canManage ? (
             <button
-              className={`rounded-2xl border px-4 py-2.5 text-sm font-bold transition ${
+              className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
                 customer.status === "ACTIVE"
-                  ? "border-red-200 text-red-700 hover:bg-red-50"
-                  : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  ? "border-red-200 bg-white text-red-700 hover:bg-red-50"
+                  : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
               }`}
               onClick={() =>
                 onRequestStatus(customer, customer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
               }
               type="button"
             >
-              {customer.status === "ACTIVE" ? "Deactivate customer" : "Reactivate customer"}
+              {customer.status === "ACTIVE" ? "Deactivate Customer" : "Reactivate Customer"}
             </button>
           ) : null}
         </div>

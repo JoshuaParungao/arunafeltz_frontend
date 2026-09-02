@@ -75,17 +75,35 @@ function ActionButtons({ transfer, user, busy, onAction, onView }) {
   )
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <button className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-black" onClick={() => onView(transfer)} type="button">
-        <Eye size={14} /> Details
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => onView(transfer)} type="button">
+        <Eye size={13} /> Details
       </button>
-      {isSourceManager && transfer.status === "DRAFT" ? <button className="rounded-xl bg-[#7A1F2B] px-3 py-2 text-xs font-black text-white" disabled={busy} onClick={() => onAction(transfer, "REQUESTED")} type="button">Request</button> : null}
-      {isSourceManager && transfer.status === "REQUESTED" ? <>
-        <button className="rounded-xl bg-[#7A1F2B] px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={busy || !pricingComplete} onClick={() => onAction(transfer, "APPROVED")} title={!pricingComplete ? "Set every agreed transfer price before approval" : undefined} type="button">Approve</button>
-        <button className="rounded-xl border border-rose-300 px-3 py-2 text-xs font-black text-rose-700" disabled={busy} onClick={() => onAction(transfer, "REJECTED")} type="button">Reject</button>
-      </> : null}
-      {isSourceManager && transfer.status === "APPROVED" ? <button className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white" disabled={busy} onClick={() => onAction(transfer, "POSTED")} type="button">Fulfill / post</button> : null}
-      {isLinkedManager && !isTerminal ? <button className="rounded-xl border border-gray-300 px-3 py-2 text-xs font-black text-gray-600" disabled={busy} onClick={() => onAction(transfer, "CANCELLED")} type="button">Cancel</button> : null}
+      {isSourceManager && transfer.status === "DRAFT" ? (
+        <button className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition" disabled={busy} onClick={() => onAction(transfer, "REQUESTED")} type="button">
+          Request
+        </button>
+      ) : null}
+      {isSourceManager && transfer.status === "REQUESTED" ? (
+        <>
+          <button className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:cursor-not-allowed disabled:opacity-50" disabled={busy || !pricingComplete} onClick={() => onAction(transfer, "APPROVED")} title={!pricingComplete ? "Set every agreed transfer price before approval" : undefined} type="button">
+            Approve
+          </button>
+          <button className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 transition" disabled={busy} onClick={() => onAction(transfer, "REJECTED")} type="button">
+            Reject
+          </button>
+        </>
+      ) : null}
+      {isSourceManager && transfer.status === "APPROVED" ? (
+        <button className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition" disabled={busy} onClick={() => onAction(transfer, "POSTED")} type="button">
+          Fulfill / Post
+        </button>
+      ) : null}
+      {isLinkedManager && !isTerminal ? (
+        <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition" disabled={busy} onClick={() => onAction(transfer, "CANCELLED")} type="button">
+          Cancel
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -365,191 +383,225 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
   }, [loadTransfers])
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-sm">
+    <div className="space-y-5">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#7A1F2B]">Supply / Stock</p>
-            <h1 className="mt-2 text-2xl font-black text-[var(--color-text-strong)]">Stock Transfers</h1>
-            <p className="mt-2 max-w-3xl text-sm font-semibold text-[var(--color-muted)]">Requests remain auditable. Approval reserves no stock; fulfillment posts both branch movements atomically.</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Supply / Stock</p>
+            <h1 className="mt-1 text-2xl font-black text-slate-900">Stock Transfers</h1>
+            <p className="mt-0.5 text-xs text-slate-500">Requests remain auditable. Approval reserves no stock; fulfillment posts both branch movements atomically.</p>
           </div>
-          <button className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] px-4 py-3 text-sm font-black" onClick={loadTransfers} type="button"><RefreshCw size={16} /> Refresh</button>
+          <button className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={loadTransfers} type="button">
+            <RefreshCw size={14} /> Refresh
+          </button>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-[1fr_240px]">
-          <label className="relative block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={17} />
-            <input className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] py-3 pl-11 pr-4 text-sm font-bold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSearchText(event.target.value); setPage(1) }} placeholder="Search code or notes" value={searchText} />
-          </label>
-          <select className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }} value={statusFilter}>
-            <option value="">All statuses</option><option value="DRAFT">Draft</option><option value="REQUESTED">Requested</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option><option value="POSTED">Posted</option><option value="CANCELLED">Cancelled</option>
-          </select>
-        </div>
+      {errorMessage ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700 flex items-center gap-2"><AlertCircle size={15} />{errorMessage}</div> : null}
+      {successMessage ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{successMessage}</div> : null}
 
-        {errorMessage ? <div className="mt-4 flex gap-3 rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700"><AlertCircle className="shrink-0" size={18} />{errorMessage}</div> : null}
-        {successMessage ? <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm font-black text-emerald-700">{successMessage}</div> : null}
+      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
+        <label className="relative block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+          <input className="w-full rounded-xl border border-slate-200 bg-white text-slate-800 py-2 pl-9 pr-3 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSearchText(event.target.value); setPage(1) }} placeholder="Search code or notes…" value={searchText} />
+        </label>
+        <select className="rounded-xl border border-slate-200 bg-white text-slate-800 px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)] font-semibold" onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }} value={statusFilter}>
+          <option value="">All statuses</option>
+          <option value="DRAFT">Draft</option>
+          <option value="REQUESTED">Requested</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="POSTED">Posted</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+      </section>
 
-        <div className="mt-5 hidden overflow-x-auto rounded-3xl border border-[var(--color-border)] xl:block">
-          <table className="w-full min-w-[1060px] text-left text-sm">
-            <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]"><tr><th className="px-4 py-3">Transfer</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Route</th><th className="px-4 py-3">Requested by</th><th className="px-4 py-3">Items</th><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Actions</th></tr></thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
-              {isLoading ? <tr><td className="px-4 py-8 text-center font-bold text-[var(--color-muted)]" colSpan={7}>Loading stock transfers...</td></tr> : null}
-              {!isLoading && transfers.length === 0 ? <tr><td className="px-4 py-8 text-center font-bold text-[var(--color-muted)]" colSpan={7}>No stock transfers found.</td></tr> : null}
-              {!isLoading ? transfers.map((transfer) => <tr className="align-top" key={transfer.id}>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-1.5">
-                    <p className="font-black">{transfer.transferCode}</p>
-                    <WorkflowBadge transfer={transfer} />
-                  </div>
-                  <p className="mt-1 max-w-52 truncate text-xs text-[var(--color-muted)]">{transfer.notes || "No notes"}</p>
-                </td>
-                <td className="px-4 py-4"><StatusBadge status={transfer.status} /></td>
-                <td className="px-4 py-4 font-bold">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</td>
-                <td className="px-4 py-4">{transfer.requestedBy?.fullName || transfer.requestedBy?.username || "—"}</td>
-                <td className="px-4 py-4 font-bold">{transfer.items?.length || 0}</td>
-                <td className="px-4 py-4 text-[var(--color-muted)]">{formatDate(transfer.requestedAt || transfer.transferDate)}</td>
-                <td className="px-4 py-4"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} /></td>
-              </tr>) : null}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+        <div className="hidden overflow-x-auto xl:block">
+          <table className="w-full min-w-[1060px] text-left text-xs">
+            <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Transfer</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Route</th>
+                <th className="px-4 py-3">Requested By</th>
+                <th className="px-4 py-3">Items</th>
+                <th className="px-4 py-3">Requested</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {isLoading ? <tr><td className="px-4 py-8 text-center font-bold text-slate-400" colSpan={7}>Loading stock transfers…</td></tr> : null}
+              {!isLoading && transfers.length === 0 ? <tr><td className="px-4 py-8 text-center font-bold text-slate-400" colSpan={7}>No stock transfers found.</td></tr> : null}
+              {!isLoading ? transfers.map((transfer) => (
+                <tr className="hover:bg-slate-50/50 transition" key={transfer.id}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
+                      <WorkflowBadge transfer={transfer} />
+                    </div>
+                    <p className="mt-0.5 max-w-52 truncate text-[11px] text-slate-500">{transfer.notes || "No notes"}</p>
+                  </td>
+                  <td className="px-4 py-3"><StatusBadge status={transfer.status} /></td>
+                  <td className="px-4 py-3 font-semibold text-slate-800">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</td>
+                  <td className="px-4 py-3 text-slate-600">{transfer.requestedBy?.fullName || transfer.requestedBy?.username || "—"}</td>
+                  <td className="px-4 py-3 font-mono font-bold text-slate-800">{transfer.items?.length || 0}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatDate(transfer.requestedAt || transfer.transferDate)}</td>
+                  <td className="px-4 py-3 text-right"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} /></td>
+                </tr>
+              )) : null}
             </tbody>
           </table>
         </div>
 
-        <div className="mt-5 grid gap-4 xl:hidden">
-          {isLoading ? <p className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold text-[var(--color-muted)]">Loading stock transfers...</p> : null}
-          {!isLoading && transfers.length === 0 ? <p className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold text-[var(--color-muted)]">No stock transfers found.</p> : null}
-          {!isLoading ? transfers.map((transfer) => <article className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4" key={transfer.id}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="font-black">{transfer.transferCode}</p>
-                  <WorkflowBadge transfer={transfer} />
+        <div className="grid gap-2.5 p-3 xl:hidden">
+          {isLoading ? <p className="rounded-xl bg-slate-50 p-4 text-xs font-bold text-slate-400">Loading stock transfers…</p> : null}
+          {!isLoading && transfers.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-xs font-bold text-slate-400">No stock transfers found.</p> : null}
+          {!isLoading ? transfers.map((transfer) => (
+            <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs text-xs" key={transfer.id}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
+                    <WorkflowBadge transfer={transfer} />
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-500">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</p>
                 </div>
-                <p className="mt-1 text-xs text-[var(--color-muted)]">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</p>
+                <StatusBadge status={transfer.status} />
               </div>
-              <StatusBadge status={transfer.status} />
-            </div>
-            <p className="mt-3 text-sm text-[var(--color-muted)]">{transfer.items?.length || 0} line(s) • {formatDate(transfer.requestedAt || transfer.transferDate)}</p>
-            <div className="mt-4"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} /></div>
-          </article>) : null}
+              <p className="mt-2 text-[11px] text-slate-500">{transfer.items?.length || 0} line(s) · {formatDate(transfer.requestedAt || transfer.transferDate)}</p>
+              <div className="mt-3"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} /></div>
+            </article>
+          )) : null}
         </div>
 
-        {pagination ? <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold text-[var(--color-muted)]">Page {pagination.page} of {pagination.totalPages} • {pagination.totalItems} transfer(s)</p><div className="flex gap-2"><button className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-black disabled:opacity-50" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => Math.max(value - 1, 1))} type="button">Previous</button><button className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-black disabled:opacity-50" disabled={page >= pagination.totalPages || isLoading} onClick={() => setPage((value) => value + 1)} type="button">Next</button></div></div> : null}
+        {pagination ? (
+          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 p-3 text-xs text-slate-500">
+            <p>Page {pagination.page} of {pagination.totalPages} · {pagination.totalItems} transfer(s)</p>
+            <div className="flex gap-1.5">
+              <button className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => Math.max(value - 1, 1))} type="button">Previous</button>
+              <button className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30" disabled={page >= pagination.totalPages || isLoading} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
+            </div>
+          </div>
+        ) : null}
       </section>
 
-      {selectedTransfer ? <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4 backdrop-blur-xs">
-        <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] p-5 shadow-xl sm:rounded-3xl">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-[#7A1F2B]">Transfer detail</p>
-              <div className="mt-1 flex items-center gap-2">
-                <h2 className="text-xl font-black">{selectedTransfer.transferCode}</h2>
-                <WorkflowBadge transfer={selectedTransfer} />
+      {selectedTransfer ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <section className="my-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-maroon)]">{selectedTransfer.transferCode}</span>
+                  <WorkflowBadge transfer={selectedTransfer} />
+                  <StatusBadge status={selectedTransfer.status} />
+                </div>
+                <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight">Stock Transfer Details</h2>
               </div>
-              <div className="mt-2"><StatusBadge status={selectedTransfer.status} /></div>
-            </div>
-            <button className="rounded-xl border border-[var(--color-border)] p-2 hover:bg-[var(--color-soft)]" onClick={() => setSelectedTransfer(null)} type="button" aria-label="Close"><X size={18} /></button>
-          </div>
-          {isLoadingDetail ? <p className="mt-5 rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-bold">Loading detail...</p> : <>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">From</p><p className="mt-1 font-black">{selectedTransfer.fromBranch?.code || "—"}</p></div>
-              <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">To</p><p className="mt-1 font-black">{selectedTransfer.toBranch?.code || "—"}</p></div>
-              <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Requested</p><p className="mt-1 text-sm font-bold">{formatDate(selectedTransfer.requestedAt || selectedTransfer.transferDate)}</p></div>
-              <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Posted</p><p className="mt-1 text-sm font-bold">{formatDate(selectedTransfer.postedAt)}</p></div>
-              {selectedTransfer.fulfillmentMethod ? (
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Fulfillment</p><p className="mt-1 text-sm font-bold">{selectedTransfer.fulfillmentMethod ? selectedTransfer.fulfillmentMethod.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : "—"}{selectedTransfer.fulfillmentStatus ? ` (${selectedTransfer.fulfillmentStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())})` : ""}</p></div>
-              ) : null}
-              {selectedTransfer.paymentStatus ? (
-                <div className="rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Payment</p><p className="mt-1 text-sm font-bold">{selectedTransfer.paymentStatus ? selectedTransfer.paymentStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : "—"}</p></div>
-              ) : null}
-            </div>
-            <div className="mt-5 space-y-3">
-              {selectedTransfer.items?.map((item) => (
-                <article className="rounded-2xl border border-[var(--color-border)] p-4" key={item.id}>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-                    <div>
-                      <p className="font-black">{item.item?.itemCode || "—"} - {item.item?.itemName || item.description || "Item"}</p>
-                      <p className="mt-1 text-sm text-[var(--color-muted)]">{item.description || item.item?.itemName || ""}</p>
-                    </div>
-                    <p className="font-black">Qty {formatQuantity(item.quantity)}</p>
-                  </div>
-                  <p className="mt-2 text-xs text-[var(--color-muted)]">Source batch: {item.fromBatch?.batchCode || "Automatic FIFO / serial allocation"}</p>
+              <button className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" onClick={() => setSelectedTransfer(null)} type="button" aria-label="Close">
+                <X size={16} />
+              </button>
+            </header>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-xl bg-[var(--color-soft)] p-3">
-                      <p className="text-xs font-black uppercase text-[var(--color-muted)]">Proposed / unit</p>
-                      <p className="mt-1 font-black">{formatMoney(item.proposedTransferUnitPrice)}</p>
-                    </div>
-                    <div className="rounded-xl bg-[var(--color-soft)] p-3">
-                      <p className="text-xs font-black uppercase text-[var(--color-muted)]">Agreed / unit</p>
-                      <p className="mt-1 font-black">{formatMoney(item.agreedTransferUnitPrice)}</p>
-                    </div>
-                    <div className="rounded-xl bg-[var(--color-soft)] p-3">
-                      <p className="text-xs font-black uppercase text-[var(--color-muted)]">Transfer amount</p>
-                      <p className="mt-1 font-black">{formatMoney(item.transferAmount)}</p>
-                    </div>
-                    <div className="rounded-xl bg-[var(--color-soft)] p-3">
-                      <p className="text-xs font-black uppercase text-[var(--color-muted)]">Destination item</p>
-                      <p className="mt-1 font-black">{item.destinationItem?.itemCode || "Locks on approval"}</p>
-                    </div>
-                  </div>
-
-                  {canEditSelectedPricing ? (
-                    <label className="mt-4 block">
-                      <span className="text-xs font-black uppercase text-[var(--color-muted)]">Agreed transfer price / unit</span>
-                      <input
-                        className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm font-black"
-                        min="0"
-                        onChange={(event) =>
-                          setPricingDrafts((current) => ({
-                            ...current,
-                            [item.id]: event.target.value,
-                          }))
-                        }
-                        step="0.01"
-                        type="number"
-                        value={pricingDrafts[item.id] ?? ""}
-                      />
-                    </label>
+            {isLoadingDetail ? (
+              <div className="flex items-center justify-center gap-2 p-10 text-xs font-bold text-slate-500">Loading detail…</div>
+            ) : (
+              <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+                <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">From Branch</p><p className="mt-1 font-bold text-slate-900">{selectedTransfer.fromBranch?.code || "—"}</p></div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">To Branch</p><p className="mt-1 font-bold text-slate-900">{selectedTransfer.toBranch?.code || "—"}</p></div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Requested</p><p className="mt-1 font-semibold text-slate-700">{formatDate(selectedTransfer.requestedAt || selectedTransfer.transferDate)}</p></div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Posted</p><p className="mt-1 font-semibold text-slate-700">{formatDate(selectedTransfer.postedAt)}</p></div>
+                  {selectedTransfer.fulfillmentMethod ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Fulfillment</p><p className="mt-1 font-semibold text-slate-700">{selectedTransfer.fulfillmentMethod.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}{selectedTransfer.fulfillmentStatus ? ` (${selectedTransfer.fulfillmentStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())})` : ""}</p></div>
                   ) : null}
+                  {selectedTransfer.paymentStatus ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Payment</p><p className="mt-1 font-semibold text-slate-700">{selectedTransfer.paymentStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</p></div>
+                  ) : null}
+                </div>
 
-                  <div className="mt-3 grid gap-1 text-xs text-[var(--color-muted)]">
-                    <p>Proposed by: {item.priceProposedBy?.fullName || item.priceProposedBy?.username || "—"} · {formatDate(item.priceProposedAt)}</p>
-                    <p>Agreed by: {item.priceSetBy?.fullName || item.priceSetBy?.username || "—"} · {formatDate(item.priceSetAt)}</p>
-                    <p>Price locked: {formatDate(item.priceLockedAt)}</p>
-                  </div>
-
-                  {item.allocations?.length ? (
-                    <div className="mt-4 space-y-2">
-                      <p className="text-xs font-black uppercase tracking-wide text-[var(--color-muted)]">Posted allocation and accounting</p>
-                      {item.allocations.map((allocation) => (
-                        <div className="rounded-xl border border-[var(--color-border)] p-3" key={allocation.id}>
-                          <div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
-                            <p><span className="font-black">Route:</span> {allocation.sourceBatch?.batchCode} → {allocation.destinationBatch?.batchCode}</p>
-                            <p><span className="font-black">Quantity:</span> {formatQuantity(allocation.quantity)}</p>
-                            <p><span className="font-black">Transfer value:</span> {formatMoney(allocation.transferAmount)}</p>
-                            <p><span className="font-black">Acquisition:</span> {formatMoney(allocation.acquisitionUnitCostSnapshot)}</p>
-                            <p><span className="font-black">Source operational:</span> {formatMoney(allocation.sourceOperationalUnitCostSnapshot)}</p>
-                            <p><span className="font-black">Destination operational:</span> {formatMoney(allocation.destinationOperationalUnitCostSnapshot)}</p>
-                          </div>
-                          {allocation.serials?.length ? <p className="mt-2 break-words text-xs text-[var(--color-muted)]">Serial lineage: {allocation.serials.map((serial) => serial.serialNumberSnapshot).join(", ")}</p> : null}
+                <div className="space-y-3">
+                  {selectedTransfer.items?.map((item) => (
+                    <article className="rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-2xs" key={item.id}>
+                      <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+                        <div>
+                          <p className="font-bold text-slate-900">{item.item?.itemCode || "—"} · {item.item?.itemName || item.description || "Item"}</p>
+                          <p className="text-[11px] text-slate-500">{item.description || item.item?.itemName || ""}</p>
                         </div>
-                      ))}
-                    </div>
-                  ) : null}
+                        <p className="font-mono font-bold text-slate-900">Qty {formatQuantity(item.quantity)}</p>
+                      </div>
+                      <p className="mt-1 text-[10px] text-slate-400">Source batch: {item.fromBatch?.batchCode || "Automatic FIFO / serial allocation"}</p>
 
-                  {item.serials?.length ? <p className="mt-3 break-words text-xs text-[var(--color-muted)]">Serials: {item.serials.map((serial) => serial.serialNumberSnapshot).join(", ")}</p> : null}
-                </article>
-              ))}
-            </div>
-            {canEditSelectedPricing ? <button className="mt-4 rounded-xl bg-[#7A1F2B] px-4 py-3 text-sm font-black text-white disabled:opacity-50" disabled={actionTransferId === selectedTransfer.id} onClick={saveTransferPricing} type="button">{actionTransferId === selectedTransfer.id ? "Saving pricing..." : "Save agreed pricing"}</button> : null}
-            <div className="mt-4 rounded-2xl bg-[var(--color-soft)] p-4"><p className="text-xs font-black uppercase text-[var(--color-muted)]">Total internal transfer value</p><p className="mt-1 text-lg font-black">{formatMoney((selectedTransfer.items || []).reduce((sum, item) => sum + Number(item.transferAmount || 0), 0))}</p><p className="mt-1 text-xs text-[var(--color-muted)]">This is internal transfer accounting, not ordinary customer sales revenue.</p></div>
-            <div className="mt-5 grid gap-2 text-sm text-[var(--color-muted)]"><p>Requested by: {selectedTransfer.requestedBy?.fullName || selectedTransfer.requestedBy?.username || "—"}</p><p>Approved by: {selectedTransfer.approvedBy?.fullName || selectedTransfer.approvedBy?.username || "—"}</p><p>Posted by: {selectedTransfer.postedBy?.fullName || selectedTransfer.postedBy?.username || "—"}</p>{selectedTransfer.rejectionReason ? <p>Rejection: {selectedTransfer.rejectionReason}</p> : null}{selectedTransfer.cancellationReason ? <p>Cancellation: {selectedTransfer.cancellationReason}</p> : null}</div>
-            <div className="mt-5"><ActionButtons transfer={selectedTransfer} user={user} busy={actionTransferId === selectedTransfer.id} onAction={handleAction} onView={() => {}} /></div>
-          </>}
-        </section>
-      </div> : null}
+                      <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100"><p className="text-[10px] font-bold uppercase text-slate-400">Proposed / Unit</p><p className="mt-0.5 font-mono font-bold text-slate-800">{formatMoney(item.proposedTransferUnitPrice)}</p></div>
+                        <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100"><p className="text-[10px] font-bold uppercase text-slate-400">Agreed / Unit</p><p className="mt-0.5 font-mono font-bold text-slate-800">{formatMoney(item.agreedTransferUnitPrice)}</p></div>
+                        <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100"><p className="text-[10px] font-bold uppercase text-slate-400">Transfer Amount</p><p className="mt-0.5 font-mono font-black text-[var(--color-maroon)]">{formatMoney(item.transferAmount)}</p></div>
+                        <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100"><p className="text-[10px] font-bold uppercase text-slate-400">Dest. Item</p><p className="mt-0.5 font-bold text-slate-800 truncate">{item.destinationItem?.itemCode || "Locks on approval"}</p></div>
+                      </div>
+
+                      {canEditSelectedPricing ? (
+                        <label className="mt-2.5 block">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Agreed transfer price / unit</span>
+                          <input
+                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                            min="0"
+                            onChange={(event) =>
+                              setPricingDrafts((current) => ({
+                                ...current,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            step="0.01"
+                            type="number"
+                            value={pricingDrafts[item.id] ?? ""}
+                          />
+                        </label>
+                      ) : null}
+
+                      {item.allocations?.length ? (
+                        <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Posted Allocations</p>
+                          {item.allocations.map((allocation) => (
+                            <div className="rounded-lg bg-slate-50/75 border border-slate-100 p-2 text-[11px]" key={allocation.id}>
+                              <div className="grid gap-1.5 sm:grid-cols-3">
+                                <p><span className="font-bold text-slate-600">Route:</span> {allocation.sourceBatch?.batchCode} → {allocation.destinationBatch?.batchCode}</p>
+                                <p><span className="font-bold text-slate-600">Qty:</span> {formatQuantity(allocation.quantity)}</p>
+                                <p><span className="font-bold text-slate-600">Transfer Val:</span> {formatMoney(allocation.transferAmount)}</p>
+                              </div>
+                              {allocation.serials?.length ? <p className="mt-1 text-[10px] text-slate-500">Serials: {allocation.serials.map((serial) => serial.serialNumberSnapshot).join(", ")}</p> : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {item.serials?.length ? <p className="mt-2 text-[11px] text-slate-500">Serials: {item.serials.map((serial) => serial.serialNumberSnapshot).join(", ")}</p> : null}
+                    </article>
+                  ))}
+                </div>
+
+                {canEditSelectedPricing ? (
+                  <button className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50" disabled={actionTransferId === selectedTransfer.id} onClick={saveTransferPricing} type="button">
+                    {actionTransferId === selectedTransfer.id ? "Saving pricing…" : "Save Agreed Pricing"}
+                  </button>
+                ) : null}
+
+                <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                  <p className="text-[10px] font-bold uppercase text-slate-500">Total Internal Transfer Value</p>
+                  <p className="mt-0.5 font-mono font-black text-slate-900 text-sm">{formatMoney((selectedTransfer.items || []).reduce((sum, item) => sum + Number(item.transferAmount || 0), 0))}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Internal transfer accounting, not customer sales revenue.</p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
+                  <div className="text-[11px] text-slate-500">
+                    <span>Requested by: <strong className="text-slate-700">{selectedTransfer.requestedBy?.fullName || selectedTransfer.requestedBy?.username || "—"}</strong></span>
+                  </div>
+                  <ActionButtons transfer={selectedTransfer} user={user} busy={actionTransferId === selectedTransfer.id} onAction={handleAction} onView={() => {}} />
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
 
       <SerialScannerModal
         isOpen={isSerialModalOpen}
@@ -570,3 +622,4 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
     </div>
   )
 }
+

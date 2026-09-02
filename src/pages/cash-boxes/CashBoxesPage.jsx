@@ -1325,112 +1325,114 @@ export default function CashBoxesPage({
 
       {/* 1. RECORD STORE EXPENSE MODAL */}
       {modalType === "EXPENSE" && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <span className="grid size-9 place-items-center rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                  <Receipt size={18} />
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-7 place-items-center rounded-lg bg-rose-50 text-rose-700">
+                  <Receipt size={15} />
                 </span>
                 <div>
-                  <h3 className="font-black text-lg text-[var(--color-text-strong)]">Record Store Expense</h3>
-                  <p className="text-xs text-[var(--color-muted)]">Petty cash deduction from drawer</p>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Cash Register</span>
+                  <h3 className="text-base font-black text-slate-900 leading-tight">Record Store Expense</h3>
                 </div>
               </div>
-              <button className="rounded-full p-1 text-[var(--color-muted)] hover:bg-[var(--color-soft)]" onClick={() => setModalType(null)} type="button">
-                <X size={18} />
+              <button className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" onClick={() => setModalType(null)} type="button">
+                <X size={16} />
               </button>
             </div>
 
-            <form className="space-y-4" onSubmit={handleRecordExpense}>
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Select Category</label>
-                <div className="mt-2 grid grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
-                  {EXPENSE_CATEGORIES.map((cat) => {
-                    const IconComponent = cat.icon
-                    const isSelected = expenseForm.category === cat.id
-                    return (
-                      <button
-                        className={`flex items-center gap-2 rounded-xl border p-2.5 text-left text-xs font-bold transition ${
-                          isSelected
-                            ? "border-rose-500 bg-rose-50 text-rose-900 dark:bg-rose-950/60 dark:text-rose-200 shadow-sm"
-                            : "border-[var(--color-border)] hover:bg-[var(--color-soft)] text-[var(--color-text-strong)]"
-                        }`}
-                        key={cat.id}
-                        onClick={() => setExpenseForm((f) => ({ ...f, category: cat.id }))}
-                        type="button"
-                      >
-                        <span className={`grid size-7 shrink-0 place-items-center rounded-lg ${cat.color}`}>
-                          <IconComponent size={14} />
-                        </span>
-                        <span className="truncate">{cat.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleRecordExpense}>
+              <div className="max-h-[75vh] overflow-y-auto p-5 space-y-3.5">
                 <div>
-                  <label className="text-xs font-black uppercase text-[var(--color-muted)]">Amount (₱)</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Select Category</label>
+                  <div className="mt-1.5 grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-0.5">
+                    {EXPENSE_CATEGORIES.map((cat) => {
+                      const IconComponent = cat.icon
+                      const isSelected = expenseForm.category === cat.id
+                      return (
+                        <button
+                          className={`flex items-center gap-2 rounded-xl border p-2 text-left text-xs font-semibold transition ${
+                            isSelected
+                              ? "border-[var(--color-maroon)] bg-rose-50 text-[var(--color-maroon)] font-bold shadow-2xs"
+                              : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                          }`}
+                          key={cat.id}
+                          onClick={() => setExpenseForm((f) => ({ ...f, category: cat.id }))}
+                          type="button"
+                        >
+                          <span className={`grid size-6 shrink-0 place-items-center rounded-md ${cat.color}`}>
+                            <IconComponent size={13} />
+                          </span>
+                          <span className="truncate">{cat.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Amount (₱) <span className="text-red-600">*</span></label>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      min="0.01"
+                      onChange={(e) => setExpenseForm((f) => ({ ...f, amount: e.target.value }))}
+                      placeholder="0.00"
+                      required
+                      step="0.01"
+                      type="number"
+                      value={expenseForm.amount}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Date</label>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      onChange={(e) => setExpenseForm((f) => ({ ...f, transactionDate: e.target.value }))}
+                      type="date"
+                      value={expenseForm.transactionDate}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Description / Purpose <span className="text-red-600">*</span></label>
                   <input
-                    className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 font-mono font-bold text-base text-[var(--color-text-strong)] outline-none focus:border-rose-500"
-                    min="0.01"
-                    onChange={(e) => setExpenseForm((f) => ({ ...f, amount: e.target.value }))}
-                    placeholder="0.00"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                    minLength={3}
+                    onChange={(e) => setExpenseForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder="e.g. Lunch for staff / Courier delivery to client"
                     required
-                    step="0.01"
-                    type="number"
-                    value={expenseForm.amount}
+                    value={expenseForm.description}
                   />
                 </div>
+
                 <div>
-                  <label className="text-xs font-black uppercase text-[var(--color-muted)]">Date</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Receipt / Voucher Ref (Optional)</label>
                   <input
-                    className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-rose-500"
-                    onChange={(e) => setExpenseForm((f) => ({ ...f, transactionDate: e.target.value }))}
-                    type="date"
-                    value={expenseForm.transactionDate}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                    onChange={(e) => setExpenseForm((f) => ({ ...f, referenceNo: e.target.value }))}
+                    placeholder="e.g. OR #12345 / Grab Booking #456"
+                    value={expenseForm.referenceNo}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Description / Purpose</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-rose-500"
-                  minLength={3}
-                  onChange={(e) => setExpenseForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="e.g. Lunch for staff / Lalamove delivery to client"
-                  required
-                  value={expenseForm.description}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Receipt / Voucher Ref (Optional)</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-rose-500"
-                  onChange={(e) => setExpenseForm((f) => ({ ...f, referenceNo: e.target.value }))}
-                  placeholder="e.g. OR #12345 / Grab Booking #456"
-                  value={expenseForm.referenceNo}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
                 <button
-                  className="flex-1 rounded-2xl border border-[var(--color-border)] p-3 text-sm font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
                   onClick={() => setModalType(null)}
                   type="button"
                 >
                   Cancel
                 </button>
                 <button
-                  className="flex-1 rounded-2xl bg-rose-600 p-3 text-sm font-black text-white shadow-lg hover:bg-rose-700 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
                   disabled={isSaving}
                   type="submit"
                 >
-                  {isSaving ? "Recording..." : "Save Expense"}
+                  {isSaving ? "Recording…" : "Save Expense"}
                 </button>
               </div>
             </form>
@@ -1440,116 +1442,118 @@ export default function CashBoxesPage({
 
       {/* 2. DEPOSIT CASH TO BANK MODAL */}
       {modalType === "BANK_DEPOSIT" && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <span className="grid size-9 place-items-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300">
-                  <Building2 size={18} />
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-7 place-items-center rounded-lg bg-sky-50 text-sky-700">
+                  <Building2 size={15} />
                 </span>
                 <div>
-                  <h3 className="font-black text-lg text-[var(--color-text-strong)]">Deposit Cash to Bank</h3>
-                  <p className="text-xs text-[var(--color-muted)]">Remit store physical cash to company bank</p>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Remittance</span>
+                  <h3 className="text-base font-black text-slate-900 leading-tight">Deposit Cash to Bank</h3>
                 </div>
               </div>
-              <button className="rounded-full p-1 text-[var(--color-muted)] hover:bg-[var(--color-soft)]" onClick={() => setModalType(null)} type="button">
-                <X size={18} />
+              <button className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" onClick={() => setModalType(null)} type="button">
+                <X size={16} />
               </button>
             </div>
 
-            <form className="space-y-4" onSubmit={handleBankDeposit}>
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Select Bank Account</label>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {POPULAR_BANKS.map((b) => (
-                    <button
-                      className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${
-                        bankDepositForm.bankName === b
-                          ? "bg-sky-600 text-white shadow-sm"
-                          : "border border-[var(--color-border)] bg-[var(--color-soft)] text-[var(--color-text-strong)] hover:bg-[var(--color-card)]"
-                      }`}
-                      key={b}
-                      onClick={() => setBankDepositForm((f) => ({ ...f, bankName: b }))}
-                      type="button"
-                    >
-                      {b}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {bankDepositForm.bankName === "Other Bank" && (
+            <form onSubmit={handleBankDeposit}>
+              <div className="max-h-[75vh] overflow-y-auto p-5 space-y-3.5">
                 <div>
-                  <label className="text-xs font-black uppercase text-[var(--color-muted)]">Specify Bank Name</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Select Bank Account</label>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {POPULAR_BANKS.map((b) => (
+                      <button
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                          bankDepositForm.bankName === b
+                            ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                            : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                        key={b}
+                        onClick={() => setBankDepositForm((f) => ({ ...f, bankName: b }))}
+                        type="button"
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {bankDepositForm.bankName === "Other Bank" && (
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Specify Bank Name <span className="text-red-600">*</span></label>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      onChange={(e) => setBankDepositForm((f) => ({ ...f, customBankName: e.target.value }))}
+                      placeholder="Enter bank name"
+                      required
+                      value={bankDepositForm.customBankName}
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Deposit Amount (₱) <span className="text-red-600">*</span></label>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      min="0.01"
+                      onChange={(e) => setBankDepositForm((f) => ({ ...f, amount: e.target.value }))}
+                      placeholder="0.00"
+                      required
+                      step="0.01"
+                      type="number"
+                      value={bankDepositForm.amount}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Deposit Date</label>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      onChange={(e) => setBankDepositForm((f) => ({ ...f, transactionDate: e.target.value }))}
+                      type="date"
+                      value={bankDepositForm.transactionDate}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Deposit Slip Ref / Transaction No.</label>
                   <input
-                    className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-sky-500"
-                    onChange={(e) => setBankDepositForm((f) => ({ ...f, customBankName: e.target.value }))}
-                    placeholder="Enter bank name"
-                    required
-                    value={bankDepositForm.customBankName}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                    onChange={(e) => setBankDepositForm((f) => ({ ...f, depositSlipRef: e.target.value }))}
+                    placeholder="e.g. Dep Slip #891023 / BDO Ref #4567"
+                    value={bankDepositForm.depositSlipRef}
                   />
                 </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-black uppercase text-[var(--color-muted)]">Deposit Amount (₱)</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Deposit Notes / Remittance Remarks</label>
                   <input
-                    className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 font-mono font-bold text-base text-[var(--color-text-strong)] outline-none focus:border-sky-500"
-                    min="0.01"
-                    onChange={(e) => setBankDepositForm((f) => ({ ...f, amount: e.target.value }))}
-                    placeholder="0.00"
-                    required
-                    step="0.01"
-                    type="number"
-                    value={bankDepositForm.amount}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-black uppercase text-[var(--color-muted)]">Deposit Date</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-sky-500"
-                    onChange={(e) => setBankDepositForm((f) => ({ ...f, transactionDate: e.target.value }))}
-                    type="date"
-                    value={bankDepositForm.transactionDate}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                    onChange={(e) => setBankDepositForm((f) => ({ ...f, notes: e.target.value }))}
+                    placeholder="e.g. Remitted weekly cash sales to main company vault"
+                    value={bankDepositForm.notes}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Deposit Slip Ref / Transaction No.</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-sky-500"
-                  onChange={(e) => setBankDepositForm((f) => ({ ...f, depositSlipRef: e.target.value }))}
-                  placeholder="e.g. Dep Slip #891023 / BDO Ref #4567"
-                  value={bankDepositForm.depositSlipRef}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Deposit Notes / Remittance Remarks</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-sky-500"
-                  onChange={(e) => setBankDepositForm((f) => ({ ...f, notes: e.target.value }))}
-                  placeholder="e.g. Remitted weekly cash sales to main company vault"
-                  value={bankDepositForm.notes}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
                 <button
-                  className="flex-1 rounded-2xl border border-[var(--color-border)] p-3 text-sm font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
                   onClick={() => setModalType(null)}
                   type="button"
                 >
                   Cancel
                 </button>
                 <button
-                  className="flex-1 rounded-2xl bg-sky-600 p-3 text-sm font-black text-white shadow-lg hover:bg-sky-700 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
                   disabled={isSaving}
                   type="submit"
                 >
-                  {isSaving ? "Saving..." : "Confirm Bank Deposit"}
+                  {isSaving ? "Saving…" : "Confirm Bank Deposit"}
                 </button>
               </div>
             </form>
@@ -1559,85 +1563,87 @@ export default function CashBoxesPage({
 
       {/* 3. ADD CASH IN / FLOAT MODAL */}
       {modalType === "CASH_IN" && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <span className="grid size-9 place-items-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  <Plus size={18} />
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-emerald-700">
+                  <Plus size={15} />
                 </span>
                 <div>
-                  <h3 className="font-black text-lg text-[var(--color-text-strong)]">Add Cash In / Opening Float</h3>
-                  <p className="text-xs text-[var(--color-muted)]">Inject change fund into physical cash drawer</p>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Cash Float</span>
+                  <h3 className="text-base font-black text-slate-900 leading-tight">Add Cash In / Opening Float</h3>
                 </div>
               </div>
-              <button className="rounded-full p-1 text-[var(--color-muted)] hover:bg-[var(--color-soft)]" onClick={() => setModalType(null)} type="button">
-                <X size={18} />
+              <button className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" onClick={() => setModalType(null)} type="button">
+                <X size={16} />
               </button>
             </div>
 
-            <form className="space-y-4" onSubmit={handleCashIn}>
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleCashIn}>
+              <div className="max-h-[75vh] overflow-y-auto p-5 space-y-3.5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Cash Amount (₱) <span className="text-red-600">*</span></label>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      min="0.01"
+                      onChange={(e) => setCashInForm((f) => ({ ...f, amount: e.target.value }))}
+                      placeholder="0.00"
+                      required
+                      step="0.01"
+                      type="number"
+                      value={cashInForm.amount}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Date</label>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      onChange={(e) => setCashInForm((f) => ({ ...f, transactionDate: e.target.value }))}
+                      type="date"
+                      value={cashInForm.transactionDate}
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-xs font-black uppercase text-[var(--color-muted)]">Cash Amount (₱)</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Reason / Purpose <span className="text-red-600">*</span></label>
                   <input
-                    className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 font-mono font-bold text-base text-[var(--color-text-strong)] outline-none focus:border-emerald-500"
-                    min="0.01"
-                    onChange={(e) => setCashInForm((f) => ({ ...f, amount: e.target.value }))}
-                    placeholder="0.00"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                    minLength={3}
+                    onChange={(e) => setCashInForm((f) => ({ ...f, reason: e.target.value }))}
+                    placeholder="e.g. Opening Change Fund / Owner Capital Injection"
                     required
-                    step="0.01"
-                    type="number"
-                    value={cashInForm.amount}
+                    value={cashInForm.reason}
                   />
                 </div>
+
                 <div>
-                  <label className="text-xs font-black uppercase text-[var(--color-muted)]">Date</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Reference (Optional)</label>
                   <input
-                    className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-emerald-500"
-                    onChange={(e) => setCashInForm((f) => ({ ...f, transactionDate: e.target.value }))}
-                    type="date"
-                    value={cashInForm.transactionDate}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                    onChange={(e) => setCashInForm((f) => ({ ...f, referenceNo: e.target.value }))}
+                    placeholder="e.g. Slip # / Voucher Ref"
+                    value={cashInForm.referenceNo}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Reason / Purpose</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-emerald-500"
-                  minLength={3}
-                  onChange={(e) => setCashInForm((f) => ({ ...f, reason: e.target.value }))}
-                  placeholder="e.g. Opening Change Fund / Owner Capital Injection"
-                  required
-                  value={cashInForm.reason}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Reference (Optional)</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-emerald-500"
-                  onChange={(e) => setCashInForm((f) => ({ ...f, referenceNo: e.target.value }))}
-                  placeholder="e.g. Slip # / Voucher Ref"
-                  value={cashInForm.referenceNo}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
                 <button
-                  className="flex-1 rounded-2xl border border-[var(--color-border)] p-3 text-sm font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
                   onClick={() => setModalType(null)}
                   type="button"
                 >
                   Cancel
                 </button>
                 <button
-                  className="flex-1 rounded-2xl bg-emerald-700 p-3 text-sm font-black text-white shadow-lg hover:bg-emerald-800 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
                   disabled={isSaving}
                   type="submit"
                 >
-                  {isSaving ? "Adding..." : "Add to Drawer"}
+                  {isSaving ? "Adding…" : "Add to Drawer"}
                 </button>
               </div>
             </form>
@@ -1647,78 +1653,80 @@ export default function CashBoxesPage({
 
       {/* 4. SHIFT HANDOVER MODAL */}
       {modalType === "HANDOVER" && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <span className="grid size-9 place-items-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                  <HandCoins size={18} />
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-7 place-items-center rounded-lg bg-amber-50 text-amber-800">
+                  <HandCoins size={15} />
                 </span>
                 <div>
-                  <h3 className="font-black text-lg text-[var(--color-text-strong)]">New Shift Handover</h3>
-                  <p className="text-xs text-[var(--color-muted)]">Turn over physical drawer cash to incoming cashier</p>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Turnover</span>
+                  <h3 className="text-base font-black text-slate-900 leading-tight">New Shift Handover</h3>
                 </div>
               </div>
-              <button className="rounded-full p-1 text-[var(--color-muted)] hover:bg-[var(--color-soft)]" onClick={() => setModalType(null)} type="button">
-                <X size={18} />
+              <button className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" onClick={() => setModalType(null)} type="button">
+                <X size={16} />
               </button>
             </div>
 
-            <form className="space-y-4" onSubmit={handleCreateHandover}>
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Handover Amount (₱)</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 font-mono font-bold text-base text-[var(--color-text-strong)] outline-none focus:border-amber-500"
-                  min="0.01"
-                  onChange={(e) => setHandoverForm((f) => ({ ...f, amount: e.target.value }))}
-                  placeholder="0.00"
-                  required
-                  step="0.01"
-                  type="number"
-                  value={handoverForm.amount}
-                />
+            <form onSubmit={handleCreateHandover}>
+              <div className="max-h-[75vh] overflow-y-auto p-5 space-y-3.5">
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Handover Amount (₱) <span className="text-red-600">*</span></label>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                    min="0.01"
+                    onChange={(e) => setHandoverForm((f) => ({ ...f, amount: e.target.value }))}
+                    placeholder="0.00"
+                    required
+                    step="0.01"
+                    type="number"
+                    value={handoverForm.amount}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Turnover To Staff / Incoming Cashier</label>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                    onChange={(e) => setHandoverForm((f) => ({ ...f, toUserId: e.target.value }))}
+                    value={handoverForm.toUserId}
+                  >
+                    <option value="">Open Branch Handover (Any Custodian)</option>
+                    {staff.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.fullName} ({getRoleLabel(m.role)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Remarks (Optional)</label>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                    onChange={(e) => setHandoverForm((f) => ({ ...f, remarks: e.target.value }))}
+                    placeholder="e.g. End of shift drawer turnover"
+                    value={handoverForm.remarks}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Turnover To Staff / Incoming Cashier</label>
-                <select
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm font-bold text-[var(--color-text-strong)] outline-none focus:border-amber-500"
-                  onChange={(e) => setHandoverForm((f) => ({ ...f, toUserId: e.target.value }))}
-                  value={handoverForm.toUserId}
-                >
-                  <option value="">Open Branch Handover (Any Custodian)</option>
-                  {staff.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.fullName} ({getRoleLabel(m.role)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-black uppercase text-[var(--color-muted)]">Remarks (Optional)</label>
-                <input
-                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-amber-500"
-                  onChange={(e) => setHandoverForm((f) => ({ ...f, remarks: e.target.value }))}
-                  placeholder="e.g. End of shift drawer turnover"
-                  value={handoverForm.remarks}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
                 <button
-                  className="flex-1 rounded-2xl border border-[var(--color-border)] p-3 text-sm font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
                   onClick={() => setModalType(null)}
                   type="button"
                 >
                   Cancel
                 </button>
                 <button
-                  className="flex-1 rounded-2xl bg-amber-500 p-3 text-sm font-black text-slate-900 shadow-lg hover:bg-amber-600 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
                   disabled={isSaving}
                   type="submit"
                 >
-                  {isSaving ? "Submitting..." : "Submit Handover"}
+                  {isSaving ? "Submitting…" : "Submit Handover"}
                 </button>
               </div>
             </form>

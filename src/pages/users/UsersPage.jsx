@@ -207,14 +207,14 @@ function ModalFrame({ children, labelledBy, onClose, size = "max-w-3xl" }) {
     <div
       aria-labelledby={labelledBy}
       aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/45 px-3 py-5 sm:px-5"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
       role="dialog"
     >
       <section
-        className={`max-h-[calc(100svh-2.5rem)] w-full ${size} overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] shadow-card`}
+        className={`max-h-[calc(100svh-2rem)] w-full ${size} overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         {children}
@@ -226,7 +226,7 @@ function ModalFrame({ children, labelledBy, onClose, size = "max-w-3xl" }) {
 function FormField({ children, label, required = false }) {
   return (
     <label className="block">
-      <span className="text-sm font-bold text-[var(--color-text-strong)]">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
         {label}
         {required ? <span className="ml-1 text-red-600">*</span> : null}
       </span>
@@ -236,7 +236,7 @@ function FormField({ children, label, required = false }) {
 }
 
 const inputClassName =
-  "mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+  "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal disabled:cursor-not-allowed disabled:opacity-60"
 
 function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBranch, target }) {
   const isEdit = mode === "edit"
@@ -378,18 +378,18 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
   const activeBranches = branches.filter((branch) => branch.status === "ACTIVE")
 
   return (
-    <ModalFrame labelledBy="user-editor-title" onClose={onClose}>
+    <ModalFrame labelledBy="user-editor-title" onClose={onClose} size="max-w-2xl">
       <form onSubmit={handleSubmit}>
-        <header className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5 sm:p-6">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
           <div>
-            <p className="text-sm font-bold text-[var(--color-accent)]">Users / Account Types</p>
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Staff Management</span>
             <h2
-              className="mt-1 text-xl font-bold text-[var(--color-text-strong)]"
+              className="text-base font-black text-slate-900 leading-tight"
               id="user-editor-title"
             >
-              {isEdit ? "Edit user" : "Create user"}
+              {isEdit ? "Edit User" : "Create User"}
             </h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--color-muted)]">
+            <p className="text-xs text-slate-500">
               {isEdit
                 ? "Update account identity, account type, and branch assignment."
                 : "The account will be created as pending and must be approved separately."}
@@ -397,23 +397,25 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
           </div>
           <button
             aria-label="Close user editor"
-            className="shrink-0 rounded-xl p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             onClick={onClose}
             type="button"
           >
-            <X size={20} />
+            <X size={16} />
           </button>
         </header>
 
-        <div className="space-y-5 p-5 sm:p-6">
+        <div className="max-h-[75vh] overflow-y-auto p-5 space-y-3.5">
           {errorMessage ? <ErrorBanner>{errorMessage}</ErrorBanner> : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="First name" required>
               <input
                 className={inputClassName}
                 maxLength={100}
                 onChange={(event) => updateField("firstName", event.target.value)}
+                placeholder="Given name"
+                required
                 value={form.firstName}
               />
             </FormField>
@@ -422,6 +424,7 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                 className={inputClassName}
                 maxLength={100}
                 onChange={(event) => updateField("middleName", event.target.value)}
+                placeholder="Optional middle name"
                 value={form.middleName}
               />
             </FormField>
@@ -430,14 +433,17 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                 className={inputClassName}
                 maxLength={100}
                 onChange={(event) => updateField("lastName", event.target.value)}
+                placeholder="Family name"
+                required
                 value={form.lastName}
               />
             </FormField>
             <FormField label="Employee code">
               <input
-                className={inputClassName}
+                className={`${inputClassName} font-mono`}
                 maxLength={50}
                 onChange={(event) => updateField("employeeCode", event.target.value)}
+                placeholder="e.g. EMP-001"
                 value={form.employeeCode}
               />
             </FormField>
@@ -447,6 +453,8 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                 className={inputClassName}
                 maxLength={50}
                 onChange={(event) => updateField("username", event.target.value)}
+                placeholder="Login username"
+                required
                 value={form.username}
               />
             </FormField>
@@ -455,6 +463,7 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                 className={inputClassName}
                 maxLength={254}
                 onChange={(event) => updateField("email", event.target.value)}
+                placeholder="user@company.com"
                 type="email"
                 value={form.email}
               />
@@ -467,6 +476,7 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                   maxLength={128}
                   minLength={8}
                   onChange={(event) => updateField("password", event.target.value)}
+                  placeholder="Min. 8 characters"
                   type="password"
                   value={form.password}
                 />
@@ -485,10 +495,6 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                   </option>
                 ))}
               </select>
-
-              <span className="mt-2 block text-xs leading-5 text-[var(--color-muted)]">
-                Senior account types automatically use their matching incentive classification.
-              </span>
             </FormField>
             {form.role !== USER_ROLES.SUPER_OWNER ? (
               <FormField label="Branch" required>
@@ -510,9 +516,9 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
           </div>
         </div>
 
-        <footer className="grid gap-2 border-t border-[var(--color-border)] p-5 sm:flex sm:justify-end sm:p-6">
+        <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
           <button
-            className="rounded-2xl border border-[var(--color-border)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -520,11 +526,11 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
             Cancel
           </button>
           <button
-            className="rounded-2xl bg-[#7A1F2B] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#641824] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
             disabled={isSaving}
             type="submit"
           >
-            {isSaving ? "Saving..." : isEdit ? "Save changes" : "Create pending user"}
+            {isSaving ? "Saving…" : isEdit ? "Save Changes" : "Create Pending User"}
           </button>
         </footer>
       </form>
@@ -534,9 +540,9 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
 
 function DetailItem({ label, value }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-[var(--color-soft)] p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">{label}</p>
-      <p className="mt-1 break-words text-sm font-bold text-[var(--color-text-strong)]">
+    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="mt-1 break-words font-bold text-slate-900">
         {value || "—"}
       </p>
     </div>
@@ -570,32 +576,32 @@ function UserDetailModal({ actor, onClose, onEdit, userId }) {
   }, [loadUser])
 
   return (
-    <ModalFrame labelledBy="user-detail-title" onClose={onClose}>
-      <header className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5 sm:p-6">
+    <ModalFrame labelledBy="user-detail-title" onClose={onClose} size="max-w-2xl">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
         <div>
-          <p className="text-sm font-bold text-[var(--color-accent)]">Account details</p>
-          <h2 className="mt-1 text-xl font-bold text-[var(--color-text-strong)]" id="user-detail-title">
-            {record?.fullName || "User profile"}
+          <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Account Details</span>
+          <h2 className="text-base font-black text-slate-900 leading-tight" id="user-detail-title">
+            {record?.fullName || "User Profile"}
           </h2>
         </div>
         <button
           aria-label="Close user details"
-          className="rounded-xl p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+          className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
           onClick={onClose}
           type="button"
         >
-          <X size={20} />
+          <X size={16} />
         </button>
       </header>
 
-      <div className="space-y-5 p-5 sm:p-6">
+      <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
         {isLoading ? (
-          <p className="text-sm font-semibold text-[var(--color-muted)]">Loading user details...</p>
+          <p className="text-xs font-semibold text-slate-500 text-center py-6">Loading user details…</p>
         ) : errorMessage ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <ErrorBanner>{errorMessage}</ErrorBanner>
             <button
-              className="rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-700"
+              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-50"
               onClick={loadUser}
               type="button"
             >
@@ -604,14 +610,14 @@ function UserDetailModal({ actor, onClose, onEdit, userId }) {
           </div>
         ) : record ? (
           <>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
               <AccountTypeBadge
                 role={record.role}
                 incentiveClassification={record.incentiveClassification}
               />
               <StatusBadge status={record.status} />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2.5 sm:grid-cols-2">
               <DetailItem label="Username" value={record.username} />
               <DetailItem label="Employee code" value={record.employeeCode} />
               <DetailItem label="Email" value={record.email} />
@@ -629,14 +635,14 @@ function UserDetailModal({ actor, onClose, onEdit, userId }) {
       </div>
 
       {record && canEditUser(actor, record) ? (
-        <footer className="flex justify-end border-t border-[var(--color-border)] p-5 sm:p-6">
+        <footer className="flex items-center justify-end border-t border-slate-200 bg-slate-50/75 px-5 py-3">
           <button
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#7A1F2B] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#641824]"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition"
             onClick={() => onEdit(record)}
             type="button"
           >
-            <Edit3 size={16} />
-            Edit user
+            <Edit3 size={14} />
+            Edit User
           </button>
         </footer>
       ) : null}
@@ -666,29 +672,44 @@ function LifecycleDialog({ action, onClose, onSaved, target }) {
   }
 
   return (
-    <ModalFrame labelledBy="user-action-title" onClose={onClose} size="max-w-lg">
-      <div className="p-5 sm:p-6">
-        <div
-          className={`grid h-12 w-12 place-items-center rounded-2xl ${
-            config.tone === "emerald" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
-          }`}
-        >
-          <Icon size={23} />
-        </div>
-        <h2 className="mt-4 text-xl font-bold text-[var(--color-text-strong)]" id="user-action-title">
-          {config.label} {target.fullName}?
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--color-muted)]">
-          {action === "approve"
-            ? "This grants the account access according to its assigned role and branch."
-            : action === "reject"
-              ? "This rejects the pending account request. The action remains auditable."
-              : "This prevents future login while preserving the user and historical attribution."}
-        </p>
-        {errorMessage ? <div className="mt-4"><ErrorBanner>{errorMessage}</ErrorBanner></div> : null}
-        <div className="mt-6 grid gap-2 sm:grid-cols-2">
+    <ModalFrame labelledBy="user-action-title" onClose={onClose} size="max-w-md">
+      <div>
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+          <div className="flex items-center gap-2">
+            <div
+              className={`grid h-7 w-7 place-items-center rounded-lg ${
+                config.tone === "emerald" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+              }`}
+            >
+              <Icon size={15} />
+            </div>
+            <h2 className="text-base font-black text-slate-900 leading-tight" id="user-action-title">
+              {config.label} {target.fullName}?
+            </h2>
+          </div>
           <button
-            className="rounded-2xl border border-[var(--color-border)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <p className="text-xs leading-5 text-slate-600">
+            {action === "approve"
+              ? "This grants the account access according to its assigned role and branch."
+              : action === "reject"
+                ? "This rejects the pending account request. The action remains auditable."
+                : "This prevents future login while preserving the user and historical attribution."}
+          </p>
+          {errorMessage ? <ErrorBanner>{errorMessage}</ErrorBanner> : null}
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+          <button
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -696,14 +717,14 @@ function LifecycleDialog({ action, onClose, onSaved, target }) {
             Cancel
           </button>
           <button
-            className={`rounded-2xl px-4 py-3 text-sm font-bold text-white disabled:opacity-60 ${
-              config.tone === "emerald" ? "bg-emerald-700" : "bg-red-700"
+            className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-5 py-2 text-xs font-bold text-white shadow-xs transition disabled:opacity-50 ${
+              config.tone === "emerald" ? "bg-emerald-700 hover:bg-emerald-800" : "bg-red-700 hover:bg-red-800"
             }`}
             disabled={isSaving}
             onClick={handleConfirm}
             type="button"
           >
-            {isSaving ? "Working..." : `Confirm ${config.label.toLowerCase()}`}
+            {isSaving ? "Working…" : `Confirm ${config.label}`}
           </button>
         </div>
       </div>

@@ -125,60 +125,60 @@ function ExpandableCard({
   children,
 }) {
   return (
-    <Card className={isOpen ? "border-[var(--color-maroon)] ring-2 ring-[var(--color-maroon-soft)]" : ""}>
+    <article className={`rounded-2xl border bg-white p-4 transition shadow-2xs ${isOpen ? "border-[var(--color-maroon)] ring-1 ring-[var(--color-maroon)]" : "border-slate-200 hover:border-slate-300"}`}>
       <button
         aria-expanded={isOpen}
-        className="flex w-full items-start justify-between gap-4 text-left"
+        className="flex w-full items-start justify-between gap-3 text-left"
         onClick={onToggle}
         type="button"
       >
-        <div className="flex min-w-0 items-start gap-4">
-          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[var(--color-maroon-soft)] text-[var(--color-maroon)]">
-            <Icon className="size-5" />
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-rose-50 text-[var(--color-maroon)] border border-rose-100">
+            <Icon className="size-4" />
           </div>
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-bold text-[var(--color-text-strong)]">{title}</p>
-              {badge ? <Badge tone="maroon">{badge}</Badge> : null}
+              <p className="font-bold text-xs text-slate-900">{title}</p>
+              {badge ? <span className="inline-flex rounded-full bg-rose-50 border border-rose-200 px-2 py-0.5 text-[10px] font-bold text-[var(--color-maroon)]">{badge}</span> : null}
             </div>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-muted)]">
+            <p className="mt-0.5 text-xs text-slate-500">
               {description}
             </p>
           </div>
         </div>
 
         <ChevronDown
-          className={`mt-2 size-5 shrink-0 text-[var(--color-muted)] transition ${
+          className={`mt-1 size-4 shrink-0 text-slate-400 transition ${
             isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
 
-      {isOpen ? <div className="mt-5">{children}</div> : null}
-    </Card>
+      {isOpen ? <div className="mt-4 pt-3.5 border-t border-slate-100">{children}</div> : null}
+    </article>
   )
 }
 
 function SavedSettingItem({ setting }) {
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div className="rounded-xl border border-slate-200 bg-slate-50/75 p-3 text-xs">
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="font-bold text-[var(--color-text-strong)]">
+          <p className="font-bold text-slate-900">
             {getFriendlySettingName(setting)}
           </p>
-          <p className="mt-2 text-sm leading-6 text-[var(--color-muted)]">
+          <p className="mt-0.5 text-[11px] text-slate-500">
             {getFriendlySettingDescription(setting)}
           </p>
         </div>
 
-        <Badge tone={setting.isEditable ? "maroon" : "default"}>
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${setting.isEditable ? "bg-rose-50 text-[var(--color-maroon)] border border-rose-200" : "bg-slate-100 text-slate-500 border border-slate-200"}`}>
           {setting.isEditable ? "Can be changed" : "Locked"}
-        </Badge>
+        </span>
       </div>
 
-      <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-sm font-semibold leading-6 text-[var(--color-text-strong)]">
+      <div className="mt-2.5 whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-2.5 font-mono text-xs font-semibold text-slate-800">
         {getFriendlySettingValue(setting)}
       </div>
     </div>

@@ -159,42 +159,34 @@ export default function SerialScannerModal({
     <div
       aria-labelledby="serial-modal-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-3 sm:p-5 backdrop-blur-xs"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs"
       role="dialog"
     >
-      <section className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-3xl bg-white shadow-2xl overflow-hidden">
+      <section className="my-auto flex max-h-[88vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-[var(--color-border)] p-5">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
           <div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#7A1F2B]/10 text-[#7A1F2B]">
-                <Barcode size={18} />
-              </div>
-              <p className="text-xs font-black uppercase tracking-[0.15em] text-[#7A1F2B]">
-                Barcode Scanner & Serial Selection
-              </p>
-            </div>
-            <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]" id="serial-modal-title">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              Serial Scanner
+            </span>
+            <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight" id="serial-modal-title">
               {title} {transferCode ? `· ${transferCode}` : ""}
             </h2>
-            <p className="mt-1 text-xs font-semibold text-[var(--color-muted)]">
-              {subtitle}
-            </p>
           </div>
           <button
             aria-label="Close dialog"
-            className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] hover:bg-slate-50 transition"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             disabled={isSubmitting}
             onClick={onClose}
             type="button"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Item Tabs (if multiple serialized items) */}
         {items.length > 1 && (
-          <div className="flex overflow-x-auto border-b border-[var(--color-border)] bg-slate-50 px-5 pt-3 gap-2">
+          <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/50 px-4 pt-2 gap-1.5">
             {items.map((item, idx) => {
               const selectedCount = (selectedSerialsByItem[item.stockTransferItemId] || []).length
               const reqCount = Number(item.requiredQuantity || 0)
@@ -204,10 +196,10 @@ export default function SerialScannerModal({
               return (
                 <button
                   key={item.stockTransferItemId}
-                  className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-black transition whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-bold transition whitespace-nowrap ${
                     isActive
-                      ? "border-[#7A1F2B] text-[#7A1F2B] bg-white rounded-t-xl"
-                      : "border-transparent text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                      ? "border-[var(--color-maroon)] text-[var(--color-maroon)] bg-white rounded-t-lg shadow-2xs"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
                   }`}
                   onClick={() => {
                     setActiveItemIndex(idx)
@@ -217,21 +209,21 @@ export default function SerialScannerModal({
                   type="button"
                 >
                   {isFilled ? (
-                    <CheckCircle2 className="text-emerald-600 shrink-0" size={14} />
+                    <CheckCircle2 className="text-emerald-600 shrink-0" size={13} />
                   ) : (
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[10px]">
+                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[9px] font-mono">
                       {idx + 1}
                     </span>
                   )}
-                  <span>{item.itemName || item.itemCode}</span>
+                  <span className="truncate max-w-[120px]">{item.itemName || item.itemCode}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                    className={`rounded-md px-1.5 py-0.2 text-[10px] font-mono font-bold ${
                       isFilled
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-amber-100 text-amber-800"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700"
                     }`}
                   >
-                    {selectedCount} / {reqCount}
+                    {selectedCount}/{reqCount}
                   </span>
                 </button>
               )
@@ -240,32 +232,32 @@ export default function SerialScannerModal({
         )}
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-3.5">
           {currentItem ? (
             <>
               {/* Active Item Card */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-[var(--color-soft)] p-4 gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-100 bg-slate-50/75 p-3 gap-2.5">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-muted)]">
-                    Item Code: {currentItem.itemCode}
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-maroon)]">
+                    {currentItem.itemCode}
                   </span>
-                  <h3 className="text-base font-black text-[var(--color-text-strong)]">
+                  <h3 className="text-xs font-bold text-slate-900 leading-tight">
                     {currentItem.itemName}
                   </h3>
-                  <p className="text-xs font-bold text-[var(--color-muted)] mt-0.5">
-                    Total available in source inventory: {availableSerials.length} unit(s)
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Source inventory: {availableSerials.length} unit(s) available
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div
-                    className={`rounded-2xl px-4 py-2 text-center ${
+                    className={`rounded-xl px-3 py-1.5 text-center ${
                       currentSelectedIds.length === Number(currentItem.requiredQuantity || 0)
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                         : "bg-amber-50 text-amber-800 border border-amber-200"
                     }`}
                   >
-                    <p className="text-[10px] font-black uppercase">Selected Units</p>
-                    <p className="text-lg font-black">
+                    <p className="text-[9px] font-bold uppercase tracking-wider">Units</p>
+                    <p className="text-sm font-mono font-black">
                       {currentSelectedIds.length} / {currentItem.requiredQuantity}
                     </p>
                   </div>
@@ -274,31 +266,31 @@ export default function SerialScannerModal({
 
               {/* Barcode Scanner / Type Input */}
               <form className="relative" onSubmit={handleScanSubmit}>
-                <label className="block text-xs font-black uppercase tracking-wide text-[var(--color-muted)] mb-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
                   Scan Barcode / Type Serial Number
-                </label>
+                </span>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Barcode size={20} />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <Barcode size={16} />
                   </div>
                   <input
                     ref={inputRef}
-                    className="w-full rounded-2xl border-2 border-[var(--color-border)] bg-white py-3.5 pl-12 pr-28 text-sm font-black tracking-wider placeholder:font-normal placeholder:tracking-normal focus:border-[#7A1F2B] focus:outline-hidden transition"
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-20 text-xs font-mono font-bold tracking-wider placeholder:font-normal placeholder:tracking-normal focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] outline-none transition"
                     disabled={isSubmitting}
                     onChange={(e) => {
                       setScanInput(e.target.value)
                       if (scanFeedback) setScanFeedback(null)
                     }}
-                    placeholder="Scan barcode or type serial & press Enter..."
+                    placeholder="Scan barcode or type serial & press Enter…"
                     type="text"
                     value={scanInput}
                   />
                   <button
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-xl bg-[#7A1F2B] px-3.5 py-2 text-xs font-black text-white hover:bg-[#631823] transition disabled:opacity-50"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg bg-[var(--color-maroon)] px-3 py-1 text-[11px] font-bold text-white hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
                     disabled={!scanInput.trim() || isSubmitting}
                     type="submit"
                   >
-                    Enter / Add
+                    Add
                   </button>
                 </div>
               </form>
@@ -306,7 +298,7 @@ export default function SerialScannerModal({
               {/* Real-time Feedback Banner */}
               {scanFeedback && (
                 <div
-                  className={`flex items-center gap-2 rounded-2xl p-3.5 text-xs font-bold transition ${
+                  className={`flex items-center gap-2 rounded-xl p-2.5 text-xs font-semibold transition ${
                     scanFeedback.type === "error"
                       ? "bg-rose-50 text-rose-800 border border-rose-200"
                       : scanFeedback.type === "warning"
@@ -315,11 +307,11 @@ export default function SerialScannerModal({
                   }`}
                 >
                   {scanFeedback.type === "error" ? (
-                    <AlertCircle className="shrink-0 text-rose-600" size={16} />
+                    <AlertCircle className="shrink-0 text-rose-600" size={14} />
                   ) : scanFeedback.type === "warning" ? (
-                    <AlertCircle className="shrink-0 text-amber-600" size={16} />
+                    <AlertCircle className="shrink-0 text-amber-600" size={14} />
                   ) : (
-                    <CheckCircle2 className="shrink-0 text-emerald-600" size={16} />
+                    <CheckCircle2 className="shrink-0 text-emerald-600" size={14} />
                   )}
                   <span>{scanFeedback.message}</span>
                 </div>
@@ -327,13 +319,13 @@ export default function SerialScannerModal({
 
               {/* Selected Serials Tray */}
               {currentSelectedIds.length > 0 && (
-                <div className="rounded-2xl border border-[var(--color-border)] p-4 bg-slate-50/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-black uppercase text-[var(--color-text-strong)]">
-                      Selected Serials for this Item ({currentSelectedIds.length})
+                <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[10px] font-bold uppercase text-slate-500">
+                      Selected Serials ({currentSelectedIds.length})
                     </p>
                     <button
-                      className="text-[11px] font-bold text-rose-600 hover:underline"
+                      className="text-[10px] font-bold text-rose-600 hover:underline"
                       onClick={() =>
                         setSelectedSerialsByItem((prev) => ({
                           ...prev,
@@ -345,23 +337,22 @@ export default function SerialScannerModal({
                       Clear all
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
                     {currentSelectedIds.map((id) => {
                       const serial = availableSerials.find((s) => s.id === id)
                       return (
                         <span
                           key={id}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-slate-300 px-3 py-1.5 text-xs font-black text-[var(--color-text-strong)] shadow-xs"
+                          className="inline-flex items-center gap-1 rounded-md bg-white border border-slate-200 px-2 py-0.5 text-xs font-mono font-semibold text-slate-800 shadow-2xs"
                         >
-                          <Barcode size={13} className="text-slate-400" />
                           <span>{serial?.serialNumber || id}</span>
                           <button
                             aria-label="Remove serial"
-                            className="rounded-full p-0.5 hover:bg-rose-100 hover:text-rose-700 text-slate-400 transition ml-0.5"
+                            className="rounded-full p-0.5 hover:text-rose-700 text-slate-400 transition ml-0.5"
                             onClick={() => removeSelectedSerial(id)}
                             type="button"
                           >
-                            <X size={13} />
+                            <X size={12} />
                           </button>
                         </span>
                       )
@@ -371,68 +362,68 @@ export default function SerialScannerModal({
               )}
 
               {/* Available Serials Quick-List */}
-              <div className="space-y-2">
-                <p className="text-xs font-black uppercase tracking-wide text-[var(--color-muted)]">
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Available Serials in Branch ({filteredAvailableSerials.length})
                 </p>
                 {availableSerials.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-rose-300 bg-rose-50/50 p-6 text-center">
-                    <AlertCircle className="mx-auto text-rose-500 mb-2" size={24} />
-                    <p className="text-sm font-black text-rose-800">
+                  <div className="rounded-xl border border-dashed border-rose-200 bg-rose-50/50 p-4 text-center">
+                    <AlertCircle className="mx-auto text-rose-500 mb-1" size={20} />
+                    <p className="text-xs font-bold text-rose-800">
                       No Available Serial Numbers in Source Branch
                     </p>
-                    <p className="text-xs text-rose-600 mt-1">
-                      This item cannot be dispatched because there are no units with status 'AVAILABLE'.
+                    <p className="text-[11px] text-rose-600 mt-0.5">
+                      No units with status 'AVAILABLE'.
                     </p>
                   </div>
                 ) : filteredAvailableSerials.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center">
-                    <p className="text-sm font-bold text-[var(--color-muted)]">
+                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center">
+                    <p className="text-xs font-semibold text-slate-400">
                       No serial matching "{scanInput}"
                     </p>
                   </div>
                 ) : (
-                  <div className="max-h-56 overflow-y-auto rounded-2xl border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
+                  <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
                     {filteredAvailableSerials.map((serial) => {
                       const isSelected = currentSelectedIds.includes(serial.id)
                       return (
                         <button
                           key={serial.id}
-                          className={`w-full flex items-center justify-between p-3 text-left text-xs font-bold transition hover:bg-slate-50 ${
+                          className={`w-full flex items-center justify-between p-2.5 text-left text-xs transition hover:bg-slate-50 ${
                             isSelected ? "bg-emerald-50/70" : ""
                           }`}
                           onClick={() => toggleSerialSelection(serial.id)}
                           type="button"
                         >
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-2">
                             <div
-                              className={`flex h-5 w-5 items-center justify-center rounded-lg border text-white ${
+                              className={`flex h-4 w-4 items-center justify-center rounded border text-white ${
                                 isSelected
                                   ? "bg-emerald-600 border-emerald-600"
                                   : "border-slate-300 bg-white"
                               }`}
                             >
-                              {isSelected && <Check size={13} />}
+                              {isSelected && <Check size={11} />}
                             </div>
                             <div>
-                              <p className="font-black text-[var(--color-text-strong)] font-mono text-sm">
+                              <p className="font-mono font-bold text-slate-900 text-xs">
                                 {serial.serialNumber}
                               </p>
                               {serial.batch?.batchCode && (
-                                <p className="text-[10px] text-[var(--color-muted)] font-sans">
+                                <p className="text-[10px] text-slate-400">
                                   Batch: {serial.batch.batchCode}
                                 </p>
                               )}
                             </div>
                           </div>
                           <span
-                            className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${
+                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
                               isSelected
                                 ? "bg-emerald-100 text-emerald-800"
                                 : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {isSelected ? "Selected" : "Click to select"}
+                            {isSelected ? "Selected" : "Select"}
                           </span>
                         </button>
                       )
@@ -442,24 +433,24 @@ export default function SerialScannerModal({
               </div>
             </>
           ) : (
-            <p className="text-center text-sm font-bold text-[var(--color-muted)] py-8">
+            <p className="text-center text-xs font-bold text-slate-400 py-6">
               No items selected.
             </p>
           )}
         </div>
 
         {/* Modal Footer */}
-        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-[var(--color-border)] bg-slate-50 p-4 gap-3">
-          <div className="text-xs text-[var(--color-muted)]">
-            <span className="font-bold">Total Dispatched Units:</span>{" "}
-            <span className="font-black text-[var(--color-text-strong)]">
-              {totalSelected} of {totalRequired} serial(s) assigned
-            </span>
+        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 px-5 py-3 gap-3">
+          <div className="text-xs text-slate-500">
+            <span>Dispatched:</span>{" "}
+            <strong className="font-mono text-slate-900">
+              {totalSelected} / {totalRequired}
+            </strong>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
             <button
-              className="flex-1 sm:flex-none rounded-2xl border border-[var(--color-border)] bg-white px-5 py-3 text-xs font-black text-[var(--color-text-strong)] hover:bg-slate-100 transition disabled:opacity-50"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
               disabled={isSubmitting}
               onClick={onClose}
               type="button"
@@ -467,20 +458,20 @@ export default function SerialScannerModal({
               Cancel
             </button>
             <button
-              className="flex-1 sm:flex-none rounded-2xl bg-emerald-700 px-6 py-3 text-xs font-black text-white hover:bg-emerald-800 transition disabled:cursor-not-allowed disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 transition disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!isAllComplete || isSubmitting}
               onClick={handleConfirm}
               type="button"
             >
               {isSubmitting ? (
                 <>
-                  <LoaderCircle className="animate-spin" size={16} />
-                  <span>Fulfilling Transfer...</span>
+                  <LoaderCircle className="animate-spin" size={14} />
+                  <span>Fulfilling…</span>
                 </>
               ) : (
                 <>
-                  <Check size={16} />
-                  <span>Confirm & Dispatch Transfer</span>
+                  <Check size={14} />
+                  <span>Confirm & Dispatch</span>
                 </>
               )}
             </button>

@@ -1014,24 +1014,22 @@ export default function InventoryPage({ selectedBranch, user }) {
       </section>
 
       {isBulkRequestOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col rounded-3xl border border-[var(--color-border)] bg-white shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto flex max-h-[88vh] w-full max-w-4xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 flex items-center justify-between border-b border-[var(--color-border)] p-4 sm:p-5 bg-white">
-              <div className="min-w-0 pr-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                  Stock request
-                </p>
-                <h3 className="text-lg sm:text-xl font-black text-[var(--color-text-strong)] truncate">
-                  Bulk stock request
+            <header className="shrink-0 flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+                  Stock Request
+                </span>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Bulk Stock Request
                 </h3>
-                <p className="hidden sm:block text-xs sm:text-sm font-medium text-[var(--color-muted)]">
-                  Choose multiple products from the viewed branch and send one request.
-                </p>
               </div>
 
               <button
-                className="shrink-0 rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-xs sm:text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                aria-label="Close"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
                 onClick={() => {
                   setIsBulkRequestOpen(false)
                   setRequestSourceBranchId("")
@@ -1044,17 +1042,17 @@ export default function InventoryPage({ selectedBranch, user }) {
                 }}
                 type="button"
               >
-                Close
+                <X size={16} />
               </button>
-            </div>
+            </header>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex-1 overflow-y-auto p-5 space-y-3.5">
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 <label className="block">
-                  <span className="text-xs font-black uppercase text-[var(--color-muted)]">Source branch</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Source Branch</span>
                   <select
-                    className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 sm:py-3 text-sm font-bold text-[var(--color-text-strong)]"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                     onChange={(event) => {
                       setRequestSourceBranchId(event.target.value)
                       setBulkRequestItems([])
@@ -1069,24 +1067,24 @@ export default function InventoryPage({ selectedBranch, user }) {
                     ))}
                   </select>
                 </label>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-3.5 text-sm font-bold text-[var(--color-muted)] flex items-center justify-between">
+                <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-black uppercase text-[var(--color-muted)] block">Destination</span>
-                    <span className="text-sm font-bold text-[var(--color-text-strong)]">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Destination</span>
+                    <span className="font-bold text-slate-900">
                       {selectedBranch?.code || selectedBranch?.name || "Your branch"}
                     </span>
                   </div>
-                  <span className="rounded-full bg-blue-100 text-blue-800 text-[10px] font-black px-2 py-0.5">Target</span>
+                  <span className="rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold px-2 py-0.5">Target</span>
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 <label className="block">
-                  <span className="text-xs font-black uppercase text-[var(--color-muted)]">
-                    Fulfillment method
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Fulfillment Method
                   </span>
                   <select
-                    className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 sm:py-3 text-sm font-bold text-[var(--color-text-strong)]"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                     disabled={isRequesting}
                     onChange={(event) => {
                       const method = event.target.value
@@ -1105,11 +1103,11 @@ export default function InventoryPage({ selectedBranch, user }) {
 
                 {requestFulfillmentMethod === "DELIVERY" ? (
                   <label className="block">
-                    <span className="text-xs font-black uppercase text-[var(--color-muted)]">
-                      Delivery charge (₱)
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Delivery Charge (₱)
                     </span>
                     <input
-                      className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 py-2.5 sm:py-3 text-sm font-bold text-[var(--color-text-strong)]"
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                       disabled={isRequesting}
                       min="0"
                       onChange={(event) => setRequestDeliveryCharge(event.target.value)}
@@ -1120,69 +1118,69 @@ export default function InventoryPage({ selectedBranch, user }) {
                     />
                   </label>
                 ) : (
-                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-3.5 text-sm font-semibold text-[var(--color-muted)] flex items-center">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs font-medium text-slate-500 flex items-center">
                     Pickup — no delivery charge.
                   </div>
                 )}
               </div>
 
-              <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] items-start pt-2">
+              <div className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr] items-start pt-1">
                 {/* Available Stock List */}
-                <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-soft)]/40 p-4 space-y-3">
+                <section className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-black uppercase tracking-wide text-[var(--color-muted)]">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                       Available Branch Stock
                     </p>
-                    <span className="text-xs font-bold text-[var(--color-muted)]">
+                    <span className="text-[11px] font-bold text-slate-500">
                       {filteredBulkItems.length} found
                     </span>
                   </div>
 
                   <div className="relative">
                     <Search
-                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]"
-                      size={18}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={15}
                     />
                     <input
-                      className="w-full rounded-2xl border border-[var(--color-border)] bg-white py-2.5 pl-10 pr-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-maroon)]"
+                      className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                       onChange={(event) => setBulkSearchText(event.target.value)}
-                      placeholder="Search item code, name, or brand..."
+                      placeholder="Search code, name, brand…"
                       value={bulkSearchText}
                     />
                   </div>
 
-                  <div className="max-h-[260px] sm:max-h-[320px] lg:max-h-[380px] space-y-2.5 overflow-y-auto pr-1">
+                  <div className="max-h-[220px] sm:max-h-[260px] lg:max-h-[300px] space-y-2 overflow-y-auto pr-1 text-xs">
                     {isLoadingRequestCatalog ? (
-                      <div className="rounded-2xl bg-white p-5 text-center text-sm font-bold text-[var(--color-muted)] shadow-sm">
-                        Loading requestable stock...
+                      <div className="rounded-xl bg-white p-4 text-center text-xs font-bold text-slate-400 border border-slate-200">
+                        Loading requestable stock…
                       </div>
                     ) : filteredBulkItems.length > 0 ? (
                       filteredBulkItems.map((item) => (
                         <article
-                          className="rounded-2xl border border-[var(--color-border)] bg-white p-3.5 shadow-sm transition hover:border-[var(--color-maroon)]"
+                          className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-2xs transition hover:border-[var(--color-maroon)]"
                           key={item.id}
                         >
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
-                              <p className="font-bold text-sm text-[var(--color-text-strong)] leading-snug">
+                              <p className="font-bold text-xs text-slate-900 leading-snug truncate">
                                 {item.itemName}
                               </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-mono font-bold text-[var(--color-muted)]">
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="font-mono text-[10px] font-bold text-slate-500">
                                   {item.itemCode}
                                 </span>
-                                <span className="text-[11px] text-[var(--color-muted)]">
+                                <span className="text-[10px] text-slate-400">
                                   {[item.brand, item.modelName].filter(Boolean).join(" • ")}
                                 </span>
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border)]">
-                              <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                            <div className="flex items-center justify-between sm:justify-end gap-2 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                              <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                                 Avail: {formatNumber(item.quantityAvailable)}
                               </span>
                               <button
-                                className="rounded-xl bg-[#7A1F2B] px-3.5 py-1.5 text-xs font-black text-white shadow-soft transition hover:bg-[#5C1720] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:opacity-60"
+                                className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                                 disabled={Number(item.quantityAvailable || 0) <= 0}
                                 onClick={() => addBulkRequestItem(item)}
                                 type="button"
@@ -1194,7 +1192,7 @@ export default function InventoryPage({ selectedBranch, user }) {
                         </article>
                       ))
                     ) : (
-                      <div className="rounded-2xl bg-white p-5 text-center text-sm font-bold text-[var(--color-muted)] shadow-sm">
+                      <div className="rounded-xl bg-white p-4 text-center text-xs font-bold text-slate-400 border border-slate-200">
                         No products found.
                       </div>
                     )}
@@ -1202,46 +1200,46 @@ export default function InventoryPage({ selectedBranch, user }) {
                 </section>
 
                 {/* Selected Products Cart */}
-                <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 space-y-3 shadow-card">
-                  <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
+                <section className="rounded-xl border border-slate-200 bg-white p-3 space-y-2.5 shadow-2xs">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-wide text-[var(--color-muted)]">
-                        Request list
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Request List
                       </p>
-                      <h4 className="text-base font-black text-[var(--color-text-strong)]">
-                        Selected products
+                      <h4 className="text-xs font-black text-slate-900">
+                        Selected Products
                       </h4>
                     </div>
-                    <span className="rounded-full bg-red-100 text-[#7A1F2B] px-2.5 py-1 text-xs font-black">
+                    <span className="rounded-full bg-rose-50 border border-rose-200 text-[var(--color-maroon)] px-2 py-0.5 text-[10px] font-bold">
                       {bulkRequestItems.length} selected
                     </span>
                   </div>
 
                   {requestMessage ? (
-                    <p className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-sm font-black text-emerald-800">
+                    <p className="rounded-xl bg-emerald-50 border border-emerald-200 p-2 text-xs font-bold text-emerald-800">
                       {requestMessage}
                     </p>
                   ) : null}
 
-                  <div className="max-h-[220px] sm:max-h-[280px] lg:max-h-[320px] space-y-2.5 overflow-y-auto pr-1">
+                  <div className="max-h-[180px] sm:max-h-[220px] lg:max-h-[260px] space-y-2 overflow-y-auto pr-1 text-xs">
                     {bulkRequestItems.length > 0 ? (
                       bulkRequestItems.map((item) => (
                         <article
-                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/60 p-3.5"
+                          className="rounded-xl border border-slate-200 bg-slate-50/75 p-2.5"
                           key={item.id}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="font-bold text-sm text-[var(--color-text-strong)] leading-tight truncate">
+                              <p className="font-bold text-xs text-slate-900 truncate">
                                 {item.itemName}
                               </p>
-                              <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-                                Code: {item.itemCode} • Available: {formatNumber(item.availableQuantity)}
+                              <p className="text-[10px] text-slate-400">
+                                {item.itemCode} • Avail: {formatNumber(item.availableQuantity)}
                               </p>
                             </div>
 
                             <button
-                              className="shrink-0 rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-black text-red-700 hover:bg-red-50"
+                              className="shrink-0 rounded-lg border border-rose-200 bg-white px-2 py-0.5 text-[10px] font-bold text-rose-700 hover:bg-rose-50"
                               onClick={() => removeBulkRequestItem(item.id)}
                               type="button"
                             >
@@ -1249,12 +1247,12 @@ export default function InventoryPage({ selectedBranch, user }) {
                             </button>
                           </div>
 
-                          <div className="mt-3 flex items-center justify-between gap-3">
-                            <span className="text-xs font-bold text-[var(--color-muted)] uppercase">
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold uppercase text-slate-500">
                               Quantity:
                             </span>
                             <input
-                              className="w-24 rounded-xl border border-[var(--color-border)] bg-white px-3 py-1.5 text-sm font-black text-[var(--color-text-strong)] text-center outline-none focus:border-[#7A1F2B]"
+                              className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-900 text-center outline-none focus:border-[var(--color-maroon)]"
                               max={item.availableQuantity}
                               min="1"
                               onChange={(event) =>
@@ -1267,19 +1265,19 @@ export default function InventoryPage({ selectedBranch, user }) {
                         </article>
                       ))
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-6 text-center text-sm font-semibold text-[var(--color-muted)]">
-                        Selected items will appear here. Click "+ Add" from the available list.
+                      <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs font-medium text-slate-400">
+                        Selected items appear here. Click "+ Add" from list.
                       </div>
                     )}
                   </div>
 
                   <button
-                    className="w-full rounded-2xl bg-[#7A1F2B] px-5 py-3 text-sm font-black text-white shadow-soft transition hover:bg-[#5C1720] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:opacity-60"
+                    className="w-full rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                     disabled={isRequesting || bulkRequestItems.length === 0}
                     onClick={submitBulkStockRequest}
                     type="button"
                   >
-                    {isRequesting ? "Sending..." : `Send bulk request (${bulkRequestItems.length})`}
+                    {isRequesting ? "Sending…" : `Send Request (${bulkRequestItems.length})`}
                   </button>
                 </section>
               </div>
@@ -1288,149 +1286,149 @@ export default function InventoryPage({ selectedBranch, user }) {
         </div>
       ) : null}
       {requestItem ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                  Product request
-                </p>
-                <h3 className="mt-1 text-xl font-black text-[var(--color-text-strong)]">
-                  Request product
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+                  Product Request
+                </span>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Request Product
                 </h3>
-                <p className="mt-1 text-sm font-semibold text-[var(--color-muted)]">
-                  This will send a request only. Stock will not move yet.
-                </p>
               </div>
 
               <button
-                className="rounded-2xl border border-[var(--color-border)] px-3 py-2 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                aria-label="Close"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
                 disabled={isRequesting}
                 onClick={closeRequestModal}
                 type="button"
               >
-                Close
+                <X size={16} />
               </button>
-            </div>
+            </header>
 
-            <div className="mt-5 rounded-2xl bg-[var(--color-soft)] p-4">
-              <p className="text-sm font-black text-[var(--color-text-strong)]">
-                {requestItem.itemName}
-              </p>
-              <p className="mt-1 text-xs font-semibold text-[var(--color-muted)]">
-                {requestItem.itemCode}
-              </p>
-              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                    From
+            <form onSubmit={submitStockRequest}>
+              <div className="p-5 space-y-3.5">
+                <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                  <p className="font-bold text-slate-900">
+                    {requestItem.itemName}
                   </p>
-                  <p className="mt-1 font-black text-[var(--color-text-strong)]">
-                    {viewingBranch?.code || requestItem.branch?.code || "Viewed branch"}
+                  <p className="text-[10px] font-mono text-slate-400">
+                    {requestItem.itemCode}
                   </p>
+                  <div className="mt-2.5 grid gap-2 grid-cols-3 pt-2 border-t border-slate-200/60">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-slate-400">
+                        From
+                      </p>
+                      <p className="font-bold text-slate-800">
+                        {viewingBranch?.code || requestItem.branch?.code || "Viewed"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-slate-400">
+                        To
+                      </p>
+                      <p className="font-bold text-slate-800">
+                        {selectedBranch?.code || "Your branch"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-slate-400">
+                        Available
+                      </p>
+                      <p className="font-mono font-bold text-slate-900">
+                        {formatNumber(requestItem.quantityAvailable)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                    To
-                  </p>
-                  <p className="mt-1 font-black text-[var(--color-text-strong)]">
-                    {selectedBranch?.code || "Your branch"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                    Available
-                  </p>
-                  <p className="mt-1 font-black text-[var(--color-text-strong)]">
-                    {formatNumber(requestItem.quantityAvailable)}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <form className="mt-5 space-y-4" onSubmit={submitStockRequest}>
-              <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                  Quantity
-                </span>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-                  disabled={isRequesting}
-                  min="1"
-                  onChange={(event) => setRequestQuantity(event.target.value)}
-                  type="number"
-                  value={requestQuantity}
-                />
-              </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
-                  <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                    Fulfillment method
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Quantity
                   </span>
-                  <select
-                    className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isRequesting}
-                    onChange={(event) => {
-                      const method = event.target.value
-                      setRequestFulfillmentMethod(method)
-                      if (method === "PICKUP") {
-                        setRequestDeliveryCharge("0")
-                      }
-                      setRequestMessage("")
-                    }}
-                    value={requestFulfillmentMethod}
-                  >
-                    <option value="PICKUP">Pickup</option>
-                    <option value="DELIVERY">Delivery</option>
-                  </select>
+                    min="1"
+                    onChange={(event) => setRequestQuantity(event.target.value)}
+                    type="number"
+                    value={requestQuantity}
+                  />
                 </label>
 
-                {requestFulfillmentMethod === "DELIVERY" ? (
+                <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                      Delivery charge
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Fulfillment Method
                     </span>
-                    <input
-                      className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                    <select
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                       disabled={isRequesting}
-                      min="0"
-                      onChange={(event) => setRequestDeliveryCharge(event.target.value)}
-                      placeholder="0.00"
-                      step="0.01"
-                      type="number"
-                      value={requestDeliveryCharge}
-                    />
+                      onChange={(event) => {
+                        const method = event.target.value
+                        setRequestFulfillmentMethod(method)
+                        if (method === "PICKUP") {
+                          setRequestDeliveryCharge("0")
+                        }
+                        setRequestMessage("")
+                      }}
+                      value={requestFulfillmentMethod}
+                    >
+                      <option value="PICKUP">Pickup</option>
+                      <option value="DELIVERY">Delivery</option>
+                    </select>
                   </label>
-                ) : (
-                  <div className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm font-semibold text-[var(--color-muted)]">
-                    Pickup - no delivery charge.
-                  </div>
-                )}
+
+                  {requestFulfillmentMethod === "DELIVERY" ? (
+                    <label className="block">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                        Delivery Charge
+                      </span>
+                      <input
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                        disabled={isRequesting}
+                        min="0"
+                        onChange={(event) => setRequestDeliveryCharge(event.target.value)}
+                        placeholder="0.00"
+                        step="0.01"
+                        type="number"
+                        value={requestDeliveryCharge}
+                      />
+                    </label>
+                  ) : (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs font-medium text-slate-500 flex items-center">
+                      Pickup — no delivery charge.
+                    </div>
+                  )}
+                </div>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Notes
+                  </span>
+                  <textarea
+                    className="mt-1 min-h-20 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isRequesting}
+                    onChange={(event) => setRequestNotes(event.target.value)}
+                    placeholder="Optional note for the approving branch"
+                    value={requestNotes}
+                  />
+                </label>
+
+                {requestMessage ? (
+                  <p className="rounded-xl bg-emerald-50 border border-emerald-200 p-2 text-xs font-bold text-emerald-800">
+                    {requestMessage}
+                  </p>
+                ) : null}
               </div>
 
-              <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                  Notes
-                </span>
-                <textarea
-                  className="mt-2 min-h-24 w-full resize-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-                  disabled={isRequesting}
-                  onChange={(event) => setRequestNotes(event.target.value)}
-                  placeholder="Optional note for the approving branch"
-                  value={requestNotes}
-                />
-              </label>
-
-              {requestMessage ? (
-                <p className="rounded-2xl bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)]">
-                  {requestMessage}
-                </p>
-              ) : null}
-
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
                 <button
-                  className="rounded-2xl border border-[var(--color-border)] px-5 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
                   disabled={isRequesting}
                   onClick={closeRequestModal}
                   type="button"
@@ -1439,11 +1437,11 @@ export default function InventoryPage({ selectedBranch, user }) {
                 </button>
 
                 <button
-                  className="rounded-2xl bg-[var(--color-accent)] px-5 py-3 text-sm font-bold text-white transition hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
                   disabled={isRequesting}
                   type="submit"
                 >
-                  {isRequesting ? "Sending..." : "Send request"}
+                  {isRequesting ? "Sending…" : "Send Request"}
                 </button>
               </div>
             </form>
