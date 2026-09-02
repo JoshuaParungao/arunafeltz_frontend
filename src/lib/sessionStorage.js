@@ -154,6 +154,29 @@ export function clearFormDraft(draftKey) {
   }
 }
 
+export function saveCustomerItemTier(customerId, itemId, priceTier) {
+  if (!customerId || !itemId || !priceTier) return
+  try {
+    const key = `customer_item_tiers_${customerId}`
+    const existing = JSON.parse(localStorage.getItem(key) || "{}")
+    existing[itemId] = Number(priceTier)
+    localStorage.setItem(key, JSON.stringify(existing))
+  } catch (err) {
+    console.warn("Storage save customer item tier error:", err)
+  }
+}
+
+export function getCustomerItemTiers(customerId) {
+  if (!customerId) return {}
+  try {
+    const key = `customer_item_tiers_${customerId}`
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
 export function clearSession() {
   const currentUser = getUser()
   if (currentUser?.id) {
@@ -163,4 +186,5 @@ export function clearSession() {
   removeUser()
   removeSelectedBranch()
 }
+
 

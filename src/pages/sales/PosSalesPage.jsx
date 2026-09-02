@@ -55,8 +55,13 @@ import {
 } from "../../utils/businessDocumentExport"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
-import { serializeQuotationNotes } from "../../utils/quotationSettlement"
-import { saveFormDraft, getFormDraft, clearFormDraft } from "../../lib/sessionStorage"
+import {
+  saveFormDraft,
+  getFormDraft,
+  clearFormDraft,
+  saveCustomerItemTier,
+  getCustomerItemTiers,
+} from "../../lib/sessionStorage"
 
 const SALE_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -1444,9 +1449,20 @@ function PosSalesPage({ selectedBranch, user }) {
         : (batches[0]?.id || "")
 
       const activeCustomer = customers.find((c) => c.id === selectedCustomerId)
-      const targetTier = selectedPriceTier || (activeCustomer?.priceTier ? Number(activeCustomer.priceTier) : null)
+      const customerItemTiers = selectedCustomerId ? getCustomerItemTiers(selectedCustomerId) : {}
+      const rememberedTier = customerItemTiers[item.id]
       const itemTiers = availablePriceTiers(item)
-      const chosenTier = targetTier && itemTiers.includes(targetTier) ? targetTier : defaultPriceTier(item)
+
+      let chosenTier
+      let isRememberedTier = false
+
+      if (rememberedTier && itemTiers.includes(Number(rememberedTier))) {
+        chosenTier = Number(rememberedTier)
+        isRememberedTier = true
+      } else {
+        const targetTier = (activeCustomer?.priceTier ? Number(activeCustomer.priceTier) : null) || selectedPriceTier
+        chosenTier = targetTier && itemTiers.includes(targetTier) ? targetTier : defaultPriceTier(item)
+      }
 
       setCart((current) => [
         ...current,
@@ -1456,6 +1472,7 @@ function PosSalesPage({ selectedBranch, user }) {
           item,
           itemId: item.id,
           priceTier: chosenTier,
+          isRememberedTier,
           quantity: "1",
           markupPercent: "",
           discountAmount: "0",
@@ -1881,6 +1898,15 @@ function PosSalesPage({ selectedBranch, user }) {
 
       const sale = response?.data
       if (!response?.success || !sale) throw new Error("Invalid sale response")
+
+      // Auto-save remembered customer-item price tiers
+      if (effectiveCustomerId) {
+        cart.forEach((line) => {
+          if (line.itemId && line.priceTier) {
+            saveCustomerItemTier(effectiveCustomerId, line.itemId, line.priceTier)
+          }
+        })
+      }
 
       const receiptSale = {
         ...sale,
@@ -2689,8 +2715,15 @@ function PosSalesPage({ selectedBranch, user }) {
                       {line.type === "PRODUCT" ? (
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
                           <label>
-                            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Price tier</span>
-                            <select className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => updateCartLine(line.localId, { priceTier: Number(event.target.value) })} value={line.priceTier}>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Price tier</span>
+                              {line.isRememberedTier ? (
+                                <span className="rounded-md bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                                  ⭐ Remembered Item Tier
+                                </span>
+                              ) : null}
+                            </div>
+                            <select className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => updateCartLine(line.localId, { priceTier: Number(event.target.value), isRememberedTier: false })} value={line.priceTier}>
                               {availablePriceTiers(line.item).map((tier) => <option key={tier} value={tier}>Price {tier} · {formatMoney(line.item[`price${tier}`])}</option>)}
                             </select>
                           </label>

@@ -328,7 +328,7 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
               />
             </FormField>
 
-            <FormField label="Assigned Price Number / Tier" required>
+            <FormField label="General / Base Price Tier (Default for New Items)" required>
               <select
                 className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
                 onChange={(event) => updateField("priceTier", event.target.value)}
@@ -340,6 +340,9 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
                 <option value="4">Price 4 (VIP / Partner)</option>
                 <option value="5">Price 5 (Special Project)</option>
               </select>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">
+                Default tier for newly added products. When the customer buys an item at a different tier in POS, the system automatically remembers that specific item tier for them.
+              </p>
             </FormField>
 
             <FormField label="Mobile number">
