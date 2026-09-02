@@ -1938,6 +1938,15 @@ function PosSalesPage({ selectedBranch, user }) {
       let effectiveCustomerId = selectedCustomerId || undefined
       const trimmedCustomerName = customerSearch.trim()
 
+      if (!effectiveCustomerId && trimmedCustomerName) {
+        const existingMatch = customers.find(
+          (c) => c.fullName?.trim().toLowerCase() === trimmedCustomerName.toLowerCase()
+        )
+        if (existingMatch?.id) {
+          effectiveCustomerId = existingMatch.id
+        }
+      }
+
       if (
         !effectiveCustomerId &&
         trimmedCustomerName &&
@@ -1953,6 +1962,7 @@ function PosSalesPage({ selectedBranch, user }) {
           const createdCust = newCustRes?.data || newCustRes
           if (createdCust?.id) {
             effectiveCustomerId = createdCust.id
+            loadCustomers()
           }
         } catch (custError) {
           console.warn("Auto-registering customer failed, continuing as walk-in:", custError)
@@ -2147,6 +2157,15 @@ function PosSalesPage({ selectedBranch, user }) {
       let effectiveCustomerId = selectedCustomerId || undefined
       const trimmedCustomerName = customerSearch.trim()
 
+      if (!effectiveCustomerId && trimmedCustomerName) {
+        const existingMatch = customers.find(
+          (c) => c.fullName?.trim().toLowerCase() === trimmedCustomerName.toLowerCase()
+        )
+        if (existingMatch?.id) {
+          effectiveCustomerId = existingMatch.id
+        }
+      }
+
       if (
         !effectiveCustomerId &&
         trimmedCustomerName &&
@@ -2162,6 +2181,7 @@ function PosSalesPage({ selectedBranch, user }) {
           const createdCust = newCustRes?.data || newCustRes
           if (createdCust?.id) {
             effectiveCustomerId = createdCust.id
+            loadCustomers()
           }
         } catch (custErr) {
           console.warn("Auto-registering customer for quotation failed, proceeding:", custErr)
