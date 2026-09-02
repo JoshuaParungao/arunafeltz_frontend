@@ -2375,37 +2375,44 @@ function PosSalesPage({ selectedBranch, user }) {
   const totalPages = salesMeta?.totalPages || 1
 
   return (
-    <div className="min-w-0 space-y-6">
-      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <div className="min-w-0 space-y-4">
+      {/* Top Header */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-[var(--color-maroon)]">POS</p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight text-[var(--color-text-strong)]">Branch checkout and sales history</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--color-muted)]">
-            Product prices use the selected tier. Stock, serial availability, totals, and payments are revalidated when the sale is saved.
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              POS Cashiering
+            </span>
+            {activeBranch ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                <Building2 size={11} />
+                <span className="truncate">{activeBranch.code} · {activeBranch.name}</span>
+              </span>
+            ) : null}
+          </div>
+          <h1 className="mt-0.5 text-xl font-black text-slate-900 leading-tight">
+            Branch Checkout & Sales History
+          </h1>
+          <p className="text-xs text-slate-500">
+            Fast checkout, serial assignment, and quotation conversion with live inventory validation.
           </p>
-          {activeBranch ? (
-            <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-[var(--color-soft)] px-3 py-1.5 text-xs font-bold text-[var(--color-muted)]">
-              <Building2 size={14} />
-              <span className="truncate">{activeBranch.code} · {activeBranch.name}</span>
-            </p>
-          ) : null}
         </div>
 
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)] disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50"
           disabled={isLoadingSales}
           onClick={loadSales}
           type="button"
         >
-          <RefreshCw className={isLoadingSales ? "animate-spin" : ""} size={17} />
-          Refresh sales
+          <RefreshCw className={isLoadingSales ? "animate-spin" : ""} size={14} />
+          Refresh Sales
         </button>
       </header>
 
       {noticeMessage ? (
-        <div className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+        <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
           <span>{noticeMessage}</span>
-          <button aria-label="Dismiss notice" className="rounded-lg p-1 hover:bg-emerald-100" onClick={() => setNoticeMessage("")} type="button"><X size={16} /></button>
+          <button aria-label="Dismiss notice" className="rounded-md p-0.5 text-emerald-600 hover:bg-emerald-100" onClick={() => setNoticeMessage("")} type="button"><X size={14} /></button>
         </div>
       ) : null}
 
@@ -2414,72 +2421,82 @@ function PosSalesPage({ selectedBranch, user }) {
       ) : null}
 
       {canCreateSale ? (
-        <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.9fr)_minmax(480px,1.1fr)]">
-          <div className="min-w-0 space-y-5">
-            <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:p-5">
-              <div className="flex items-start gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--color-maroon-soft)] text-[var(--color-maroon)]"><PackageSearch size={20} /></span>
-                <div>
-                  <h2 className="font-black text-[var(--color-text-strong)]">Find a product</h2>
-                  <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">Search by name, item code, brand, model, or barcode. Press Enter for an exact code/barcode match.</p>
+        <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,0.9fr)_minmax(480px,1.1fr)] items-start">
+          {/* Left Column: Product Search, Customer & Service */}
+          <div className="min-w-0 space-y-4">
+            {/* Product Search Card */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 place-items-center rounded-lg bg-rose-50 text-[var(--color-maroon)]">
+                    <PackageSearch size={15} />
+                  </span>
+                  <div>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">Find Products</h2>
+                  </div>
                 </div>
+                <span className="text-[11px] text-slate-400">Scan or press Enter for exact match</span>
               </div>
 
-              <form className="relative mt-4" onSubmit={handleItemSearchSubmit}>
-                <Barcode className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={19} />
+              <form className="relative" onSubmit={handleItemSearchSubmit}>
+                <Barcode className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
                   aria-label="Search products by name, code, brand, model, or barcode"
                   autoComplete="off"
-                  className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3.5 pl-12 pr-12 text-sm font-semibold outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => setItemSearch(event.target.value)}
-                  placeholder="Scan barcode or enter product search"
+                  placeholder="Scan barcode or type name, code, brand…"
                   value={itemSearch}
                 />
-                {isLoadingItems ? <LoaderCircle className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[var(--color-muted)]" size={18} /> : null}
+                {isLoadingItems ? <LoaderCircle className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" size={15} /> : null}
               </form>
 
-              {itemMessage ? <p className="mt-3 text-sm font-semibold text-amber-700">{itemMessage}</p> : null}
+              {itemMessage ? <p className="text-xs font-semibold text-amber-700">{itemMessage}</p> : null}
 
-              <div className="mt-4 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+              <div className="max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
                 {itemResults.map((item) => (
                   <button
-                    className="flex w-full items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] p-4 text-left transition hover:border-[var(--color-maroon)] hover:bg-[var(--color-maroon-soft)] disabled:opacity-50"
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-50/20 disabled:opacity-50 shadow-2xs"
                     disabled={Boolean(addingItemId)}
                     key={item.id}
                     onClick={() => addProduct(item)}
                     type="button"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate font-bold text-[var(--color-text-strong)]">{item.itemName}</span>
-                      <span className="mt-1 block truncate text-xs text-[var(--color-muted)]">
-                        {item.itemCode}{item.barcode ? ` · Barcode ${item.barcode}` : ""}{item.isSerialized ? " · Serialized" : ""}
+                      <span className="block truncate text-xs font-bold text-slate-900">{item.itemName}</span>
+                      <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+                        <span>{item.itemCode}</span>
+                        {item.barcode ? <span>· {item.barcode}</span> : null}
+                        {item.isSerialized ? <span className="rounded bg-slate-100 text-slate-600 px-1 py-0.2 font-sans font-bold">Serial</span> : null}
                       </span>
-                      <span className="mt-1 block text-sm font-bold text-[var(--color-maroon)]">From {formatMoney(item[`price${defaultPriceTier(item)}`])}</span>
+                      <span className="mt-0.5 block text-xs font-mono font-bold text-[var(--color-maroon)]">
+                        From {formatMoney(item[`price${defaultPriceTier(item)}`])}
+                      </span>
                     </span>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--color-soft)]">
-                      {addingItemId === item.id ? <LoaderCircle className="animate-spin" size={17} /> : <Plus size={17} />}
+                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-[var(--color-maroon)] hover:text-white transition">
+                      {addingItemId === item.id ? <LoaderCircle className="animate-spin" size={14} /> : <Plus size={14} />}
                     </span>
                   </button>
                 ))}
               </div>
             </section>
 
-            <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700"><UserRound size={20} /></span>
+            {/* Customer & Price Tier Card */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                    <UserRound size={15} />
+                  </span>
                   <div>
-                    <h2 className="font-black text-[var(--color-text-strong)] flex items-center gap-1.5">
-                      Customer <span className="text-red-500 font-bold text-sm">*</span>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1">
+                      Customer <span className="text-red-500 font-bold">*</span>
                     </h2>
-                    <p className="mt-1 text-xs text-[var(--color-muted)]">
-                      Required. Type customer name to search existing records, or enter new name.
-                    </p>
                   </div>
                 </div>
                 {selectedCustomerId || customerSearch.trim() ? (
                   <button
-                    className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] px-2.5 py-1 text-xs font-bold text-[var(--color-muted)] transition hover:bg-white hover:text-red-700"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:text-red-700 transition"
                     onClick={() => {
                       setSelectedCustomerId("")
                       setCustomerSearch("")
@@ -2489,21 +2506,21 @@ function PosSalesPage({ selectedBranch, user }) {
                     title="Clear customer name"
                     type="button"
                   >
-                    <X size={12} /> Clear
+                    <X size={11} /> Clear
                   </button>
                 ) : null}
               </div>
 
-              {/* Combobox container */}
-              <div className="relative mt-4" ref={customerDropdownRef}>
+              {/* Customer Combobox */}
+              <div className="relative" ref={customerDropdownRef}>
                 <div className="relative">
                   <input
                     ref={customerInputRef}
                     aria-label="Search or enter customer name"
-                    className={`w-full rounded-2xl border bg-[var(--color-soft)] py-3 pl-4 pr-10 text-sm outline-none transition focus:bg-white ${
+                    className={`w-full rounded-xl border bg-slate-50/50 py-2 pl-3 pr-8 text-xs font-medium outline-none transition focus:bg-white ${
                       !selectedCustomerId && !customerSearch.trim() && checkoutMessage?.includes("Customer name is required")
-                        ? "border-red-500 focus:border-red-600 focus:ring-2 focus:ring-red-200"
-                        : "border-[var(--color-border)] focus:border-[var(--color-maroon)]"
+                        ? "border-red-400 focus:border-red-500"
+                        : "border-slate-200 focus:border-[var(--color-maroon)]"
                     }`}
                     onChange={(event) => {
                       setCustomerSearch(event.target.value)
@@ -2513,12 +2530,12 @@ function PosSalesPage({ selectedBranch, user }) {
                       }
                     }}
                     onFocus={() => setIsCustomerDropdownOpen(true)}
-                    placeholder="Type customer name (e.g. Joshua Garcia) *required..."
+                    placeholder="Type name (e.g. Juan Dela Cruz) *required…"
                     value={customerSearch}
                   />
                   {customerSearch.trim() ? (
                     <button
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--color-muted)] hover:bg-gray-200 hover:text-[var(--color-text-strong)]"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 hover:text-slate-600"
                       onClick={() => {
                         setCustomerSearch("")
                         setSelectedCustomerId("")
@@ -2526,22 +2543,22 @@ function PosSalesPage({ selectedBranch, user }) {
                       }}
                       type="button"
                     >
-                      <X size={14} />
+                      <X size={13} />
                     </button>
                   ) : null}
                 </div>
 
-                {/* Floating Autocomplete Dropdown */}
+                {/* Autocomplete Dropdown */}
                 {isCustomerDropdownOpen && customerSearch.trim() ? (
-                  <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-72 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-white shadow-xl">
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl text-xs">
                     {customers.length > 0 ? (
                       <div>
-                        <div className="border-b border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                        <div className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                           Existing Customers
                         </div>
-                        {customers.slice(0, 10).map((customer) => (
+                        {customers.slice(0, 8).map((customer) => (
                           <button
-                            className="block w-full border-b border-[var(--color-border)] px-4 py-2.5 text-left text-sm transition last:border-b-0 hover:bg-blue-50"
+                            className="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-blue-50/60"
                             key={customer.id}
                             onClick={() => {
                               setSelectedCustomerId(customer.id)
@@ -2563,16 +2580,16 @@ function PosSalesPage({ selectedBranch, user }) {
                             type="button"
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-bold text-[var(--color-text-strong)]">{customer.fullName}</span>
+                              <span className="font-bold text-slate-900">{customer.fullName}</span>
                               {customer.priceTier ? (
-                                <span className="shrink-0 rounded-lg bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
-                                  Price {customer.priceTier}
+                                <span className="shrink-0 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.2 text-[10px] font-bold text-blue-800">
+                                  Tier {customer.priceTier}
                                 </span>
                               ) : null}
                             </div>
                             {customer.companyName || customer.mobileNumber ? (
-                              <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-                                {customer.companyName ? customer.companyName : ""}{customer.companyName && customer.mobileNumber ? " · " : ""}{customer.mobileNumber ? customer.mobileNumber : ""}
+                              <p className="mt-0.5 text-[11px] text-slate-400">
+                                {[customer.companyName, customer.mobileNumber].filter(Boolean).join(" · ")}
                               </p>
                             ) : null}
                           </button>
@@ -2581,67 +2598,60 @@ function PosSalesPage({ selectedBranch, user }) {
                     ) : null}
 
                     {/* Free-text option for new customer / walk-in name */}
-                    <div className="border-t border-[var(--color-border)] p-2">
+                    <div className="border-t border-slate-100 p-1.5">
                       <button
-                        className="flex w-full items-center gap-2 rounded-xl bg-[var(--color-soft)] px-3 py-2.5 text-left text-xs font-bold text-[var(--color-maroon)] transition hover:bg-[var(--color-maroon-soft)]"
+                        className="flex w-full items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-2 text-left text-xs font-bold text-[var(--color-maroon)] transition hover:bg-rose-50"
                         onClick={() => {
                           setSelectedCustomerId("")
                           setIsCustomerDropdownOpen(false)
                         }}
                         type="button"
                       >
-                        <Plus size={14} />
-                        <span>Use as new customer: <strong className="text-[var(--color-text-strong)]">"{customerSearch.trim()}"</strong></span>
+                        <Plus size={13} />
+                        <span>Use as new customer: <strong className="text-slate-900">"{customerSearch.trim()}"</strong></span>
                       </button>
                     </div>
                   </div>
                 ) : null}
               </div>
 
-              {/* Active selection banner */}
+              {/* Active selection badge */}
               {selectedCustomerId ? (
                 (() => {
                   const cust = customers.find((c) => c.id === selectedCustomerId)
                   return cust ? (
-                    <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-3 text-xs">
-                      <div>
-                        <span className="font-bold text-blue-900">{cust.fullName}</span>
-                        <span className="ml-2 text-blue-700">· Existing Customer</span>
-                        {cust.mobileNumber ? <span className="ml-1 text-blue-600">({cust.mobileNumber})</span> : null}
-                      </div>
-                      <span className="rounded-lg bg-blue-200 px-2 py-0.5 font-black text-blue-900">
-                        Default Price {cust.priceTier || 1}
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-xs">
+                      <span className="font-bold text-blue-900 truncate">{cust.fullName} (Existing Customer)</span>
+                      <span className="rounded bg-blue-100 px-1.5 py-0.2 text-[10px] font-bold text-blue-800 shrink-0">
+                        Default Tier {cust.priceTier || 1}
                       </span>
                     </div>
                   ) : null
                 })()
               ) : customerSearch.trim() && !isCustomerDropdownOpen ? (
-                <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-3 text-xs">
-                  <div>
-                    <span className="font-bold text-amber-900">{customerSearch.trim()}</span>
-                    <span className="ml-2 text-amber-700">· New Customer (will auto-register on sale)</span>
-                  </div>
-                  <span className="rounded-lg bg-amber-200 px-2 py-0.5 font-black text-amber-900">
-                    Price {selectedPriceTier}
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-1.5 text-xs">
+                  <span className="font-bold text-amber-900 truncate">"{customerSearch.trim()}" (New Customer)</span>
+                  <span className="rounded bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-800 shrink-0">
+                    Tier {selectedPriceTier}
                   </span>
                 </div>
               ) : null}
 
-              {/* Price Tier Selector Buttons */}
-              <div className="mt-4 border-t border-[var(--color-border)] pt-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Sale Price Tier:</span>
-                  <span className="text-xs font-semibold text-[var(--color-maroon)]">Active: Price {selectedPriceTier}</span>
+              {/* Price Tier Toolbar */}
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Global Sale Tier:</span>
+                  <span className="text-[10px] font-bold text-[var(--color-maroon)]">Active: Price {selectedPriceTier}</span>
                 </div>
-                <div className="mt-2 grid grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-5 gap-1">
                   {[1, 2, 3, 4, 5].map((tier) => {
                     const isSelected = selectedPriceTier === tier
                     return (
                       <button
-                        className={`rounded-xl py-2 text-xs font-black transition ${
+                        className={`rounded-lg py-1.5 text-xs font-bold transition ${
                           isSelected
-                            ? "bg-[var(--color-maroon)] text-white shadow-sm"
-                            : "border border-[var(--color-border)] bg-[var(--color-soft)] text-[var(--color-text-strong)] hover:border-[var(--color-maroon)] hover:bg-white"
+                            ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                            : "border border-slate-200 bg-slate-50/60 text-slate-700 hover:border-slate-300 hover:bg-white"
                         }`}
                         key={tier}
                         onClick={() => {
@@ -2659,51 +2669,53 @@ function PosSalesPage({ selectedBranch, user }) {
                         }}
                         type="button"
                       >
-                        Price {tier}
+                        Tier {tier}
                       </button>
                     )
                   })}
                 </div>
               </div>
-
-              {isLoadingCustomers ? <p className="mt-2 text-xs text-[var(--color-muted)]">Loading customer records…</p> : null}
-              {customerMessage ? <p className="mt-2 text-xs font-semibold text-amber-700">{customerMessage}</p> : null}
             </section>
 
-            <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-violet-50 text-violet-700"><Wrench size={20} /></span>
+            {/* Service & Labor Line Card */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 place-items-center rounded-lg bg-violet-50 text-violet-700">
+                    <Wrench size={15} />
+                  </span>
                   <div>
-                    <h2 className="font-black text-[var(--color-text-strong)]">Service</h2>
-                    <p className="mt-1 text-xs text-[var(--color-muted)]">Add optional labor, setup, delivery, or other non-inventory revenue.</p>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">Service Line</h2>
                   </div>
                 </div>
-                <button className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold" onClick={() => setShowServiceForm((current) => !current)} type="button">
-                  {showServiceForm ? "Close" : "Add service"}
+                <button
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                  onClick={() => setShowServiceForm((current) => !current)}
+                  type="button"
+                >
+                  {showServiceForm ? "Close" : "+ Add Service"}
                 </button>
               </div>
 
               {showServiceForm ? (
-                <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={addServiceLine}>
-                  {/* Service Done By (Gagawa) Searchable Combobox & Quick Select */}
-                  <div className="sm:col-span-2 space-y-2 rounded-2xl border border-violet-100 bg-violet-50/50 p-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-black uppercase tracking-wide text-violet-900 flex items-center gap-1.5">
-                        <UserRound size={15} /> Service Performer
+                <form className="grid gap-2.5 sm:grid-cols-2 pt-2 border-t border-slate-100 text-xs" onSubmit={addServiceLine}>
+                  {/* Service Done By */}
+                  <div className="sm:col-span-2 space-y-1 rounded-xl border border-violet-100 bg-violet-50/40 p-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-violet-900 flex items-center gap-1">
+                        <UserRound size={12} /> Service Performer
                       </span>
                       {selectedServiceStaffId ? (
                         <button
                           type="button"
                           onClick={() => setSelectedServiceStaffId("")}
-                          className="text-[11px] font-bold text-violet-700 hover:text-red-700 transition"
+                          className="text-[10px] font-bold text-violet-700 hover:text-red-700"
                         >
-                          Clear assignment
+                          Clear
                         </button>
                       ) : null}
                     </div>
 
-                    {/* Searchable Combobox Input */}
                     <div className="relative" ref={serviceStaffDropdownRef}>
                       {(() => {
                         const selectedStaff = serviceStaffList.find((s) => s.id === selectedServiceStaffId)
@@ -2716,81 +2728,48 @@ function PosSalesPage({ selectedBranch, user }) {
 
                         return (
                           <>
-                            <div className="relative">
-                              <input
-                                type="text"
-                                className="w-full rounded-xl border border-violet-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200 transition"
-                                placeholder={
-                                  isLoadingServiceStaff
-                                    ? "Loading branch staff…"
-                                    : selectedStaff
-                                    ? `${selectedStaff.fullName} (${getRoleLabel(selectedStaff.role)})`
-                                    : "Type name or role (e.g. Joshua, Technician)…"
-                                }
-                                value={serviceStaffSearch}
-                                onChange={(e) => {
-                                  setServiceStaffSearch(e.target.value)
-                                  setIsServiceStaffDropdownOpen(true)
-                                }}
-                                onFocus={() => setIsServiceStaffDropdownOpen(true)}
-                              />
-                              {serviceStaffSearch ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setServiceStaffSearch("")}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:text-slate-600"
-                                >
-                                  <X size={14} />
-                                </button>
-                              ) : null}
-                            </div>
+                            <input
+                              type="text"
+                              className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-violet-500 transition"
+                              placeholder={
+                                isLoadingServiceStaff
+                                  ? "Loading staff…"
+                                  : selectedStaff
+                                  ? `${selectedStaff.fullName} (${getRoleLabel(selectedStaff.role)})`
+                                  : "Type name or role (e.g. Technician)…"
+                              }
+                              value={serviceStaffSearch}
+                              onChange={(e) => {
+                                setServiceStaffSearch(e.target.value)
+                                setIsServiceStaffDropdownOpen(true)
+                              }}
+                              onFocus={() => setIsServiceStaffDropdownOpen(true)}
+                            />
 
-                            {/* Dropdown Suggestions */}
                             {isServiceStaffDropdownOpen && (
-                              <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+                              <div className="absolute z-20 mt-1 max-h-44 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
                                 {filteredStaff.length === 0 ? (
-                                  <div className="p-3 text-center text-xs text-slate-500">
+                                  <div className="p-2.5 text-center text-xs text-slate-400">
                                     No staff matching "{serviceStaffSearch}"
                                   </div>
                                 ) : (
-                                  filteredStaff.map((staff) => {
-                                    const isSelected = staff.id === selectedServiceStaffId
-                                    return (
-                                      <button
-                                        key={staff.id}
-                                        type="button"
-                                        onClick={() => {
-                                          setSelectedServiceStaffId(staff.id)
-                                          setServiceStaffSearch("")
-                                          setIsServiceStaffDropdownOpen(false)
-                                        }}
-                                        className={`flex w-full items-center justify-between px-3.5 py-2.5 text-left text-xs transition ${
-                                          isSelected
-                                            ? "bg-violet-100 font-bold text-violet-950"
-                                            : "hover:bg-slate-50 text-slate-700"
-                                        }`}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <span className="grid h-6 w-6 place-items-center rounded-full bg-violet-200 text-violet-800 font-bold text-[10px]">
-                                            {staff.fullName.charAt(0).toUpperCase()}
-                                          </span>
-                                          <div>
-                                            <p className="font-bold text-slate-900">{staff.fullName}</p>
-                                            <p className="text-[10px] text-slate-500">{getRoleLabel(staff.role)}</p>
-                                          </div>
-                                        </div>
-                                        {isSelected ? (
-                                          <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                                            Selected
-                                          </span>
-                                        ) : (
-                                          <span className="text-[10px] text-slate-400 font-semibold">
-                                            {getRoleLabel(staff.role)}
-                                          </span>
-                                        )}
-                                      </button>
-                                    )
-                                  })
+                                  filteredStaff.map((staff) => (
+                                    <button
+                                      key={staff.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedServiceStaffId(staff.id)
+                                        setServiceStaffSearch("")
+                                        setIsServiceStaffDropdownOpen(false)
+                                      }}
+                                      className="flex w-full items-center justify-between px-3 py-2 text-left text-xs hover:bg-violet-50 transition"
+                                    >
+                                      <div>
+                                        <p className="font-bold text-slate-900">{staff.fullName}</p>
+                                        <p className="text-[10px] text-slate-400">{getRoleLabel(staff.role)}</p>
+                                      </div>
+                                    </button>
+                                  ))
                                 )}
                               </div>
                             )}
@@ -2800,202 +2779,188 @@ function PosSalesPage({ selectedBranch, user }) {
                     </div>
                   </div>
 
-                  <label className="sm:col-span-2">
-                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Description</span>
-                    <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setServiceDescription(event.target.value)} placeholder="Labor, setup, delivery service…" value={serviceDescription} />
+                  <label className="sm:col-span-2 block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Description</span>
+                    <input className="mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setServiceDescription(event.target.value)} placeholder="Labor, setup, diagnostics, delivery…" value={serviceDescription} />
                   </label>
-                  <label>
-                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Quantity</span>
-                    <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]" min="0.01" onChange={(event) => setServiceQuantity(event.target.value)} step="0.01" type="number" value={serviceQuantity} />
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Qty</span>
+                    <input className="mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" min="0.01" onChange={(event) => setServiceQuantity(event.target.value)} step="0.01" type="number" value={serviceQuantity} />
                   </label>
-                  <label>
-                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Base unit price</span>
-                    <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]" min="0" onChange={(event) => setServiceUnitPrice(event.target.value)} step="0.01" type="number" value={serviceUnitPrice} />
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Base Price (₱)</span>
+                    <input className="mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-mono outline-none focus:border-[var(--color-maroon)]" min="0" onChange={(event) => setServiceUnitPrice(event.target.value)} step="0.01" type="number" value={serviceUnitPrice} />
                   </label>
-                  <label>
-                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Mark up %</span>
-                    <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]" max="99.9999" min="0" onChange={(event) => setServiceMarkup(event.target.value)} placeholder="Optional" step="0.01" type="number" value={serviceMarkup} />
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Mark up %</span>
+                    <input className="mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" max="99.9999" min="0" onChange={(event) => setServiceMarkup(event.target.value)} placeholder="Optional" step="0.01" type="number" value={serviceMarkup} />
                   </label>
-                  <label>
-                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Exact discount</span>
-                    <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]" min="0" onChange={(event) => setServiceDiscount(event.target.value)} step="0.01" type="number" value={serviceDiscount} />
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Discount (₱)</span>
+                    <input className="mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-mono outline-none focus:border-[var(--color-maroon)]" min="0" onChange={(event) => setServiceDiscount(event.target.value)} step="0.01" type="number" value={serviceDiscount} />
                   </label>
-                  <button className="self-end rounded-xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white transition hover:bg-[var(--color-maroon-hover)]" type="submit">Add service line</button>
-                  <div className="rounded-xl bg-[var(--color-soft)] p-3 text-sm sm:col-span-2">
-                    <div className="flex flex-wrap justify-between gap-2"><span>Base unit price</span><strong>{formatMoney(serviceBaseUnitPrice)}</strong></div>
-                    <div className="mt-1 flex flex-wrap justify-between gap-2"><span>Final unit price</span><strong>{formatMoney(serviceFinalUnitPrice)}</strong></div>
-                    <div className="mt-2 flex flex-wrap justify-between gap-2 border-t border-[var(--color-border)] pt-2"><span>Line total preview</span><strong>{formatMoney(serviceLineTotal)}</strong></div>
+                  <div className="rounded-lg bg-slate-50 p-2.5 text-xs sm:col-span-2 border border-slate-100 flex items-center justify-between">
+                    <span className="text-slate-500">Preview: Base {formatMoney(serviceBaseUnitPrice)} · Final {formatMoney(serviceFinalUnitPrice)}</span>
+                    <span className="font-mono font-bold text-slate-900">Total: {formatMoney(serviceLineTotal)}</span>
                   </div>
+                  <button className="sm:col-span-2 rounded-xl bg-[var(--color-maroon)] py-2 text-xs font-bold text-white transition hover:bg-[var(--color-maroon-hover)] shadow-2xs" type="submit">
+                    + Add Service to Cart
+                  </button>
                 </form>
               ) : null}
             </section>
           </div>
 
-          <section className="min-w-0 self-start rounded-3xl border border-[var(--color-border)] bg-white shadow-card 2xl:sticky 2xl:top-5">
-            <header className="flex flex-col gap-3 border-b border-[var(--color-border)] p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[var(--color-maroon)] text-white"><ShoppingCart size={20} /></span>
-                <div><h2 className="font-black text-[var(--color-text-strong)]">Current sale</h2><p className="text-xs text-[var(--color-muted)]">{cart.length} line(s)</p></div>
+          {/* Right Column: Active Cart & Settlement */}
+          <section className="min-w-0 self-start rounded-2xl border border-slate-200 bg-white shadow-2xs 2xl:sticky 2xl:top-4 overflow-hidden">
+            {/* Cart Header */}
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="grid size-7 place-items-center rounded-lg bg-[var(--color-maroon)] text-white">
+                  <ShoppingCart size={15} />
+                </span>
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                    Current Cart <span className="text-slate-400 font-normal">({cart.length} lines)</span>
+                  </h2>
+                </div>
               </div>
               <div className="flex items-center gap-3">
-                <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1.5 transition hover:bg-slate-100">
+                <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 transition hover:bg-slate-50">
                   <input
                     type="checkbox"
                     checked={isPcBuild}
                     onChange={(e) => setIsPcBuild(e.target.checked)}
-                    className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                    className="size-3.5 rounded border-slate-300 text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
                   />
-                  <span className="text-xs font-bold text-[var(--color-text-strong)]">🖥️ PC Build Sale</span>
+                  <span className="text-[11px] font-bold text-slate-700">🖥️ PC Build</span>
                 </label>
-                {cart.length > 0 ? <button className="text-xs font-bold text-red-700" onClick={() => { if (window.confirm("Clear the unsaved cart?")) setCart([]) }} type="button">Clear cart</button> : null}
+                {cart.length > 0 ? (
+                  <button className="text-[11px] font-bold text-red-600 hover:text-red-700" onClick={() => { if (window.confirm("Clear all items in cart?")) setCart([]) }} type="button">
+                    Clear
+                  </button>
+                ) : null}
               </div>
             </header>
 
-            {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{cartMessage}</div> : null}
+            {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">{cartMessage}</div> : null}
 
             {cart.length === 0 ? (
-              <div className="grid place-items-center p-10 text-center">
-                <ShoppingCart className="text-[var(--color-muted)]" size={42} />
-                <p className="mt-3 font-bold text-[var(--color-text-strong)]">Cart is empty</p>
-                <p className="mt-1 max-w-sm text-sm leading-6 text-[var(--color-muted)]">Search for a product or add an optional service/custom line.</p>
+              <div className="grid place-items-center p-8 text-center text-slate-400">
+                <ShoppingCart className="text-slate-300" size={36} />
+                <p className="mt-2 text-xs font-bold text-slate-600">Cart is empty</p>
+                <p className="mt-0.5 text-[11px] text-slate-400">Search product or add service line on the left.</p>
               </div>
             ) : (
-              <div className="max-h-[720px] space-y-3 overflow-y-auto p-4 sm:p-5">
+              <div className="max-h-[520px] space-y-2.5 overflow-y-auto p-4 text-xs">
                 {cart.map((line, index) => {
                   const gross = getLineGross(line)
                   const selectedBatch = line.batches?.find((batch) => batch.id === line.batchId)
 
                   return (
-                    <article className="rounded-2xl border border-[var(--color-border)] p-4" key={line.localId}>
-                      <div className="flex items-start justify-between gap-3">
+                    <article className="rounded-xl border border-slate-200 bg-slate-50/40 p-3 space-y-2.5 shadow-2xs" key={line.localId}>
+                      <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Line {index + 1} · {line.type === "SERVICE" ? "Service" : "Product"}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">#{index + 1} · {line.type === "SERVICE" ? "Service" : "Product"}</span>
                             {isPcBuild && line.type === "PRODUCT" ? (
-                              <span className="rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
+                              <span className="rounded bg-rose-50 border border-rose-200 px-1.5 py-0.2 text-[9px] font-black text-[var(--color-maroon)]">
                                 PC Part
                               </span>
                             ) : null}
                           </div>
-                          <h3 className="mt-1 truncate font-black text-[var(--color-text-strong)]">{line.item?.itemName || line.description}</h3>
-                          {line.item ? <p className="mt-1 text-xs text-[var(--color-muted)]">{line.item.itemCode}{line.item.isSerialized ? " · Serialized" : ""}</p> : null}
+                          <h3 className="truncate font-bold text-slate-900">{line.item?.itemName || line.description}</h3>
+                          {line.item ? <p className="text-[10px] font-mono text-slate-400">{line.item.itemCode}{line.item.isSerialized ? " · Serialized" : ""}</p> : null}
                           {line.type === "SERVICE" && line.serviceStaffName ? (
-                            <div className="mt-1 flex items-center gap-1.5 text-xs text-violet-700 font-semibold">
-                              <span className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-2 py-0.5 border border-violet-200">
-                                👤 {line.serviceStaffName} {line.serviceStaffRole ? `• ${line.serviceStaffRole}` : ""}
-                              </span>
-                            </div>
+                            <p className="text-[10px] font-semibold text-violet-700">👤 {line.serviceStaffName} {line.serviceStaffRole ? `(${line.serviceStaffRole})` : ""}</p>
                           ) : null}
                         </div>
-                        <button aria-label="Remove line" className="rounded-xl p-2 text-red-700 transition hover:bg-red-50" onClick={() => removeCartLine(line.localId)} type="button"><Trash2 size={17} /></button>
+                        <button aria-label="Remove line" className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition shrink-0" onClick={() => removeCartLine(line.localId)} type="button">
+                          <Trash2 size={14} />
+                        </button>
                       </div>
 
                       {line.type === "PRODUCT" ? (
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                          {/* Price Tier */}
-                          <label className="block">
-                            <div className="flex h-5 items-center justify-between">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                                Price Tier
-                              </span>
-                              {line.isRememberedTier ? (
-                                <span className="rounded-md bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
-                                  ⭐ Remembered
-                                </span>
-                              ) : null}
-                            </div>
-                            <select
-                              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
-                              onChange={(event) =>
-                                updateCartLine(line.localId, {
-                                  priceTier: Number(event.target.value),
-                                  isRememberedTier: false,
-                                })
-                              }
-                              value={line.priceTier}
-                            >
-                              {availablePriceTiers(line.item).map((tier) => (
-                                <option key={tier} value={tier}>
-                                  Price {tier} · {formatMoney(line.item[`price${tier}`])}
-                                </option>
-                              ))}
-                            </select>
-                            <p className="mt-1 text-xs text-[var(--color-muted)]">
-                              Base: {formatMoney(getLineBaseUnitPrice(line))}
-                            </p>
-                          </label>
+                        <div className="space-y-2 pt-1 border-t border-slate-200/60">
+                          <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
+                            {/* Price Tier */}
+                            <label className="block">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Tier</span>
+                              <select
+                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
+                                onChange={(event) =>
+                                  updateCartLine(line.localId, {
+                                    priceTier: Number(event.target.value),
+                                    isRememberedTier: false,
+                                  })
+                                }
+                                value={line.priceTier}
+                              >
+                                {availablePriceTiers(line.item).map((tier) => (
+                                  <option key={tier} value={tier}>
+                                    T{tier} ({formatMoney(line.item[`price${tier}`])})
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
 
-                          {/* Markup % */}
-                          <label className="block">
-                            <div className="flex h-5 items-center justify-between">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                                Mark Up %
-                              </span>
-                            </div>
-                            <input
-                              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
-                              max="99.9999"
-                              min="0"
-                              onChange={(event) =>
-                                updateCartLine(line.localId, {
-                                  markupPercent: event.target.value,
-                                })
-                              }
-                              placeholder="Optional"
-                              step="0.01"
-                              type="number"
-                              value={line.markupPercent ?? ""}
-                            />
-                            <p className="mt-1 text-xs text-[var(--color-muted)]">
-                              Final: {formatMoney(getLineUnitPrice(line))}
-                            </p>
-                          </label>
+                            {/* Markup % */}
+                            <label className="block">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Markup %</span>
+                              <input
+                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                                max="99.9999"
+                                min="0"
+                                onChange={(event) =>
+                                  updateCartLine(line.localId, {
+                                    markupPercent: event.target.value,
+                                  })
+                                }
+                                placeholder="0"
+                                step="0.01"
+                                type="number"
+                                value={line.markupPercent ?? ""}
+                              />
+                            </label>
 
-                          {/* Quantity */}
-                          <label className="block">
-                            <div className="flex h-5 items-center justify-between">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                                Quantity
-                              </span>
-                            </div>
-                            <input
-                              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
-                              disabled={line.item.isSerialized}
-                              min="0.01"
-                              onChange={(event) =>
-                                updateCartLine(line.localId, { quantity: event.target.value })
-                              }
-                              step="0.01"
-                              type="number"
-                              value={line.quantity}
-                            />
-                          </label>
+                            {/* Quantity */}
+                            <label className="block">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Qty</span>
+                              <input
+                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+                                disabled={line.item.isSerialized}
+                                min="0.01"
+                                onChange={(event) =>
+                                  updateCartLine(line.localId, { quantity: event.target.value })
+                                }
+                                step="0.01"
+                                type="number"
+                                value={line.quantity}
+                              />
+                            </label>
 
-                          {/* Exact Discount */}
-                          <label className="block">
-                            <div className="flex h-5 items-center justify-between">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                                Exact Discount
-                              </span>
-                            </div>
-                            <input
-                              className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
-                              max={gross}
-                              min="0"
-                              onChange={(event) =>
-                                updateCartLine(line.localId, { discountAmount: event.target.value })
-                              }
-                              step="0.01"
-                              type="number"
-                              value={line.discountAmount}
-                            />
-                          </label>
+                            {/* Exact Discount */}
+                            <label className="block">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Discount</span>
+                              <input
+                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
+                                max={gross}
+                                min="0"
+                                onChange={(event) =>
+                                  updateCartLine(line.localId, { discountAmount: event.target.value })
+                                }
+                                step="0.01"
+                                type="number"
+                                value={line.discountAmount}
+                              />
+                            </label>
+                          </div>
 
                           {/* Serial or Source Batch */}
                           {line.item.isSerialized ? (
-                            <div className="sm:col-span-2 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="font-bold uppercase tracking-wider text-slate-500">
                                   {line.isCustomSerial ? "Barcode / Serial Input" : "Available Serial"}
                                 </span>
                                 <button
@@ -3007,7 +2972,7 @@ function PosSalesPage({ selectedBranch, user }) {
                                       customSerialNumber: "",
                                     })
                                   }
-                                  className="text-[11px] font-bold text-[var(--color-maroon)] underline hover:opacity-80"
+                                  className="font-bold text-[var(--color-maroon)] underline hover:opacity-80"
                                 >
                                   {line.isCustomSerial
                                     ? "← Choose from existing serials"
@@ -3019,7 +2984,7 @@ function PosSalesPage({ selectedBranch, user }) {
                                 <div>
                                   <input
                                     autoFocus
-                                    className="w-full rounded-xl border border-[var(--color-maroon)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[var(--color-maroon)]"
+                                    className="w-full rounded-lg border border-[var(--color-maroon)] bg-white px-2.5 py-1.5 text-xs font-mono outline-none focus:ring-1 focus:ring-[var(--color-maroon)]"
                                     placeholder="Scan barcode or type serial number…"
                                     value={line.customSerialNumber || ""}
                                     onChange={(event) =>
@@ -3028,44 +2993,36 @@ function PosSalesPage({ selectedBranch, user }) {
                                       })
                                     }
                                   />
-                                  <p className="mt-1 text-xs text-emerald-700 font-semibold">
-                                    ⚡ Scanned serial will be automatically added to inventory and tracked upon sale completion.
-                                  </p>
                                 </div>
                               ) : (
-                                <div>
-                                  <select
-                                    className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
-                                    onChange={(event) =>
-                                      updateCartLine(line.localId, { serialId: event.target.value })
-                                    }
-                                    value={line.serialId}
-                                  >
-                                    <option value="">Select one serial</option>
-                                    {line.serials.map((serial) => (
-                                      <option
-                                        disabled={
-                                          selectedSerialIds.has(serial.id) &&
-                                          serial.id !== line.serialId
-                                        }
-                                        key={serial.id}
-                                        value={serial.id}
-                                      >
-                                        {serial.serialNumber} · {serial.batch?.batchCode || "No batch"}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <p className="mt-1 text-xs text-[var(--color-muted)]">
-                                    The selected serial determines its source batch.
-                                  </p>
-                                </div>
+                                <select
+                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
+                                  onChange={(event) =>
+                                    updateCartLine(line.localId, { serialId: event.target.value })
+                                  }
+                                  value={line.serialId}
+                                >
+                                  <option value="">Select one serial</option>
+                                  {line.serials.map((serial) => (
+                                    <option
+                                      disabled={
+                                        selectedSerialIds.has(serial.id) &&
+                                        serial.id !== line.serialId
+                                      }
+                                      key={serial.id}
+                                      value={serial.id}
+                                    >
+                                      {serial.serialNumber} · {serial.batch?.batchCode || "No batch"}
+                                    </option>
+                                  ))}
+                                </select>
                               )}
                             </div>
                           ) : (
-                            <label className="sm:col-span-2 block">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Source Batch</span>
+                            <label className="block">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Source Batch</span>
                               <select
-                                className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--color-maroon)]"
+                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
                                 onChange={(event) => updateCartLine(line.localId, { batchId: event.target.value })}
                                 value={line.batchId}
                               >
@@ -3079,39 +3036,27 @@ function PosSalesPage({ selectedBranch, user }) {
                             </label>
                           )}
 
-                          {/* Line Total Summary Preview */}
-                          <div className="sm:col-span-2 flex items-center justify-between rounded-xl bg-[var(--color-soft)] p-3.5 text-sm">
-                            <div>
-                              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Line Net Total</p>
-                              {!line.item.isSerialized && selectedBatch ? (
-                                <p className="text-xs text-[var(--color-muted)]">
-                                  Batch stock: {Number(selectedBatch.quantityAvailable || 0)} available
-                                </p>
-                              ) : null}
-                            </div>
-                            <p className="font-mono text-lg font-black text-[var(--color-text-strong)]">
-                              {formatMoney(getLineTotal(line))}
-                            </p>
-                          </div>
-
-                          {/* Warranty Coverage Chip */}
-                          <div className="sm:col-span-2 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]/50 px-3.5 py-2.5">
-                            <span className="text-xs font-bold text-[var(--color-muted)] flex items-center gap-1.5">
-                              <ShieldCheck size={15} className="text-emerald-600" />
-                              Warranty Coverage:
+                          {/* Line Total & Warranty Banner */}
+                          <div className="flex items-center justify-between rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                              <ShieldCheck size={13} /> {line.warrantyDuration || "1 YEAR WARRANTY"}
                             </span>
-                            <span className="rounded-lg bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300">
-                              {line.warrantyDuration || "1 YEAR WARRANTY"}
+                            <span className="font-mono font-black text-slate-900 text-sm">
+                              {formatMoney(getLineTotal(line))}
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                          <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Qty</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm" min="0.01" onChange={(event) => updateCartLine(line.localId, { quantity: event.target.value })} step="0.01" type="number" value={line.quantity} /></label>
-                          <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Base unit price</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm" min="0" onChange={(event) => updateCartLine(line.localId, { baseUnitPrice: event.target.value })} step="0.01" type="number" value={line.baseUnitPrice ?? line.unitPrice} /></label>
-                          <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Mark up %</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm" max="99.9999" min="0" onChange={(event) => updateCartLine(line.localId, { markupPercent: event.target.value })} placeholder="Optional" step="0.01" type="number" value={line.markupPercent ?? ""} /></label>
-                          <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Discount</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-sm" min="0" onChange={(event) => updateCartLine(line.localId, { discountAmount: event.target.value })} step="0.01" type="number" value={line.discountAmount} /></label>
-                          <p className="sm:col-span-4 text-right text-sm font-black text-[var(--color-text-strong)]">Base {formatMoney(getLineBaseUnitPrice(line))} · Final {formatMoney(getLineUnitPrice(line))} · Line total {formatMoney(getLineTotal(line))}</p>
+                        <div className="space-y-2 pt-1 border-t border-slate-200/60">
+                          <div className="grid gap-2 grid-cols-4">
+                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span><input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" min="0.01" onChange={(event) => updateCartLine(line.localId, { quantity: event.target.value })} step="0.01" type="number" value={line.quantity} /></label>
+                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Base Price</span><input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono" min="0" onChange={(event) => updateCartLine(line.localId, { baseUnitPrice: event.target.value })} step="0.01" type="number" value={line.baseUnitPrice ?? line.unitPrice} /></label>
+                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Markup %</span><input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" max="99.9999" min="0" onChange={(event) => updateCartLine(line.localId, { markupPercent: event.target.value })} placeholder="0" step="0.01" type="number" value={line.markupPercent ?? ""} /></label>
+                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Discount</span><input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono" min="0" onChange={(event) => updateCartLine(line.localId, { discountAmount: event.target.value })} step="0.01" type="number" value={line.discountAmount} /></label>
+                          </div>
+                          <div className="text-right font-mono font-black text-slate-900 text-sm">
+                            Total: {formatMoney(getLineTotal(line))}
+                          </div>
                         </div>
                       )}
                     </article>
@@ -3120,79 +3065,139 @@ function PosSalesPage({ selectedBranch, user }) {
               </div>
             )}
 
-            <div className="space-y-5 border-t border-[var(--color-border)] p-4 sm:p-5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label>
-                  <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Additional service / delivery charge</span>
-                  <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]" min="0" onChange={(event) => setServiceCharge(event.target.value)} step="0.01" type="number" value={serviceCharge} />
+            {/* Surcharges, Totals, & Payment Setup */}
+            <div className="space-y-3.5 border-t border-slate-200 p-4 bg-slate-50/50 text-xs">
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Surcharge / Delivery Fee</span>
+                  <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono outline-none focus:border-[var(--color-maroon)]" min="0" onChange={(event) => setServiceCharge(event.target.value)} step="0.01" type="number" value={serviceCharge} />
                 </label>
-                <label>
-                  <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Sale remarks</span>
-                  <input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setRemarks(event.target.value)} placeholder="Optional internal note" value={remarks} />
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Sale Remarks</span>
+                  <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setRemarks(event.target.value)} placeholder="Optional internal note" value={remarks} />
                 </label>
               </div>
 
-              <div className="grid gap-2 rounded-2xl bg-[var(--color-soft)] p-4 text-sm">
-                <div className="flex justify-between gap-3"><span>Product revenue</span><strong>{formatMoney(totals.productGross)}</strong></div>
-                <div className="flex justify-between gap-3"><span>Service/custom revenue</span><strong>{formatMoney(totals.serviceGross)}</strong></div>
-                <div className="flex justify-between gap-3"><span>Exact discounts</span><strong>-{formatMoney(totals.totalDiscount)}</strong></div>
-                <div className="flex justify-between gap-3"><span>Additional charge</span><strong>{formatMoney(totals.additionalCharge)}</strong></div>
-                <div className="mt-1 flex justify-between gap-3 border-t border-[var(--color-border)] pt-3 text-lg text-[var(--color-text-strong)]"><strong>Grand total</strong><strong>{formatMoney(totals.grandTotal)}</strong></div>
+              {/* Totals Summary Breakdown */}
+              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1.5 shadow-2xs">
+                <div className="flex justify-between text-slate-600"><span>Products Gross</span><span className="font-mono">{formatMoney(totals.productGross)}</span></div>
+                {totals.serviceGross > 0 ? <div className="flex justify-between text-slate-600"><span>Service/Custom</span><span className="font-mono">{formatMoney(totals.serviceGross)}</span></div> : null}
+                {totals.totalDiscount > 0 ? <div className="flex justify-between text-emerald-700"><span>Discounts</span><span className="font-mono">-{formatMoney(totals.totalDiscount)}</span></div> : null}
+                {totals.additionalCharge > 0 ? <div className="flex justify-between text-slate-600"><span>Additional Charge</span><span className="font-mono">{formatMoney(totals.additionalCharge)}</span></div> : null}
+                <div className="flex justify-between items-center border-t border-slate-200 pt-2 text-slate-900 font-bold">
+                  <span className="text-xs uppercase tracking-wider">Grand Total</span>
+                  <span className="font-mono text-lg font-black text-slate-900">{formatMoney(totals.grandTotal)}</span>
+                </div>
               </div>
 
-              <div>
-                <div className="flex items-center gap-2"><CreditCard className="text-[var(--color-maroon)]" size={18} /><h3 className="font-black text-[var(--color-text-strong)]">Payment</h3></div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Settlement arrangement</span><select className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm font-semibold" onChange={(event) => { const nextMethod = event.target.value; setPaymentMethod(nextMethod); if (RECEIVABLE_PROVIDER_VALUES.has(nextMethod)) { setPaymentAmount("0"); setPaymentAmountTouched(true) } else { setPaymentAmount("0"); setPaymentAmountTouched(false) } }} value={paymentMethod}><optgroup label="Immediate settlement">{IMMEDIATE_PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</optgroup><optgroup label="Accounts receivable">{RECEIVABLE_PROVIDERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</optgroup></select></label>
-                  <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">{isReceivableCheckout ? "Immediate settlement / downpayment" : "Amount paid"}</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm" max={isReceivableCheckout ? totals.grandTotal : undefined} min="0" onChange={(event) => { setPaymentAmount(event.target.value); setPaymentAmountTouched(true) }} step="0.01" type="number" value={effectivePaymentAmount} /></label>
-                  {isReceivableCheckout ? <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Immediate settlement method</span><select className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm font-semibold" onChange={(event) => setSettlementMethod(event.target.value)} value={settlementMethod}>{IMMEDIATE_PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label> : null}
-                  {isReceivableCheckout ? <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Provider reference</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm" onChange={(event) => setProviderReference(event.target.value)} placeholder="Optional provider approval/reference" value={providerReference} /></label> : null}
-                  <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Reference number</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm" onChange={(event) => setPaymentReference(event.target.value)} placeholder="Optional for traceability" value={paymentReference} /></label>
-                  <label><span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Payment remarks</span><input className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 text-sm" onChange={(event) => setPaymentRemarks(event.target.value)} placeholder="Optional" value={paymentRemarks} /></label>
+              {/* Payment Settings */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-1.5 text-slate-800 font-bold">
+                  <CreditCard size={14} className="text-[var(--color-maroon)]" />
+                  <span>Payment Arrangement</span>
+                </div>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Method</span>
+                    <select
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
+                      onChange={(event) => {
+                        const nextMethod = event.target.value
+                        setPaymentMethod(nextMethod)
+                        if (RECEIVABLE_PROVIDER_VALUES.has(nextMethod)) {
+                          setPaymentAmount("0")
+                          setPaymentAmountTouched(true)
+                        } else {
+                          setPaymentAmount("0")
+                          setPaymentAmountTouched(false)
+                        }
+                      }}
+                      value={paymentMethod}
+                    >
+                      <optgroup label="Immediate Settlement">
+                        {IMMEDIATE_PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </optgroup>
+                      <optgroup label="Accounts Receivable">
+                        {RECEIVABLE_PROVIDERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </optgroup>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      {isReceivableCheckout ? "Downpayment (₱)" : "Amount Tendered (₱)"}
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold outline-none focus:border-[var(--color-maroon)]"
+                      max={isReceivableCheckout ? totals.grandTotal : undefined}
+                      min="0"
+                      onChange={(event) => { setPaymentAmount(event.target.value); setPaymentAmountTouched(true) }}
+                      step="0.01"
+                      type="number"
+                      value={effectivePaymentAmount}
+                    />
+                  </label>
+
+                  {isReceivableCheckout ? (
+                    <>
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Downpayment Method</span>
+                        <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setSettlementMethod(event.target.value)} value={settlementMethod}>
+                          {IMMEDIATE_PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Provider Ref</span>
+                        <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setProviderReference(event.target.value)} placeholder="Approval/Ref" value={providerReference} />
+                      </label>
+                    </>
+                  ) : null}
+
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Reference No.</span>
+                    <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setPaymentReference(event.target.value)} placeholder="Traceability ref" value={paymentReference} />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Payment Remarks</span>
+                    <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setPaymentRemarks(event.target.value)} placeholder="Optional note" value={paymentRemarks} />
+                  </label>
                 </div>
 
+                {/* Accounts Receivable / Financing Summary */}
                 {isReceivableCheckout ? (
-                  <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200 pb-2.5">
-                      <div>
-                        <p className="text-sm font-black text-blue-900">
-                          Accounts Receivable · {formatStatus(paymentMethod)}
-                        </p>
-                        <p className="text-xs text-blue-800">
-                          {isInHouseCheckout
-                            ? "In-house installment requires a selected registered customer."
-                            : "Financed through provider. Computes interest based on configured term rates."}
-                        </p>
-                      </div>
-                      <span className="rounded-xl border border-blue-200 bg-white px-2.5 py-1 text-xs font-black text-blue-900 shadow-2xs">
-                        Rate Basis: {installmentCalculation?.termBasis ?? "1.00"}
+                  <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 space-y-2.5">
+                    <div className="flex items-center justify-between border-b border-blue-200/80 pb-2">
+                      <span className="font-bold text-blue-900 text-xs">Accounts Receivable · {formatStatus(paymentMethod)}</span>
+                      <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-900">
+                        Term Basis: {installmentCalculation?.termBasis ?? "1.00"}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <div className="rounded-xl border border-blue-100 bg-white p-2.5 shadow-2xs">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-muted)]">Cash Promo Total</span>
-                        <p className="mt-0.5 text-sm font-black text-[var(--color-text-strong)]">{formatMoney(totals.grandTotal)}</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-xs">
+                      <div className="rounded-lg bg-white border border-blue-100 p-2">
+                        <span className="text-[10px] text-slate-400 block">Cash Promo</span>
+                        <span className="font-mono font-bold text-slate-900">{formatMoney(totals.grandTotal)}</span>
                       </div>
-                      <div className="rounded-xl border border-blue-100 bg-white p-2.5 shadow-2xs">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-blue-700">Interest / Rate Adj</span>
-                        <p className="mt-0.5 text-sm font-black text-blue-900">+{formatMoney(installmentCalculation?.interestAmount || 0)}</p>
+                      <div className="rounded-lg bg-white border border-blue-100 p-2">
+                        <span className="text-[10px] text-blue-700 block">Interest Adj</span>
+                        <span className="font-mono font-bold text-blue-900">+{formatMoney(installmentCalculation?.interestAmount || 0)}</span>
                       </div>
-                      <div className="rounded-xl border border-blue-100 bg-white p-2.5 shadow-2xs">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-maroon)]">Financed Total</span>
-                        <p className="mt-0.5 text-sm font-black text-[var(--color-maroon)]">{formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}</p>
+                      <div className="rounded-lg bg-white border border-blue-100 p-2">
+                        <span className="text-[10px] text-[var(--color-maroon)] block">Financed Total</span>
+                        <span className="font-mono font-bold text-[var(--color-maroon)]">{formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}</span>
                       </div>
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 shadow-2xs">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Monthly ({installmentCalculation?.months} mos)</span>
-                        <p className="mt-0.5 text-sm font-black text-emerald-950">{formatMoney(installmentCalculation?.monthlyDueAmount || 0)}/mo</p>
+                      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2">
+                        <span className="text-[10px] text-emerald-800 block">Monthly ({installmentCalculation?.months} mos)</span>
+                        <span className="font-mono font-bold text-emerald-950">{formatMoney(installmentCalculation?.monthlyDueAmount || 0)}/mo</span>
                       </div>
                     </div>
 
-                    <div className="grid gap-3 pt-1 sm:grid-cols-3">
-                      <label>
-                        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">Installment Term</span>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase text-blue-900 block">Term</span>
                         <select
-                          className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm font-semibold text-[var(--color-text-strong)]"
+                          className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                           onChange={(event) => setCreditTerm(event.target.value)}
                           value={creditTerm}
                         >
@@ -3207,10 +3212,10 @@ function PosSalesPage({ selectedBranch, user }) {
                         </select>
                       </label>
 
-                      <label>
-                        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">Due day (optional)</span>
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase text-blue-900 block">Due Day</span>
                         <input
-                          className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm"
+                          className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
                           max="31"
                           min="1"
                           onChange={(event) => setCreditDueDay(event.target.value)}
@@ -3221,22 +3226,22 @@ function PosSalesPage({ selectedBranch, user }) {
                         />
                       </label>
 
-                      <label>
-                        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">First due date (optional)</span>
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase text-blue-900 block">First Due Date</span>
                         <input
-                          className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm"
+                          className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
                           onChange={(event) => setCreditFirstDueDate(event.target.value)}
                           type="date"
                           value={creditFirstDueDate}
                         />
                       </label>
 
-                      <label className="sm:col-span-3">
-                        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">AR Remarks / Approval notes</span>
+                      <label className="sm:col-span-3 block">
+                        <span className="text-[10px] font-bold uppercase text-blue-900 block">AR Notes</span>
                         <input
-                          className="mt-1.5 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm"
+                          className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
                           onChange={(event) => setCreditRemarks(event.target.value)}
-                          placeholder="Provider approval code, account notes, or reference"
+                          placeholder="Provider approval code or account notes"
                           value={creditRemarks}
                         />
                       </label>
@@ -3244,23 +3249,21 @@ function PosSalesPage({ selectedBranch, user }) {
                   </div>
                 ) : null}
 
-                <div className="mt-3 flex flex-wrap justify-between gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
-                  <span>Expected balance: {formatMoney(expectedBalance)}</span>
-                  <span>Expected change: {formatMoney(expectedChange)}</span>
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500">
+                  <span>Balance: <strong className="font-mono text-slate-800">{formatMoney(expectedBalance)}</strong></span>
+                  <span>Change: <strong className="font-mono text-emerald-700">{formatMoney(expectedChange)}</strong></span>
                 </div>
               </div>
 
               {cart.length > 0 && !selectedCustomerId && !customerSearch.trim() ? (
-                <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-900 shadow-2xs">
-                  <span className="font-semibold">
-                    ⚠️ Customer name is required to Preview, Quote, or Complete sale.
-                  </span>
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900">
+                  <span>⚠️ Customer name is required to complete sale.</span>
                   <button
                     type="button"
                     onClick={() => customerInputRef.current?.focus()}
-                    className="font-bold text-[var(--color-maroon)] underline hover:opacity-80 shrink-0"
+                    className="font-bold text-[var(--color-maroon)] underline shrink-0"
                   >
-                    Enter Customer Name ↑
+                    Enter Name ↑
                   </button>
                 </div>
               ) : null}
@@ -3268,50 +3271,50 @@ function PosSalesPage({ selectedBranch, user }) {
               {checkoutMessage ? <ErrorBanner>{checkoutMessage}</ErrorBanner> : null}
 
               {/* Action Buttons Toolbar: Preview, Quote, and Complete Sale */}
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 pt-1">
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-slate-300 bg-white px-4 py-3.5 text-sm font-bold text-slate-800 shadow-xs transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 shadow-2xs transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={cart.length === 0 || (!selectedCustomerId && !customerSearch.trim())}
                   onClick={openCartPreview}
-                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Preview quotation before finalizing"}
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter customer name first" : "Preview quotation before finalizing"}
                   type="button"
                 >
-                  <Eye size={17} />
+                  <Eye size={15} />
                   Preview
                 </button>
 
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-[#002060] bg-blue-50/50 px-4 py-3.5 text-sm font-bold text-[#002060] shadow-xs transition hover:bg-blue-100/70 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50/50 px-3 py-2.5 text-xs font-bold text-blue-900 shadow-2xs transition hover:bg-blue-100/70 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={cart.length === 0 || isCreatingQuotation || (!selectedCustomerId && !customerSearch.trim())}
                   onClick={submitQuotation}
-                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Create official quotation"}
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter customer name first" : "Create official quotation"}
                   type="button"
                 >
                   {isCreatingQuotation ? (
-                    <LoaderCircle className="animate-spin" size={17} />
+                    <LoaderCircle className="animate-spin" size={15} />
                   ) : (
-                    <FileText size={17} />
+                    <FileText size={15} />
                   )}
-                  {isCreatingQuotation ? "Creating Quote…" : "Quote"}
+                  {isCreatingQuotation ? "Creating…" : "Quote"}
                 </button>
 
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-3.5 text-sm font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3 py-2.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1"
                   disabled={cart.length === 0 || isSubmittingSale || !branchId || (!selectedCustomerId && !customerSearch.trim())}
                   onClick={openSaleCheckoutPreview}
-                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter a customer name first" : "Review and complete sale"}
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter customer name first" : "Review and complete sale"}
                   type="button"
                 >
                   {isSubmittingSale ? (
-                    <LoaderCircle className="animate-spin" size={17} />
+                    <LoaderCircle className="animate-spin" size={15} />
                   ) : (
-                    <ReceiptText size={17} />
+                    <ReceiptText size={15} />
                   )}
                   {isSubmittingSale
                     ? "Completing…"
                     : isReceivableCheckout
                       ? `Complete AR · ${formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}`
-                      : `Complete sale · ${formatMoney(totals.grandTotal)}`}
+                      : `Complete Sale · ${formatMoney(totals.grandTotal)}`}
                 </button>
               </div>
             </div>
@@ -3319,27 +3322,27 @@ function PosSalesPage({ selectedBranch, user }) {
         </div>
       ) : null}
 
-      <section className="min-w-0 overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
-        <div className="border-b border-[var(--color-border)] p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <span className={`grid h-10 w-10 place-items-center rounded-2xl ${historyTab === "QUOTATIONS" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"}`}>
-                {historyTab === "QUOTATIONS" ? <FileText size={20} /> : <ReceiptText size={20} />}
+      {/* Sales History & Customer Quotations Section */}
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+        <div className="border-b border-slate-200 bg-slate-50/75 p-3.5">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`grid size-7 place-items-center rounded-lg ${historyTab === "QUOTATIONS" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"}`}>
+                {historyTab === "QUOTATIONS" ? <FileText size={15} /> : <ReceiptText size={15} />}
               </span>
               <div>
-                <h2 className="font-black text-[var(--color-text-strong)]">
-                  {historyTab === "QUOTATIONS" ? "Customer Quotations" : "Sales history"}
+                <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  {historyTab === "QUOTATIONS" ? "Customer Quotations" : "Branch Sales History"}
                 </h2>
-                <p className="text-xs text-[var(--color-muted)]">Records for the active branch.</p>
               </div>
             </div>
 
-            <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-1">
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-0.5">
               <button
-                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition ${
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                   historyTab === "SALES"
-                    ? "bg-white text-[var(--color-text-strong)] shadow-xs"
-                    : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                    ? "bg-white text-slate-900 shadow-2xs"
+                    : "text-slate-500 hover:text-slate-900"
                 }`}
                 onClick={() => {
                   setHistoryTab("SALES")
@@ -3347,19 +3350,19 @@ function PosSalesPage({ selectedBranch, user }) {
                 }}
                 type="button"
               >
-                <ReceiptText size={15} />
+                <ReceiptText size={13} />
                 Sales History
                 {salesMeta?.total !== undefined ? (
-                  <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                  <span className="ml-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
                     {salesMeta.total}
                   </span>
                 ) : null}
               </button>
               <button
-                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition ${
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                   historyTab === "QUOTATIONS"
-                    ? "bg-white text-[var(--color-text-strong)] shadow-xs"
-                    : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                    ? "bg-white text-slate-900 shadow-2xs"
+                    : "text-slate-500 hover:text-slate-900"
                 }`}
                 onClick={() => {
                   setHistoryTab("QUOTATIONS")
@@ -3367,10 +3370,10 @@ function PosSalesPage({ selectedBranch, user }) {
                 }}
                 type="button"
               >
-                <FileText size={15} />
-                Quotations (Convert to Sale)
+                <FileText size={13} />
+                Quotations (Convert)
                 {quotationsMeta?.totalItems !== undefined || quotationsMeta?.total !== undefined ? (
-                  <span className="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-extrabold text-blue-800">
+                  <span className="ml-1 rounded-full bg-blue-50 border border-blue-200 px-1.5 py-0.2 text-[10px] font-bold text-blue-800">
                     {quotationsMeta?.totalItems ?? quotationsMeta?.total}
                   </span>
                 ) : null}
@@ -3378,31 +3381,31 @@ function PosSalesPage({ selectedBranch, user }) {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
             <label className="relative md:col-span-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={17} />
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-11 pr-4 text-sm outline-none focus:border-[var(--color-maroon)]"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs outline-none focus:border-[var(--color-maroon)]"
                 onChange={(event) => {
                   setSalesSearch(event.target.value)
                   setSalesPage(1)
                   setQuotationsPage(1)
                 }}
-                placeholder={historyTab === "QUOTATIONS" ? "Search customer name, quote no, or title" : "Search customer name, receipt code, or remarks"}
+                placeholder={historyTab === "QUOTATIONS" ? "Search customer name, quote no…" : "Search customer, receipt code, remarks…"}
                 value={salesSearch}
               />
             </label>
 
             {historyTab === "SALES" ? (
               <>
-                <select className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-semibold" onChange={(event) => { setSalesStatus(event.target.value); setSalesPage(1) }} value={salesStatus}>
+                <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSalesStatus(event.target.value); setSalesPage(1) }} value={salesStatus}>
                   <option value="">All sale statuses</option>
                   <option value="COMPLETED">Completed</option>
                   <option value="CANCELLED">Cancelled</option>
                   <option value="REFUNDED">Refunded</option>
                   <option value="PARTIALLY_REFUNDED">Partially refunded</option>
                 </select>
-                <select className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-semibold" onChange={(event) => { setPaymentStatus(event.target.value); setSalesPage(1) }} value={paymentStatus}>
+                <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setPaymentStatus(event.target.value); setSalesPage(1) }} value={paymentStatus}>
                   <option value="">All payment statuses</option>
                   <option value="PAID">Paid</option>
                   <option value="PARTIALLY_PAID">Partially paid</option>
@@ -3412,7 +3415,7 @@ function PosSalesPage({ selectedBranch, user }) {
               </>
             ) : (
               <select
-                className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-semibold md:col-span-2"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)] md:col-span-2"
                 onChange={(event) => {
                   setQuotationStatusFilter(event.target.value)
                   setQuotationsPage(1)
@@ -3430,14 +3433,14 @@ function PosSalesPage({ selectedBranch, user }) {
 
         {historyTab === "SALES" ? (
           isLoadingSales ? (
-            <div className="flex items-center gap-3 p-6 text-sm font-semibold text-[var(--color-muted)]"><LoaderCircle className="animate-spin" size={18} />Loading sales…</div>
+            <div className="flex items-center justify-center gap-2 p-8 text-xs font-bold text-slate-400"><LoaderCircle className="animate-spin" size={16} />Loading sales…</div>
           ) : sales.length === 0 ? (
-            <div className="grid place-items-center p-10 text-center"><ReceiptText className="text-[var(--color-muted)]" size={40} /><p className="mt-3 font-bold text-[var(--color-text-strong)]">{salesMessage || "No sales yet"}</p><p className="mt-1 text-sm text-[var(--color-muted)]">Completed transactions will appear here.</p></div>
+            <div className="p-8 text-center"><ReceiptText className="mx-auto text-slate-300" size={32} /><p className="mt-2 text-xs font-bold text-slate-700">{salesMessage || "No sales yet"}</p><p className="mt-0.5 text-[11px] text-slate-400">Completed transactions will appear here.</p></div>
           ) : (
             <>
               <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[900px] text-left text-sm">
-                  <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                <table className="w-full min-w-[900px] text-left text-xs">
+                  <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                     <tr>
                       <th className="px-4 py-3">Receipt</th>
                       <th className="px-4 py-3">Customer</th>
@@ -3448,45 +3451,45 @@ function PosSalesPage({ selectedBranch, user }) {
                       <th className="px-4 py-3 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]">
+                  <tbody className="divide-y divide-slate-200">
                     {sales.map((sale) => (
-                      <tr className="transition hover:bg-[var(--color-soft)]" key={sale.id}>
-                        <td className="px-4 py-4">
-                          <p className="font-bold text-[var(--color-text-strong)]">{sale.receiptCode}</p>
-                          <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
+                      <tr className="hover:bg-slate-50/50 transition" key={sale.id}>
+                        <td className="px-4 py-3">
+                          <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
+                          <p className="text-[10px] text-slate-400">{formatDate(sale.saleDate)}</p>
                         </td>
-                        <td className="px-4 py-4">{sale.customer?.fullName || "Walk-in"}</td>
-                        <td className="px-4 py-4">{sale.cashier?.fullName || "—"}</td>
-                        <td className="px-4 py-4"><StatusBadge status={sale.status} /></td>
-                        <td className="px-4 py-4"><StatusBadge status={sale.paymentStatus} /></td>
-                        <td className="px-4 py-4 text-right font-black">{formatMoney(sale.grandTotal)}</td>
-                        <td className="px-4 py-4 text-right">
-                          <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                        <td className="px-4 py-3 font-semibold text-slate-800">{sale.customer?.fullName || "Walk-in"}</td>
+                        <td className="px-4 py-3 text-slate-600">{sale.cashier?.fullName || "—"}</td>
+                        <td className="px-4 py-3"><StatusBadge status={sale.status} /></td>
+                        <td className="px-4 py-3"><StatusBadge status={sale.paymentStatus} /></td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">{formatMoney(sale.grandTotal)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center justify-end gap-1.5">
                             <button
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-bold transition hover:bg-[var(--color-soft)]"
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                               onClick={() => openSaleDetails(sale)}
                               type="button"
                             >
-                              <Eye size={13} /> View
+                              <Eye size={12} /> View
                             </button>
                             {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
                               <button
-                                className="inline-flex items-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-bold text-orange-800 transition hover:bg-orange-100"
+                                className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800 hover:bg-orange-100 transition"
                                 onClick={() => handleOpenReturn(sale)}
                                 type="button"
                                 title="Refund or return specific items"
                               >
-                                <RotateCcw size={13} /> Refund
+                                <RotateCcw size={12} /> Refund
                               </button>
                             ) : null}
                             {canCancelSale && sale.status === "COMPLETED" ? (
                               <button
-                                className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100 transition"
                                 onClick={() => handleOpenCancel(sale)}
                                 type="button"
                                 title="Cancel whole sale"
                               >
-                                <X size={13} /> Cancel
+                                <X size={12} /> Cancel
                               </button>
                             ) : null}
                           </div>
@@ -3496,45 +3499,45 @@ function PosSalesPage({ selectedBranch, user }) {
                   </tbody>
                 </table>
               </div>
-              <div className="grid gap-3 p-4 lg:hidden">
+              <div className="grid gap-2.5 p-3 lg:hidden text-xs">
                 {sales.map((sale) => (
-                  <article className="rounded-2xl border border-[var(--color-border)] p-4" key={sale.id}>
-                    <div className="flex items-start justify-between gap-3">
+                  <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs" key={sale.id}>
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-black text-[var(--color-text-strong)]">{sale.receiptCode}</p>
-                        <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(sale.saleDate)}</p>
+                        <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
+                        <p className="text-[10px] text-slate-400">{formatDate(sale.saleDate)}</p>
                       </div>
-                      <p className="font-black text-[var(--color-text-strong)]">{formatMoney(sale.grandTotal)}</p>
+                      <p className="font-mono font-bold text-slate-900">{formatMoney(sale.grandTotal)}</p>
                     </div>
-                    <p className="mt-3 text-sm">{sale.customer?.fullName || "Walk-in customer"}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <p className="mt-1.5 text-slate-700">{sale.customer?.fullName || "Walk-in customer"}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       <StatusBadge status={sale.status} />
                       <StatusBadge status={sale.paymentStatus} />
                     </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <div className="mt-2.5 flex items-center gap-1.5 pt-2 border-t border-slate-100">
                       <button
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold"
+                        className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-700"
                         onClick={() => openSaleDetails(sale)}
                         type="button"
                       >
-                        <Eye size={14} /> View
+                        <Eye size={12} /> View
                       </button>
                       {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
                         <button
-                          className="inline-flex items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800"
+                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800"
                           onClick={() => handleOpenReturn(sale)}
                           type="button"
                         >
-                          <RotateCcw size={14} /> Refund
+                          <RotateCcw size={12} /> Refund
                         </button>
                       ) : null}
                       {canCancelSale && sale.status === "COMPLETED" ? (
                         <button
-                          className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
+                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700"
                           onClick={() => handleOpenCancel(sale)}
                           type="button"
                         >
-                          <X size={14} /> Cancel
+                          <X size={12} /> Cancel
                         </button>
                       ) : null}
                     </div>
@@ -3544,36 +3547,33 @@ function PosSalesPage({ selectedBranch, user }) {
             </>
           )
         ) : (
-          /* Quotations History View with Direct Convert to Sale */
+          /* Quotations History View */
           isLoadingQuotations ? (
-            <div className="flex items-center gap-3 p-6 text-sm font-semibold text-[var(--color-muted)]">
-              <LoaderCircle className="animate-spin" size={18} />
-              Loading customer quotations…
+            <div className="flex items-center justify-center gap-2 p-8 text-xs font-bold text-slate-400">
+              <LoaderCircle className="animate-spin" size={16} /> Loading quotations…
             </div>
           ) : quotations.length === 0 ? (
-            <div className="grid place-items-center p-10 text-center">
-              <FileText className="text-[var(--color-muted)]" size={40} />
-              <p className="mt-3 font-bold text-[var(--color-text-strong)]">{quotationsMessage || "No quotations found"}</p>
-              <p className="mt-1 text-sm text-[var(--color-muted)]">
-                Quotations created in POS or saved for customers will appear here ready to convert.
-              </p>
+            <div className="p-8 text-center">
+              <FileText className="mx-auto text-slate-300" size={32} />
+              <p className="mt-2 text-xs font-bold text-slate-700">{quotationsMessage || "No quotations found"}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Quotations created in POS will appear here ready to convert.</p>
             </div>
           ) : (
             <>
               <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[900px] text-left text-sm">
-                  <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                <table className="w-full min-w-[900px] text-left text-xs">
+                  <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                     <tr>
-                      <th className="px-4 py-3">Quotation no.</th>
+                      <th className="px-4 py-3">Quotation No.</th>
                       <th className="px-4 py-3">Customer</th>
                       <th className="px-4 py-3">Items</th>
                       <th className="px-4 py-3">Prepared by</th>
                       <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3 text-right">Grand total</th>
+                      <th className="px-4 py-3 text-right">Grand Total</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]">
+                  <tbody className="divide-y divide-slate-200">
                     {quotations.map((quote) => {
                       const displayCode = String(quote.quotationCode || "").match(/\d+$/)?.[0]?.padStart(5, "0") || quote.quotationCode
                       const itemCount = quote._count?.items ?? quote.items?.length ?? "—"
@@ -3581,38 +3581,38 @@ function PosSalesPage({ selectedBranch, user }) {
                       const canCancel = !["CONVERTED", "CANCELLED"].includes(quote.status)
 
                       return (
-                        <tr className="transition hover:bg-[var(--color-soft)]" key={quote.id}>
-                          <td className="px-4 py-4">
-                            <p className="font-mono font-bold text-[var(--color-text-strong)]">#{displayCode}</p>
-                            <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(quote.createdAt)}</p>
+                        <tr className="hover:bg-slate-50/50 transition" key={quote.id}>
+                          <td className="px-4 py-3">
+                            <p className="font-mono font-bold text-slate-900">#{displayCode}</p>
+                            <p className="text-[10px] text-slate-400">{formatDate(quote.createdAt)}</p>
                           </td>
-                          <td className="px-4 py-4 font-semibold text-[var(--color-text-strong)]">
+                          <td className="px-4 py-3 font-semibold text-slate-800">
                             {quote.customer?.fullName || "Walk-in customer"}
                           </td>
-                          <td className="px-4 py-4 font-medium text-[var(--color-muted)]">
+                          <td className="px-4 py-3 text-slate-500">
                             {itemCount} item(s)
                           </td>
-                          <td className="px-4 py-4 text-xs text-[var(--color-muted)]">
+                          <td className="px-4 py-3 text-slate-500">
                             {quote.preparedBy?.fullName || "—"}
                           </td>
-                          <td className="px-4 py-4">
-                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
                               quote.status === "CONVERTED"
-                                ? "bg-emerald-100 text-emerald-800"
+                                ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
                                 : quote.status === "CANCELLED"
-                                  ? "bg-rose-100 text-rose-800"
-                                  : "bg-blue-100 text-blue-800"
+                                  ? "bg-rose-50 border border-rose-200 text-rose-800"
+                                  : "bg-blue-50 border border-blue-200 text-blue-800"
                             }`}>
                               {quote.status}
                             </span>
                           </td>
-                          <td className="px-4 py-4 text-right font-black text-[var(--color-text-strong)]">
+                          <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">
                             {formatMoney(quote.grandTotal)}
                           </td>
-                          <td className="px-4 py-4 text-right">
-                            <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center justify-end gap-1.5">
                               <button
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-bold transition hover:bg-[var(--color-soft)]"
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                                 onClick={async () => {
                                   try {
                                     const detailed = await getQuotationById(quote.id)
@@ -3623,12 +3623,12 @@ function PosSalesPage({ selectedBranch, user }) {
                                 }}
                                 type="button"
                               >
-                                <Eye size={13} /> View
+                                <Eye size={12} /> View
                               </button>
 
                               {canConvert ? (
                                 <button
-                                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition"
                                   onClick={async () => {
                                     try {
                                       const detailed = await getQuotationById(quote.id)
@@ -3640,13 +3640,13 @@ function PosSalesPage({ selectedBranch, user }) {
                                   type="button"
                                   title="Convert directly into a completed sale"
                                 >
-                                  <ReceiptText size={13} /> Convert to Sale
+                                  <ReceiptText size={12} /> Convert
                                 </button>
                               ) : null}
 
                               {canCancel ? (
                                 <button
-                                  className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100 transition"
                                   disabled={isCancellingQuotation}
                                   onClick={async () => {
                                     if (!window.confirm(`Are you sure you want to cancel Quotation #${displayCode}?`)) {
@@ -3669,7 +3669,7 @@ function PosSalesPage({ selectedBranch, user }) {
                                   type="button"
                                   title="Cancel quotation"
                                 >
-                                  <X size={13} /> Cancel
+                                  <X size={12} /> Cancel
                                 </button>
                               ) : null}
                             </div>
@@ -3681,34 +3681,30 @@ function PosSalesPage({ selectedBranch, user }) {
                 </table>
               </div>
 
-              {/* Mobile view for quotations */}
-              <div className="grid gap-3 p-4 lg:hidden">
+              <div className="grid gap-2.5 p-3 lg:hidden text-xs">
                 {quotations.map((quote) => {
                   const displayCode = String(quote.quotationCode || "").match(/\d+$/)?.[0]?.padStart(5, "0") || quote.quotationCode
                   const canConvert = !["CONVERTED", "CANCELLED", "REJECTED"].includes(quote.status)
                   const canCancel = !["CONVERTED", "CANCELLED"].includes(quote.status)
 
                   return (
-                    <article className="rounded-2xl border border-[var(--color-border)] p-4" key={quote.id}>
-                      <div className="flex items-start justify-between gap-3">
+                    <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs" key={quote.id}>
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="font-mono font-black text-[var(--color-text-strong)]">#{displayCode}</p>
-                          <p className="mt-1 text-xs text-[var(--color-muted)]">{formatDate(quote.createdAt)}</p>
+                          <p className="font-mono font-bold text-slate-900">#{displayCode}</p>
+                          <p className="text-[10px] text-slate-400">{formatDate(quote.createdAt)}</p>
                         </div>
-                        <p className="font-black text-[var(--color-text-strong)]">{formatMoney(quote.grandTotal)}</p>
+                        <p className="font-mono font-bold text-slate-900">{formatMoney(quote.grandTotal)}</p>
                       </div>
-                      <p className="mt-3 text-sm font-semibold">{quote.customer?.fullName || "Walk-in customer"}</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                      <p className="mt-1.5 text-slate-700">{quote.customer?.fullName || "Walk-in customer"}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className="inline-flex rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-800">
                           {quote.status}
                         </span>
-                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-                          {quote._count?.items ?? quote.items?.length ?? 0} items
-                        </span>
                       </div>
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-2.5 flex items-center gap-1.5 pt-2 border-t border-slate-100">
                         <button
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-bold"
+                          className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-700"
                           onClick={async () => {
                             try {
                               const detailed = await getQuotationById(quote.id)
@@ -3719,11 +3715,11 @@ function PosSalesPage({ selectedBranch, user }) {
                           }}
                           type="button"
                         >
-                          <Eye size={14} /> View
+                          <Eye size={12} /> View
                         </button>
                         {canConvert ? (
                           <button
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-emerald-700"
+                            className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition"
                             onClick={async () => {
                               try {
                                 const detailed = await getQuotationById(quote.id)
@@ -3734,12 +3730,12 @@ function PosSalesPage({ selectedBranch, user }) {
                             }}
                             type="button"
                           >
-                            <ReceiptText size={14} /> Convert
+                            <ReceiptText size={12} /> Convert
                           </button>
                         ) : null}
                         {canCancel ? (
                           <button
-                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
+                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700"
                             disabled={isCancellingQuotation}
                             onClick={async () => {
                               if (!window.confirm(`Are you sure you want to cancel Quotation #${displayCode}?`)) {
@@ -3761,7 +3757,7 @@ function PosSalesPage({ selectedBranch, user }) {
                             }}
                             type="button"
                           >
-                            <X size={14} /> Cancel
+                            <X size={12} /> Cancel
                           </button>
                         ) : null}
                       </div>
@@ -3773,58 +3769,54 @@ function PosSalesPage({ selectedBranch, user }) {
           )
         )}
 
-        {/* Pagination footer */}
+        {/* Pagination Footer */}
         {historyTab === "SALES" ? (
           !isLoadingSales && sales.length > 0 ? (
-            <div className="flex flex-col gap-3 border-t border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-semibold text-[var(--color-muted)]">
-                Page {salesMeta?.page || salesPage} of {totalPages} · {salesMeta?.total ?? sales.length} sale(s)
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:flex">
+            <footer className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 p-3 text-xs text-slate-500">
+              <p>Page {salesMeta?.page || salesPage} of {totalPages} · {salesMeta?.total ?? sales.length} sale(s)</p>
+              <div className="flex gap-1.5">
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40"
+                  className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30"
                   disabled={salesPage <= 1}
                   onClick={() => setSalesPage((current) => Math.max(1, current - 1))}
                   type="button"
                 >
-                  <ChevronLeft size={16} /> Previous
+                  <ChevronLeft size={16} />
                 </button>
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40"
+                  className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30"
                   disabled={salesPage >= totalPages}
                   onClick={() => setSalesPage((current) => current + 1)}
                   type="button"
                 >
-                  Next <ChevronRight size={16} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
-            </div>
+            </footer>
           ) : null
         ) : (
           !isLoadingQuotations && quotations.length > 0 ? (
-            <div className="flex flex-col gap-3 border-t border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-semibold text-[var(--color-muted)]">
-                Page {quotationsMeta?.page || quotationsPage} of {quotationsMeta?.totalPages || 1} · {quotationsMeta?.totalItems ?? quotations.length} quotation(s)
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:flex">
+            <footer className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 p-3 text-xs text-slate-500">
+              <p>Page {quotationsMeta?.page || quotationsPage} of {quotationsMeta?.totalPages || 1} · {quotationsMeta?.totalItems ?? quotations.length} quotation(s)</p>
+              <div className="flex gap-1.5">
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40"
+                  className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30"
                   disabled={quotationsPage <= 1}
                   onClick={() => setQuotationsPage((current) => Math.max(1, current - 1))}
                   type="button"
                 >
-                  <ChevronLeft size={16} /> Previous
+                  <ChevronLeft size={16} />
                 </button>
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-40"
+                  className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30"
                   disabled={quotationsPage >= (quotationsMeta?.totalPages || 1)}
                   onClick={() => setQuotationsPage((current) => current + 1)}
                   type="button"
                 >
-                  Next <ChevronRight size={16} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
-            </div>
+            </footer>
           ) : null
         )}
       </section>
