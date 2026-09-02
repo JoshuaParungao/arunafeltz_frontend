@@ -697,12 +697,12 @@ function SaleDetailDialog({
                         const warrantyBadge = item.warrantyDuration || (item.item?.hasWarranty ? "1 YEAR WARRANTY" : null)
 
                         const termBasis = Number(sale?.creditAccount?.termBasis || (isCredit && sale?.installmentCalculation?.termBasis) || 1)
-                        const baseUnitPrice = Number(item.baseUnitPriceSnapshot ?? item.baseUnitPrice ?? item.unitPrice ?? 0)
-                        const unitPrice = termBasis < 1
-                          ? Math.round((baseUnitPrice / termBasis) * 100) / 100
+                        const baseSnapshot = item.baseUnitPriceSnapshot != null ? Number(item.baseUnitPriceSnapshot) : null
+                        const unitPrice = baseSnapshot != null && termBasis < 1
+                          ? Math.round((baseSnapshot / termBasis) * 100) / 100
                           : Number(item.unitPrice || 0)
                         const qty = Number(item.quantity || 1)
-                        const lineTotal = termBasis < 1
+                        const lineTotal = baseSnapshot != null && termBasis < 1
                           ? Math.round((qty * unitPrice) * 100) / 100
                           : Number(item.lineTotal || (qty * unitPrice))
 
@@ -2077,6 +2077,7 @@ function PosSalesPage({ selectedBranch, user }) {
           itemNameSnapshot: line.item?.itemName || lineDesc,
           description: lineDesc,
           quantity: Number(line.quantity || 1),
+          baseUnitPriceSnapshot: baseUnit,
           unitPrice,
           discountAmount: Number(line.discountAmount || 0),
           lineTotal,

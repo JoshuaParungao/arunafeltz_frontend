@@ -1030,11 +1030,11 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     const fullDescription = `${item.description || item.item?.itemName || "Item"}${warrantyText}${serialText}`
 
     const qty = String(Number(item.quantity || 1))
-    const baseUnitPrice = Number(item.baseUnitPriceSnapshot ?? item.baseUnitPrice ?? item.unitPrice ?? 0)
-    const rawUnitPrice = termBasis < 1
-      ? Math.round((baseUnitPrice / termBasis) * 100) / 100
+    const baseSnapshot = item.baseUnitPriceSnapshot != null ? Number(item.baseUnitPriceSnapshot) : null
+    const rawUnitPrice = baseSnapshot != null && termBasis < 1
+      ? Math.round((baseSnapshot / termBasis) * 100) / 100
       : Number(item.unitPrice || 0)
-    const rawLineTotal = termBasis < 1
+    const rawLineTotal = baseSnapshot != null && termBasis < 1
       ? Math.round((Number(item.quantity || 1) * rawUnitPrice) * 100) / 100
       : Number(item.lineTotal || (Number(item.quantity || 1) * rawUnitPrice))
 
