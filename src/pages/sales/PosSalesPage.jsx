@@ -33,6 +33,7 @@ import {
   getInventorySerials,
 } from "../../features/inventory/inventory.api"
 import { getItems } from "../../features/items/items.api"
+import { parseItemWarranty } from "../items/ItemsPage"
 import {
   createQuotation,
   getQuotationById,
@@ -1481,7 +1482,7 @@ function PosSalesPage({ selectedBranch, user }) {
           customSerialNumber: preselectedSerial?.serialNumber || "",
           isCustomSerial: !preselectedSerial,
           warrantyType: item.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
-          warrantyDuration: item.isSerialized || item.hasWarranty ? "1 YEAR WARRANTY" : "1 MONTH WARRANTY",
+          warrantyDuration: parseItemWarranty(item),
           batches,
           serials,
         },
@@ -2842,42 +2843,14 @@ function PosSalesPage({ selectedBranch, user }) {
                             {!line.item.isSerialized && selectedBatch ? <p className="mt-1 text-xs text-[var(--color-muted)]">Batch stock {Number(selectedBatch.quantityAvailable || 0)}</p> : null}
                           </div>
 
-                          <div className="sm:col-span-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]/60 p-3">
-                            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-maroon)] flex items-center gap-1.5">
-                                <ShieldCheck size={14} /> Warranty Coverage
-                              </span>
-                              <div className="flex gap-1 flex-wrap">
-                                {[
-                                  { label: "1 Year", duration: "1 YEAR WARRANTY" },
-                                  { label: "2 Years", duration: "2 YEARS WARRANTY" },
-                                  { label: "6 Months", duration: "6 MONTHS WARRANTY" },
-                                  { label: "1 Month", duration: "1 MONTH WARRANTY" },
-                                  { label: "7 Days", duration: "7 DAYS REPLACEMENT" },
-                                  { label: "No Warranty", duration: "NO WARRANTY" },
-                                ].map((preset) => (
-                                  <button
-                                    key={preset.duration}
-                                    type="button"
-                                    onClick={() => updateCartLine(line.localId, { warrantyDuration: preset.duration })}
-                                    className={`rounded-lg px-2 py-1 text-[10px] font-bold transition ${
-                                      (line.warrantyDuration || "").trim().toUpperCase() === preset.duration
-                                        ? "bg-[var(--color-maroon)] text-white shadow-xs"
-                                        : "bg-white text-[var(--color-text-strong)] hover:bg-slate-100 border border-slate-200"
-                                    }`}
-                                  >
-                                    {preset.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <input
-                              type="text"
-                              className="w-full rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)] text-slate-800"
-                              placeholder="e.g. 1 YEAR WARRANTY, 3 YEARS DISTRO WARRANTY, etc."
-                              value={line.warrantyDuration || ""}
-                              onChange={(e) => updateCartLine(line.localId, { warrantyDuration: e.target.value })}
-                            />
+                          <div className="sm:col-span-2 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)]/50 px-3.5 py-2.5">
+                            <span className="text-xs font-bold text-[var(--color-muted)] flex items-center gap-1.5">
+                              <ShieldCheck size={15} className="text-emerald-600" />
+                              Warranty Coverage:
+                            </span>
+                            <span className="rounded-lg bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300">
+                              {line.warrantyDuration || "1 YEAR WARRANTY"}
+                            </span>
                           </div>
                         </div>
                       ) : (

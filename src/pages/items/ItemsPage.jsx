@@ -19,6 +19,34 @@ const PRICE_FIELDS = [
   { key: "price5", label: "Price 5" },
 ]
 
+export function parseItemWarranty(item) {
+  if (!item) return "1 YEAR WARRANTY"
+  if (item.warrantyDuration) return item.warrantyDuration
+  
+  if (item.id) {
+    try {
+      const stored = localStorage.getItem(`item_warranty_${item.id}`)
+      if (stored) return stored
+    } catch {}
+  }
+
+  if (item.description) {
+    const match = item.description.match(/\[WARRANTY:\s*([^\]]+)\]/i)
+    if (match?.[1]) return match[1].trim()
+  }
+
+  if (item.hasWarranty === false && !item.isSerialized) {
+    return "NO WARRANTY"
+  }
+
+  return item.isSerialized ? "1 YEAR WARRANTY" : (item.hasWarranty ? "1 YEAR WARRANTY" : "1 MONTH WARRANTY")
+}
+
+export function stripWarrantyTag(description) {
+  if (!description) return ""
+  return description.replace(/\[WARRANTY:\s*[^\]]+\]/gi, "").trim()
+}
+
 const EMPTY_ITEM_FORM = {
   itemCode: "",
   barcode: "",
@@ -29,7 +57,8 @@ const EMPTY_ITEM_FORM = {
   categoryId: "",
   unitId: "",
   isSerialized: false,
-  hasWarranty: false,
+  hasWarranty: true,
+  warrantyDuration: "1 YEAR WARRANTY",
   status: "ACTIVE",
   costPrice: "0",
   price1: "0",
@@ -46,17 +75,20 @@ function itemToForm(item) {
     return { ...EMPTY_ITEM_FORM }
   }
 
+  const warranty = parseItemWarranty(item)
+
   return {
     itemCode: item.itemCode || "",
     barcode: item.barcode || "",
     itemName: item.itemName || "",
-    description: item.description || "",
+    description: stripWarrantyTag(item.description),
     brand: item.brand || "",
     modelName: item.modelName || "",
     categoryId: item.category?.id || item.categoryId || "",
     unitId: item.unit?.id || item.unitId || "",
     isSerialized: Boolean(item.isSerialized),
-    hasWarranty: Boolean(item.hasWarranty),
+    hasWarranty: warranty !== "NO WARRANTY",
+    warrantyDuration: warranty,
     status: item.status || "ACTIVE",
     costPrice: String(item.costPrice ?? 0),
     price1: String(item.price1 ?? 0),
@@ -177,9 +209,9 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
           </div>
 
           <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Warranty</p>
-            <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-              {item.hasWarranty ? "With warranty" : "No warranty"}
+            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Warranty Coverage</p>
+            <p className="mt-2 font-bold text-emerald-800">
+              {parseItemWarranty(item)}
             </p>
           </div>
         </div>
@@ -434,9 +466,15 @@ function ItemEditorModal({
               <label className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] p-4">
                 <input
                   checked={form.hasWarranty}
-                  onChange={(event) =>
-                    onChange("hasWarranty", event.target.checked)
-                  }
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    onChange("hasWarranty", checked)
+                    if (!checked) {
+                      onChange("warrantyDuration", "NO WARRANTY")
+                    } else if (form.warrantyDuration === "NO WARRANTY") {
+                      onChange("warrantyDuration", "1 YEAR WARRANTY")
+                    }
+                  }}
                   type="checkbox"
                 />
 
@@ -447,6 +485,53 @@ function ItemEditorModal({
                   </span>
                 </span>
               </label>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/50 p-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                <label className="text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-2">
+                  <span>🛡️ Warranty Coverage</span>
+                </label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {[
+                    { label: "1 Year", duration: "1 YEAR WARRANTY" },
+                    { label: "2 Years", duration: "2 YEARS WARRANTY" },
+                    { label: "6 Months", duration: "6 MONTHS WARRANTY" },
+                    { label: "1 Month", duration: "1 MONTH WARRANTY" },
+                    { label: "7 Days", duration: "7 DAYS REPLACEMENT" },
+                    { label: "No Warranty", duration: "NO WARRANTY" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.duration}
+                      type="button"
+                      onClick={() => {
+                        onChange("warrantyDuration", preset.duration)
+                        onChange("hasWarranty", preset.duration !== "NO WARRANTY")
+                      }}
+                      className={`rounded-xl px-2.5 py-1 text-xs font-bold transition ${
+                        (form.warrantyDuration || "").trim().toUpperCase() === preset.duration
+                          ? "bg-[#7A1F2B] text-white shadow-xs"
+                          : "bg-white text-[var(--color-text-strong)] hover:bg-slate-100 border border-slate-200"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <input
+                className={`${inputClass} bg-white`}
+                placeholder="e.g. 1 YEAR WARRANTY, 3 YEARS DISTRO WARRANTY, etc."
+                value={form.warrantyDuration || ""}
+                onChange={(event) => {
+                  const val = event.target.value
+                  onChange("warrantyDuration", val)
+                  onChange("hasWarranty", val.trim().toUpperCase() !== "NO WARRANTY" && Boolean(val.trim()))
+                }}
+              />
+              <p className="mt-1.5 text-xs text-[var(--color-muted)]">
+                This warranty coverage will be automatically used and displayed whenever this product is added in POS Cashiering.
+              </p>
             </div>
 
             {isEditing ? (
@@ -936,21 +1021,25 @@ function ItemsPage({ selectedBranch, user }) {
     setIsSavingItem(true)
     setItemEditorError("")
 
-    const numberValue = (value) => Number(value || 0)
+    const cleanDesc = stripWarrantyTag(itemForm.description)
+    const warrantyStr = (itemForm.warrantyDuration || "1 YEAR WARRANTY").trim()
+    const packagedDesc = warrantyStr
+      ? (cleanDesc ? `${cleanDesc} [WARRANTY: ${warrantyStr}]` : `[WARRANTY: ${warrantyStr}]`)
+      : (cleanDesc || null)
 
     const payload = {
       ...(itemForm.itemCode.trim()
         ? { itemCode: itemForm.itemCode.trim().toUpperCase() }
         : {}),
       itemName: itemForm.itemName.trim(),
-      description: itemForm.description.trim() || null,
+      description: packagedDesc,
       barcode: itemForm.barcode.trim() || null,
       brand: itemForm.brand.trim() || null,
       modelName: itemForm.modelName.trim() || null,
       categoryId: itemForm.categoryId,
       unitId: itemForm.unitId,
       isSerialized: Boolean(itemForm.isSerialized),
-      hasWarranty: Boolean(itemForm.hasWarranty),
+      hasWarranty: warrantyStr !== "NO WARRANTY" && Boolean(warrantyStr),
       costPrice: numberValue(itemForm.costPrice),
       price1: numberValue(itemForm.price1),
       price2: numberValue(itemForm.price2),
@@ -980,6 +1069,12 @@ function ItemsPage({ selectedBranch, user }) {
 
       if (!response?.success || !savedItem) {
         throw new Error("Invalid item response.")
+      }
+
+      if (savedItem?.id && warrantyStr) {
+        try {
+          localStorage.setItem(`item_warranty_${savedItem.id}`, warrantyStr)
+        } catch {}
       }
 
       setItemForm(null)
