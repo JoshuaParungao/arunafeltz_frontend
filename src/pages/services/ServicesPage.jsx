@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
+  AlertCircle,
+  ArrowRight,
   Banknote,
+  Calendar,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
   Clock3,
+  FileText,
   History,
+  Laptop,
+  Layers,
   LoaderCircle,
   Plus,
   Printer,
   RefreshCw,
   Search,
+  ShieldCheck,
+  User,
   UserRoundCheck,
   Wrench,
   X,
@@ -229,9 +238,211 @@ function statusTone(status) {
 
 function StatusBadge({ status }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${statusTone(status)}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusTone(status)}`}>
       {friendly(status)}
     </span>
+  )
+}
+
+function ServiceLifecycleTracker({ job }) {
+  const isCancelled = job.status === "CANCELLED"
+  const isQuick = job.isQuickService
+
+  const steps = [
+    {
+      id: "PENDING",
+      label: "Received",
+      subLabel: job.receivedAt ? new Date(job.receivedAt).toLocaleDateString("en-PH", { month: "short", day: "numeric" }) : "Intake",
+      icon: Clock3,
+    },
+    {
+      id: "IN_PROGRESS",
+      label: isQuick ? "Quick Service" : "In Progress",
+      subLabel: job.assignedTechnician ? (job.assignedTechnician.fullName?.split(" ")[0] || job.assignedTechnician.username) : "Diagnosis / Repair",
+      icon: Wrench,
+    },
+    {
+      id: "READY_FOR_RELEASE",
+      label: "Service Done",
+      subLabel: job.finalServiceCharge ? money(job.finalServiceCharge) : "Ready for Release",
+      icon: CheckCircle2,
+    },
+    {
+      id: "COMPLETED",
+      label: "Released",
+      subLabel: job.releaseOutcome ? friendly(job.releaseOutcome) : "Claimed",
+      icon: UserRoundCheck,
+    },
+  ]
+
+  const statusOrder = {
+    PENDING: 1,
+    IN_PROGRESS: 2,
+    READY_FOR_RELEASE: 3,
+    COMPLETED: 4,
+  }
+
+  const currentStep = isCancelled ? 0 : (statusOrder[job.status] || 1)
+
+  if (isCancelled) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
+        <div className="flex items-center gap-2 font-black text-rose-700 text-sm">
+          <CircleAlert size={18} />
+          <span>Job Order Cancelled</span>
+        </div>
+        {job.cancellationReason ? (
+          <p className="mt-1 text-xs text-rose-600">Reason: {job.cancellationReason}</p>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+            Service Tracking &amp; Progress
+          </span>
+          {isQuick ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
+              <Zap size={11} /> Quick Service
+            </span>
+          ) : null}
+        </div>
+        <span className="text-[11px] font-bold text-slate-500 font-mono">
+          Stage {currentStep} of 4
+        </span>
+      </div>
+
+      <div className="relative">
+        {/* Horizontal Progress Bar Line behind steps */}
+        <div className="absolute top-4 left-6 right-6 h-1 bg-slate-200 -z-0 rounded-full hidden sm:block">
+          <div
+            className="h-full bg-[var(--color-maroon)] rounded-full transition-all duration-500"
+            style={{
+              width: `${Math.max(0, ((currentStep - 1) / (steps.length - 1)) * 100)}%`,
+            }}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-2 relative z-10">
+          {steps.map((step, idx) => {
+            const stepNum = idx + 1
+            const isCompleted = currentStep > stepNum || (currentStep === 4 && stepNum === 4)
+            const isCurrent = currentStep === stepNum && currentStep !== 4
+            const Icon = step.icon
+
+            return (
+              <div
+                className="flex flex-col items-center text-center"
+                key={step.id}
+              >
+                {/* Step Circle */}
+                <div
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 font-bold text-xs shadow-xs ${
+                    isCompleted
+                      ? "bg-[var(--color-maroon)] text-white ring-4 ring-[var(--color-maroon)]/15"
+                      : isCurrent
+                        ? "bg-white text-[var(--color-maroon)] border-2 border-[var(--color-maroon)] ring-4 ring-[var(--color-maroon)]/20 scale-105"
+                        : "bg-white text-slate-300 border border-slate-200"
+                  }`}
+                >
+                  {isCompleted ? (
+                    <CheckCircle2 size={16} />
+                  ) : (
+                    <Icon size={16} />
+                  )}
+                </div>
+
+                {/* Step Label */}
+                <p
+                  className={`mt-2 text-xs font-black transition-colors ${
+                    isCurrent
+                      ? "text-[var(--color-maroon)]"
+                      : isCompleted
+                        ? "text-slate-900"
+                        : "text-slate-400"
+                  }`}
+                >
+                  {step.label}
+                </p>
+
+                {/* Step SubLabel */}
+                <p className="text-[10px] text-slate-500 truncate max-w-[130px] mt-0.5">
+                  {step.subLabel}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ActionHistoryTimeline({ history = [] }) {
+  if (history.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
+        No action log entries recorded yet.
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+      {history.map((entry, index) => {
+        const isLatest = index === 0
+        const actionLabel = friendly(entry.action)
+        const dateStr = dateTime(entry.createdAt)
+
+        return (
+          <div className="relative group" key={entry.id || index}>
+            {/* Timeline Dot */}
+            <div
+              className={`absolute -left-6 top-1 w-5 h-5 rounded-full border-2 bg-white flex items-center justify-center transition-transform ${
+                isLatest
+                  ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] shadow-xs"
+                  : "border-slate-300"
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${isLatest ? "bg-white" : "bg-slate-400"}`} />
+            </div>
+
+            {/* Content Card */}
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs hover:border-slate-300 transition">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-black text-slate-900">
+                  {actionLabel}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 font-semibold">
+                  {dateStr}
+                </span>
+              </div>
+
+              {entry.description ? (
+                <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                  {entry.description}
+                </p>
+              ) : null}
+
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
+                <span className="font-semibold text-slate-500">
+                  By <strong className="text-slate-700">{entry.actor?.fullName || "System"}</strong>
+                </span>
+                {entry.metadata?.previousStatus && entry.metadata?.status ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600 font-bold">
+                    {friendly(entry.metadata.previousStatus)} ➔ {friendly(entry.metadata.status)}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
@@ -1382,32 +1593,77 @@ export default function ServicesPage({ selectedBranch, user }) {
             <div><Wrench className="mx-auto text-[var(--color-muted)]" size={38} /><p className="mt-3 font-black text-[var(--color-text-strong)]">No job orders found</p><p className="mt-1 text-sm text-[var(--color-muted)]">Adjust the filters or receive a new service.</p></div>
           </div>
         ) : (
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            {jobs.map((job) => (
-              <button className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition hover:border-[var(--color-maroon)]/40 hover:shadow-sm" key={job.id} onClick={() => openDetail(job)} type="button">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-black text-[var(--color-maroon)]">{job.jobCode}</p>
-                      {job.isQuickService ? <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">QUICK</span> : null}
-                      <span className="rounded-full bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black text-[var(--color-text-strong)]">{friendly(job.repairType)}</span>
+          <div className="mt-4 grid gap-3.5 lg:grid-cols-2">
+            {jobs.map((job) => {
+              const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in Customer"
+              const techName = job.assignedTechnician ? technicianLabel(job.assignedTechnician) : "Unassigned"
+
+              return (
+                <button
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition hover:border-[var(--color-maroon)]/50 hover:shadow-md group flex flex-col justify-between gap-3"
+                  key={job.id}
+                  onClick={() => openDetail(job)}
+                  type="button"
+                >
+                  <div className="w-full space-y-2.5">
+                    {/* Top Row: JO Code, Badges, Status */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono text-xs font-black text-[var(--color-maroon)] bg-[var(--color-maroon)]/10 px-2 py-0.5 rounded-md">
+                          {job.jobCode}
+                        </span>
+                        {job.isQuickService ? (
+                          <span className="rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
+                            ⚡ QUICK
+                          </span>
+                        ) : null}
+                        <span className="rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-strong)]">
+                          {friendly(job.repairType)}
+                        </span>
+                      </div>
+                      <StatusBadge status={job.status} />
                     </div>
-                    <h3 className="mt-1 truncate font-black text-[var(--color-text-strong)]">{job.jobTitle}</h3>
+
+                    {/* Middle: Title & Device Excerpt */}
+                    <div>
+                      <h3 className="font-black text-sm text-[var(--color-text-strong)] group-hover:text-[var(--color-maroon)] transition-colors truncate">
+                        {job.jobTitle}
+                      </h3>
+                      <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)] leading-relaxed">
+                        {job.deviceDescription || job.problemDescription || "No device details supplied."}
+                      </p>
+                    </div>
                   </div>
-                  <StatusBadge status={job.status} />
-                </div>
-                <p className="mt-3 line-clamp-2 text-sm text-[var(--color-muted)]">{job.deviceDescription || job.problemDescription || "No device details supplied."}</p>
-                <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                  <div><p className="font-bold text-[var(--color-muted)]">Customer</p><p className="mt-1 truncate font-bold">{job.customerNameSnapshot || job.customer?.fullName || "Walk-in"}</p></div>
-                  <div><p className="font-bold text-[var(--color-muted)]">Assigned technician</p><p className="mt-1 truncate font-bold">{job.assignedTechnician ? technicianLabel(job.assignedTechnician) : "Unassigned"}</p></div>
-                  <div><p className="font-bold text-[var(--color-muted)]">Service Done By</p><p className="mt-1 truncate font-bold">{job.serviceDoneBy ? technicianLabel(job.serviceDoneBy) : "—"}</p></div>
-                  <div><p className="font-bold text-[var(--color-muted)]">Repair category</p><p className="mt-1 font-bold">{friendly(job.repairType)}</p></div>
-                  <div><p className="font-bold text-[var(--color-muted)]">Received</p><p className="mt-1 font-bold">{dateTime(job.receivedAt)}</p></div>
-                  <div><p className="font-bold text-[var(--color-muted)]">Pricing / payment</p><p className="mt-1 font-bold">Base {moneyOrDash(job.baseServiceCharge)} · {percentOrDash(job.markupPercent)} markup</p><p className="mt-0.5 font-black">Final {moneyOrDash(job.finalServiceCharge)} · {friendly(job.paymentState)}</p></div>
-                </div>
-                <FinancialSnapshot compact job={job} />
-              </button>
-            ))}
+
+                  {/* Bottom Row: Customer, Tech, Received Date, Final Price */}
+                  <div className="w-full pt-2.5 border-t border-[var(--color-border)]/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="font-bold text-[var(--color-text-strong)] truncate">
+                        {customerName}
+                      </p>
+                      <p className="text-[11px] text-[var(--color-muted)] truncate">
+                        Tech: <strong className="text-slate-700 dark:text-slate-300">{techName}</strong>
+                      </p>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <p className="font-mono font-black text-sm text-[var(--color-maroon)]">
+                        {moneyOrDash(job.finalServiceCharge)}
+                      </p>
+                      <span className={`inline-flex items-center text-[10px] font-bold ${
+                        job.paymentState === "PAID"
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : job.paymentState === "PARTIALLY_PAID"
+                            ? "text-amber-700 dark:text-amber-400"
+                            : "text-slate-400"
+                      }`}>
+                        {friendly(job.paymentState)}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -1936,106 +2192,349 @@ export default function ServicesPage({ selectedBranch, user }) {
       ) : null}
 
       {selectedJob ? (
-        <Modal onClose={() => { setSelectedJob(null); setActionStatus(""); setShowPayment(false); setShowRelease(false); setShowAssignment(false); setPrintPreviewState({ isOpen: false, defaultDoc: "RECEIPT" }) }} title={selectedJob.jobCode} width="max-w-4xl">
-          <div className="max-h-[78vh] overflow-y-auto p-5 sm:p-6">
+        <Modal
+          onClose={() => {
+            setSelectedJob(null)
+            setActionStatus("")
+            setShowPayment(false)
+            setShowRelease(false)
+            setShowAssignment(false)
+            setPrintPreviewState({ isOpen: false, defaultDoc: "RECEIPT" })
+          }}
+          title={
+            <div className="flex items-center gap-2.5">
+              <span className="font-mono text-sm font-black text-[var(--color-maroon)] bg-[var(--color-maroon)]/10 px-2.5 py-1 rounded-lg">
+                {selectedJob.jobCode}
+              </span>
+              <span className="text-sm font-black text-slate-900 truncate">
+                {selectedJob.jobTitle}
+              </span>
+            </div>
+          }
+          width="max-w-4xl"
+        >
+          <div className="max-h-[80vh] overflow-y-auto p-5 sm:p-6 space-y-5">
             {isDetailLoading ? (
-              <div className="grid min-h-48 place-items-center"><LoaderCircle className="animate-spin" /></div>
+              <div className="grid min-h-48 place-items-center">
+                <LoaderCircle className="animate-spin text-[var(--color-maroon)]" size={32} />
+              </div>
             ) : (
               <div className="space-y-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-xl font-black">{selectedJob.jobTitle}</h3>
-                      {selectedJob.isQuickService ? <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 px-2.5 py-1 text-xs font-black">QUICK SERVICE</span> : null}
-                      <span className="rounded-full bg-[var(--color-soft)] px-2.5 py-1 text-xs font-black text-[var(--color-text-strong)]">{friendly(selectedJob.repairType)}</span>
-                    </div>
-                    <p className="mt-1 text-sm text-[var(--color-muted)]">Received {dateTime(selectedJob.receivedAt)} · {selectedJob.branch?.name || selectedJob.branch?.code}</p>
+                {/* 1. Header Meta Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={selectedJob.status} />
+                    <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      {friendly(selectedJob.repairType)}
+                    </span>
+                    {selectedJob.isQuickService ? (
+                      <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 px-2.5 py-0.5 text-xs font-black">
+                        ⚡ Quick Service
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
-                    <StatusBadge status={selectedJob.status} />
                     <button
-                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-3 py-2 text-xs font-black text-white shadow-sm hover:opacity-95"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-black text-white shadow-xs hover:opacity-90 transition"
                       onClick={() => setPrintPreviewState({ isOpen: true, defaultDoc: "RECEIPT" })}
                       type="button"
                     >
-                      <Printer size={15} /> Print JO / Intake
+                      <Printer size={15} /> Print JO / Intake (A4)
                     </button>
                   </div>
                 </div>
 
-                <div className="grid gap-3 rounded-2xl bg-[var(--color-soft)] p-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Customer</p><p className="mt-1 font-bold">{selectedJob.customerNameSnapshot || selectedJob.customer?.fullName || "Walk-in"}</p><p className="text-xs text-[var(--color-muted)]">{selectedJob.customerContactSnapshot || "No contact supplied"}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Repair category</p><p className="mt-1 font-bold">{friendly(selectedJob.repairType)}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Assigned technician</p><p className="mt-1 font-bold">{selectedJob.assignedTechnician ? technicianLabel(selectedJob.assignedTechnician) : "Unassigned"}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Service Done By</p><p className="mt-1 font-bold">{selectedJob.serviceDoneBy ? technicianLabel(selectedJob.serviceDoneBy) : "—"}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Received by</p><p className="mt-1 font-bold">{selectedJob.receivedBy?.fullName || selectedJob.createdBy?.fullName || "—"}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Payment state</p><p className="mt-1 font-bold">{friendly(selectedJob.paymentState)}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Base service charge</p><p className="mt-1 font-bold">{moneyOrDash(selectedJob.baseServiceCharge)}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Markup</p><p className="mt-1 font-bold">{percentOrDash(selectedJob.markupPercent)}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Service markup amount</p><p className="mt-1 font-bold">{moneyOrDash(selectedJob.serviceMarkupAmount)}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Final service charge</p><p className="mt-1 font-bold">{moneyOrDash(selectedJob.finalServiceCharge)}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Release outcome</p><p className="mt-1 font-bold">{friendly(selectedJob.releaseOutcome)}</p></div>
-                  <div><p className="text-xs font-bold text-[var(--color-muted)]">Released by / at</p><p className="mt-1 font-bold">{selectedJob.releasedBy?.fullName || "—"}</p><p className="text-xs text-[var(--color-muted)]">{dateTime(selectedJob.releasedAt)}</p></div>
+                {/* 2. Primary Tracking & Progress Stepper */}
+                <ServiceLifecycleTracker job={selectedJob} />
+
+                {/* 3. Three Minimalist Structured Cards */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {/* Card A: Customer & Staffing */}
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-3">
+                    <div className="flex items-center gap-1.5 border-b border-slate-200/80 pb-2">
+                      <User size={15} className="text-[var(--color-maroon)]" />
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                        Customer &amp; Handlers
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400">Customer</p>
+                        <p className="font-bold text-slate-900 mt-0.5">
+                          {selectedJob.customerNameSnapshot || selectedJob.customer?.fullName || "Walk-in Customer"}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-mono">
+                          {selectedJob.customerContactSnapshot || "No contact info"}
+                        </p>
+                        {selectedJob.customerAddressSnapshot ? (
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {selectedJob.customerAddressSnapshot}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="pt-1 border-t border-slate-200/60">
+                        <p className="text-[10px] font-bold uppercase text-slate-400">Assigned Technician</p>
+                        <p className="font-bold text-slate-900 mt-0.5">
+                          {selectedJob.assignedTechnician ? technicianLabel(selectedJob.assignedTechnician) : "— Unassigned —"}
+                        </p>
+                      </div>
+                      {selectedJob.serviceDoneBy ? (
+                        <div className="pt-1 border-t border-slate-200/60">
+                          <p className="text-[10px] font-bold uppercase text-slate-400">Service Done By</p>
+                          <p className="font-bold text-[#002060] mt-0.5">
+                            {technicianLabel(selectedJob.serviceDoneBy)}
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="pt-1 border-t border-slate-200/60 text-[11px] text-slate-500 space-y-0.5">
+                        <p>Received: <strong>{selectedJob.receivedBy?.fullName || "—"}</strong></p>
+                        {selectedJob.releasedBy ? (
+                          <p>Released: <strong>{selectedJob.releasedBy?.fullName}</strong> ({dateTime(selectedJob.releasedAt)})</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card B: Device & Diagnosis */}
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-3">
+                    <div className="flex items-center gap-1.5 border-b border-slate-200/80 pb-2">
+                      <Laptop size={15} className="text-[var(--color-maroon)]" />
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                        Device &amp; Diagnosis
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400">Unit / Device</p>
+                        <p className="font-bold text-slate-900 mt-0.5">
+                          {selectedJob.deviceDescription || "No device details"}
+                        </p>
+                        {selectedJob.serialNumber ? (
+                          <p className="text-[11px] font-mono text-slate-600 font-semibold">
+                            S/N: {selectedJob.serialNumber}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="pt-1 border-t border-slate-200/60">
+                        <p className="text-[10px] font-bold uppercase text-slate-400">Reported Problem</p>
+                        <p className="text-slate-700 mt-0.5 whitespace-pre-wrap leading-relaxed line-clamp-3">
+                          {selectedJob.problemDescription || "—"}
+                        </p>
+                      </div>
+                      {selectedJob.diagnosis ? (
+                        <div className="pt-1 border-t border-slate-200/60">
+                          <p className="text-[10px] font-bold uppercase text-slate-400">Diagnosis</p>
+                          <p className="text-slate-800 font-medium mt-0.5 whitespace-pre-wrap leading-relaxed">
+                            {selectedJob.diagnosis}
+                          </p>
+                        </div>
+                      ) : null}
+                      {selectedJob.accessoriesReceived || selectedJob.receivingRemarks ? (
+                        <div className="pt-1 border-t border-slate-200/60 text-[11px] text-slate-500 space-y-0.5">
+                          {selectedJob.accessoriesReceived ? (
+                            <p>Accessories: {selectedJob.accessoriesReceived}</p>
+                          ) : null}
+                          {selectedJob.receivingRemarks ? (
+                            <p>Condition: {selectedJob.receivingRemarks}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Card C: Pricing & Settlement Summary */}
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-3 sm:col-span-2 lg:col-span-1">
+                    <div className="flex items-center gap-1.5 border-b border-slate-200/80 pb-2">
+                      <Banknote size={15} className="text-[var(--color-maroon)]" />
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                        Pricing &amp; Settlement
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Base Service Charge</span>
+                        <span className="font-mono font-bold text-slate-800">{moneyOrDash(selectedJob.baseServiceCharge)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Markup Rate</span>
+                        <span className="font-mono font-bold text-slate-800">{percentOrDash(selectedJob.markupPercent)}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-t border-slate-200/80 pt-1.5">
+                        <span className="font-black text-slate-900 text-xs">Final Charge</span>
+                        <span className="font-mono font-black text-[var(--color-maroon)] text-sm">{moneyOrDash(selectedJob.finalServiceCharge)}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-t border-slate-200/80 pt-1.5">
+                        <span className="font-bold text-slate-600">Payment Status</span>
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-black ${
+                          selectedJob.paymentState === "PAID"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : selectedJob.paymentState === "PARTIALLY_PAID"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-slate-200 text-slate-800"
+                        }`}>
+                          {friendly(selectedJob.paymentState)}
+                        </span>
+                      </div>
+                      {selectedJob.remainingBalance > 0 ? (
+                        <div className="flex justify-between items-center text-rose-700 font-bold">
+                          <span>Balance Due</span>
+                          <span className="font-mono">{money(selectedJob.remainingBalance)}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
 
+                {/* Service Notes & Release Notes (if present) */}
+                {selectedJob.serviceNotes || selectedJob.releaseNotes ? (
+                  <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-2">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                      Work Performed &amp; Notes
+                    </p>
+                    <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+                      {(selectedJob.serviceNotes || "").replace(/\[INTAKE_RECORD_V1\]:[\s\S]*?(\n\n|$)/, "").trim() || "—"}
+                    </p>
+                    {selectedJob.releaseNotes ? (
+                      <p className="text-xs text-slate-600 italic pt-2 border-t border-slate-100">
+                        <strong>Release notes:</strong> {selectedJob.releaseNotes}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {/* Financial Snapshot (if configured) */}
                 <FinancialSnapshot job={selectedJob} />
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {[
-                    ["Device / unit", selectedJob.deviceDescription],
-                    ["Serial number", selectedJob.serialNumber],
-                    ["Reported issue / request", selectedJob.problemDescription],
-                    ["Accessories received", selectedJob.accessoriesReceived],
-                    ["Physical condition / receiving remarks", selectedJob.receivingRemarks],
-                    ["Diagnosis", selectedJob.diagnosis],
-                    ["Service performed / notes", (selectedJob.serviceNotes || "").replace(/\[INTAKE_RECORD_V1\]:[\s\S]*?(\n\n|$)/, "").trim() || "—"],
-                    ["Release notes", selectedJob.releaseNotes],
-                  ].map(([label, value]) => (
-                    <div key={label}><p className="text-xs font-black uppercase tracking-wide text-[var(--color-muted)]">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6">{value || "—"}</p></div>
-                  ))}
-                </div>
-
+                {/* Cancellation Banner */}
                 {selectedJob.cancellationReason && !selectedJob.releaseOutcome ? (
-                  <div className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700"><strong>Cancellation reason:</strong> {selectedJob.cancellationReason}</div>
-                ) : null}
-
-                {(selectedJob.payments || []).length > 0 || selectedJob.creditAccount ? (
-                  <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <div className="flex items-center gap-2 font-black text-emerald-800"><Banknote size={18} /> Settlement history</div>
-                    {(selectedJob.payments || []).map((payment) => (
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/80 p-3 text-sm" key={payment.id}>
-                        <div><p className="font-black">{payment.paymentCode} · {friendly(payment.paymentMethod)} · {money(payment.amount)}</p><p className="mt-1 text-xs text-emerald-700">Collected {dateTime(payment.paidAt)} by {payment.collectedBy?.fullName || "—"} · {friendly(payment.status)}</p></div>
-                        {canCancelPayment && payment.status === "POSTED" && !selectedJob.creditAccount ? <button className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700" disabled={isSaving} onClick={() => reversePayment(payment)} type="button">Cancel payment</button> : null}
-                      </div>
-                    ))}
-                    {selectedJob.creditAccount ? <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"><p className="font-black">AR {selectedJob.creditAccount.creditCode} · {friendly(selectedJob.creditAccount.provider)}</p><p className="mt-1">Remaining {money(selectedJob.creditAccount.remainingBalance)} · collected {money(selectedJob.creditAccount.totalCollected)}</p><p className="mt-1 text-xs">Further settlements are posted through Accounts Receivable collections.</p></div> : null}
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-xs text-rose-700">
+                    <strong className="font-black">Cancellation Reason:</strong> {selectedJob.cancellationReason}
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap gap-2 border-y border-[var(--color-border)] py-4">
-                  {canOpenAssignment ? <button className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold" onClick={openAssignment} type="button"><UserRoundCheck size={17} /> Change assignment</button> : null}
-                  {canSelfClaim ? <button className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold" disabled={isSaving} onClick={claimUnassignedJob} type="button"><UserRoundCheck size={17} /> Assign to me</button> : null}
-                  {canActOnSelected ? lifecycleChoices(selectedJob).map((status) => (
-                    <button className={status === "CANCELLED" ? "rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-bold text-rose-700" : "rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white"} key={status} onClick={() => beginLifecycleAction(status)} type="button">
-                      {status === "IN_PROGRESS" ? "Start work" : status === "READY_FOR_RELEASE" ? "Mark service performed" : "Cancel without release"}
+                {/* Settlements / AR List */}
+                {(selectedJob.payments || []).length > 0 || selectedJob.creditAccount ? (
+                  <div className="space-y-2.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-4">
+                    <div className="flex items-center gap-2 font-black text-emerald-900 text-xs">
+                      <Banknote size={16} /> Settlement Records
+                    </div>
+                    {(selectedJob.payments || []).map((payment) => (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200/60 bg-white p-3 text-xs shadow-2xs" key={payment.id}>
+                        <div>
+                          <p className="font-black text-slate-900">
+                            {payment.paymentCode} · <span className="text-emerald-700">{friendly(payment.paymentMethod)}</span> · {money(payment.amount)}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            Collected {dateTime(payment.paidAt)} by {payment.collectedBy?.fullName || "—"} · <span className="font-bold">{friendly(payment.status)}</span>
+                          </p>
+                        </div>
+                        {canCancelPayment && payment.status === "POSTED" && !selectedJob.creditAccount ? (
+                          <button
+                            className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 transition"
+                            disabled={isSaving}
+                            onClick={() => reversePayment(payment)}
+                            type="button"
+                          >
+                            Cancel payment
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                    {selectedJob.creditAccount ? (
+                      <div className="rounded-xl border border-blue-200/80 bg-white p-3 text-xs text-blue-900 shadow-2xs">
+                        <p className="font-black">AR {selectedJob.creditAccount.creditCode} · {friendly(selectedJob.creditAccount.provider)}</p>
+                        <p className="mt-0.5 text-slate-600">
+                          Remaining: <strong>{money(selectedJob.creditAccount.remainingBalance)}</strong> · Collected: <strong>{money(selectedJob.creditAccount.totalCollected)}</strong>
+                        </p>
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          Further settlements are posted through Accounts Receivable collections.
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {/* 4. Action Buttons Toolbar */}
+                <div className="flex flex-wrap items-center gap-2.5 rounded-2xl bg-slate-100/70 dark:bg-slate-800/70 p-3.5">
+                  {canOpenAssignment ? (
+                    <button
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-2xs hover:bg-slate-50 transition"
+                      onClick={openAssignment}
+                      type="button"
+                    >
+                      <UserRoundCheck size={15} /> Change assignment
                     </button>
-                  )) : null}
-                  {canActOnSelected && selectedIsActive ? <button className="rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-bold text-white" onClick={openRelease} type="button">Release job</button> : null}
-                  {canPaySelected ? <button className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-gold)] px-4 py-2.5 text-sm font-black" onClick={openPayment} type="button"><Banknote size={17} /> Post payment / AR</button> : null}
+                  ) : null}
+                  {canSelfClaim ? (
+                    <button
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-2xs hover:bg-slate-50 transition"
+                      disabled={isSaving}
+                      onClick={claimUnassignedJob}
+                      type="button"
+                    >
+                      <UserRoundCheck size={15} /> Assign to me
+                    </button>
+                  ) : null}
+                  {canActOnSelected
+                    ? lifecycleChoices(selectedJob).map((status) => (
+                        <button
+                          className={
+                            status === "CANCELLED"
+                              ? "inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition shadow-2xs"
+                              : "inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-black text-white shadow-2xs hover:opacity-90 transition"
+                          }
+                          key={status}
+                          onClick={() => beginLifecycleAction(status)}
+                          type="button"
+                        >
+                          {status === "IN_PROGRESS" ? (
+                            <>
+                              <Wrench size={14} /> Start work
+                            </>
+                          ) : status === "READY_FOR_RELEASE" ? (
+                            <>
+                              <CheckCircle2 size={14} /> Mark service performed
+                            </>
+                          ) : (
+                            "Cancel without release"
+                          )}
+                        </button>
+                      ))
+                    : null}
+                  {canActOnSelected && selectedIsActive ? (
+                    <button
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-sky-700 px-4 py-2 text-xs font-black text-white shadow-2xs hover:opacity-90 transition"
+                      onClick={openRelease}
+                      type="button"
+                    >
+                      <UserRoundCheck size={15} /> Release job
+                    </button>
+                  ) : null}
+                  {canPaySelected ? (
+                    <button
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-gold)] px-4 py-2 text-xs font-black text-slate-900 shadow-2xs hover:opacity-90 transition"
+                      onClick={openPayment}
+                      type="button"
+                    >
+                      <Banknote size={15} /> Post payment / AR
+                    </button>
+                  ) : null}
                 </div>
 
-                <section>
-                  <div className="flex items-center gap-2"><History size={18} className="text-[var(--color-maroon)]" /><h4 className="font-black">Action history</h4></div>
-                  <div className="mt-3 space-y-2">
-                    {(selectedJob.actionHistory || []).map((entry) => (
-                      <div className="rounded-2xl border border-[var(--color-border)] p-3" key={entry.id}>
-                        <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-black">{friendly(entry.action)}</p><p className="text-xs text-[var(--color-muted)]">{dateTime(entry.createdAt)}</p></div>
-                        <p className="mt-1 text-sm text-[var(--color-muted)]">{entry.description || "Lifecycle action recorded."}</p>
-                        <p className="mt-1 text-xs font-bold">Action by {entry.actor?.fullName || "System"}{entry.metadata?.previousStatus ? ` · ${friendly(entry.metadata.previousStatus)} → ${friendly(entry.metadata.status)}` : ""}</p>
-                      </div>
-                    ))}
-                    {(selectedJob.actionHistory || []).length === 0 ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-[var(--color-muted)]">No action entries are available for this historical record.</p> : null}
+                {/* 5. Minimalist Action History Timeline */}
+                <section className="pt-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <History size={16} className="text-[var(--color-maroon)]" />
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                        Action &amp; Audit Trail
+                      </h4>
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-400 font-mono">
+                      {(selectedJob.actionHistory || []).length} event{(selectedJob.actionHistory || []).length === 1 ? "" : "s"}
+                    </span>
                   </div>
+                  <ActionHistoryTimeline history={selectedJob.actionHistory || []} />
                 </section>
               </div>
             )}
