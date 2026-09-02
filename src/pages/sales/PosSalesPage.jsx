@@ -2599,66 +2599,9 @@ function PosSalesPage({ selectedBranch, user }) {
 
       {canCreateSale ? (
         <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,0.9fr)_minmax(480px,1.1fr)] items-start">
-          {/* Left Column: Product Search, Customer & Service */}
+          {/* Left Column: Customer, Product Search & Service */}
           <div className="min-w-0 space-y-4">
-            {/* Product Search Card */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="grid size-7 place-items-center rounded-lg bg-rose-50 text-[var(--color-maroon)]">
-                    <PackageSearch size={15} />
-                  </span>
-                  <div>
-                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">Find Products</h2>
-                  </div>
-                </div>
-                <span className="text-[11px] text-slate-400">Scan or press Enter for exact match</span>
-              </div>
-
-              <form className="relative" onSubmit={handleItemSearchSubmit}>
-                <Barcode className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  aria-label="Search products by name, code, brand, model, or barcode"
-                  autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
-                  onChange={(event) => setItemSearch(event.target.value)}
-                  placeholder="Scan barcode or type name, code, brand…"
-                  value={itemSearch}
-                />
-                {isLoadingItems ? <LoaderCircle className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" size={15} /> : null}
-              </form>
-
-              {itemMessage ? <p className="text-xs font-semibold text-amber-700">{itemMessage}</p> : null}
-
-              <div className="max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
-                {itemResults.map((item) => (
-                  <button
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-50/20 disabled:opacity-50 shadow-2xs"
-                    disabled={Boolean(addingItemId)}
-                    key={item.id}
-                    onClick={() => addProduct(item)}
-                    type="button"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-xs font-bold text-slate-900">{item.itemName}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
-                        <span>{item.itemCode}</span>
-                        {item.barcode ? <span>· {item.barcode}</span> : null}
-                        {item.isSerialized ? <span className="rounded bg-slate-100 text-slate-600 px-1 py-0.2 font-sans font-bold">Serial</span> : null}
-                      </span>
-                      <span className="mt-0.5 block text-xs font-mono font-bold text-[var(--color-maroon)]">
-                        From {formatMoney(item[`price${defaultPriceTier(item)}`])}
-                      </span>
-                    </span>
-                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-[var(--color-maroon)] hover:text-white transition">
-                      {addingItemId === item.id ? <LoaderCircle className="animate-spin" size={14} /> : <Plus size={14} />}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {/* Customer & Price Tier Card */}
+            {/* Customer & Price Tier Card (at the very top) */}
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -2823,22 +2766,6 @@ function PosSalesPage({ selectedBranch, user }) {
                 </div>
               ) : null}
 
-              {/* Customer Contact & Address inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <input
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:bg-white transition"
-                  placeholder="Contact / Mobile No. (optional)"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                />
-                <input
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:bg-white transition"
-                  placeholder="Address (optional)"
-                  value={customerAddress}
-                  onChange={(e) => setCustomerAddress(e.target.value)}
-                />
-              </div>
-
               {/* Price Tier Toolbar */}
               <div className="pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-1.5">
@@ -2876,6 +2803,63 @@ function PosSalesPage({ selectedBranch, user }) {
                     )
                   })}
                 </div>
+              </div>
+            </section>
+
+            {/* Product Search Card */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 place-items-center rounded-lg bg-rose-50 text-[var(--color-maroon)]">
+                    <PackageSearch size={15} />
+                  </span>
+                  <div>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">Find Products</h2>
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-400">Scan or press Enter for exact match</span>
+              </div>
+
+              <form className="relative" onSubmit={handleItemSearchSubmit}>
+                <Barcode className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  aria-label="Search products by name, code, brand, model, or barcode"
+                  autoComplete="off"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
+                  onChange={(event) => setItemSearch(event.target.value)}
+                  placeholder="Scan barcode or type name, code, brand…"
+                  value={itemSearch}
+                />
+                {isLoadingItems ? <LoaderCircle className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" size={15} /> : null}
+              </form>
+
+              {itemMessage ? <p className="text-xs font-semibold text-amber-700">{itemMessage}</p> : null}
+
+              <div className="max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
+                {itemResults.map((item) => (
+                  <button
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-50/20 disabled:opacity-50 shadow-2xs"
+                    disabled={Boolean(addingItemId)}
+                    key={item.id}
+                    onClick={() => addProduct(item)}
+                    type="button"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-bold text-slate-900">{item.itemName}</span>
+                      <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+                        <span>{item.itemCode}</span>
+                        {item.barcode ? <span>· {item.barcode}</span> : null}
+                        {item.isSerialized ? <span className="rounded bg-slate-100 text-slate-600 px-1 py-0.2 font-sans font-bold">Serial</span> : null}
+                      </span>
+                      <span className="mt-0.5 block text-xs font-mono font-bold text-[var(--color-maroon)]">
+                        From {formatMoney(item[`price${defaultPriceTier(item)}`])}
+                      </span>
+                    </span>
+                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-[var(--color-maroon)] hover:text-white transition">
+                      {addingItemId === item.id ? <LoaderCircle className="animate-spin" size={14} /> : <Plus size={14} />}
+                    </span>
+                  </button>
+                ))}
               </div>
             </section>
 
