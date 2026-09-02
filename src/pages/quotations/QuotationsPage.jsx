@@ -604,18 +604,6 @@ function QuotationsPage({ selectedBranch, user }) {
     }
   }
 
-  const openNewQuotationForm = () => {
-    resetQuotationForm()
-    setIsFormOpen(true)
-
-    window.setTimeout(() => {
-      formPanelRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      })
-    }, 100)
-  }
-
   const openEditQuotationForm = (quotationToEdit) => {
     const target = quotationToEdit || selectedQuotation
     if (!target?.id || target.status !== "DRAFT") return
@@ -1476,14 +1464,6 @@ function QuotationsPage({ selectedBranch, user }) {
               <option value="CONVERTED">Converted</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
-
-            <button
-              className="rounded-2xl bg-[var(--color-maroon)] px-5 py-3 text-sm font-bold text-white shadow hover:opacity-95"
-              onClick={openNewQuotationForm}
-              type="button"
-            >
-              + New quotation
-            </button>
 
             <button
               className="rounded-2xl border border-[var(--color-border)] bg-white px-5 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
