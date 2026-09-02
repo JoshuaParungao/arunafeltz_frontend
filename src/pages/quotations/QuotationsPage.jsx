@@ -8,12 +8,14 @@ import {
   Printer,
   RefreshCw,
   Search,
+  Trash2,
   User,
 } from "lucide-react"
 
 import {
   getQuotationById,
   getQuotations,
+  updateQuotationStatus,
 } from "../../features/quotations/quotations.api"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 
@@ -177,6 +179,24 @@ export default function QuotationsPage({ selectedBranch, user }) {
     }
   }
 
+  const handleDeleteQuotation = async (quotation) => {
+    if (!quotation?.id) return
+    const ok = window.confirm(
+      `Are you sure you want to delete / cancel Quotation ${quotation.quotationCode || ""}? This action cannot be undone.`
+    )
+    if (!ok) return
+
+    try {
+      await updateQuotationStatus(quotation.id, {
+        status: "CANCELLED",
+        remarks: "Cancelled/Deleted from quotation records archive",
+      })
+      await loadQuotations()
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.response?.data?.error?.message || "Failed to delete quotation.")
+    }
+  }
+
   return (
     <section className="space-y-6">
       {/* Header Banner */}
@@ -195,7 +215,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
               Quotation History & Archive
             </h1>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
-              Historical archive of quotations generated from POS Cashiering. View itemized lines, customer breakdown, and print official quotation copies.
+              Historical archive of quotations generated from POS Cashiering. View itemized lines, print official quotation copies, or delete records.
             </p>
           </div>
 
@@ -314,7 +334,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <th className="px-5 py-4">Prepared By</th>
                   <th className="px-5 py-4 text-right">Grand Total</th>
                   <th className="px-5 py-4">Date Quoted</th>
-                  <th className="px-5 py-4 text-right">Action</th>
+                  <th className="px-5 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border)]">
@@ -360,16 +380,41 @@ export default function QuotationsPage({ selectedBranch, user }) {
                         </div>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <button
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3.5 py-2 text-xs font-black text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
-                          disabled={isLoadingDetails}
-                          onClick={() => handleOpenView(quotation)}
-                          type="button"
-                        >
-                          <Eye size={14} />
-                          <Printer size={14} />
-                          <span>View & Print</span>
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                          <button
+                            className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
+                            disabled={isLoadingDetails}
+                            onClick={() => handleOpenView(quotation)}
+                            title="View quotation details"
+                            type="button"
+                          >
+                            <Eye size={13} />
+                            <span>View</span>
+                          </button>
+
+                          <button
+                            className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
+                            disabled={isLoadingDetails}
+                            onClick={() => handleOpenView(quotation)}
+                            title="Print quotation copy"
+                            type="button"
+                          >
+                            <Printer size={13} />
+                            <span>Print</span>
+                          </button>
+
+                          {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
+                            <button
+                              className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300"
+                              onClick={() => handleDeleteQuotation(quotation)}
+                              title="Delete / Cancel quotation"
+                              type="button"
+                            >
+                              <Trash2 size={13} />
+                              <span>Delete</span>
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   )
