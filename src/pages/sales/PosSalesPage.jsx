@@ -1387,14 +1387,19 @@ function PosSalesPage({ selectedBranch, user }) {
       })
       if (requestId !== quotationRequestIdRef.current) return
 
-      const rows = Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response?.quotations)
-          ? response.quotations
-          : Array.isArray(response)
-            ? response
-            : []
-      const pagination = response?.pagination || response?.meta || null
+      const result = response?.data ?? response ?? {}
+      const rows = Array.isArray(result)
+        ? result
+        : Array.isArray(result.items)
+          ? result.items
+          : Array.isArray(result.data)
+            ? result.data
+            : Array.isArray(result.records)
+              ? result.records
+              : Array.isArray(result.quotations)
+                ? result.quotations
+                : []
+      const pagination = result.pagination || result.meta || response?.pagination || response?.meta || null
 
       setQuotations(rows)
       setQuotationsMeta(pagination)
@@ -2094,6 +2099,7 @@ function PosSalesPage({ selectedBranch, user }) {
       setActiveQuotationDoc(createdQuote)
       setIsQuotationPreviewMode(false)
       setIsQuotationDocOpen(true)
+      await loadQuotations()
     } catch (error) {
       setCheckoutMessage(getApiErrorMessage(error, "Unable to create quotation."))
     } finally {
@@ -3161,7 +3167,10 @@ function PosSalesPage({ selectedBranch, user }) {
                     ? "bg-white text-[var(--color-text-strong)] shadow-xs"
                     : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
                 }`}
-                onClick={() => setHistoryTab("SALES")}
+                onClick={() => {
+                  setHistoryTab("SALES")
+                  loadSales()
+                }}
                 type="button"
               >
                 <ReceiptText size={15} />
@@ -3178,7 +3187,10 @@ function PosSalesPage({ selectedBranch, user }) {
                     ? "bg-white text-[var(--color-text-strong)] shadow-xs"
                     : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
                 }`}
-                onClick={() => setHistoryTab("QUOTATIONS")}
+                onClick={() => {
+                  setHistoryTab("QUOTATIONS")
+                  loadQuotations()
+                }}
                 type="button"
               >
                 <FileText size={15} />
