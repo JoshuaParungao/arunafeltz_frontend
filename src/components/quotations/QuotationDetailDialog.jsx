@@ -159,28 +159,6 @@ export default function QuotationDetailDialog({
           </header>
 
           <div className="p-6 sm:p-8 space-y-6">
-            {isPreview && onSaveQuotation ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-xs text-amber-950 shadow-2xs">
-                <div className="space-y-0.5">
-                  <p className="font-bold text-amber-900 flex items-center gap-1.5 text-sm">
-                    <span>📝</span> Preview Mode · Hindi pa naka-save sa database
-                  </p>
-                  <p className="text-amber-800">
-                    Suriin muna ang mga presyo at items. Kung pinal na, i-click ang <strong>Save Quotation</strong> button para pormal na mai-save sa records.
-                  </p>
-                </div>
-                <button
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white shadow-soft transition hover:bg-emerald-700 disabled:opacity-50 shrink-0"
-                  disabled={isSavingQuotation}
-                  onClick={onSaveQuotation}
-                  type="button"
-                >
-                  <FileText size={15} />
-                  {isSavingQuotation ? "Saving to database…" : "Save Quotation"}
-                </button>
-              </div>
-            ) : null}
-
             {/* Quotation Body Matching QUOTATION-FOR-NEW-SYSTEM (4).xlsx */}
             <div className="border border-slate-300 p-5 rounded-xl bg-white shadow-xs font-sans text-xs text-slate-900">
               {/* Header Grid: Left = Store info, Right = Customer & Sales Meta */}
