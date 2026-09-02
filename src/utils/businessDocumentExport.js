@@ -1060,7 +1060,7 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   doc.line(margin, finalY + 1, margin + contentWidth, finalY + 1)
   doc.line(margin, finalY + 1.8, margin + contentWidth, finalY + 1.8)
 
-  finalY += 5
+  finalY += 4
 
   // -----------------------------------------------------------------
   // 4. TOTALS & FINANCIAL SUMMARY
@@ -1075,9 +1075,14 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   const totalsLabelX = margin + contentWidth - 65
   const totalsValueX = margin + contentWidth
 
-  const totalAmount = Number(sale?.grandTotal || sale?.subtotal || 0)
-  const paidAmount = Number(sale?.amountPaid || 0)
-  const balanceToPay = Math.max(0, totalAmount - paidAmount)
+  const isCredit = Boolean(sale?.creditAccount || options?.isCredit)
+  const totalAmount = isCredit && sale?.creditAccount?.principalAmount
+    ? Number(sale.creditAccount.principalAmount)
+    : Number(sale?.grandTotal || sale?.subtotal || 0)
+  const paidAmount = Number(sale?.amountPaid ?? sale?.creditAccount?.initialPaymentAmount ?? 0)
+  const balanceToPay = isCredit && sale?.creditAccount?.financedBalance != null
+    ? Number(sale.creditAccount.financedBalance)
+    : Math.max(0, totalAmount - paidAmount)
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
@@ -1091,13 +1096,15 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     { align: "right" }
   )
 
-  doc.text("CASH DOWNPAYMENT / PAID", totalsLabelX, finalY + 8)
-  doc.text(
-    paidAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    totalsValueX,
-    finalY + 8,
-    { align: "right" }
-  )
+  if (isCredit || paidAmount > 0) {
+    doc.text(isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID", totalsLabelX, finalY + 8)
+    doc.text(
+      paidAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      totalsValueX,
+      finalY + 8,
+      { align: "right" }
+    )
+  }
 
   doc.text("BALANCE TO PAY", totalsLabelX, finalY + 12)
   doc.text(
@@ -1107,7 +1114,20 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     { align: "right" }
   )
 
-  finalY += 19
+  if (isCredit && sale?.creditAccount?.monthlyDueAmount) {
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7.5)
+    doc.setTextColor(0, 32, 96)
+    doc.text(`MONTHLY (${sale.creditAccount.months || 1} MOS):`, totalsLabelX, finalY + 16)
+    doc.text(
+      `${Number(sale.creditAccount.monthlyDueAmount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
+      totalsValueX,
+      finalY + 16,
+      { align: "right" }
+    )
+  }
+
+  finalY += isCredit && sale?.creditAccount?.monthlyDueAmount ? 23 : 19
 
   // -----------------------------------------------------------------
   // 5. WARRANTY DISCLAIMERS (Centered)
@@ -1148,56 +1168,66 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     { align: "center" }
   )
 
-  finalY += 5
+  finalY += 4
 
-  const sigs = [
-    { label: "Prepared by:", name: (cashier.fullName || cashier.username || "Staff").toUpperCase() },
-    { label: "Warehouse:", name: "Staff" },
-    { label: "Releasing:", name: "Staff" },
-    { label: "Received by:", name: "Signature over Printed Name" },
+  const sigColStartX = [
+    margin,
+    margin + sigColWidth + 2,
+    margin + sigColWidth * 2 + 4,
+    margin + sigColWidth * 3 + 6,
+  ]
+  const sigLineW = sigColWidth - 4
+
+  const sigRows = [
+    { label: "Prepared by:", name: (cashier.fullName || cashier.username || "Staff").toUpperCase(), sub: "" },
+    { label: "Warehouse:", name: "", sub: "Staff" },
+    { label: "Releasing:", name: "", sub: "Staff" },
+    { label: "Received by:", name: "", sub: "Signature over Printed Name" },
   ]
 
-  sigs.forEach((sig, index) => {
-    const x = margin + index * sigColWidth
+  for (let i = 0; i < 4; i++) {
+    const col = sigRows[i]
+    const x = sigColStartX[i]
+
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(7.5)
-    doc.setTextColor(0, 0, 0)
-    doc.text(sig.label, x, finalY)
+    doc.setFontSize(7)
+    doc.setTextColor(70, 70, 70)
+    doc.text(col.label, x, finalY)
+
+    if (col.name) {
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(7.5)
+      doc.setTextColor(0, 0, 0)
+      doc.text(col.name, x + sigLineW / 2, finalY + 6.5, { align: "center" })
+    }
 
     doc.setLineWidth(0.3)
-    doc.line(x, finalY + 11, x + sigColWidth - 4, finalY + 11)
+    doc.setDrawColor(120, 120, 120)
+    doc.line(x, finalY + 8, x + sigLineW, finalY + 8)
 
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(6.5)
-    doc.setTextColor(70, 70, 70)
-    doc.text(sig.name, x + (sigColWidth - 4) / 2, finalY + 14.5, { align: "center" })
-  })
+    if (col.sub) {
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(6.5)
+      doc.setTextColor(100, 100, 100)
+      doc.text(col.sub, x + sigLineW / 2, finalY + 11.5, { align: "center" })
+    }
+  }
 
   if (options.autoPrint) {
     doc.autoPrint()
-    const pdfUrl = doc.output("bloburl")
-    const printWindow = window.open(pdfUrl, "_blank")
-    if (printWindow) {
-      printWindow.onload = () => {
-        printWindow.focus()
-        printWindow.print()
-      }
-    } else {
-      // Fallback if popup blocker is active
-      doc.save(`Warranty_Receipt_${sale?.receiptCode || "receipt"}.pdf`)
-    }
-    return
+    const blobUrl = doc.output("bloburl")
+    window.open(blobUrl, "_blank")
+  } else {
+    const filename = `Warranty-Receipt-${sale?.receiptCode || "receipt"}.pdf`
+    doc.save(filename)
   }
-
-  doc.save(`Warranty_Receipt_${sale?.receiptCode || "receipt"}.pdf`)
 }
 
-export function printWarrantyReceipt(sale) {
-  exportWarrantyReceiptPdf(sale, { autoPrint: true })
+export function printWarrantyReceipt(sale, options = {}) {
+  exportWarrantyReceiptPdf(sale, { ...options, autoPrint: true })
 }
 
 export function exportCustomerQuotationPdf(quotation, options = {}) {
-  const context = options.context || {}
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -1207,21 +1237,20 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
   const margin = 12
   const pageWidth = 210
-  const contentWidth = pageWidth - margin * 2 // 186mm
+  const contentWidth = pageWidth - margin * 2
 
-  const branch = quotation?.branch || context?.branch || {}
-  const customer = quotation?.customer || context?.customer || {}
+  const branch = quotation?.branch || {}
+  const customer = quotation?.customer || {}
   const salesman =
     quotation?.preparedBy?.fullName ||
     quotation?.preparedBy?.username ||
     quotation?.cashier?.fullName ||
     quotation?.cashier?.username ||
-    context?.preparedBy ||
-    context?.salesman ||
+    quotation?.salesman ||
     "—"
 
   // -----------------------------------------------------------------
-  // 1. HEADER SECTION
+  // 1. HEADER SECTION (Store Details on Left, Meta on Right)
   // -----------------------------------------------------------------
   const leftColX = margin
   const leftColWidth = 96
@@ -1231,7 +1260,6 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   const rightValX = rightColX + rightLabelWidth
   const rightValWidth = contentWidth - 102 - rightLabelWidth
 
-  // Left side: Store Details
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
   doc.setTextColor(0, 0, 0)
@@ -1317,25 +1345,30 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   doc.line(margin + contentWidth - codeWidth - 1, bannerY + 1.2, margin + contentWidth, bannerY + 1.2)
 
   // -----------------------------------------------------------------
-  // 3. ITEMS TABLE (Exactly matching QUOTATION-FOR-NEW-SYSTEM (4).xlsx)
+  // 3. ITEMS TABLE (Dual Pricing: Regular Price/Amount vs Cash Promo/Amount)
   // -----------------------------------------------------------------
   const tableStartY = bannerY + 6
-  const tableHead = [["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "CASH DISCOUNTED PRICE", "AMOUNT"]]
+  const tableHead = [["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "REGULAR PRICE", "REGULAR AMOUNT", "CASH PROMO", "CASH AMOUNT"]]
 
+  const termRate = Number(options.installmentCalculation?.termBasis || 0.875)
   const items = quotation?.items || []
   const tableBody = items.map((item) => {
     const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
     const desc = item.description || item.item?.itemName || "Item"
-    const qty = String(Number(item.quantity || 0))
-    const unitPrice = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
-    const lineTotal = Number(item.lineTotal ?? (qty * unitPrice - (Number(item.discountAmount) || 0)))
+    const qty = Number(item.quantity || 0)
+    const cashUnit = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
+    const cashTotal = Number(item.lineTotal ?? (qty * cashUnit - (Number(item.discountAmount) || 0)))
+    const regUnit = Math.round((cashUnit / termRate) * 100) / 100
+    const regTotal = Math.round((cashTotal / termRate) * 100) / 100
 
     return [
       itemCode,
       desc,
-      qty,
-      unitPrice.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      lineTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      String(qty),
+      regUnit.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      regTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      cashUnit.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      cashTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     ]
   })
 
@@ -1347,8 +1380,8 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     margin: { left: margin, right: margin },
     styles: {
       font: "helvetica",
-      fontSize: 7.5,
-      cellPadding: { top: 1.6, bottom: 1.6, left: 1.2, right: 1.2 },
+      fontSize: 7,
+      cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 },
       textColor: [0, 0, 0],
       overflow: "linebreak",
       valign: "middle",
@@ -1356,17 +1389,19 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     headStyles: {
       fontStyle: "bold",
       textColor: [0, 0, 0],
-      fontSize: 8,
+      fontSize: 7.5,
       lineWidth: { top: 0.7, bottom: 0.7 },
       lineColor: [0, 0, 0],
-      cellPadding: { top: 2, bottom: 2, left: 1.2, right: 1.2 },
+      cellPadding: { top: 1.8, bottom: 1.8, left: 1, right: 1 },
     },
     columnStyles: {
-      0: { cellWidth: 22, fontStyle: "bold" },
+      0: { cellWidth: 18, fontStyle: "bold" },
       1: { cellWidth: "auto" },
-      2: { cellWidth: 14, halign: "center" },
-      3: { cellWidth: 38, halign: "right" },
-      4: { cellWidth: 27, halign: "right", fontStyle: "bold" },
+      2: { cellWidth: 10, halign: "center" },
+      3: { cellWidth: 23, halign: "right" },
+      4: { cellWidth: 23, halign: "right" },
+      5: { cellWidth: 23, halign: "right" },
+      6: { cellWidth: 24, halign: "right", fontStyle: "bold" },
     },
   })
 
@@ -1377,14 +1412,14 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   doc.line(margin, finalY + 1, margin + contentWidth, finalY + 1)
   doc.line(margin, finalY + 1.8, margin + contentWidth, finalY + 1.8)
 
-  finalY += 5
+  finalY += 4
 
   // -----------------------------------------------------------------
-  // 4. TOTALS & PRICING SUMMARY (Cash Discounted, SRP, Regular Price / AR)
+  // 4. TOTALS & PRICING SUMMARY (Dual Total: Regular & Cash Promo)
   // -----------------------------------------------------------------
   const cashPromoTotal = Number(quotation?.grandTotal || quotation?.subtotal || 0)
   const srpTotal = Math.round((cashPromoTotal / 0.96) * 100) / 100
-  const regularTotal = Math.round((cashPromoTotal / 0.875) * 100) / 100
+  const regularTotal = Math.round((cashPromoTotal / termRate) * 100) / 100
 
   // Left: Warranty & PC Build Disclaimers (Exactly matching Excel Rows 22-23, 50-52)
   doc.setFont("helvetica", "bold")
@@ -1435,7 +1470,7 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   doc.setFontSize(8)
   doc.setTextColor(0, 0, 0)
 
-  doc.text("TOTAL CASH DISCOUNTED PRICE", totalsLabelX, finalY + 4)
+  doc.text("TOTAL CASH PROMO", totalsLabelX, finalY + 4)
   doc.text(
     cashPromoTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     totalsValueX,
@@ -1443,19 +1478,11 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     { align: "right" }
   )
 
-  doc.text("SUGGESTED RETAIL PRICE", totalsLabelX, finalY + 8.5)
-  doc.text(
-    srpTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    totalsValueX,
-    finalY + 8.5,
-    { align: "right" }
-  )
-
-  doc.text("REGULAR PRICE", totalsLabelX, finalY + 13)
+  doc.text("REGULAR PRICE", totalsLabelX, finalY + 8.5)
   doc.text(
     regularTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     totalsValueX,
-    finalY + 13,
+    finalY + 8.5,
     { align: "right" }
   )
 
@@ -1465,11 +1492,11 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7.5)
     doc.setTextColor(0, 32, 96)
-    doc.text(`SELECTED AR (${calc.months} MOS):`, totalsLabelX, finalY + 17.5)
+    doc.text(`SELECTED AR (${calc.months} MOS):`, totalsLabelX, finalY + 13)
     doc.text(
       `${calc.monthlyDueAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
       totalsValueX,
-      finalY + 17.5,
+      finalY + 13,
       { align: "right" }
     )
   }

@@ -433,9 +433,14 @@ function SaleDetailDialog({
     return name || "—"
   }, [sale])
 
-  const totalAmount = Number(sale?.grandTotal || sale?.subtotal || 0)
-  const paidAmount = Number(sale?.amountPaid || 0)
-  const balanceToPay = Math.max(0, totalAmount - paidAmount)
+  const isCredit = Boolean(sale?.creditAccount || sale?.installmentCalculation)
+  const paidAmount = Number(sale?.amountPaid ?? sale?.creditAccount?.initialPaymentAmount ?? 0)
+  const totalAmount = isCredit && sale?.creditAccount?.principalAmount
+    ? Number(sale.creditAccount.principalAmount)
+    : Number(sale?.grandTotal || sale?.subtotal || 0)
+  const balanceToPay = isCredit && sale?.creditAccount?.financedBalance != null
+    ? Number(sale.creditAccount.financedBalance)
+    : Math.max(0, totalAmount - paidAmount)
 
   const handleConfirmCheckout = () => {
     if (onConfirmCheckout) {
@@ -735,14 +740,22 @@ function SaleDetailDialog({
                       <span>TOTAL AMOUNT</span>
                       <span>{formatMoney(totalAmount)}</span>
                     </div>
-                    <div className="flex justify-between text-slate-700">
-                      <span>CASH DOWNPAYMENT / PAID</span>
-                      <span>{formatMoney(paidAmount)}</span>
-                    </div>
+                    {isCredit || paidAmount > 0 ? (
+                      <div className="flex justify-between text-slate-700">
+                        <span>{isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID"}</span>
+                        <span>{formatMoney(paidAmount)}</span>
+                      </div>
+                    ) : null}
                     <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
                       <span>BALANCE TO PAY</span>
                       <span>{formatMoney(balanceToPay)}</span>
                     </div>
+                    {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
+                      <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
+                        <span>MONTHLY ({sale.creditAccount.months || 1} MOS)</span>
+                        <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -1961,9 +1974,12 @@ function PosSalesPage({ selectedBranch, user }) {
           }
         : { fullName: "Walk-in Customer" })
 
-    const grandTotalValue = isReceivableCheckout
-      ? (installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)
-      : totals.grandTotal
+    const isCredit = isReceivableCheckout
+    const termBasis = isCredit ? (installmentCalculation?.termBasis || 1) : 1
+    const downpayment = Number(effectivePaymentAmount || 0)
+    const financedBalance = isCredit ? (installmentCalculation?.financedBalance || 0) : 0
+    const regularTotal = isCredit ? (installmentCalculation?.regularPriceTotalAmount || totals.grandTotal) : totals.grandTotal
+    const grandTotalValue = isCredit ? (downpayment > 0 ? (downpayment + financedBalance) : regularTotal) : totals.grandTotal
 
     const serviceLineWithDoneBy = cart.find(
       (l) => l.type === "SERVICE" && l.serviceStaffName
@@ -1991,13 +2007,13 @@ function PosSalesPage({ selectedBranch, user }) {
       totalDiscount: totals.totalDiscount,
       serviceCharge: totals.additionalCharge,
       grandTotal: grandTotalValue,
-      amountPaid: Number(effectivePaymentAmount || 0),
+      amountPaid: downpayment,
       payments:
-        Number(effectivePaymentAmount || 0) > 0
+        downpayment > 0
           ? [
               {
                 paymentMethod: isReceivableCheckout ? settlementMethod : paymentMethod,
-                amount: Number(effectivePaymentAmount || 0),
+                amount: downpayment,
               },
             ]
           : [],
@@ -2005,8 +2021,12 @@ function PosSalesPage({ selectedBranch, user }) {
         ? {
             provider: settlementMethod,
             term: creditTerm,
-            initialPaymentAmount: Number(effectivePaymentAmount || 0),
-            principalAmount: installmentCalculation?.regularPriceTotalAmount || totals.grandTotal,
+            initialPaymentAmount: downpayment,
+            principalAmount: regularTotal,
+            financedBalance: financedBalance,
+            monthlyDueAmount: installmentCalculation?.monthlyDueAmount || 0,
+            months: installmentCalculation?.months || 1,
+            termBasis: termBasis,
           }
         : null,
       items: cart.map((line, index) => {
@@ -2017,6 +2037,18 @@ function PosSalesPage({ selectedBranch, user }) {
               : line.description.trim()
             : line.item?.itemName || "Item"
 
+        const baseUnit = getLineUnitPrice(line)
+        const baseTotal = getLineTotal(line)
+
+        // When AR Installment is selected, show the financed unit price with interest rate
+        const unitPrice = isCredit && termBasis < 1
+          ? Math.round((baseUnit / termBasis) * 100) / 100
+          : baseUnit
+
+        const lineTotal = isCredit && termBasis < 1
+          ? Math.round((baseTotal / termBasis) * 100) / 100
+          : baseTotal
+
         return {
           id: line.localId || `item-${index}`,
           lineNo: index + 1,
@@ -2024,9 +2056,9 @@ function PosSalesPage({ selectedBranch, user }) {
           itemNameSnapshot: line.item?.itemName || lineDesc,
           description: lineDesc,
           quantity: Number(line.quantity || 1),
-          unitPrice: getLineUnitPrice(line),
+          unitPrice,
           discountAmount: Number(line.discountAmount || 0),
-          lineTotal: getLineTotal(line),
+          lineTotal,
           warrantyDuration: line.warrantyDuration || (line.item?.hasWarranty ? "1 YEAR WARRANTY" : "—"),
           serial: line.isCustomSerial
             ? { serialNumber: line.customSerialNumber?.trim() || "PENDING SCAN" }

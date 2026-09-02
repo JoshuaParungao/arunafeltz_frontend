@@ -210,16 +210,18 @@ export default function QuotationDetailDialog({
                 </div>
               </div>
 
-              {/* Items Table with Exact Columns: ITEM CODE, ITEM DESCRIPTION, QTY., CASH DISCOUNTED PRICE, AMOUNT */}
+              {/* Items Table with Dual-Pricing: Description, Qty, Regular Price/Amount, Cash Promo/Amount */}
               <div className="overflow-x-auto my-2">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-t-2 border-b-2 border-slate-900 text-slate-900 font-bold uppercase text-[11px]">
-                      <th className="py-2 px-2 w-[16%]">ITEM CODE</th>
-                      <th className="py-2 px-2 w-[48%]">ITEM DESCRIPTION</th>
-                      <th className="py-2 px-2 text-center w-[10%]">QTY.</th>
-                      <th className="py-2 px-2 text-right w-[13%]">CASH DISCOUNTED PRICE</th>
-                      <th className="py-2 px-2 text-right w-[13%]">AMOUNT</th>
+                    <tr className="border-t-2 border-b-2 border-slate-900 text-slate-900 font-bold uppercase text-[10.5px]">
+                      <th className="py-2 px-2 w-[14%]">ITEM CODE</th>
+                      <th className="py-2 px-2 w-[34%]">ITEM DESCRIPTION</th>
+                      <th className="py-2 px-1.5 text-center w-[8%]">QTY.</th>
+                      <th className="py-2 px-2 text-right w-[11%]">REGULAR PRICE</th>
+                      <th className="py-2 px-2 text-right w-[11%]">REGULAR AMOUNT</th>
+                      <th className="py-2 px-2 text-right w-[11%]">CASH PROMO</th>
+                      <th className="py-2 px-2 text-right w-[11%]">CASH AMOUNT</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-sans">
@@ -227,8 +229,12 @@ export default function QuotationDetailDialog({
                       const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
                       const desc = item.description || item.item?.itemName || "Item"
                       const qty = Number(item.quantity || 0)
-                      const unitPrice = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
-                      const lineTotal = Number(item.lineTotal ?? (qty * unitPrice - (Number(item.discountAmount) || 0)))
+                      const cashUnit = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
+                      const cashTotal = Number(item.lineTotal ?? (qty * cashUnit - (Number(item.discountAmount) || 0)))
+
+                      const termRate = Number(installmentCalculation?.termBasis || 0.875)
+                      const regUnit = Math.round((cashUnit / termRate) * 100) / 100
+                      const regTotal = Math.round((cashTotal / termRate) * 100) / 100
 
                       return (
                         <tr className="hover:bg-slate-50/50" key={item.id || item.lineNo || index}>
@@ -241,14 +247,20 @@ export default function QuotationDetailDialog({
                               <p className="text-[10px] text-slate-500 font-semibold">{item.warrantyDuration}</p>
                             ) : null}
                           </td>
-                          <td className="py-2 px-2 text-center font-bold align-top">
+                          <td className="py-2 px-1.5 text-center font-bold align-top">
                             {qty}
                           </td>
-                          <td className="py-2 px-2 text-right align-top">
-                            {formatMoney(unitPrice)}
+                          <td className="py-2 px-2 text-right align-top text-slate-600 font-mono">
+                            {formatMoney(regUnit)}
                           </td>
-                          <td className="py-2 px-2 text-right font-bold align-top">
-                            {formatMoney(lineTotal)}
+                          <td className="py-2 px-2 text-right align-top text-slate-700 font-mono font-semibold">
+                            {formatMoney(regTotal)}
+                          </td>
+                          <td className="py-2 px-2 text-right align-top text-slate-600 font-mono">
+                            {formatMoney(cashUnit)}
+                          </td>
+                          <td className="py-2 px-2 text-right font-bold align-top text-slate-900 font-mono">
+                            {formatMoney(cashTotal)}
                           </td>
                         </tr>
                       )
@@ -259,6 +271,27 @@ export default function QuotationDetailDialog({
 
               {/* Double Border Separator */}
               <div className="border-t-2 border-b border-slate-900 my-1 pt-0.5" />
+
+              {/* Summary Bar: Total Amount with Regular vs Cash Promo side-by-side */}
+              <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                <span className="font-black uppercase tracking-wider text-slate-900 text-xs">
+                  TOTAL AMOUNT:
+                </span>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500 font-bold uppercase text-[10px]">REGULAR:</span>
+                    <span className="font-mono text-slate-800 text-sm font-bold">
+                      {formatMoney(regularTotal)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[var(--color-maroon)] font-bold uppercase text-[10px]">CASH PROMO:</span>
+                    <span className="font-mono text-[var(--color-maroon)] text-sm font-black">
+                      {formatMoney(cashPromoTotal)}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
               {/* Pricing Breakdown & Disclaimers matching QUOTATION-FOR-NEW-SYSTEM (4).xlsx */}
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 py-3 items-start">
