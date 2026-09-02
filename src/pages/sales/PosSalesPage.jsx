@@ -394,20 +394,29 @@ function SaleDetailDialog({
   const branchContact = sale?.branch?.contactNo || "0961-873-5798 / 045-404-0673"
 
   const paymentType = useMemo(() => {
+    if (sale?.creditAccount) {
+      const provider = sale.creditAccount.provider || sale.paymentMethod || "CREDIT_CARD"
+      const providerName = formatStatus(provider)
+      if ((sale?.payments || []).length > 0) {
+        const dpMethods = sale.payments
+          .map((p) => formatStatus(p.paymentMethod))
+          .join(", ")
+        return `${providerName} (DP: ${dpMethods})`
+      }
+      return `${providerName} Receivable`
+    }
     if ((sale?.payments || []).length > 0) {
       return sale.payments
         .map((p) => formatStatus(p.paymentMethod))
         .join(", ")
     }
-    if (sale?.creditAccount) {
-      return `${formatStatus(sale.creditAccount.provider)} Receivable`
-    }
     return "CASH"
   }, [sale])
 
   const termsText = useMemo(() => {
-    if (sale?.creditAccount?.term) {
-      return formatStatus(sale.creditAccount.term)
+    const term = sale?.creditAccount?.term || sale?.receivable?.term || sale?.creditTerm
+    if (term) {
+      return formatStatus(term)
     }
     return "FULL / OUTRIGHT"
   }, [sale])
@@ -434,12 +443,12 @@ function SaleDetailDialog({
   }, [sale])
 
   const isCredit = Boolean(sale?.creditAccount || sale?.installmentCalculation)
-  const paidAmount = Number(sale?.amountPaid ?? sale?.creditAccount?.initialPaymentAmount ?? 0)
-  const totalAmount = isCredit && sale?.creditAccount?.principalAmount
-    ? Number(sale.creditAccount.principalAmount)
+  const paidAmount = Number(sale?.amountPaid ?? sale?.creditAccount?.downpaymentAmount ?? sale?.creditAccount?.initialPaymentAmount ?? 0)
+  const totalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount)
+    ? Number(sale.creditAccount.regularPriceTotalAmount || sale.creditAccount.principalAmount)
     : Number(sale?.grandTotal || sale?.subtotal || 0)
-  const balanceToPay = isCredit && sale?.creditAccount?.financedBalance != null
-    ? Number(sale.creditAccount.financedBalance)
+  const balanceToPay = isCredit && (sale?.creditAccount?.balanceAmount != null || sale?.creditAccount?.financedBalance != null)
+    ? Number(sale.creditAccount.balanceAmount ?? sale.creditAccount.financedBalance)
     : Math.max(0, totalAmount - paidAmount)
 
   const handleConfirmCheckout = () => {
@@ -687,6 +696,16 @@ function SaleDetailDialog({
                         const isSerialized = item.serialNumber || item.serial?.serialNumber
                         const warrantyBadge = item.warrantyDuration || (item.item?.hasWarranty ? "1 YEAR WARRANTY" : null)
 
+                        const termBasis = Number(sale?.creditAccount?.termBasis || (isCredit && sale?.installmentCalculation?.termBasis) || 1)
+                        const baseUnitPrice = Number(item.baseUnitPriceSnapshot ?? item.baseUnitPrice ?? item.unitPrice ?? 0)
+                        const unitPrice = termBasis < 1
+                          ? Math.round((baseUnitPrice / termBasis) * 100) / 100
+                          : Number(item.unitPrice || 0)
+                        const qty = Number(item.quantity || 1)
+                        const lineTotal = termBasis < 1
+                          ? Math.round((qty * unitPrice) * 100) / 100
+                          : Number(item.lineTotal || (qty * unitPrice))
+
                         return (
                           <tr className="hover:bg-slate-50/50" key={item.id || item.lineNo}>
                             <td className="py-2 px-2 font-mono font-semibold text-slate-700 align-top">
@@ -709,13 +728,13 @@ function SaleDetailDialog({
                               ) : null}
                             </td>
                             <td className="py-2 px-2 text-center font-bold align-top">
-                              {Number(item.quantity || 0)}
+                              {qty}
                             </td>
-                            <td className="py-2 px-2 text-right align-top">
-                              {formatMoney(item.unitPrice)}
+                            <td className="py-2 px-2 text-right align-top font-mono">
+                              {formatMoney(unitPrice)}
                             </td>
-                            <td className="py-2 px-2 text-right font-bold align-top">
-                              {formatMoney(item.lineTotal)}
+                            <td className="py-2 px-2 text-right font-bold align-top font-mono">
+                              {formatMoney(lineTotal)}
                             </td>
                           </tr>
                         )
@@ -752,7 +771,9 @@ function SaleDetailDialog({
                     </div>
                     {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
                       <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
-                        <span>MONTHLY ({sale.creditAccount.months || 1} MOS)</span>
+                        <span>
+                          MONTHLY ({sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS[sale.creditAccount.term] || "")} MOS)
+                        </span>
                         <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
                       </div>
                     ) : null}
@@ -2275,6 +2296,12 @@ function PosSalesPage({ selectedBranch, user }) {
         })
       }
 
+      const isCredit = isReceivableCheckout
+      const termBasis = isCredit ? (installmentCalculation?.termBasis || 1) : 1
+      const downpayment = Number(effectivePaymentAmount || 0)
+      const financedBalance = isCredit ? (installmentCalculation?.financedBalance || 0) : 0
+      const regularTotal = isCredit ? (installmentCalculation?.regularPriceTotalAmount || totals.grandTotal) : totals.grandTotal
+
       const receiptSale = {
         ...sale,
         customer: {
@@ -2284,10 +2311,42 @@ function PosSalesPage({ selectedBranch, user }) {
           mobileNumber: effectivePhone || sale.customer?.mobileNumber || null,
           email: effectiveEmail || sale.customer?.email || null,
         },
-        items: (sale.items || []).map((item, index) => ({
-          ...item,
-          serialNumber: cartSnapshot[index]?.serialNumber || null,
-        })),
+        creditAccount: isReceivableCheckout
+          ? {
+              ...(sale.creditAccount || {}),
+              provider: paymentMethod,
+              term: creditTerm,
+              initialPaymentAmount: downpayment,
+              downpaymentAmount: downpayment,
+              principalAmount: regularTotal,
+              regularPriceTotalAmount: regularTotal,
+              financedBalance: financedBalance,
+              balanceAmount: financedBalance,
+              monthlyDueAmount: installmentCalculation?.monthlyDueAmount || 0,
+              months: installmentCalculation?.months || 1,
+              termBasis: termBasis,
+            }
+          : sale.creditAccount,
+        items: (sale.items || []).map((item, index) => {
+          const baseUnit = Number(item.unitPrice || 0)
+          const baseTotal = Number(item.lineTotal || (Number(item.quantity || 1) * baseUnit))
+
+          const unitPrice = isReceivableCheckout && termBasis < 1
+            ? Math.round((baseUnit / termBasis) * 100) / 100
+            : baseUnit
+
+          const lineTotal = isReceivableCheckout && termBasis < 1
+            ? Math.round((baseTotal / termBasis) * 100) / 100
+            : baseTotal
+
+          return {
+            ...item,
+            baseUnitPriceSnapshot: baseUnit,
+            unitPrice,
+            lineTotal,
+            serialNumber: cartSnapshot[index]?.serialNumber || item.serialNumber || null,
+          }
+        }),
       }
 
       setSaleCheckoutPreview(null)

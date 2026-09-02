@@ -6,6 +6,16 @@ const DARK = [31, 41, 55]
 const MUTED = [100, 116, 139]
 const BORDER = [226, 232, 240]
 
+const INSTALLMENT_TERM_MONTHS = {
+  STRAIGHT: 1,
+  MONTH_3: 3,
+  MONTH_6: 6,
+  MONTH_9: 9,
+  MONTH_12: 12,
+  MONTH_18: 18,
+  MONTH_24: 24,
+}
+
 function number(value) {
   const parsed = Number(value || 0)
   return Number.isFinite(parsed) ? parsed : 0
@@ -880,17 +890,25 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   }
 
   let paymentType = "CASH"
-  if ((sale?.payments || []).length > 0) {
+  if (sale?.creditAccount) {
+    const provider = String(sale.creditAccount.provider || sale.paymentMethod || "").replaceAll("_", " ")
+    if ((sale?.payments || []).length > 0) {
+      const dp = sale.payments
+        .map((p) => String(p.paymentMethod || "").replaceAll("_", " "))
+        .join(", ")
+      paymentType = `${provider} (DP: ${dp})`
+    } else {
+      paymentType = `${provider} Receivable`
+    }
+  } else if ((sale?.payments || []).length > 0) {
     paymentType = sale.payments
       .map((p) => String(p.paymentMethod || "").replaceAll("_", " "))
       .join(", ")
-  } else if (sale?.creditAccount) {
-    paymentType = `${String(sale.creditAccount.provider || "").replaceAll("_", " ")} Receivable`
   }
 
   const terms =
-    sale?.creditAccount?.term
-      ? `${String(sale.creditAccount.term).replaceAll("_", " ")}`
+    sale?.creditAccount?.term || sale?.receivable?.term || sale?.creditTerm
+      ? `${String(sale?.creditAccount?.term || sale?.receivable?.term || sale?.creditTerm).replaceAll("_", " ")}`
       : "FULL / OUTRIGHT"
 
   // -----------------------------------------------------------------
@@ -999,6 +1017,9 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   // -----------------------------------------------------------------
   const tableStartY = bannerY + 6
 
+  const isCredit = Boolean(sale?.creditAccount || options?.isCredit)
+  const termBasis = Number(sale?.creditAccount?.termBasis || (isCredit && options?.installmentCalculation?.termBasis) || 1)
+
   const tableHead = [["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "UNIT PRICE", "AMOUNT"]]
   const tableBody = (sale?.items || []).map((item) => {
     const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
@@ -1008,12 +1029,20 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     const warrantyText = warrantyBadge ? ` | ${warrantyBadge}` : ""
     const fullDescription = `${item.description || item.item?.itemName || "Item"}${warrantyText}${serialText}`
 
-    const qty = String(Number(item.quantity || 0))
-    const unitPrice = Number(item.unitPrice || 0).toLocaleString("en-PH", {
+    const qty = String(Number(item.quantity || 1))
+    const baseUnitPrice = Number(item.baseUnitPriceSnapshot ?? item.baseUnitPrice ?? item.unitPrice ?? 0)
+    const rawUnitPrice = termBasis < 1
+      ? Math.round((baseUnitPrice / termBasis) * 100) / 100
+      : Number(item.unitPrice || 0)
+    const rawLineTotal = termBasis < 1
+      ? Math.round((Number(item.quantity || 1) * rawUnitPrice) * 100) / 100
+      : Number(item.lineTotal || (Number(item.quantity || 1) * rawUnitPrice))
+
+    const unitPrice = rawUnitPrice.toLocaleString("en-PH", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
-    const lineTotal = Number(item.lineTotal || 0).toLocaleString("en-PH", {
+    const lineTotal = rawLineTotal.toLocaleString("en-PH", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
@@ -1075,13 +1104,12 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   const totalsLabelX = margin + contentWidth - 65
   const totalsValueX = margin + contentWidth
 
-  const isCredit = Boolean(sale?.creditAccount || options?.isCredit)
-  const totalAmount = isCredit && sale?.creditAccount?.principalAmount
-    ? Number(sale.creditAccount.principalAmount)
+  const totalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount)
+    ? Number(sale.creditAccount.regularPriceTotalAmount || sale.creditAccount.principalAmount)
     : Number(sale?.grandTotal || sale?.subtotal || 0)
-  const paidAmount = Number(sale?.amountPaid ?? sale?.creditAccount?.initialPaymentAmount ?? 0)
-  const balanceToPay = isCredit && sale?.creditAccount?.financedBalance != null
-    ? Number(sale.creditAccount.financedBalance)
+  const paidAmount = Number(sale?.amountPaid ?? sale?.creditAccount?.downpaymentAmount ?? sale?.creditAccount?.initialPaymentAmount ?? 0)
+  const balanceToPay = isCredit && (sale?.creditAccount?.balanceAmount != null || sale?.creditAccount?.financedBalance != null)
+    ? Number(sale.creditAccount.balanceAmount ?? sale.creditAccount.financedBalance)
     : Math.max(0, totalAmount - paidAmount)
 
   doc.setFont("helvetica", "bold")
@@ -1115,10 +1143,11 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   )
 
   if (isCredit && sale?.creditAccount?.monthlyDueAmount) {
+    const months = sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS?.[sale.creditAccount.term] || "")
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7.5)
     doc.setTextColor(0, 32, 96)
-    doc.text(`MONTHLY (${sale.creditAccount.months || 1} MOS):`, totalsLabelX, finalY + 16)
+    doc.text(`MONTHLY (${months ? `${months} MOS` : "AMORTIZATION"}):`, totalsLabelX, finalY + 16)
     doc.text(
       `${Number(sale.creditAccount.monthlyDueAmount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
       totalsValueX,
