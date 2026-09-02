@@ -47,3 +47,23 @@ export async function cancelServicePayment(paymentId, payload) {
   )
   return response.data
 }
+
+export async function getServiceCatalog() {
+  const response = await apiClient.get("/service-jobs/catalog")
+  return response.data
+}
+
+export async function createServiceCatalogItem(payload) {
+  const response = await apiClient.post("/service-jobs/catalog", payload)
+  return response.data
+}
+
+export async function updateServiceCatalogItem(id, payload) {
+  const response = await apiClient.put(`/service-jobs/catalog/${id}`, payload)
+  return response.data
+}
+
+export async function deleteServiceCatalogItem(id) {
+  const response = await apiClient.delete(`/service-jobs/catalog/${id}`)
+  return response.data
+}

@@ -35,6 +35,7 @@ import {
   cancelServicePayment,
   createServiceJob,
   createServicePayment,
+  getServiceCatalog,
   getServiceJobById,
   getServiceJobs,
   getServiceTechnicians,
@@ -877,6 +878,7 @@ export default function ServicesPage({ selectedBranch, user }) {
 
   const [customerSearch, setCustomerSearch] = useState("")
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
+  const [serviceCatalog, setServiceCatalog] = useState([])
   const customerDropdownRef = useRef(null)
   const customerInputRef = useRef(null)
 
@@ -921,13 +923,16 @@ export default function ServicesPage({ selectedBranch, user }) {
   const loadReferences = useCallback(async () => {
     if (!canCreate || (user?.role === "SUPER_OWNER" && !branchId)) return
     const params = { ...(branchId ? { branchId } : {}), status: "ACTIVE", limit: 100 }
-    const [customerResponse, technicianResponse] = await Promise.all([
+    const [customerResponse, technicianResponse, catalogResponse] = await Promise.all([
       getCustomers(params),
       getServiceTechnicians(branchId ? { branchId } : {}),
+      getServiceCatalog().catch(() => ({ data: [] })),
     ])
     const customerData = customerResponse?.data
     setCustomers(Array.isArray(customerData) ? customerData : customerData?.data || [])
     setTechnicians(Array.isArray(technicianResponse?.data) ? technicianResponse.data : [])
+    const catalogData = catalogResponse?.data || catalogResponse || []
+    setServiceCatalog(Array.isArray(catalogData) ? catalogData : [])
   }, [branchId, canCreate, user?.role])
 
   const refresh = useCallback(async () => {
@@ -1700,6 +1705,57 @@ export default function ServicesPage({ selectedBranch, user }) {
                   <Printer size={14} /> Print Blank {createForm.intakeType === "MAINTENANCE" ? "Maintenance" : "Diagnostic"} Form (A4)
                 </button>
               </div>
+
+              {/* Service Catalog Template Quick Selector */}
+              {serviceCatalog.length > 0 ? (
+                <div className="rounded-2xl border border-purple-200/80 bg-purple-50/50 dark:bg-purple-950/20 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-black text-purple-900 dark:text-purple-200 uppercase tracking-wider">
+                      <Layers size={14} className="text-purple-600" />
+                      Quick Select from Service Catalog
+                    </span>
+                    <span className="text-[10px] font-bold text-purple-600 font-mono">
+                      {serviceCatalog.filter((c) => c.isActive !== false).length} templates available
+                    </span>
+                  </div>
+                  <select
+                    className="w-full rounded-xl border border-purple-200 dark:border-purple-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
+                    defaultValue=""
+                    onChange={(e) => {
+                      const selectedId = e.target.value
+                      if (!selectedId) return
+                      const item = serviceCatalog.find((c) => c.id === selectedId)
+                      if (item) {
+                        const isBoard = item.repairType === "BOARD_LEVEL_REPAIR"
+                        setCreateForm((form) => ({
+                          ...form,
+                          jobTitle: item.name,
+                          repairType: item.repairType || form.repairType,
+                          intakeType: isBoard ? "DIAGNOSTIC" : "MAINTENANCE",
+                          baseServiceCharge: String(item.basePrice || 0),
+                          markupPercent: String(item.markupPercent || 0),
+                          isQuickService: Boolean(item.isQuickService),
+                          unitType: item.deviceType || form.unitType,
+                          problemDescription:
+                            item.description && !form.problemDescription
+                              ? item.description
+                              : form.problemDescription,
+                        }))
+                      }
+                      e.target.value = ""
+                    }}
+                  >
+                    <option value="">-- Choose a standard service / repair rate to auto-fill --</option>
+                    {serviceCatalog
+                      .filter((c) => c.isActive !== false)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.repairType === "BOARD_LEVEL_REPAIR" ? "🔬 [Board Level]" : "🔧 [Standard]"} {c.name} ({c.deviceType}) — ₱{Number(c.basePrice || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              ) : null}
 
               {/* Intake Mode Switcher */}
               <div className="flex rounded-2xl bg-[var(--color-soft)] p-1.5 border border-[var(--color-border)]">

@@ -47,6 +47,7 @@ const PurchaseReceivingsPage = lazy(() => import("../pages/purchase-receivings/P
 const PosSalesPage = lazy(() => import("../pages/sales/PosSalesPage"))
 const SerialMonitoringPage = lazy(() => import("../pages/serials/SerialMonitoringPage"))
 const ServicesPage = lazy(() => import("../pages/services/ServicesPage"))
+const ServicesMaintenancePage = lazy(() => import("../pages/services/ServicesMaintenancePage"))
 const WarrantyPage = lazy(() => import("../pages/warranty/WarrantyPage"))
 const IncentivesPage = lazy(() => import("../pages/incentives/IncentivesPage"))
 
@@ -307,6 +308,10 @@ function App() {
 
     if (activePage === "items") {
       return <ItemsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "services-maintenance") {
+      return <ServicesMaintenancePage selectedBranch={selectedBranch} user={user} />
     }
 
     if (activePage === "inventory") {
