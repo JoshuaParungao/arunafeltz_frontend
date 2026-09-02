@@ -2598,11 +2598,11 @@ function PosSalesPage({ selectedBranch, user }) {
       ) : null}
 
       {canCreateSale ? (
-        <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,0.9fr)_minmax(480px,1.1fr)] items-start">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
           {/* Left Column: Customer, Product Search & Service */}
-          <div className="min-w-0 space-y-4">
+          <div className="lg:col-span-5 min-w-0 space-y-3">
             {/* Customer & Price Tier Card (at the very top) */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="grid size-7 place-items-center rounded-lg bg-blue-50 text-blue-700">
@@ -2807,7 +2807,7 @@ function PosSalesPage({ selectedBranch, user }) {
             </section>
 
             {/* Product Search Card */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="grid size-7 place-items-center rounded-lg bg-rose-50 text-[var(--color-maroon)]">
@@ -2817,7 +2817,7 @@ function PosSalesPage({ selectedBranch, user }) {
                     <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">Find Products</h2>
                   </div>
                 </div>
-                <span className="text-[11px] text-slate-400">Scan or press Enter for exact match</span>
+                <span className="text-[11px] text-slate-400">Scan or press Enter</span>
               </div>
 
               <form className="relative" onSubmit={handleItemSearchSubmit}>
@@ -2825,7 +2825,7 @@ function PosSalesPage({ selectedBranch, user }) {
                 <input
                   aria-label="Search products by name, code, brand, model, or barcode"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => setItemSearch(event.target.value)}
                   placeholder="Scan barcode or type name, code, brand…"
                   value={itemSearch}
@@ -2835,10 +2835,10 @@ function PosSalesPage({ selectedBranch, user }) {
 
               {itemMessage ? <p className="text-xs font-semibold text-amber-700">{itemMessage}</p> : null}
 
-              <div className="max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
+              <div className="max-h-[220px] sm:max-h-[250px] space-y-1.5 overflow-y-auto pr-1">
                 {itemResults.map((item) => (
                   <button
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-50/20 disabled:opacity-50 shadow-2xs"
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-50/20 disabled:opacity-50 shadow-2xs"
                     disabled={Boolean(addingItemId)}
                     key={item.id}
                     onClick={() => addProduct(item)}
@@ -2864,7 +2864,7 @@ function PosSalesPage({ selectedBranch, user }) {
             </section>
 
             {/* Service & Labor Line Card */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="grid size-7 place-items-center rounded-lg bg-violet-50 text-violet-700">
@@ -2998,9 +2998,9 @@ function PosSalesPage({ selectedBranch, user }) {
           </div>
 
           {/* Right Column: Active Cart & Settlement */}
-          <section className="min-w-0 self-start rounded-2xl border border-slate-200 bg-white shadow-2xs 2xl:sticky 2xl:top-4 overflow-hidden">
+          <section className="lg:col-span-7 min-w-0 self-start rounded-2xl border border-slate-200 bg-white shadow-2xs lg:sticky lg:top-4 overflow-hidden flex flex-col">
             {/* Cart Header */}
-            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-4 py-3">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-3.5 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="grid size-7 place-items-center rounded-lg bg-[var(--color-maroon)] text-white">
                   <ShoppingCart size={15} />
@@ -3029,22 +3029,22 @@ function PosSalesPage({ selectedBranch, user }) {
               </div>
             </header>
 
-            {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">{cartMessage}</div> : null}
+            {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800">{cartMessage}</div> : null}
 
             {cart.length === 0 ? (
-              <div className="grid place-items-center p-8 text-center text-slate-400">
-                <ShoppingCart className="text-slate-300" size={36} />
-                <p className="mt-2 text-xs font-bold text-slate-600">Cart is empty</p>
+              <div className="grid place-items-center p-6 text-center text-slate-400">
+                <ShoppingCart className="text-slate-300" size={32} />
+                <p className="mt-1.5 text-xs font-bold text-slate-600">Cart is empty</p>
                 <p className="mt-0.5 text-[11px] text-slate-400">Search product or add service line on the left.</p>
               </div>
             ) : (
-              <div className="max-h-[520px] space-y-2.5 overflow-y-auto p-4 text-xs">
+              <div className="max-h-[240px] sm:max-h-[260px] space-y-2 overflow-y-auto p-3 text-xs">
                 {cart.map((line, index) => {
                   const gross = getLineGross(line)
                   const selectedBatch = line.batches?.find((batch) => batch.id === line.batchId)
 
                   return (
-                    <article className="rounded-xl border border-slate-200 bg-slate-50/40 p-3 space-y-2.5 shadow-2xs" key={line.localId}>
+                    <article className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-2.5 space-y-2 shadow-2xs" key={line.localId}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -3067,13 +3067,13 @@ function PosSalesPage({ selectedBranch, user }) {
                       </div>
 
                       {line.type === "PRODUCT" ? (
-                        <div className="space-y-2 pt-1 border-t border-slate-200/60">
-                          <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
+                        <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
+                          <div className="grid gap-1.5 grid-cols-2 sm:grid-cols-4">
                             {/* Price Tier */}
                             <label className="block">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Tier</span>
                               <select
-                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
+                                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
                                 onChange={(event) =>
                                   updateCartLine(line.localId, {
                                     priceTier: Number(event.target.value),
@@ -3094,7 +3094,7 @@ function PosSalesPage({ selectedBranch, user }) {
                             <label className="block">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Markup %</span>
                               <input
-                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                                 max="99.9999"
                                 min="0"
                                 onChange={(event) =>
@@ -3113,7 +3113,7 @@ function PosSalesPage({ selectedBranch, user }) {
                             <label className="block">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Qty</span>
                               <input
-                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
+                                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
                                 disabled={line.item.isSerialized}
                                 min="0.01"
                                 onChange={(event) =>
@@ -3129,7 +3129,7 @@ function PosSalesPage({ selectedBranch, user }) {
                             <label className="block">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Discount</span>
                               <input
-                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
+                                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
                                 max={gross}
                                 min="0"
                                 onChange={(event) =>
@@ -3170,7 +3170,7 @@ function PosSalesPage({ selectedBranch, user }) {
                                 <div>
                                   <input
                                     autoFocus
-                                    className="w-full rounded-lg border border-[var(--color-maroon)] bg-white px-2.5 py-1.5 text-xs font-mono outline-none focus:ring-1 focus:ring-[var(--color-maroon)]"
+                                    className="w-full rounded-lg border border-[var(--color-maroon)] bg-white px-2.5 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-[var(--color-maroon)]"
                                     placeholder="Scan barcode or type serial number…"
                                     value={line.customSerialNumber || ""}
                                     onChange={(event) =>
@@ -3182,7 +3182,7 @@ function PosSalesPage({ selectedBranch, user }) {
                                 </div>
                               ) : (
                                 <select
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
+                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
                                   onChange={(event) =>
                                     updateCartLine(line.localId, { serialId: event.target.value })
                                   }
@@ -3208,7 +3208,7 @@ function PosSalesPage({ selectedBranch, user }) {
                             <label className="block">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Source Batch</span>
                               <select
-                                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                                 onChange={(event) => updateCartLine(line.localId, { batchId: event.target.value })}
                                 value={line.batchId}
                               >
@@ -3223,24 +3223,24 @@ function PosSalesPage({ selectedBranch, user }) {
                           )}
 
                           {/* Line Total & Warranty Banner */}
-                          <div className="flex items-center justify-between rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                              <ShieldCheck size={13} /> {line.warrantyDuration || "1 YEAR WARRANTY"}
+                          <div className="flex items-center justify-between rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700">
+                              <ShieldCheck size={12} /> {line.warrantyDuration || "1 YEAR WARRANTY"}
                             </span>
-                            <span className="font-mono font-black text-slate-900 text-sm">
+                            <span className="font-mono font-black text-slate-900 text-xs">
                               {formatMoney(getLineTotal(line))}
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-2 pt-1 border-t border-slate-200/60">
-                          <div className="grid gap-2 grid-cols-4">
-                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span><input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" min="0.01" onChange={(event) => updateCartLine(line.localId, { quantity: event.target.value })} step="0.01" type="number" value={line.quantity} /></label>
-                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Base Price</span><input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono" min="0" onChange={(event) => updateCartLine(line.localId, { baseUnitPrice: event.target.value })} step="0.01" type="number" value={line.baseUnitPrice ?? line.unitPrice} /></label>
-                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Markup %</span><input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" max="99.9999" min="0" onChange={(event) => updateCartLine(line.localId, { markupPercent: event.target.value })} placeholder="0" step="0.01" type="number" value={line.markupPercent ?? ""} /></label>
-                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Discount</span><input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono" min="0" onChange={(event) => updateCartLine(line.localId, { discountAmount: event.target.value })} step="0.01" type="number" value={line.discountAmount} /></label>
+                        <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
+                          <div className="grid gap-1.5 grid-cols-4">
+                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" min="0.01" onChange={(event) => updateCartLine(line.localId, { quantity: event.target.value })} step="0.01" type="number" value={line.quantity} /></label>
+                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Base Price</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono" min="0" onChange={(event) => updateCartLine(line.localId, { baseUnitPrice: event.target.value })} step="0.01" type="number" value={line.baseUnitPrice ?? line.unitPrice} /></label>
+                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Markup %</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" max="99.9999" min="0" onChange={(event) => updateCartLine(line.localId, { markupPercent: event.target.value })} placeholder="0" step="0.01" type="number" value={line.markupPercent ?? ""} /></label>
+                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Discount</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono" min="0" onChange={(event) => updateCartLine(line.localId, { discountAmount: event.target.value })} step="0.01" type="number" value={line.discountAmount} /></label>
                           </div>
-                          <div className="text-right font-mono font-black text-slate-900 text-sm">
+                          <div className="text-right font-mono font-black text-slate-900 text-xs">
                             Total: {formatMoney(getLineTotal(line))}
                           </div>
                         </div>
@@ -3252,41 +3252,41 @@ function PosSalesPage({ selectedBranch, user }) {
             )}
 
             {/* Surcharges, Totals, & Payment Setup */}
-            <div className="space-y-3.5 border-t border-slate-200 p-4 bg-slate-50/50 text-xs">
-              <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="space-y-2.5 border-t border-slate-200 p-3.5 bg-slate-50/50 text-xs">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Surcharge / Delivery Fee</span>
-                  <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono outline-none focus:border-[var(--color-maroon)]" min="0" onChange={(event) => setServiceCharge(event.target.value)} step="0.01" type="number" value={serviceCharge} />
+                  <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-mono outline-none focus:border-[var(--color-maroon)]" min="0" onChange={(event) => setServiceCharge(event.target.value)} step="0.01" type="number" value={serviceCharge} />
                 </label>
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Sale Remarks</span>
-                  <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setRemarks(event.target.value)} placeholder="Optional internal note" value={remarks} />
+                  <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setRemarks(event.target.value)} placeholder="Optional internal note" value={remarks} />
                 </label>
               </div>
 
               {/* Totals Summary Breakdown */}
-              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1.5 shadow-2xs">
+              <div className="rounded-xl border border-slate-200 bg-white p-2.5 space-y-1 shadow-2xs">
                 <div className="flex justify-between text-slate-600"><span>Products Gross</span><span className="font-mono">{formatMoney(totals.productGross)}</span></div>
                 {totals.serviceGross > 0 ? <div className="flex justify-between text-slate-600"><span>Service/Custom</span><span className="font-mono">{formatMoney(totals.serviceGross)}</span></div> : null}
                 {totals.totalDiscount > 0 ? <div className="flex justify-between text-emerald-700"><span>Discounts</span><span className="font-mono">-{formatMoney(totals.totalDiscount)}</span></div> : null}
                 {totals.additionalCharge > 0 ? <div className="flex justify-between text-slate-600"><span>Additional Charge</span><span className="font-mono">{formatMoney(totals.additionalCharge)}</span></div> : null}
-                <div className="flex justify-between items-center border-t border-slate-200 pt-2 text-slate-900 font-bold">
+                <div className="flex justify-between items-center border-t border-slate-200 pt-1.5 text-slate-900 font-bold">
                   <span className="text-xs uppercase tracking-wider">Grand Total</span>
-                  <span className="font-mono text-lg font-black text-slate-900">{formatMoney(totals.grandTotal)}</span>
+                  <span className="font-mono text-base font-black text-slate-900">{formatMoney(totals.grandTotal)}</span>
                 </div>
               </div>
 
               {/* Payment Settings */}
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-slate-800 font-bold">
                   <CreditCard size={14} className="text-[var(--color-maroon)]" />
                   <span>Payment Arrangement</span>
                 </div>
-                <div className="grid gap-2.5 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Method</span>
                     <select
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
+                      className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
                       onChange={(event) => {
                         const nextMethod = event.target.value
                         setPaymentMethod(nextMethod)
@@ -3314,7 +3314,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       {isReceivableCheckout ? "Downpayment (₱)" : "Amount Tendered (₱)"}
                     </span>
                     <input
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold outline-none focus:border-[var(--color-maroon)]"
+                      className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-mono font-bold outline-none focus:border-[var(--color-maroon)]"
                       max={isReceivableCheckout ? totals.grandTotal : undefined}
                       min="0"
                       onChange={(event) => { setPaymentAmount(event.target.value); setPaymentAmountTouched(true) }}
@@ -3328,62 +3328,62 @@ function PosSalesPage({ selectedBranch, user }) {
                     <>
                       <label className="block">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Downpayment Method</span>
-                        <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setSettlementMethod(event.target.value)} value={settlementMethod}>
+                        <select className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setSettlementMethod(event.target.value)} value={settlementMethod}>
                           {IMMEDIATE_PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                         </select>
                       </label>
                       <label className="block">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Provider Ref</span>
-                        <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setProviderReference(event.target.value)} placeholder="Approval/Ref" value={providerReference} />
+                        <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setProviderReference(event.target.value)} placeholder="Approval/Ref" value={providerReference} />
                       </label>
                     </>
                   ) : null}
 
                   <label className="block">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Reference No.</span>
-                    <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setPaymentReference(event.target.value)} placeholder="Traceability ref" value={paymentReference} />
+                    <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setPaymentReference(event.target.value)} placeholder="Traceability ref" value={paymentReference} />
                   </label>
 
                   <label className="block">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Payment Remarks</span>
-                    <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setPaymentRemarks(event.target.value)} placeholder="Optional note" value={paymentRemarks} />
+                    <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setPaymentRemarks(event.target.value)} placeholder="Optional note" value={paymentRemarks} />
                   </label>
                 </div>
 
                 {/* Accounts Receivable / Financing Summary */}
                 {isReceivableCheckout ? (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 space-y-2.5">
-                    <div className="flex items-center justify-between border-b border-blue-200/80 pb-2">
+                  <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-2.5 space-y-2">
+                    <div className="flex items-center justify-between border-b border-blue-200/80 pb-1.5">
                       <span className="font-bold text-blue-900 text-xs">Accounts Receivable · {formatStatus(paymentMethod)}</span>
                       <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-900">
                         Term Basis: {installmentCalculation?.termBasis ?? "1.00"}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-xs">
-                      <div className="rounded-lg bg-white border border-blue-100 p-2">
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 text-xs">
+                      <div className="rounded-lg bg-white border border-blue-100 p-1.5">
                         <span className="text-[10px] text-slate-400 block">Cash Promo</span>
                         <span className="font-mono font-bold text-slate-900">{formatMoney(totals.grandTotal)}</span>
                       </div>
-                      <div className="rounded-lg bg-white border border-blue-100 p-2">
+                      <div className="rounded-lg bg-white border border-blue-100 p-1.5">
                         <span className="text-[10px] text-blue-700 block">Interest Adj</span>
                         <span className="font-mono font-bold text-blue-900">+{formatMoney(installmentCalculation?.interestAmount || 0)}</span>
                       </div>
-                      <div className="rounded-lg bg-white border border-blue-100 p-2">
+                      <div className="rounded-lg bg-white border border-blue-100 p-1.5">
                         <span className="text-[10px] text-[var(--color-maroon)] block">Financed Total</span>
                         <span className="font-mono font-bold text-[var(--color-maroon)]">{formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}</span>
                       </div>
-                      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2">
+                      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-1.5">
                         <span className="text-[10px] text-emerald-800 block">Monthly ({installmentCalculation?.months} mos)</span>
                         <span className="font-mono font-bold text-emerald-950">{formatMoney(installmentCalculation?.monthlyDueAmount || 0)}/mo</span>
                       </div>
                     </div>
 
-                    <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="grid gap-1.5 sm:grid-cols-3">
                       <label className="block">
                         <span className="text-[10px] font-bold uppercase text-blue-900 block">Term</span>
                         <select
-                          className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                          className="mt-0.5 w-full rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                           onChange={(event) => setCreditTerm(event.target.value)}
                           value={creditTerm}
                         >
@@ -3401,7 +3401,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       <label className="block">
                         <span className="text-[10px] font-bold uppercase text-blue-900 block">Due Day</span>
                         <input
-                          className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                          className="mt-0.5 w-full rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                           max="31"
                           min="1"
                           onChange={(event) => setCreditDueDay(event.target.value)}
@@ -3415,7 +3415,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       <label className="block">
                         <span className="text-[10px] font-bold uppercase text-blue-900 block">First Due Date</span>
                         <input
-                          className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                          className="mt-0.5 w-full rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                           onChange={(event) => setCreditFirstDueDate(event.target.value)}
                           type="date"
                           value={creditFirstDueDate}
@@ -3425,7 +3425,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       <label className="sm:col-span-3 block">
                         <span className="text-[10px] font-bold uppercase text-blue-900 block">AR Notes</span>
                         <input
-                          className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                          className="mt-0.5 w-full rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                           onChange={(event) => setCreditRemarks(event.target.value)}
                           placeholder="Provider approval code or account notes"
                           value={creditRemarks}
@@ -3470,37 +3470,33 @@ function PosSalesPage({ selectedBranch, user }) {
                 </button>
 
                 <button
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50/50 px-3 py-2.5 text-xs font-bold text-blue-900 shadow-2xs transition hover:bg-blue-100/70 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-maroon)] bg-white px-3 py-2.5 text-xs font-bold text-[var(--color-maroon)] shadow-2xs transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={cart.length === 0 || isCreatingQuotation || (!selectedCustomerId && !customerSearch.trim())}
                   onClick={submitQuotation}
-                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter customer name first" : "Create official quotation"}
+                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter customer name first" : "Save as official quotation"}
                   type="button"
                 >
-                  {isCreatingQuotation ? (
-                    <LoaderCircle className="animate-spin" size={15} />
-                  ) : (
-                    <FileText size={15} />
-                  )}
-                  {isCreatingQuotation ? "Creating…" : "Quote"}
+                  {isCreatingQuotation ? <LoaderCircle className="animate-spin" size={15} /> : <FileText size={15} />}
+                  Quote
                 </button>
 
                 <button
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3 py-2.5 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1"
-                  disabled={cart.length === 0 || isSubmittingSale || !branchId || (!selectedCustomerId && !customerSearch.trim())}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3 py-2.5 text-xs font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!canCreateSale || cart.length === 0 || isSubmittingSale}
                   onClick={openSaleCheckoutPreview}
-                  title={!selectedCustomerId && !customerSearch.trim() ? "Please enter customer name first" : "Review and complete sale"}
                   type="button"
                 >
                   {isSubmittingSale ? (
-                    <LoaderCircle className="animate-spin" size={15} />
+                    <>
+                      <LoaderCircle className="animate-spin" size={15} />
+                      Submitting…
+                    </>
                   ) : (
-                    <ReceiptText size={15} />
+                    <>
+                      <ReceiptText size={15} />
+                      Complete Sale · {formatMoney(isReceivableCheckout ? (installmentCalculation?.regularPriceTotalAmount || totals.grandTotal) : totals.grandTotal)}
+                    </>
                   )}
-                  {isSubmittingSale
-                    ? "Completing…"
-                    : isReceivableCheckout
-                      ? `Complete AR · ${formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}`
-                      : `Complete Sale · ${formatMoney(totals.grandTotal)}`}
                 </button>
               </div>
             </div>
