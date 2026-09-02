@@ -1157,7 +1157,7 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
       <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200 flex flex-col">
         <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
           <div className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-lg bg-purple-100 text-purple-800">
+            <span className="grid size-7 place-items-center rounded-lg bg-rose-100 text-[var(--color-maroon)]">
               <Wrench size={16} />
             </span>
             <div>
@@ -1183,7 +1183,7 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               autoFocus
-              className="w-full rounded-xl border border-purple-200 bg-white pl-9 pr-9 py-2 text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-purple-500/20"
+              className="w-full rounded-xl border border-rose-200 bg-white pl-9 pr-9 py-2 text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/20"
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Search J.O. # (e.g. JO-2026-0001), Customer Name, or Serial..."
               type="text"
@@ -1212,7 +1212,7 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
                 onClick={() => setStatusFilter(tab.key)}
                 className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
                   statusFilter === tab.key
-                    ? "bg-purple-700 text-white"
+                    ? "bg-[var(--color-maroon)] text-white"
                     : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
                 }`}
               >
@@ -1225,7 +1225,7 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5 max-h-[55vh]">
           {isLoading ? (
             <div className="grid place-items-center py-10">
-              <LoaderCircle className="animate-spin text-purple-700" size={24} />
+              <LoaderCircle className="animate-spin text-[var(--color-maroon)]" size={24} />
               <p className="text-xs text-slate-400 mt-2">Searching Job Orders...</p>
             </div>
           ) : errorMessage ? (
@@ -1251,11 +1251,11 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
               return (
                 <div
                   key={job.id}
-                  className="rounded-xl border border-slate-200 bg-white p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-purple-300 hover:shadow-md transition"
+                  className="rounded-xl border border-slate-200 bg-white p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-rose-300 hover:shadow-md transition"
                 >
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200">
+                      <span className="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-rose-50 text-[var(--color-maroon)] border border-rose-200">
                         {job.jobCode}
                       </span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
@@ -1263,7 +1263,7 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
                       </span>
                       {job.isQuickService ? (
                         <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
-                          ⚡ Quick
+                          Quick
                         </span>
                       ) : null}
                     </div>
@@ -1293,7 +1293,7 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
                     <button
                       type="button"
                       onClick={() => onSelectJob(job)}
-                      className="inline-flex items-center gap-1 rounded-xl bg-purple-700 hover:bg-purple-800 text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
                     >
                       <Plus size={14} />
                       Load to Cart
@@ -3241,13 +3241,13 @@ function PosSalesPage({ selectedBranch, user }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-700 via-purple-800 to-indigo-800 hover:from-purple-800 hover:to-indigo-900 text-white px-3 py-1.5 text-xs font-black shadow-md hover:shadow-lg transition transform active:scale-95 cursor-pointer ring-2 ring-purple-400/40"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3 py-1.5 text-xs font-bold shadow-sm hover:shadow-md transition transform active:scale-95 cursor-pointer ring-1 ring-rose-200"
                     onClick={() => setShowJobOrderLookup(true)}
                     title="Scan barcode or type JO number to load and pay Job Order"
                     type="button"
                   >
-                    <Wrench size={13} className="text-amber-300 animate-pulse" />
-                    <span>⚡ PAY JOB ORDER (JO #)</span>
+                    <Wrench size={13} className="text-white" />
+                    <span>Pay Job Order</span>
                   </button>
                   <span className="text-[11px] text-slate-400 hidden sm:inline">Scan or Enter</span>
                 </div>
@@ -3258,12 +3258,12 @@ function PosSalesPage({ selectedBranch, user }) {
                 <input
                   aria-label="Search products or job orders by barcode, code, or JO number"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white focus:ring-2 focus:ring-purple-500/10"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white focus:ring-2 focus:ring-rose-500/10"
                   onChange={(event) => setItemSearch(event.target.value)}
                   placeholder="Scan barcode / serial or enter J.O. # (e.g. 202609020001)…"
                   value={itemSearch}
                 />
-                {isLoadingItems ? <LoaderCircle className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-purple-700" size={15} /> : null}
+                {isLoadingItems ? <LoaderCircle className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[var(--color-maroon)]" size={15} /> : null}
               </form>
 
               {itemMessage ? <p className="text-xs font-semibold text-amber-700">{itemMessage}</p> : null}
@@ -3282,16 +3282,16 @@ function PosSalesPage({ selectedBranch, user }) {
 
                   return (
                     <div
-                      className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-purple-400 bg-purple-50/90 p-2.5 text-left transition hover:border-purple-600 hover:bg-purple-100 shadow-xs cursor-pointer group"
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-rose-300 bg-rose-50/80 p-2.5 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-100 shadow-xs cursor-pointer group"
                       key={job.id}
                       onClick={() => handleSelectJobOrder(job)}
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="rounded-md bg-purple-700 text-white px-2 py-0.5 text-[10px] font-black font-mono tracking-wider">
-                            ⚡ {job.jobCode}
+                          <span className="rounded-md bg-[var(--color-maroon)] text-white px-2 py-0.5 text-[10px] font-black font-mono tracking-wider">
+                            {job.jobCode}
                           </span>
-                          <span className="text-[10px] font-bold text-purple-900 bg-purple-200/80 px-1.5 py-0.2 rounded">
+                          <span className="text-[10px] font-bold text-rose-900 bg-rose-200/80 px-1.5 py-0.2 rounded">
                             Job Order
                           </span>
                           <span className="text-[10px] font-bold text-slate-600">
@@ -3304,12 +3304,12 @@ function PosSalesPage({ selectedBranch, user }) {
                         <p className="text-[10px] text-slate-500 truncate">
                           Customer: <strong>{customerName}</strong> {job.serialNumber ? `• S/N: ${job.serialNumber}` : ""} {techName ? `• Tech: ${techName}` : ""}
                         </p>
-                        <p className="mt-0.5 text-xs font-mono font-black text-purple-900">
-                          Amount: {formatMoney(finalPrice)} <span className="text-[10px] font-normal text-purple-700">(Editable in cart)</span>
+                        <p className="mt-0.5 text-xs font-mono font-black text-[var(--color-maroon)]">
+                          Amount: {formatMoney(finalPrice)} <span className="text-[10px] font-normal text-slate-500">(Editable in cart)</span>
                         </p>
                       </div>
                       <button
-                        className="grid size-8 shrink-0 place-items-center rounded-xl bg-purple-700 text-white group-hover:bg-purple-800 shadow-xs font-bold text-xs"
+                        className="grid size-8 shrink-0 place-items-center rounded-xl bg-[var(--color-maroon)] text-white group-hover:bg-[#6b0f1a] shadow-xs font-bold text-xs"
                         type="button"
                       >
                         <Plus size={16} />
@@ -3535,8 +3535,8 @@ function PosSalesPage({ selectedBranch, user }) {
                               #{index + 1} · {line.isJobOrder ? "Job Order Service" : line.type === "SERVICE" ? "Service" : "Product"}
                             </span>
                             {line.isJobOrder ? (
-                              <span className="rounded bg-purple-100 border border-purple-300 px-1.5 py-0.2 text-[9px] font-black text-purple-900">
-                                ⚡ {line.jobOrderCode}
+                              <span className="rounded bg-rose-100 border border-rose-300 px-1.5 py-0.2 text-[9px] font-black text-[var(--color-maroon)]">
+                                {line.jobOrderCode}
                               </span>
                             ) : null}
                             {isPcBuild && line.type === "PRODUCT" ? (
@@ -3548,7 +3548,7 @@ function PosSalesPage({ selectedBranch, user }) {
                           <h3 className="truncate font-bold text-slate-900">{line.item?.itemName || line.description}</h3>
                           {line.item ? <p className="text-[10px] font-mono text-slate-400">{line.item.itemCode}{line.item.isSerialized ? " · Serialized" : ""}</p> : null}
                           {line.type === "SERVICE" && line.serviceStaffName ? (
-                            <p className="text-[10px] font-semibold text-violet-700">👤 {line.serviceStaffName} {line.serviceStaffRole ? `(${line.serviceStaffRole})` : ""}</p>
+                            <p className="text-[10px] font-semibold text-rose-800">👤 {line.serviceStaffName} {line.serviceStaffRole ? `(${line.serviceStaffRole})` : ""}</p>
                           ) : null}
                         </div>
                         <button aria-label="Remove line" className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition shrink-0" onClick={() => removeCartLine(line.localId)} type="button">
@@ -3727,11 +3727,11 @@ function PosSalesPage({ selectedBranch, user }) {
                           <div className="grid gap-1.5 grid-cols-4">
                             <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" min="0.01" onChange={(event) => updateCartLine(line.localId, { quantity: event.target.value })} step="0.01" type="number" value={line.quantity} /></label>
                             <label className="block">
-                              <span className={`text-[10px] font-bold uppercase block ${line.isJobOrder ? "text-purple-700 font-black" : "text-slate-500"}`}>
+                              <span className={`text-[10px] font-bold uppercase block ${line.isJobOrder ? "text-[var(--color-maroon)] font-black" : "text-slate-500"}`}>
                                 {line.isJobOrder ? "Price (Editable)" : "Base Price"}
                               </span>
                               <input
-                                className={`mt-0.5 w-full rounded-lg border px-2 py-1 text-xs font-mono font-bold ${line.isJobOrder ? "border-purple-300 bg-purple-50/50 text-purple-900 focus:border-purple-600 focus:bg-white" : "border-slate-200 bg-white"}`}
+                                className={`mt-0.5 w-full rounded-lg border px-2 py-1 text-xs font-mono font-bold ${line.isJobOrder ? "border-rose-300 bg-rose-50/50 text-[var(--color-maroon)] focus:border-[var(--color-maroon)] focus:bg-white" : "border-slate-200 bg-white"}`}
                                 min="0"
                                 onChange={(event) => updateCartLine(line.localId, { baseUnitPrice: event.target.value })}
                                 step="0.01"
