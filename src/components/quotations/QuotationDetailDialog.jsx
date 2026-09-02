@@ -316,7 +316,7 @@ export default function QuotationDetailDialog({
                     <span className="font-mono">{formatMoney(srpTotal)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-slate-800 text-[11px]">
-                    <span>REGULAR PRICE (CREDIT / AR)</span>
+                    <span>REGULAR PRICE</span>
                     <span className="font-mono">{formatMoney(regularTotal)}</span>
                   </div>
 

@@ -1451,7 +1451,7 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     { align: "right" }
   )
 
-  doc.text("REGULAR PRICE (CREDIT / AR)", totalsLabelX, finalY + 13)
+  doc.text("REGULAR PRICE", totalsLabelX, finalY + 13)
   doc.text(
     regularTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     totalsValueX,
