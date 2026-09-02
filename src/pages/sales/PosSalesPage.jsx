@@ -41,6 +41,7 @@ import {
   getQuotationServiceStaff,
   updateQuotationStatus,
 } from "../../features/quotations/quotations.api"
+import { getServiceJobs } from "../../features/service-jobs/serviceJobs.api"
 import { generateUUID } from "../../utils/uuid"
 import {
   cancelSale,
@@ -1119,6 +1120,195 @@ function ReturnSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
   )
 }
 
+function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
+  const [searchText, setSearchText] = useState("")
+  const [statusFilter, setStatusFilter] = useState("ACTIVE")
+  const [jobs, setJobs] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+
+  const loadJobs = useCallback(async () => {
+    if (!branchId) return
+    setIsLoading(true)
+    setErrorMessage("")
+    try {
+      const response = await getServiceJobs({
+        branchId,
+        search: searchText.trim() || undefined,
+        status: statusFilter === "ALL" ? undefined : statusFilter === "READY_FOR_RELEASE" ? "READY_FOR_RELEASE" : undefined,
+        limit: 30,
+      })
+      const rows = Array.isArray(response?.data) ? response.data : []
+      setJobs(rows)
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || "Failed to load Job Orders.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [branchId, searchText, statusFilter])
+
+  useEffect(() => {
+    const timer = setTimeout(loadJobs, 250)
+    return () => clearTimeout(timer)
+  }, [loadJobs])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+      <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200 flex flex-col">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+          <div className="flex items-center gap-2">
+            <span className="grid size-7 place-items-center rounded-lg bg-purple-100 text-purple-800">
+              <Wrench size={16} />
+            </span>
+            <div>
+              <h2 className="text-base font-black text-slate-900 leading-tight">
+                Pay Service / Job Order in Cashiering
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Scan or enter the customer's J.O. Number from their claim stub.
+              </p>
+            </div>
+          </div>
+          <button
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={16} />
+          </button>
+        </header>
+
+        <div className="p-4 space-y-3 border-b border-slate-100 bg-slate-50/50">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              autoFocus
+              className="w-full rounded-xl border border-purple-200 bg-white pl-9 pr-9 py-2 text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-purple-500/20"
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search J.O. # (e.g. JO-2026-0001), Customer Name, or Serial..."
+              type="text"
+              value={searchText}
+            />
+            {searchText ? (
+              <button
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                onClick={() => setSearchText("")}
+                type="button"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {[
+              { key: "ACTIVE", label: "Active Jobs" },
+              { key: "READY_FOR_RELEASE", label: "Ready for Release" },
+              { key: "ALL", label: "All Job Orders" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                  statusFilter === tab.key
+                    ? "bg-purple-700 text-white"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2.5 max-h-[55vh]">
+          {isLoading ? (
+            <div className="grid place-items-center py-10">
+              <LoaderCircle className="animate-spin text-purple-700" size={24} />
+              <p className="text-xs text-slate-400 mt-2">Searching Job Orders...</p>
+            </div>
+          ) : errorMessage ? (
+            <div className="p-4 text-center text-xs text-rose-600 font-bold">{errorMessage}</div>
+          ) : jobs.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              <Wrench size={32} className="mx-auto mb-2 text-slate-300" />
+              <p className="font-bold text-slate-700">No matching Job Orders found</p>
+              <p className="mt-1">Check the J.O. number or search by customer name.</p>
+            </div>
+          ) : (
+            jobs.map((job) => {
+              const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in"
+              const customerContact = job.customerContactSnapshot || job.customer?.mobileNumber || ""
+              const finalPrice = Number(
+                job.finalServiceCharge ??
+                job.baseServiceCharge ??
+                job.estimatedServiceCharge ??
+                0
+              )
+              const techName = job.serviceDoneBy?.fullName || job.assignedTechnician?.fullName
+
+              return (
+                <div
+                  key={job.id}
+                  className="rounded-xl border border-slate-200 bg-white p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-purple-300 hover:shadow-md transition"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200">
+                        {job.jobCode}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                        {job.status?.replace(/_/g, " ")}
+                      </span>
+                      {job.isQuickService ? (
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
+                          ⚡ Quick
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="font-bold text-xs text-slate-900 truncate">
+                      {job.jobTitle || job.repairType?.replace(/_/g, " ")}
+                    </p>
+
+                    <p className="text-[11px] text-slate-500">
+                      <strong>Unit:</strong> {job.deviceDescription || job.unitType || "General"}
+                      {job.serialNumber ? ` • S/N: ${job.serialNumber}` : ""}
+                    </p>
+
+                    <p className="text-[11px] text-slate-500">
+                      <strong>Customer:</strong> {customerName} {customerContact ? `(${customerContact})` : ""}
+                      {techName ? ` • Tech: ${techName}` : ""}
+                    </p>
+                  </div>
+
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto shrink-0 gap-2">
+                    <div className="text-left sm:text-right">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">JO Charge</span>
+                      <span className="font-mono font-black text-sm text-[var(--color-maroon)]">
+                        {formatMoney(finalPrice)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onSelectJob(job)}
+                      className="inline-flex items-center gap-1 rounded-xl bg-purple-700 hover:bg-purple-800 text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      Load to Cart
+                    </button>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PosSalesPage({ selectedBranch, user }) {
   const activeBranch = selectedBranch || user?.branch || null
   const branchId = activeBranch?.id
@@ -1198,6 +1388,7 @@ function PosSalesPage({ selectedBranch, user }) {
   })
   const [cartMessage, setCartMessage] = useState("")
   const [showServiceForm, setShowServiceForm] = useState(false)
+  const [showJobOrderLookup, setShowJobOrderLookup] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
   const [serviceQuantity, setServiceQuantity] = useState("1")
   const [serviceUnitPrice, setServiceUnitPrice] = useState("")
@@ -1727,6 +1918,24 @@ function PosSalesPage({ selectedBranch, user }) {
       return
     }
 
+    // Check if query looks like a Job Order (e.g. JO-...)
+    if (query.toUpperCase().startsWith("JO-") || query.toUpperCase().startsWith("JO")) {
+      try {
+        const joRes = await getServiceJobs({ search: query, branchId, limit: 5 })
+        const joList = Array.isArray(joRes?.data) ? joRes.data : []
+        const exactJo = joList.find((j) => j.jobCode?.toLowerCase() === normalized)
+        if (exactJo) {
+          handleSelectJobOrder(exactJo)
+          setItemSearch("")
+          return
+        }
+      } catch {
+        // ignore
+      }
+      setShowJobOrderLookup(true)
+      return
+    }
+
     // Check if the query is an existing available serial number in this branch
     try {
       const serialResponse = await getInventorySerials({
@@ -1749,6 +1958,58 @@ function PosSalesPage({ selectedBranch, user }) {
     }
 
     setItemMessage("No exact item code, barcode, or available serial found. Select a product from the list.")
+  }
+
+  const handleSelectJobOrder = (job) => {
+    if (!job) return
+
+    // Auto-fill customer info if present
+    if (job.customerId) {
+      setSelectedCustomerId(job.customerId)
+      const found = customers.find((c) => c.id === job.customerId)
+      if (found) {
+        setCustomerSearch(found.fullName || "")
+        setCustomerPhone(found.mobileNumber || "")
+        setCustomerAddress(found.address || "")
+        setCustomerEmail(found.email || "")
+      }
+    } else if (job.customerNameSnapshot) {
+      setCustomerSearch(job.customerNameSnapshot)
+      setCustomerPhone(job.customerContactSnapshot || "")
+      setCustomerAddress(job.customerAddressSnapshot || "")
+    }
+
+    const jobAmount = String(
+      job.finalServiceCharge ??
+      job.baseServiceCharge ??
+      job.estimatedServiceCharge ??
+      0
+    )
+    const assignedStaff = job.serviceDoneBy || job.assignedTechnician
+
+    setCart((current) => [
+      ...current,
+      {
+        localId: `jo-${job.id}-${Date.now()}`,
+        type: "SERVICE",
+        isJobOrder: true,
+        jobOrderId: job.id,
+        jobOrderCode: job.jobCode,
+        description: `[JO #${job.jobCode}] ${job.jobTitle || job.repairType?.replace(/_/g, " ") || "Service"} - ${job.deviceDescription || job.unitType || "Unit"}${job.serialNumber ? ` (S/N: ${job.serialNumber})` : ""}${assignedStaff?.fullName ? ` [Done by: ${assignedStaff.fullName}]` : ""}`,
+        quantity: "1",
+        baseUnitPrice: jobAmount,
+        markupPercent: String(job.markupPercent || 0),
+        unitPrice: jobAmount,
+        discountAmount: "0",
+        serviceStaffId: assignedStaff?.id || null,
+        serviceStaffName: assignedStaff?.fullName || null,
+        serviceStaffRole: assignedStaff ? getRoleLabel(assignedStaff.role) : null,
+        warrantyDuration: "30 DAYS SERVICE WARRANTY",
+      },
+    ])
+
+    setShowJobOrderLookup(false)
+    setNoticeMessage(`Loaded Job Order ${job.jobCode} into cart. You can change the final price directly in the cart before paying.`)
   }
 
   const updateCartLine = (localId, patch) => {
@@ -2930,7 +3191,18 @@ function PosSalesPage({ selectedBranch, user }) {
                     <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">Find Products</h2>
                   </div>
                 </div>
-                <span className="text-[11px] text-slate-400">Scan or press Enter</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 px-2.5 py-1 text-xs font-bold transition shadow-2xs cursor-pointer"
+                    onClick={() => setShowJobOrderLookup(true)}
+                    title="Scan or type JO number to pay customer Job Order"
+                    type="button"
+                  >
+                    <Wrench size={12} className="text-purple-600" />
+                    ⚡ Pay JO #
+                  </button>
+                  <span className="text-[11px] text-slate-400 hidden sm:inline">Scan or Enter</span>
+                </div>
               </div>
 
               <form className="relative" onSubmit={handleItemSearchSubmit}>
@@ -3161,7 +3433,14 @@ function PosSalesPage({ selectedBranch, user }) {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">#{index + 1} · {line.type === "SERVICE" ? "Service" : "Product"}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              #{index + 1} · {line.isJobOrder ? "Job Order Service" : line.type === "SERVICE" ? "Service" : "Product"}
+                            </span>
+                            {line.isJobOrder ? (
+                              <span className="rounded bg-purple-100 border border-purple-300 px-1.5 py-0.2 text-[9px] font-black text-purple-900">
+                                ⚡ {line.jobOrderCode}
+                              </span>
+                            ) : null}
                             {isPcBuild && line.type === "PRODUCT" ? (
                               <span className="rounded bg-rose-50 border border-rose-200 px-1.5 py-0.2 text-[9px] font-black text-[var(--color-maroon)]">
                                 PC Part
@@ -3349,12 +3628,29 @@ function PosSalesPage({ selectedBranch, user }) {
                         <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
                           <div className="grid gap-1.5 grid-cols-4">
                             <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" min="0.01" onChange={(event) => updateCartLine(line.localId, { quantity: event.target.value })} step="0.01" type="number" value={line.quantity} /></label>
-                            <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Base Price</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono" min="0" onChange={(event) => updateCartLine(line.localId, { baseUnitPrice: event.target.value })} step="0.01" type="number" value={line.baseUnitPrice ?? line.unitPrice} /></label>
+                            <label className="block">
+                              <span className={`text-[10px] font-bold uppercase block ${line.isJobOrder ? "text-purple-700 font-black" : "text-slate-500"}`}>
+                                {line.isJobOrder ? "Price (Editable)" : "Base Price"}
+                              </span>
+                              <input
+                                className={`mt-0.5 w-full rounded-lg border px-2 py-1 text-xs font-mono font-bold ${line.isJobOrder ? "border-purple-300 bg-purple-50/50 text-purple-900 focus:border-purple-600 focus:bg-white" : "border-slate-200 bg-white"}`}
+                                min="0"
+                                onChange={(event) => updateCartLine(line.localId, { baseUnitPrice: event.target.value })}
+                                step="0.01"
+                                type="number"
+                                value={line.baseUnitPrice ?? line.unitPrice}
+                              />
+                            </label>
                             <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Markup %</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" max="99.9999" min="0" onChange={(event) => updateCartLine(line.localId, { markupPercent: event.target.value })} placeholder="0" step="0.01" type="number" value={line.markupPercent ?? ""} /></label>
                             <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Discount</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono" min="0" onChange={(event) => updateCartLine(line.localId, { discountAmount: event.target.value })} step="0.01" type="number" value={line.discountAmount} /></label>
                           </div>
-                          <div className="text-right font-mono font-black text-slate-900 text-xs">
-                            Total: {formatMoney(getLineTotal(line))}
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[10px] text-slate-400">
+                              {line.isJobOrder ? "ℹ️ Changeable price for this Job Order" : ""}
+                            </span>
+                            <div className="text-right font-mono font-black text-slate-900 text-xs">
+                              Total: {formatMoney(getLineTotal(line))}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -4187,6 +4483,14 @@ function PosSalesPage({ selectedBranch, user }) {
             loadItems()
           }}
           quotation={quotationToConvert}
+        />
+      ) : null}
+
+      {showJobOrderLookup ? (
+        <JobOrderLookupDialog
+          branchId={branchId}
+          onClose={() => setShowJobOrderLookup(false)}
+          onSelectJob={handleSelectJobOrder}
         />
       ) : null}
     </div>
