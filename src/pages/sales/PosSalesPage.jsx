@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 
 import { USER_ROLES, getRoleLabel } from "../../constants/roles"
-import { createCustomer, getCustomers } from "../../features/customers/customers.api"
+import { createCustomer, getCustomers, updateCustomerById } from "../../features/customers/customers.api"
 import {
   getInventoryBatches,
   getInventorySerials,
@@ -365,6 +365,20 @@ function SaleDetailDialog({
   onConfirmCheckout = null,
   isSubmittingCheckout = false,
 }) {
+  const [previewCustomerName, setPreviewCustomerName] = useState(sale?.customer?.fullName || "")
+  const [previewCustomerAddress, setPreviewCustomerAddress] = useState(sale?.customer?.address || "")
+  const [previewCustomerPhone, setPreviewCustomerPhone] = useState(
+    sale?.customer?.mobileNumber || sale?.customer?.phone || ""
+  )
+  const [previewCustomerEmail, setPreviewCustomerEmail] = useState(sale?.customer?.email || "")
+
+  useEffect(() => {
+    setPreviewCustomerName(sale?.customer?.fullName || "")
+    setPreviewCustomerAddress(sale?.customer?.address || "")
+    setPreviewCustomerPhone(sale?.customer?.mobileNumber || sale?.customer?.phone || "")
+    setPreviewCustomerEmail(sale?.customer?.email || "")
+  }, [sale])
+
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") onClose()
@@ -423,6 +437,17 @@ function SaleDetailDialog({
   const paidAmount = Number(sale?.amountPaid || 0)
   const balanceToPay = Math.max(0, totalAmount - paidAmount)
 
+  const handleConfirmCheckout = () => {
+    if (onConfirmCheckout) {
+      onConfirmCheckout({
+        customerName: previewCustomerName,
+        customerAddress: previewCustomerAddress,
+        customerPhone: previewCustomerPhone,
+        customerEmail: previewCustomerEmail,
+      })
+    }
+  }
+
   return createPortal(
     <div
       aria-labelledby="sale-detail-title"
@@ -454,7 +479,7 @@ function SaleDetailDialog({
                 <button
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white shadow-soft transition hover:bg-emerald-700 disabled:opacity-50"
                   disabled={isSubmittingCheckout}
-                  onClick={onConfirmCheckout}
+                  onClick={handleConfirmCheckout}
                   type="button"
                 >
                   {isSubmittingCheckout ? (
@@ -500,6 +525,68 @@ function SaleDetailDialog({
             </div>
           </header>
 
+          {/* Customer Details Input Panel for Checkout Preview */}
+          {isCheckoutPreview ? (
+            <div className="sale-receipt-print-actions border-b border-amber-200 bg-amber-50/70 p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-6 place-items-center rounded-lg bg-amber-200 text-amber-900 font-bold text-xs">
+                    <UserRound size={13} />
+                  </span>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-amber-950">
+                      Customer Information for Warranty Receipt
+                    </h3>
+                    <p className="text-[11px] text-amber-800">
+                      You can enter or update the customer address and contact number before finalizing.
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-[10px] font-bold text-amber-900 shrink-0">
+                  Updates receipt in real-time
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3 text-xs">
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-1">
+                    Customer Full Name <span className="text-red-500">*</span>
+                  </span>
+                  <input
+                    className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
+                    value={previewCustomerName}
+                    onChange={(e) => setPreviewCustomerName(e.target.value)}
+                    placeholder="e.g. Juan Dela Cruz"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-1">
+                    Contact / Mobile No.
+                  </span>
+                  <input
+                    className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
+                    value={previewCustomerPhone}
+                    onChange={(e) => setPreviewCustomerPhone(e.target.value)}
+                    placeholder="e.g. 0917-123-4567 / 0961-873-5798"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-1">
+                    Address (Street, City, Province)
+                  </span>
+                  <input
+                    className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
+                    value={previewCustomerAddress}
+                    onChange={(e) => setPreviewCustomerAddress(e.target.value)}
+                    placeholder="e.g. Brgy. San Isidro, CSFP"
+                  />
+                </label>
+              </div>
+            </div>
+          ) : null}
+
           {isLoading ? (
             <div className="flex items-center gap-3 p-8 text-sm font-semibold text-slate-500">
               <LoaderCircle className="animate-spin" size={18} />
@@ -534,13 +621,19 @@ function SaleDetailDialog({
                     <span className="col-span-2 font-bold uppercase">{formatDate(sale.saleDate)}</span>
 
                     <span className="font-bold text-slate-600">Customer Name:</span>
-                    <span className="col-span-2 font-bold uppercase">{sale.customer?.fullName || "WALK-IN CUSTOMER"}</span>
+                    <span className="col-span-2 font-bold uppercase">
+                      {(isCheckoutPreview ? previewCustomerName : sale.customer?.fullName) || "WALK-IN CUSTOMER"}
+                    </span>
 
                     <span className="font-bold text-slate-600">Address:</span>
-                    <span className="col-span-2">{sale.customer?.address || "—"}</span>
+                    <span className="col-span-2">
+                      {(isCheckoutPreview ? previewCustomerAddress : sale.customer?.address) || "—"}
+                    </span>
 
                     <span className="font-bold text-slate-600">Contact No.:</span>
-                    <span className="col-span-2">{sale.customer?.mobileNumber || sale.customer?.email || "—"}</span>
+                    <span className="col-span-2">
+                      {(isCheckoutPreview ? previewCustomerPhone : (sale.customer?.mobileNumber || sale.customer?.email)) || "—"}
+                    </span>
 
                     <span className="font-bold text-slate-600">Salesman:</span>
                     <span className="col-span-2 font-bold uppercase">{sale.cashier?.fullName || sale.cashier?.username || "—"}</span>
@@ -714,7 +807,7 @@ function SaleDetailDialog({
                   <button
                     className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-black text-white shadow-soft hover:bg-emerald-700 transition disabled:opacity-50"
                     disabled={isSubmittingCheckout}
-                    onClick={onConfirmCheckout}
+                    onClick={handleConfirmCheckout}
                     type="button"
                   >
                     {isSubmittingCheckout ? (
@@ -1009,6 +1102,18 @@ function PosSalesPage({ selectedBranch, user }) {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.customerSearch || ""
   })
+  const [customerAddress, setCustomerAddress] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.customerAddress || ""
+  })
+  const [customerPhone, setCustomerPhone] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.customerPhone || ""
+  })
+  const [customerEmail, setCustomerEmail] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.customerEmail || ""
+  })
   const [customers, setCustomers] = useState([])
   const [selectedCustomerId, setSelectedCustomerId] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
@@ -1129,11 +1234,14 @@ function PosSalesPage({ selectedBranch, user }) {
   useEffect(() => {
     if (!branchId || !user?.id) return
     const draftKey = `pos_draft_${user.id}_${branchId}`
-    if (cart.length > 0 || customerSearch || remarks || selectedCustomerId) {
+    if (cart.length > 0 || customerSearch || customerAddress || customerPhone || remarks || selectedCustomerId) {
       saveFormDraft(draftKey, {
         cart,
         selectedCustomerId,
         customerSearch,
+        customerAddress,
+        customerPhone,
+        customerEmail,
         selectedPriceTier,
         remarks,
         isPcBuild,
@@ -1155,6 +1263,9 @@ function PosSalesPage({ selectedBranch, user }) {
     cart,
     selectedCustomerId,
     customerSearch,
+    customerAddress,
+    customerPhone,
+    customerEmail,
     selectedPriceTier,
     remarks,
     isPcBuild,
@@ -1802,6 +1913,9 @@ function PosSalesPage({ selectedBranch, user }) {
     setCart([])
     setSelectedCustomerId("")
     setCustomerSearch("")
+    setCustomerAddress("")
+    setCustomerPhone("")
+    setCustomerEmail("")
     setIsCustomerDropdownOpen(false)
     setSelectedPriceTier(1)
     setServiceCharge("0")
@@ -1839,7 +1953,12 @@ function PosSalesPage({ selectedBranch, user }) {
     const customerObj =
       matchedCustomer ||
       (customerSearch.trim()
-        ? { fullName: customerSearch.trim() }
+        ? {
+            fullName: customerSearch.trim(),
+            address: customerAddress.trim() || undefined,
+            mobileNumber: customerPhone.trim() || undefined,
+            email: customerEmail.trim() || undefined,
+          }
         : { fullName: "Walk-in Customer" })
 
     const grandTotalValue = isReceivableCheckout
@@ -1855,7 +1974,13 @@ function PosSalesPage({ selectedBranch, user }) {
       receiptCode: "CHECKOUT-PREVIEW",
       saleDate: new Date().toISOString(),
       branch: activeBranch,
-      customer: customerObj,
+      customer: {
+        ...customerObj,
+        fullName: customerSearch.trim() || customerObj.fullName,
+        address: customerAddress.trim() || customerObj.address || "",
+        mobileNumber: customerPhone.trim() || customerObj.mobileNumber || "",
+        email: customerEmail.trim() || customerObj.email || "",
+      },
       cashier: user,
       technician: technicianName ? { fullName: technicianName } : null,
       remarks: isPcBuild
@@ -1916,12 +2041,31 @@ function PosSalesPage({ selectedBranch, user }) {
     setSaleCheckoutPreview(previewSaleDoc)
   }
 
-  const submitSale = async () => {
+  const submitSale = async (overrideCustomerDetails = null) => {
     if (!canCreateSale || isSubmittingSale) return
 
     const validationMessage = validateCart()
     if (validationMessage) {
       setCheckoutMessage(validationMessage)
+      return
+    }
+
+    const effectiveName = (
+      overrideCustomerDetails?.customerName ?? customerSearch
+    ).trim()
+    const effectiveAddress = (
+      overrideCustomerDetails?.customerAddress ?? customerAddress
+    ).trim()
+    const effectivePhone = (
+      overrideCustomerDetails?.customerPhone ?? customerPhone
+    ).trim()
+    const effectiveEmail = (
+      overrideCustomerDetails?.customerEmail ?? customerEmail
+    ).trim()
+
+    if (!effectiveName) {
+      setCheckoutMessage("Customer name is required before completing the sale.")
+      customerInputRef.current?.focus()
       return
     }
 
@@ -1936,38 +2080,63 @@ function PosSalesPage({ selectedBranch, user }) {
 
     try {
       let effectiveCustomerId = selectedCustomerId || undefined
-      const trimmedCustomerName = customerSearch.trim()
 
-      if (!effectiveCustomerId && trimmedCustomerName) {
+      if (effectiveCustomerId) {
+        // Update existing customer record if other details were supplied
+        try {
+          await updateCustomerById(effectiveCustomerId, {
+            fullName: effectiveName || undefined,
+            address: effectiveAddress || null,
+            mobileNumber: effectivePhone || null,
+            email: effectiveEmail || null,
+          })
+        } catch (updateErr) {
+          console.warn("Updating customer details failed, proceeding with sale:", updateErr)
+        }
+      } else {
+        // Check if existing customer matches by name
         const existingMatch = customers.find(
-          (c) => c.fullName?.trim().toLowerCase() === trimmedCustomerName.toLowerCase()
+          (c) => c.fullName?.trim().toLowerCase() === effectiveName.toLowerCase()
         )
         if (existingMatch?.id) {
           effectiveCustomerId = existingMatch.id
+          try {
+            await updateCustomerById(existingMatch.id, {
+              address: effectiveAddress || null,
+              mobileNumber: effectivePhone || null,
+              email: effectiveEmail || null,
+            })
+          } catch (updateErr) {
+            console.warn("Updating existing customer details failed:", updateErr)
+          }
+        } else if (
+          effectiveName.toLowerCase() !== "walk-in" &&
+          effectiveName.toLowerCase() !== "walk-in customer"
+        ) {
+          try {
+            const newCustRes = await createCustomer({
+              fullName: effectiveName,
+              address: effectiveAddress || undefined,
+              mobileNumber: effectivePhone || undefined,
+              email: effectiveEmail || undefined,
+              branchId,
+              priceTier: selectedPriceTier || 1,
+            })
+            const createdCust = newCustRes?.data || newCustRes
+            if (createdCust?.id) {
+              effectiveCustomerId = createdCust.id
+            }
+          } catch (custError) {
+            console.warn("Auto-registering customer failed, continuing as walk-in:", custError)
+          }
         }
       }
 
-      if (
-        !effectiveCustomerId &&
-        trimmedCustomerName &&
-        trimmedCustomerName.toLowerCase() !== "walk-in" &&
-        trimmedCustomerName.toLowerCase() !== "walk-in customer"
-      ) {
-        try {
-          const newCustRes = await createCustomer({
-            fullName: trimmedCustomerName,
-            branchId,
-            priceTier: selectedPriceTier || 1,
-          })
-          const createdCust = newCustRes?.data || newCustRes
-          if (createdCust?.id) {
-            effectiveCustomerId = createdCust.id
-            loadCustomers()
-          }
-        } catch (custError) {
-          console.warn("Auto-registering customer failed, continuing as walk-in:", custError)
-        }
-      }
+      // Update state with effective customer details
+      setCustomerSearch(effectiveName)
+      setCustomerAddress(effectiveAddress)
+      setCustomerPhone(effectivePhone)
+      setCustomerEmail(effectiveEmail)
 
       const settlementAmount = Number(effectivePaymentAmount || 0)
       const formattedRemarks = isPcBuild
@@ -2076,6 +2245,13 @@ function PosSalesPage({ selectedBranch, user }) {
 
       const receiptSale = {
         ...sale,
+        customer: {
+          ...(sale.customer || {}),
+          fullName: effectiveName || sale.customer?.fullName || "Walk-in Customer",
+          address: effectiveAddress || sale.customer?.address || null,
+          mobileNumber: effectivePhone || sale.customer?.mobileNumber || null,
+          email: effectiveEmail || sale.customer?.email || null,
+        },
         items: (sale.items || []).map((item, index) => ({
           ...item,
           serialNumber: cartSnapshot[index]?.serialNumber || null,
@@ -2091,6 +2267,7 @@ function PosSalesPage({ selectedBranch, user }) {
       resetCheckout()
       setSalesPage(1)
       await loadSales()
+      await loadCustomers()
       await loadItems()
     } catch (error) {
       setCheckoutMessage(getApiErrorMessage(error, "Unable to complete the sale. No success receipt was returned."))
@@ -2500,10 +2677,13 @@ function PosSalesPage({ selectedBranch, user }) {
                     onClick={() => {
                       setSelectedCustomerId("")
                       setCustomerSearch("")
+                      setCustomerAddress("")
+                      setCustomerPhone("")
+                      setCustomerEmail("")
                       setIsCustomerDropdownOpen(false)
                       setSelectedPriceTier(1)
                     }}
-                    title="Clear customer name"
+                    title="Clear customer details"
                     type="button"
                   >
                     <X size={11} /> Clear
@@ -2539,6 +2719,9 @@ function PosSalesPage({ selectedBranch, user }) {
                       onClick={() => {
                         setCustomerSearch("")
                         setSelectedCustomerId("")
+                        setCustomerAddress("")
+                        setCustomerPhone("")
+                        setCustomerEmail("")
                         setIsCustomerDropdownOpen(false)
                       }}
                       type="button"
@@ -2563,6 +2746,9 @@ function PosSalesPage({ selectedBranch, user }) {
                             onClick={() => {
                               setSelectedCustomerId(customer.id)
                               setCustomerSearch(customer.fullName)
+                              setCustomerAddress(customer.address || "")
+                              setCustomerPhone(customer.mobileNumber || "")
+                              setCustomerEmail(customer.email || "")
                               setIsCustomerDropdownOpen(false)
                               const tier = customer.priceTier ? Number(customer.priceTier) : 1
                               setSelectedPriceTier(tier)
@@ -2587,9 +2773,9 @@ function PosSalesPage({ selectedBranch, user }) {
                                 </span>
                               ) : null}
                             </div>
-                            {customer.companyName || customer.mobileNumber ? (
+                            {customer.companyName || customer.mobileNumber || customer.address ? (
                               <p className="mt-0.5 text-[11px] text-slate-400">
-                                {[customer.companyName, customer.mobileNumber].filter(Boolean).join(" · ")}
+                                {[customer.companyName, customer.mobileNumber, customer.address].filter(Boolean).join(" · ")}
                               </p>
                             ) : null}
                           </button>
@@ -2636,6 +2822,22 @@ function PosSalesPage({ selectedBranch, user }) {
                   </span>
                 </div>
               ) : null}
+
+              {/* Customer Contact & Address inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <input
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:bg-white transition"
+                  placeholder="Contact / Mobile No. (optional)"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                />
+                <input
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:bg-white transition"
+                  placeholder="Address (optional)"
+                  value={customerAddress}
+                  onChange={(e) => setCustomerAddress(e.target.value)}
+                />
+              </div>
 
               {/* Price Tier Toolbar */}
               <div className="pt-2 border-t border-slate-100">
