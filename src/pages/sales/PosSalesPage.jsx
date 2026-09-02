@@ -2599,7 +2599,6 @@ function PosSalesPage({ selectedBranch, user }) {
 
       {canCreateSale ? (
         <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
-          {/* Left Column: Customer, Product Search & Service */}
           <div className="lg:col-span-5 min-w-0 space-y-3">
             {/* Customer & Price Tier Card (at the very top) */}
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
@@ -2614,7 +2613,7 @@ function PosSalesPage({ selectedBranch, user }) {
                     </h2>
                   </div>
                 </div>
-                {selectedCustomerId || customerSearch.trim() ? (
+                {selectedCustomerId || customerSearch.trim() || customerPhone.trim() || customerAddress.trim() ? (
                   <button
                     className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:text-red-700 transition"
                     onClick={() => {
@@ -2640,7 +2639,7 @@ function PosSalesPage({ selectedBranch, user }) {
                   <input
                     ref={customerInputRef}
                     aria-label="Search or enter customer name"
-                    className={`w-full rounded-xl border bg-slate-50/50 py-2 pl-3 pr-8 text-xs font-medium outline-none transition focus:bg-white ${
+                    className={`w-full rounded-xl border bg-slate-50/50 py-1.5 pl-3 pr-8 text-xs font-medium outline-none transition focus:bg-white ${
                       !selectedCustomerId && !customerSearch.trim() && checkoutMessage?.includes("Customer name is required")
                         ? "border-red-400 focus:border-red-500"
                         : "border-slate-200 focus:border-[var(--color-maroon)]"
@@ -2653,7 +2652,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       }
                     }}
                     onFocus={() => setIsCustomerDropdownOpen(true)}
-                    placeholder="Type name (e.g. Juan Dela Cruz) *required…"
+                    placeholder="Type customer name (e.g. Juan Dela Cruz) *required…"
                     value={customerSearch}
                   />
                   {customerSearch.trim() ? (
@@ -2742,6 +2741,28 @@ function PosSalesPage({ selectedBranch, user }) {
                     </div>
                   </div>
                 ) : null}
+              </div>
+
+              {/* Contact Number & Address Fields */}
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Contact No.</span>
+                  <input
+                    className="mt-0.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="0917xxxxxxx"
+                    value={customerPhone}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Address</span>
+                  <input
+                    className="mt-0.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    placeholder="City / Municipality"
+                    value={customerAddress}
+                  />
+                </label>
               </div>
 
               {/* Active selection badge */}
@@ -3032,13 +3053,13 @@ function PosSalesPage({ selectedBranch, user }) {
             {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800">{cartMessage}</div> : null}
 
             {cart.length === 0 ? (
-              <div className="grid place-items-center p-6 text-center text-slate-400">
-                <ShoppingCart className="text-slate-300" size={32} />
+              <div className="h-[200px] grid place-content-center p-4 text-center text-slate-400">
+                <ShoppingCart className="mx-auto text-slate-300" size={30} />
                 <p className="mt-1.5 text-xs font-bold text-slate-600">Cart is empty</p>
                 <p className="mt-0.5 text-[11px] text-slate-400">Search product or add service line on the left.</p>
               </div>
             ) : (
-              <div className="max-h-[240px] sm:max-h-[260px] space-y-2 overflow-y-auto p-3 text-xs">
+              <div className="h-[200px] space-y-2 overflow-y-auto p-2.5 text-xs">
                 {cart.map((line, index) => {
                   const gross = getLineGross(line)
                   const selectedBatch = line.batches?.find((batch) => batch.id === line.batchId)
