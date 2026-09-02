@@ -702,43 +702,33 @@ function SaleDetailDialog({
 
               {/* Checkout Preview Confirmation Action Bar */}
               {isCheckoutPreview && onConfirmCheckout ? (
-                <div className="sale-receipt-print-actions flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 shadow-2xs">
-                  <div>
-                    <p className="font-bold text-emerald-950 text-sm flex items-center gap-1.5">
-                      <span>⚡</span> Review Order Details Before Finalizing Sale
-                    </p>
-                    <p className="text-xs text-emerald-800 mt-0.5">
-                      Suriin ang mga items, serial numbers, customer details, at total amount. I-click ang <strong>Complete Sale</strong> para pormal na maibenta at ma-deduct sa inventory.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
-                      disabled={isSubmittingCheckout}
-                      onClick={onClose}
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-soft hover:bg-emerald-700 transition disabled:opacity-50"
-                      disabled={isSubmittingCheckout}
-                      onClick={onConfirmCheckout}
-                      type="button"
-                    >
-                      {isSubmittingCheckout ? (
-                        <>
-                          <LoaderCircle className="animate-spin" size={15} />
-                          Completing Sale…
-                        </>
-                      ) : (
-                        <>
-                          <ReceiptText size={15} />
-                          Complete Sale · {formatMoney(totalAmount)}
-                        </>
-                      )}
-                    </button>
-                  </div>
+                <div className="sale-receipt-print-actions flex items-center justify-end gap-3 pt-2">
+                  <button
+                    className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                    disabled={isSubmittingCheckout}
+                    onClick={onClose}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-black text-white shadow-soft hover:bg-emerald-700 transition disabled:opacity-50"
+                    disabled={isSubmittingCheckout}
+                    onClick={onConfirmCheckout}
+                    type="button"
+                  >
+                    {isSubmittingCheckout ? (
+                      <>
+                        <LoaderCircle className="animate-spin" size={15} />
+                        Completing Sale…
+                      </>
+                    ) : (
+                      <>
+                        <ReceiptText size={15} />
+                        Complete Sale · {formatMoney(totalAmount)}
+                      </>
+                    )}
+                  </button>
                 </div>
               ) : null}
 
