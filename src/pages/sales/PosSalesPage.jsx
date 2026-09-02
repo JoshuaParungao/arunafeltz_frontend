@@ -1317,6 +1317,7 @@ function PosSalesPage({ selectedBranch, user }) {
 
   const [itemSearch, setItemSearch] = useState("")
   const [itemResults, setItemResults] = useState([])
+  const [jobOrderResults, setJobOrderResults] = useState([])
   const [isLoadingItems, setIsLoadingItems] = useState(false)
   const [itemMessage, setItemMessage] = useState("")
   const [addingItemId, setAddingItemId] = useState("")
@@ -1614,6 +1615,7 @@ function PosSalesPage({ selectedBranch, user }) {
   const loadItems = useCallback(async () => {
     if (!branchId) {
       setItemResults([])
+      setJobOrderResults([])
       return
     }
 
@@ -1623,21 +1625,39 @@ function PosSalesPage({ selectedBranch, user }) {
     setItemMessage("")
 
     try {
-      const response = await getItems({
-        branchId,
-        status: "ACTIVE",
-        search: itemSearch.trim() || undefined,
-        page: 1,
-        limit: 20,
-      })
+      const trimmedSearch = itemSearch.trim()
+      const [itemResponse, joResponse] = await Promise.all([
+        getItems({
+          branchId,
+          status: "ACTIVE",
+          search: trimmedSearch || undefined,
+          page: 1,
+          limit: 20,
+        }),
+        trimmedSearch
+          ? getServiceJobs({
+              branchId,
+              search: trimmedSearch,
+              limit: 5,
+            }).catch(() => null)
+          : Promise.resolve(null),
+      ])
+
       if (requestId !== itemRequestIdRef.current) return
 
-      const rows = getCatalogRows(response)
+      const rows = getCatalogRows(itemResponse)
       setItemResults(rows)
-      if (rows.length === 0) setItemMessage("No active products match this search.")
+
+      const joRows = Array.isArray(joResponse?.data) ? joResponse.data : []
+      setJobOrderResults(joRows)
+
+      if (rows.length === 0 && joRows.length === 0 && trimmedSearch) {
+        setItemMessage("No active products or Job Orders match this search.")
+      }
     } catch (error) {
       if (requestId !== itemRequestIdRef.current) return
       setItemResults([])
+      setJobOrderResults([])
       setItemMessage(getApiErrorMessage(error, "Unable to search products right now."))
     } finally {
       if (requestId === itemRequestIdRef.current) setIsLoadingItems(false)
@@ -1905,8 +1925,10 @@ function PosSalesPage({ selectedBranch, user }) {
     event.preventDefault()
     const query = itemSearch.trim()
     const normalized = query.toLowerCase()
+    const cleanDigits = query.replace(/\D/g, "")
     if (!normalized) return
 
+    // 1. Check if exact product match by itemCode or barcode
     const exactItem = itemResults.find((item) => {
       return [item.itemCode, item.barcode]
         .filter(Boolean)
@@ -1918,25 +1940,49 @@ function PosSalesPage({ selectedBranch, user }) {
       return
     }
 
-    // Check if query looks like a Job Order (e.g. JO-...)
-    if (query.toUpperCase().startsWith("JO-") || query.toUpperCase().startsWith("JO")) {
-      try {
-        const joRes = await getServiceJobs({ search: query, branchId, limit: 5 })
-        const joList = Array.isArray(joRes?.data) ? joRes.data : []
-        const exactJo = joList.find((j) => j.jobCode?.toLowerCase() === normalized)
-        if (exactJo) {
-          handleSelectJobOrder(exactJo)
-          setItemSearch("")
-          return
-        }
-      } catch {
-        // ignore
-      }
-      setShowJobOrderLookup(true)
+    // 2. Check if matched Job Order in current results list
+    const matchedJoFromList = jobOrderResults.find((job) => {
+      const codeNorm = job.jobCode?.toLowerCase() || ""
+      const codeDigits = job.jobCode?.replace(/\D/g, "") || ""
+      const serialNorm = job.serialNumber?.toLowerCase() || ""
+      return (
+        codeNorm === normalized ||
+        (cleanDigits.length >= 4 && codeDigits && (cleanDigits === codeDigits || codeDigits.includes(cleanDigits) || cleanDigits.includes(codeDigits))) ||
+        (serialNorm && serialNorm === normalized)
+      )
+    })
+
+    if (matchedJoFromList) {
+      handleSelectJobOrder(matchedJoFromList)
+      setItemSearch("")
       return
     }
 
-    // Check if the query is an existing available serial number in this branch
+    // 3. Check via live search for Job Orders
+    try {
+      const joRes = await getServiceJobs({ search: query, branchId, limit: 5 })
+      const joList = Array.isArray(joRes?.data) ? joRes.data : []
+      const matchedJo = joList.find((job) => {
+        const codeNorm = job.jobCode?.toLowerCase() || ""
+        const codeDigits = job.jobCode?.replace(/\D/g, "") || ""
+        const serialNorm = job.serialNumber?.toLowerCase() || ""
+        return (
+          codeNorm === normalized ||
+          (cleanDigits.length >= 4 && codeDigits && (cleanDigits === codeDigits || codeDigits.includes(cleanDigits) || cleanDigits.includes(codeDigits))) ||
+          (serialNorm && serialNorm === normalized)
+        )
+      }) || (joList.length === 1 ? joList[0] : null)
+
+      if (matchedJo) {
+        handleSelectJobOrder(matchedJo)
+        setItemSearch("")
+        return
+      }
+    } catch {
+      // ignore
+    }
+
+    // 4. Check if the query is an existing available serial number in this branch
     try {
       const serialResponse = await getInventorySerials({
         branchId,
@@ -1957,7 +2003,7 @@ function PosSalesPage({ selectedBranch, user }) {
       // ignore
     }
 
-    setItemMessage("No exact item code, barcode, or available serial found. Select a product from the list.")
+    setItemMessage("No exact product barcode, item code, serial, or J.O. number found. Check the list below or click ⚡ PAY JOB ORDER.")
   }
 
   const handleSelectJobOrder = (job) => {
@@ -3180,26 +3226,28 @@ function PosSalesPage({ selectedBranch, user }) {
               </div>
             </section>
 
-            {/* Product Search Card */}
+            {/* Product & Job Order Search Card */}
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span className="grid size-7 place-items-center rounded-lg bg-rose-50 text-[var(--color-maroon)]">
                     <PackageSearch size={15} />
                   </span>
                   <div>
-                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">Find Products</h2>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                      Find Products & Job Orders
+                    </h2>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 px-2.5 py-1 text-xs font-bold transition shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-700 via-purple-800 to-indigo-800 hover:from-purple-800 hover:to-indigo-900 text-white px-3 py-1.5 text-xs font-black shadow-md hover:shadow-lg transition transform active:scale-95 cursor-pointer ring-2 ring-purple-400/40"
                     onClick={() => setShowJobOrderLookup(true)}
-                    title="Scan or type JO number to pay customer Job Order"
+                    title="Scan barcode or type JO number to load and pay Job Order"
                     type="button"
                   >
-                    <Wrench size={12} className="text-purple-600" />
-                    ⚡ Pay JO #
+                    <Wrench size={13} className="text-amber-300 animate-pulse" />
+                    <span>⚡ PAY JOB ORDER (JO #)</span>
                   </button>
                   <span className="text-[11px] text-slate-400 hidden sm:inline">Scan or Enter</span>
                 </div>
@@ -3208,19 +3256,69 @@ function PosSalesPage({ selectedBranch, user }) {
               <form className="relative" onSubmit={handleItemSearchSubmit}>
                 <Barcode className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
-                  aria-label="Search products by name, code, brand, model, or barcode"
+                  aria-label="Search products or job orders by barcode, code, or JO number"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-9 pr-9 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white focus:ring-2 focus:ring-purple-500/10"
                   onChange={(event) => setItemSearch(event.target.value)}
-                  placeholder="Scan barcode or type name, code, brand…"
+                  placeholder="Scan barcode / serial or enter J.O. # (e.g. 202609020001)…"
                   value={itemSearch}
                 />
-                {isLoadingItems ? <LoaderCircle className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" size={15} /> : null}
+                {isLoadingItems ? <LoaderCircle className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-purple-700" size={15} /> : null}
               </form>
 
               {itemMessage ? <p className="text-xs font-semibold text-amber-700">{itemMessage}</p> : null}
 
-              <div className="max-h-[220px] sm:max-h-[250px] space-y-1.5 overflow-y-auto pr-1">
+              <div className="max-h-[260px] sm:max-h-[300px] space-y-1.5 overflow-y-auto pr-1">
+                {/* 1. Show Matching Job Orders at the very top */}
+                {jobOrderResults.map((job) => {
+                  const finalPrice = Number(
+                    job.finalServiceCharge ??
+                    job.baseServiceCharge ??
+                    job.estimatedServiceCharge ??
+                    0
+                  )
+                  const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in"
+                  const techName = job.serviceDoneBy?.fullName || job.assignedTechnician?.fullName
+
+                  return (
+                    <div
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-purple-400 bg-purple-50/90 p-2.5 text-left transition hover:border-purple-600 hover:bg-purple-100 shadow-xs cursor-pointer group"
+                      key={job.id}
+                      onClick={() => handleSelectJobOrder(job)}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="rounded-md bg-purple-700 text-white px-2 py-0.5 text-[10px] font-black font-mono tracking-wider">
+                            ⚡ {job.jobCode}
+                          </span>
+                          <span className="text-[10px] font-bold text-purple-900 bg-purple-200/80 px-1.5 py-0.2 rounded">
+                            Job Order
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-600">
+                            {job.status?.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs font-black text-slate-900 truncate">
+                          {job.jobTitle || job.repairType?.replace(/_/g, " ")} — {job.deviceDescription || job.unitType}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          Customer: <strong>{customerName}</strong> {job.serialNumber ? `• S/N: ${job.serialNumber}` : ""} {techName ? `• Tech: ${techName}` : ""}
+                        </p>
+                        <p className="mt-0.5 text-xs font-mono font-black text-purple-900">
+                          Amount: {formatMoney(finalPrice)} <span className="text-[10px] font-normal text-purple-700">(Editable in cart)</span>
+                        </p>
+                      </div>
+                      <button
+                        className="grid size-8 shrink-0 place-items-center rounded-xl bg-purple-700 text-white group-hover:bg-purple-800 shadow-xs font-bold text-xs"
+                        type="button"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  )
+                })}
+
+                {/* 2. Show Matching Products */}
                 {itemResults.map((item) => (
                   <button
                     className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-50/20 disabled:opacity-50 shadow-2xs"
