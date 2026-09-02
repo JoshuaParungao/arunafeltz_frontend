@@ -136,108 +136,120 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
   if (!item) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-card">
-        <div className="flex items-start justify-between gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl border border-slate-200">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-[var(--color-accent)]">Item details</p>
-            <h2 className="mt-1 truncate text-xl font-bold text-[var(--color-text-strong)]">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Item Details</span>
+            <h2 className="mt-0.5 truncate text-base font-black text-slate-900 leading-tight">
               {item.itemName}
             </h2>
-            <p className="mt-1 text-sm font-semibold text-[var(--color-muted)]">
+            <p className="text-xs font-semibold text-slate-500 font-mono">
               {item.itemCode}
             </p>
           </div>
 
           <button
-            className="rounded-2xl border border-[var(--color-border)] px-4 py-2 text-sm font-bold text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Item Code</p>
+              <p className="mt-1 font-mono font-bold text-slate-900">
+                {item.itemCode || "—"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Barcode</p>
+              <p className="mt-1 font-mono font-bold text-slate-900">
+                {item.barcode || "No barcode"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Brand / Model</p>
+              <p className="mt-1 font-bold text-slate-900">
+                {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Branch</p>
+              <p className="mt-1 font-bold text-slate-900">
+                {item.branch?.code || item.branch?.name || "No branch"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</p>
+              <p className="mt-1 font-bold text-slate-900">
+                {item.category?.name || "No category"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Unit</p>
+              <p className="mt-1 font-bold text-slate-900">
+                {item.unit?.name || "No unit"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tracking</p>
+              <p className="mt-1 font-bold text-slate-900">
+                {item.isSerialized ? "Serialized" : "Non-serialized"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Warranty Coverage</p>
+              <p className="mt-1 font-bold text-emerald-950">
+                {parseItemWarranty(item)}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-3.5 space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Selling Price Tiers</p>
+            <div className="grid gap-2 grid-cols-2 sm:grid-cols-5 text-xs">
+              {PRICE_FIELDS.map((priceField) => (
+                <div key={priceField.key} className="rounded-lg bg-slate-50 p-2.5 text-center border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-500">{priceField.label}</p>
+                  <p className="mt-0.5 font-mono font-bold text-slate-900">
+                    {formatMoney(item[priceField.key])}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {canViewCost ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-xs flex justify-between items-center">
+              <span className="font-bold uppercase tracking-wider text-amber-900">Cost Price</span>
+              <span className="font-mono font-black text-amber-950 text-sm">
+                {formatMoney(item.costPrice)}
+              </span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+          <button
+            className="rounded-xl border border-slate-200 bg-white px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
             onClick={onClose}
             type="button"
           >
             Close
           </button>
         </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Item Code</p>
-            <p className="mt-2 break-all font-bold text-[var(--color-text-strong)]">
-              {item.itemCode || "—"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Barcode</p>
-            <p className="mt-2 break-all font-bold text-[var(--color-text-strong)]">
-              {item.barcode || "No barcode"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Brand / Model</p>
-            <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-              {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Branch</p>
-            <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-              {item.branch?.code || item.branch?.name || "No branch"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Category</p>
-            <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-              {item.category?.name || "No category"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Unit</p>
-            <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-              {item.unit?.name || "No unit"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Tracking</p>
-            <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-              {item.isSerialized ? "Serialized" : "Non-serialized"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Warranty Coverage</p>
-            <p className="mt-2 font-bold text-emerald-800">
-              {parseItemWarranty(item)}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-[var(--color-border)] p-4">
-          <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Selling prices</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {PRICE_FIELDS.map((priceField) => (
-              <div key={priceField.key} className="rounded-2xl bg-[var(--color-soft)] p-3">
-                <p className="text-xs font-bold text-[var(--color-muted)]">{priceField.label}</p>
-                <p className="mt-1 font-bold text-[var(--color-text-strong)]">
-                  {formatMoney(item[priceField.key])}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {canViewCost ? (
-          <div className="mt-4 rounded-2xl bg-[var(--color-soft)] p-4">
-            <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Cost</p>
-            <p className="mt-2 font-bold text-[var(--color-text-strong)]">
-              {formatMoney(item.costPrice)}
-            </p>
-          </div>
-        ) : null}
       </div>
     </div>
   )
@@ -256,59 +268,56 @@ function ItemEditorModal({
   if (!form) return null
 
   const inputClass =
-    "mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+    "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
+
+  const labelClass = "text-[11px] font-bold uppercase tracking-wider text-slate-600"
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/50 px-3 py-5 sm:px-6">
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/60 p-3 sm:p-6 grid place-items-center backdrop-blur-xs">
       <form
-        className="mx-auto w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+        className="my-auto w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200"
         onSubmit={(event) => {
           event.preventDefault()
           onSave()
         }}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5 sm:p-6">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
           <div>
-            <p className="text-sm font-bold text-[var(--color-accent)]">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
               Item Catalog
-            </p>
-
-            <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]">
-              {isEditing ? "Edit item" : "New item"}
+            </span>
+            <h2 className="text-base font-black text-slate-900 leading-tight">
+              {isEditing ? "Edit Item" : "New Item"}
             </h2>
-
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
-              Item Code is the internal SKU. Barcode is the product scanning code.
-            </p>
           </div>
 
           <button
-            className="rounded-2xl border border-[var(--color-border)] p-2 text-[var(--color-muted)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </header>
 
-        <div className="space-y-6 p-5 sm:p-6">
+        <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
           {errorMessage ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-              <AlertCircle className="mt-0.5 shrink-0" size={18} />
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
+              <AlertCircle className="mt-0.5 shrink-0" size={15} />
               <span>{errorMessage}</span>
             </div>
           ) : null}
 
-          <section>
-            <h3 className="font-black text-[var(--color-text-strong)]">
-              Product identity
+          {/* Section 1: Product Identity */}
+          <section className="space-y-2.5">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              Product Identity
             </h3>
 
-            <div className="mt-3 grid gap-4 md:grid-cols-2">
-              <label>
-                <span className="text-sm font-bold">Item Code</span>
-
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className={labelClass}>Item Code</span>
                 <input
                   className={inputClass}
                   onChange={(event) =>
@@ -317,19 +326,14 @@ function ItemEditorModal({
                   placeholder={
                     isEditing
                       ? "Item Code"
-                      : "Auto-generated by system (e.g. 00001)"
+                      : "Auto-generated (e.g. 00001)"
                   }
                   value={form.itemCode}
                 />
-
-                <span className="mt-1 block text-xs text-[var(--color-muted)]">
-                  System auto-generates a 5-digit number if left blank.
-                </span>
               </label>
 
-              <label>
-                <span className="text-sm font-bold">Barcode</span>
-
+              <label className="block">
+                <span className={labelClass}>Barcode</span>
                 <input
                   autoComplete="off"
                   className={inputClass}
@@ -339,72 +343,68 @@ function ItemEditorModal({
                   placeholder="Scan or type barcode"
                   value={form.barcode}
                 />
-
-                <span className="mt-1 block text-xs text-[var(--color-muted)]">
-                  Product barcode for fast scanning.
-                </span>
               </label>
 
-              <label className="md:col-span-2">
-                <span className="text-sm font-bold">Product Name</span>
-
+              <label className="block sm:col-span-2">
+                <span className={labelClass}>Product Name</span>
                 <input
                   className={inputClass}
                   onChange={(event) =>
                     onChange("itemName", event.target.value)
                   }
+                  placeholder="e.g. Intel Core i5-12400F Processor"
                   required
                   value={form.itemName}
                 />
               </label>
 
-              <label>
-                <span className="text-sm font-bold">Brand</span>
-
+              <label className="block">
+                <span className={labelClass}>Brand</span>
                 <input
                   className={inputClass}
                   onChange={(event) =>
                     onChange("brand", event.target.value)
                   }
+                  placeholder="e.g. Intel, Kingston, Asus"
                   value={form.brand}
                 />
               </label>
 
-              <label>
-                <span className="text-sm font-bold">Model</span>
-
+              <label className="block">
+                <span className={labelClass}>Model</span>
                 <input
                   className={inputClass}
                   onChange={(event) =>
                     onChange("modelName", event.target.value)
                   }
+                  placeholder="e.g. DDR4 3200MHz, Prime B660M"
                   value={form.modelName}
                 />
               </label>
 
-              <label className="md:col-span-2">
-                <span className="text-sm font-bold">Description</span>
-
+              <label className="block sm:col-span-2">
+                <span className={labelClass}>Description</span>
                 <textarea
-                  className={`${inputClass} min-h-24`}
+                  className={`${inputClass} min-h-[52px] h-[52px] resize-none`}
                   onChange={(event) =>
                     onChange("description", event.target.value)
                   }
+                  placeholder="Optional item notes or technical specifications…"
                   value={form.description}
                 />
               </label>
             </div>
           </section>
 
-          <section>
-            <h3 className="font-black text-[var(--color-text-strong)]">
-              Classification
+          {/* Section 2: Classification & Tracking */}
+          <section className="space-y-2.5 pt-1 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              Classification &amp; Tracking
             </h3>
 
-            <div className="mt-3 grid gap-4 md:grid-cols-2">
-              <label>
-                <span className="text-sm font-bold">Category</span>
-
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className={labelClass}>Category</span>
                 <select
                   className={inputClass}
                   onChange={(event) =>
@@ -414,7 +414,6 @@ function ItemEditorModal({
                   value={form.categoryId}
                 >
                   <option value="">Select category</option>
-
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
@@ -423,9 +422,8 @@ function ItemEditorModal({
                 </select>
               </label>
 
-              <label>
-                <span className="text-sm font-bold">Unit</span>
-
+              <label className="block">
+                <span className={labelClass}>Unit</span>
                 <select
                   className={inputClass}
                   onChange={(event) =>
@@ -435,7 +433,6 @@ function ItemEditorModal({
                   value={form.unitId}
                 >
                   <option value="">Select unit</option>
-
                   {units.map((unit) => (
                     <option key={unit.id} value={unit.id}>
                       {unit.name}
@@ -443,28 +440,25 @@ function ItemEditorModal({
                   ))}
                 </select>
               </label>
-            </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] p-4">
+              <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs hover:bg-slate-50 transition cursor-pointer">
                 <input
+                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
                   checked={form.isSerialized}
                   onChange={(event) =>
                     onChange("isSerialized", event.target.checked)
                   }
                   type="checkbox"
                 />
-
-                <span>
-                  <strong className="block text-sm">Serialized item</strong>
-                  <span className="text-xs text-[var(--color-muted)]">
-                    Receiving will require unique serial numbers.
-                  </span>
-                </span>
+                <div>
+                  <strong className="block text-slate-800 font-bold">Serialized Item</strong>
+                  <span className="text-[10px] text-slate-500">Requires unique serial barcode</span>
+                </div>
               </label>
 
-              <label className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] p-4">
+              <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs hover:bg-slate-50 transition cursor-pointer">
                 <input
+                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
                   checked={form.hasWarranty}
                   onChange={(event) => {
                     const checked = event.target.checked
@@ -477,27 +471,25 @@ function ItemEditorModal({
                   }}
                   type="checkbox"
                 />
-
-                <span>
-                  <strong className="block text-sm">Warranty tracking</strong>
-                  <span className="text-xs text-[var(--color-muted)]">
-                    Enable warranty workflow for this item.
-                  </span>
-                </span>
+                <div>
+                  <strong className="block text-slate-800 font-bold">Warranty Tracking</strong>
+                  <span className="text-[10px] text-slate-500">Track warranty lifecycle</span>
+                </div>
               </label>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/50 p-4">
-              <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                <label className="text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-2">
-                  <span>🛡️ Warranty Coverage</span>
-                </label>
-                <div className="flex gap-1.5 flex-wrap">
+            {/* Warranty Coverage Presets */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  🛡️ Warranty Coverage
+                </span>
+                <div className="flex gap-1 flex-wrap">
                   {[
                     { label: "1 Year", duration: "1 YEAR WARRANTY" },
                     { label: "2 Years", duration: "2 YEARS WARRANTY" },
-                    { label: "6 Months", duration: "6 MONTHS WARRANTY" },
-                    { label: "1 Month", duration: "1 MONTH WARRANTY" },
+                    { label: "6 Mos", duration: "6 MONTHS WARRANTY" },
+                    { label: "1 Mo", duration: "1 MONTH WARRANTY" },
                     { label: "7 Days", duration: "7 DAYS REPLACEMENT" },
                     { label: "No Warranty", duration: "NO WARRANTY" },
                   ].map((preset) => (
@@ -508,10 +500,10 @@ function ItemEditorModal({
                         onChange("warrantyDuration", preset.duration)
                         onChange("hasWarranty", preset.duration !== "NO WARRANTY")
                       }}
-                      className={`rounded-xl px-2.5 py-1 text-xs font-bold transition ${
+                      className={`rounded-lg px-2 py-0.5 text-[11px] font-bold transition ${
                         (form.warrantyDuration || "").trim().toUpperCase() === preset.duration
-                          ? "bg-[#7A1F2B] text-white shadow-xs"
-                          : "bg-white text-[var(--color-text-strong)] hover:bg-slate-100 border border-slate-200"
+                          ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                          : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
                       }`}
                     >
                       {preset.label}
@@ -521,7 +513,7 @@ function ItemEditorModal({
               </div>
               <input
                 className={`${inputClass} bg-white`}
-                placeholder="e.g. 1 YEAR WARRANTY, 3 YEARS DISTRO WARRANTY, etc."
+                placeholder="e.g. 1 YEAR WARRANTY, 3 YEARS DISTRO WARRANTY"
                 value={form.warrantyDuration || ""}
                 onChange={(event) => {
                   const val = event.target.value
@@ -529,15 +521,11 @@ function ItemEditorModal({
                   onChange("hasWarranty", val.trim().toUpperCase() !== "NO WARRANTY" && Boolean(val.trim()))
                 }}
               />
-              <p className="mt-1.5 text-xs text-[var(--color-muted)]">
-                This warranty coverage will be automatically used and displayed whenever this product is added in POS Cashiering.
-              </p>
             </div>
 
             {isEditing ? (
-              <label className="mt-4 block max-w-sm">
-                <span className="text-sm font-bold">Status</span>
-
+              <label className="block max-w-xs">
+                <span className={labelClass}>Status</span>
                 <select
                   className={inputClass}
                   onChange={(event) =>
@@ -552,17 +540,17 @@ function ItemEditorModal({
             ) : null}
           </section>
 
-          <section>
-            <h3 className="font-black text-[var(--color-text-strong)]">
+          {/* Section 3: Pricing (Cost & Selling Prices 1 to 5) */}
+          <section className="space-y-2.5 pt-1 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
               Prices
             </h3>
 
-            <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <label>
-                <span className="text-sm font-bold">Cost Price</span>
-
+            <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3">
+              <label className="block">
+                <span className={`${labelClass} text-amber-900`}>Cost Price</span>
                 <input
-                  className={inputClass}
+                  className={`${inputClass} font-mono`}
                   min="0"
                   onChange={(event) =>
                     onChange("costPrice", event.target.value)
@@ -574,13 +562,10 @@ function ItemEditorModal({
               </label>
 
               {PRICE_FIELDS.map((field) => (
-                <label key={field.key}>
-                  <span className="text-sm font-bold">
-                    {field.label}
-                  </span>
-
+                <label className="block" key={field.key}>
+                  <span className={labelClass}>{field.label}</span>
                   <input
-                    className={inputClass}
+                    className={`${inputClass} font-mono`}
                     min="0"
                     onChange={(event) =>
                       onChange(field.key, event.target.value)
@@ -594,17 +579,17 @@ function ItemEditorModal({
             </div>
           </section>
 
-          <section>
-            <h3 className="font-black text-[var(--color-text-strong)]">
-              Stock thresholds
+          {/* Section 4: Stock Thresholds */}
+          <section className="space-y-2.5 pt-1 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              Stock Thresholds
             </h3>
 
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <label>
-                <span className="text-sm font-bold">Minimum Stock</span>
-
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className={labelClass}>Minimum Stock</span>
                 <input
-                  className={inputClass}
+                  className={`${inputClass} font-mono`}
                   min="0"
                   onChange={(event) =>
                     onChange("minimumStock", event.target.value)
@@ -615,11 +600,10 @@ function ItemEditorModal({
                 />
               </label>
 
-              <label>
-                <span className="text-sm font-bold">Reorder Level</span>
-
+              <label className="block">
+                <span className={labelClass}>Reorder Level</span>
                 <input
-                  className={inputClass}
+                  className={`${inputClass} font-mono`}
                   min="0"
                   onChange={(event) =>
                     onChange("reorderLevel", event.target.value)
@@ -633,9 +617,9 @@ function ItemEditorModal({
           </section>
         </div>
 
-        <footer className="flex flex-col-reverse gap-3 border-t border-[var(--color-border)] p-5 sm:flex-row sm:justify-end">
+        <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
           <button
-            className="rounded-2xl border border-[var(--color-border)] px-5 py-3 text-sm font-bold"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -644,13 +628,13 @@ function ItemEditorModal({
           </button>
 
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#7A1F2B] px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
             disabled={isSaving}
             type="submit"
           >
-            <Save size={16} />
+            <Save size={14} />
             {isSaving
-              ? "Saving..."
+              ? "Saving…"
               : isEditing
                 ? "Save item"
                 : "Create item"}
@@ -672,45 +656,50 @@ function PriceEditorModal({
 }) {
   if (!item) return null
 
+  const inputClass =
+    "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400"
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 py-6">
-      <section className="w-full max-w-2xl rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
-        <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] p-5">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 px-4 py-6 backdrop-blur-xs">
+      <section className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-[var(--color-accent)]">Edit selling prices</p>
-            <h2 className="mt-1 truncate text-xl font-bold text-[var(--color-text-strong)]">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              Pricing Management
+            </span>
+            <h2 className="truncate text-base font-black text-slate-900 leading-tight">
               {item.itemName}
             </h2>
-            <p className="mt-1 text-sm font-semibold text-[var(--color-muted)]">
+            <p className="text-xs font-semibold text-slate-500 font-mono">
               {item.itemCode}
             </p>
           </div>
 
           <button
-            className="rounded-2xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             onClick={onClose}
             type="button"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-4 p-5">
+        <div className="space-y-3 p-5">
           {errorMessage ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">
-              <AlertCircle className="mt-0.5 shrink-0" size={18} />
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
+              <AlertCircle className="mt-0.5 shrink-0" size={15} />
               <span>{errorMessage}</span>
             </div>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3">
             {PRICE_FIELDS.map((field) => (
               <label className="block" key={field.key}>
-                <span className="text-sm font-bold text-[var(--color-text-strong)]">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
                   {field.label}
                 </span>
                 <input
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className={`${inputClass} font-mono`}
                   min="0"
                   onChange={(event) => onChangePrice(field.key, event.target.value)}
                   step="any"
@@ -721,14 +710,14 @@ function PriceEditorModal({
             ))}
           </div>
 
-          <p className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm leading-6 text-[var(--color-muted)]">
-            This updates selling prices only. Cost and stock details are not changed here.
+          <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500 border border-slate-200">
+            Updates selling price tiers only. Cost and inventory stocks remain intact.
           </p>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-[var(--color-border)] p-5 sm:flex-row sm:justify-end">
+        <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
           <button
-            className="rounded-2xl border border-[var(--color-border)] bg-white px-5 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -737,12 +726,13 @@ function PriceEditorModal({
           </button>
 
           <button
-            className="rounded-2xl bg-[#7A1F2B] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#641824] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
             disabled={isSaving}
             onClick={onSave}
             type="button"
           >
-            {isSaving ? "Saving..." : "Save prices"}
+            <Save size={14} />
+            {isSaving ? "Saving…" : "Save prices"}
           </button>
         </div>
       </section>
