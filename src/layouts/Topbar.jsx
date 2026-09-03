@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Bell, Building2, Edit3, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, User, X } from "lucide-react"
+import { Bell, Building2, Edit3, Eye, EyeOff, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, User, X } from "lucide-react"
 
 import { getRoleLabel } from "../constants/roles"
 import { useTheme } from "../context/ThemeContext"
@@ -22,6 +22,7 @@ function Topbar({
   const { resolvedTheme, toggleTheme } = useTheme()
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [profileForm, setProfileForm] = useState({
     firstName: user?.firstName || "",
     middleName: user?.middleName || "",
@@ -29,6 +30,7 @@ function Topbar({
     username: user?.username || "",
     email: user?.email || "",
     password: "",
+    confirmPassword: "",
   })
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [profileError, setProfileError] = useState("")
@@ -41,7 +43,9 @@ function Topbar({
       username: user?.username || "",
       email: user?.email || "",
       password: "",
+      confirmPassword: "",
     })
+    setShowPassword(false)
     setProfileError("")
     setIsProfileModalOpen(true)
   }
@@ -53,6 +57,17 @@ function Topbar({
     if (!profileForm.firstName.trim() || !profileForm.lastName.trim()) {
       setProfileError("First name and last name are required.")
       return
+    }
+
+    if (profileForm.password.trim()) {
+      if (profileForm.password.trim().length < 8) {
+        setProfileError("New password must be at least 8 characters.")
+        return
+      }
+      if (profileForm.password.trim() !== profileForm.confirmPassword.trim()) {
+        setProfileError("Passwords do not match. Please re-type your new password.")
+        return
+      }
     }
 
     try {
@@ -322,6 +337,51 @@ function Topbar({
                 />
               </div>
 
+              {/* Password Update Section */}
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700 uppercase">Change Password</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">(Leave blank to keep current)</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={profileForm.password}
+                        onChange={(e) => setProfileForm((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder="Min 8 characters"
+                        className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 pr-8 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Confirm Password
+                    </label>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={profileForm.confirmPassword}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                      placeholder="Repeat new password"
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 text-[11px] text-slate-600 space-y-1">
                 <div className="flex justify-between font-bold">
                   <span>Role:</span>
@@ -343,7 +403,7 @@ function Topbar({
                   disabled={isSavingProfile}
                   className="rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white hover:opacity-90 transition disabled:opacity-50 shadow-xs"
                 >
-                  {isSavingProfile ? "Saving..." : "Save My Name"}
+                  {isSavingProfile ? "Saving..." : "Save Profile & Password"}
                 </button>
               </div>
             </form>
