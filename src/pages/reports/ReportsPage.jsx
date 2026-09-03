@@ -155,19 +155,19 @@ const REPORTS = Object.freeze({
     ],
   },
   staff: {
-    label: "Staff Sales & Solo Incentive Performance",
+    label: "All Accounts Sales & Service Activity Maintenance",
     statuses: ["ACTIVE", "PENDING", "DISABLED", "REJECTED"],
     supportsSearch: true,
     columns: [
       ["Staff Member", (row) => row.fullName],
       ["Role", (row) => getRoleLabel(row.role)],
       ["Branch", (row) => row.branch?.code || "—"],
-      ["Completed Sales", (row) => number(row.completedSales)],
-      ["Total Gross Sales", (row) => peso(row.salesRevenue)],
-      ["Solo Incentive %", (row) => `${row.soloIncentivePercent ?? 1}%`],
-      ["Solo Incentive Earned", (row) => peso(row.soloIncentiveAmount)],
-      ["Completed Services", (row) => number(row.completedServices)],
-      ["Total Attributed Revenue", (row) => peso(row.totalAttributedRevenue)],
+      ["Total Sales", (row) => `${number(row.completedSales)} (${peso(row.salesRevenue)})`],
+      ["Solo Sales %", (row) => `${row.soloIncentivePercent ?? 0}%`],
+      ["Solo Commission", (row) => peso(row.soloIncentiveAmount)],
+      ["Total Services", (row) => `${number(row.completedServices)} (${peso(row.serviceRevenue)})`],
+      ["Service Commission", (row) => peso(row.serviceIncentiveAmount)],
+      ["Total Incentives", (row) => peso(row.totalIncentiveAmount)],
     ],
   },
   suppliers: {
@@ -277,6 +277,8 @@ export default function ReportsPage({ selectedBranch, user }) {
   const [reportBranchId, setReportBranchId] = useState(
     selectedBranch?.id || user?.branchId || user?.branch?.id || "",
   )
+  const [selectedStaff, setSelectedStaff] = useState(null)
+  const [staffModalTab, setStaffModalTab] = useState("sales")
 
   const isSuperOwner = user?.role === "SUPER_OWNER"
   const config = REPORTS[reportKey]
@@ -899,12 +901,36 @@ const REPORT_CATEGORIES = [
               ) : null}
               {!isLoading
                 ? records.map((row) => (
-                    <tr className="hover:bg-slate-50/60 transition" key={row.id}>
+                    <tr
+                      className={`transition ${reportKey === "staff" ? "cursor-pointer hover:bg-red-50/40" : "hover:bg-slate-50/60"}`}
+                      key={row.id}
+                      onClick={() => {
+                        if (reportKey === "staff") {
+                          setSelectedStaff(row)
+                          setStaffModalTab("sales")
+                        }
+                      }}
+                    >
                       {config.columns.map(([label, render]) => (
                         <td className="px-4 py-3.5 font-semibold text-slate-800" key={label}>
                           {render(row) ?? "—"}
                         </td>
                       ))}
+                      {reportKey === "staff" ? (
+                        <td className="px-4 py-3.5 text-right font-bold">
+                          <button
+                            className="rounded-xl bg-red-100 px-3 py-1 text-xs font-black text-[var(--color-maroon)] hover:bg-red-200 transition"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedStaff(row)
+                              setStaffModalTab("sales")
+                            }}
+                            type="button"
+                          >
+                            Activity 🔍
+                          </button>
+                        </td>
+                      ) : null}
                     </tr>
                   ))
                 : null}
@@ -934,6 +960,177 @@ const REPORT_CATEGORIES = [
           </button>
         </div>
       </section>
+
+      {/* Staff Detailed Sales & Services Activity Modal */}
+      {selectedStaff ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-3xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-red-50 via-white to-slate-50 p-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-xl bg-[var(--color-maroon)] px-2.5 py-0.5 text-xs font-black uppercase text-white tracking-wider">
+                    Staff Activity Breakdown
+                  </span>
+                  <span className="text-xs font-bold text-slate-500">
+                    {selectedStaff.branch?.name || "Global Branch"}
+                  </span>
+                </div>
+                <h3 className="mt-1 text-xl font-black text-slate-900">
+                  {selectedStaff.fullName}
+                </h3>
+                <p className="text-xs font-semibold text-slate-500">
+                  {getRoleLabel(selectedStaff.role)} · Username: {selectedStaff.username} {selectedStaff.employeeCode ? `· ID: ${selectedStaff.employeeCode}` : ""}
+                </p>
+              </div>
+              <button
+                className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 transition"
+                onClick={() => setSelectedStaff(null)}
+                type="button"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Top KPI Metrics Banner */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-6 bg-slate-50/70 border-b border-slate-100">
+              <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 shadow-2xs">
+                <p className="text-[10px] font-black uppercase text-slate-500">🛒 Naibenta (Sales)</p>
+                <p className="mt-1 text-lg font-black text-slate-900">{peso(selectedStaff.salesRevenue)}</p>
+                <p className="text-[11px] text-slate-500 font-semibold">{number(selectedStaff.completedSales)} transaction(s)</p>
+              </div>
+              <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 shadow-2xs">
+                <p className="text-[10px] font-black uppercase text-slate-500">🛠️ Sinervice (Repairs)</p>
+                <p className="mt-1 text-lg font-black text-slate-900">{peso(selectedStaff.serviceRevenue)}</p>
+                <p className="text-[11px] text-slate-500 font-semibold">{number(selectedStaff.completedServices)} service job(s)</p>
+              </div>
+              <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 shadow-2xs">
+                <p className="text-[10px] font-black uppercase text-slate-500">🎁 Solo Incentive</p>
+                <p className="mt-1 text-lg font-black text-green-700">{peso(selectedStaff.soloIncentiveAmount)}</p>
+                <p className="text-[11px] text-slate-500 font-semibold">Rate: {selectedStaff.soloIncentivePercent ?? 0}%</p>
+              </div>
+              <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 shadow-2xs">
+                <p className="text-[10px] font-black uppercase text-slate-500">💰 Total Komisyon</p>
+                <p className="mt-1 text-lg font-black text-[var(--color-maroon)]">{peso(selectedStaff.totalIncentiveAmount)}</p>
+                <p className="text-[11px] text-slate-500 font-semibold">Service Rate: {selectedStaff.serviceIncentivePercent ?? 0}%</p>
+              </div>
+            </div>
+
+            {/* Sub-tabs */}
+            <div className="flex border-b border-slate-200 bg-white px-6 pt-3 gap-2">
+              <button
+                className={`pb-3 text-xs font-black transition border-b-2 px-3 ${staffModalTab === "sales" ? "border-[var(--color-maroon)] text-[var(--color-maroon)]" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+                onClick={() => setStaffModalTab("sales")}
+                type="button"
+              >
+                🛒 Lahat ng Benta ({selectedStaff.recentSales?.length || 0})
+              </button>
+              <button
+                className={`pb-3 text-xs font-black transition border-b-2 px-3 ${staffModalTab === "services" ? "border-[var(--color-maroon)] text-[var(--color-maroon)]" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+                onClick={() => setStaffModalTab("services")}
+                type="button"
+              >
+                🛠️ Lahat ng Sinervice ({selectedStaff.recentServices?.length || 0})
+              </button>
+            </div>
+
+            {/* Activity Table Content */}
+            <div className="flex-1 overflow-y-auto p-6 bg-white">
+              {staffModalTab === "sales" ? (
+                <div>
+                  {selectedStaff.recentSales?.length === 0 ? (
+                    <p className="text-center text-xs font-bold text-slate-400 py-8">
+                      Walang recorded na benta ang account na ito sa piniling date range.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 font-bold text-slate-600 uppercase text-[10px]">
+                          <tr>
+                            <th className="px-4 py-3">Sale Code</th>
+                            <th className="px-4 py-3">Date</th>
+                            <th className="px-4 py-3">Customer</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3 text-right">Gross Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {selectedStaff.recentSales.map((s) => (
+                            <tr className="hover:bg-slate-50/50" key={s.id}>
+                              <td className="px-4 py-3 font-bold text-[var(--color-maroon)]">{s.saleCode}</td>
+                              <td className="px-4 py-3 font-semibold text-slate-600">{formatDate(s.saleDate)}</td>
+                              <td className="px-4 py-3 font-semibold text-slate-800">{s.customerName}</td>
+                              <td className="px-4 py-3">
+                                <span className="rounded-full bg-green-50 text-green-700 px-2 py-0.5 text-[10px] font-black uppercase">
+                                  {s.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right font-black text-slate-900">{peso(s.grandTotal)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {selectedStaff.recentServices?.length === 0 ? (
+                    <p className="text-center text-xs font-bold text-slate-400 py-8">
+                      Walang recorded na service / repair jobs ang account na ito sa piniling date range.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 font-bold text-slate-600 uppercase text-[10px]">
+                          <tr>
+                            <th className="px-4 py-3">Job Code</th>
+                            <th className="px-4 py-3">Date Received</th>
+                            <th className="px-4 py-3">Customer</th>
+                            <th className="px-4 py-3">Device & Problem</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3 text-right">Labor / Service Fee</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {selectedStaff.recentServices.map((j) => (
+                            <tr className="hover:bg-slate-50/50" key={j.id}>
+                              <td className="px-4 py-3 font-bold text-[var(--color-maroon)]">{j.jobCode}</td>
+                              <td className="px-4 py-3 font-semibold text-slate-600">{formatDate(j.receivedAt)}</td>
+                              <td className="px-4 py-3 font-semibold text-slate-800">{j.customerName}</td>
+                              <td className="px-4 py-3">
+                                <p className="font-bold text-slate-800">{j.itemSummary}</p>
+                                <p className="text-[11px] text-slate-500">{j.defectSummary}</p>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 text-[10px] font-black uppercase">
+                                  {j.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right font-black text-slate-900">{peso(j.finalServiceCharge)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button
+                className="rounded-2xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition"
+                onClick={() => setSelectedStaff(null)}
+                type="button"
+              >
+                Close Breakdown
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
