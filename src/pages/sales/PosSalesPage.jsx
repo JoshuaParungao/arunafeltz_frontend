@@ -92,7 +92,7 @@ const RECEIVABLE_PROVIDERS = [
   ["DEBIT_CARD", "Debit card receivable"],
   ["HOMECREDIT", "Home Credit"],
   ["SALMON", "Salmon"],
-  ["KYRO", "Kyro"],
+  ["SKYRO", "Skyro"],
   ["OTHER_FINANCING", "Other financing"],
   ["IN_HOUSE_INSTALLMENT", "In-house installment"],
 ]

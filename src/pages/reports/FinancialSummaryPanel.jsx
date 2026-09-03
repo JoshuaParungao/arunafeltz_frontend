@@ -5,6 +5,7 @@ const PROVIDER_LABELS = Object.freeze({
   DEBIT_CARD: "Debit Card",
   HOMECREDIT: "HomeCredit",
   SALMON: "Salmon",
+  SKYRO: "Skyro",
   KYRO: "Kyro",
   OTHER_FINANCING: "Other Financing",
   IN_HOUSE_INSTALLMENT: "In-House Installment",
