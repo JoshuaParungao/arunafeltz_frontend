@@ -2664,6 +2664,92 @@ function PaymentMethodsSetupCard({ setting, onSaved, canManageSettings = false }
     </Card>
   )
 }
+
+function SoloSaleIncentiveRulesCard({ canManageSettings, onSaved, setting }) {
+  const [soloPercent, setSoloPercent] = useState(1)
+  const [isSaving, setIsSaving] = useState(false)
+  const [feedback, setFeedback] = useState({ type: "", text: "" })
+
+  const settingValue = setting?.value || {}
+
+  useEffect(() => {
+    if (typeof settingValue.defaultSoloSaleIncentivePercent === "number") {
+      setSoloPercent(settingValue.defaultSoloSaleIncentivePercent)
+    }
+  }, [settingValue.defaultSoloSaleIncentivePercent])
+
+  const handleSave = async (e) => {
+    e?.preventDefault()
+    if (!canManageSettings) return
+
+    const num = Number(soloPercent)
+    if (!Number.isFinite(num) || num < 0 || num > 100) {
+      setFeedback({ type: "error", text: "Incentive percentage must be between 0% and 100%." })
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      setFeedback({ type: "", text: "" })
+      const updatedValue = {
+        ...settingValue,
+        defaultSoloSaleIncentivePercent: num,
+      }
+      const response = await updateSettingByScopeKey(setting?.scopeKey || "GLOBAL:incentive.rules", { value: updatedValue })
+      setFeedback({ type: "success", text: "Solo sales incentive percentage saved successfully!" })
+      if (onSaved && response?.data) onSaved(response.data)
+    } catch (error) {
+      setFeedback({ type: "error", text: error?.response?.data?.message || "Failed to save incentive rate." })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <Card className="p-5 sm:p-6 border border-emerald-200 bg-emerald-50/20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            🏆 Solo Sales Incentive Rate (%)
+          </h3>
+          <p className="text-xs text-slate-600 mt-1">
+            Percentage awarded to an individual staff member based on their total own attributed gross sales.
+          </p>
+        </div>
+        <form onSubmit={handleSave} className="flex items-center gap-2">
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              disabled={!canManageSettings || isSaving}
+              value={soloPercent}
+              onChange={(e) => setSoloPercent(e.target.value)}
+              className="w-28 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 text-right pr-7 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
+            />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+          </div>
+          {canManageSettings ? (
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50 transition shadow-2xs"
+            >
+              {isSaving ? "Saving..." : "Save Rate"}
+            </button>
+          ) : null}
+        </form>
+      </div>
+      {feedback.text ? (
+        <p className={`mt-2 text-xs font-semibold ${feedback.type === "success" ? "text-emerald-800" : "text-red-700"}`}>
+          {feedback.text}
+        </p>
+      ) : null}
+    </Card>
+  )
+}
+
 function SettingsPage({ user }) {
   const [settings, setSettings] = useState([])
   const [errorMessage, setErrorMessage] = useState("")
@@ -2874,9 +2960,17 @@ function SettingsPage({ user }) {
       case "Incentive Rules":
         return (
           <>
-            <IncentiveAccountSettingsV2
-              canManage={canManageIncentives}
+            <SoloSaleIncentiveRulesCard
+              canManageSettings={canManageSettings}
+              onSaved={handleSettingSaved}
+              setting={findSettingByKey(settings, "incentive.rules")}
             />
+
+            <div className="mt-4">
+              <IncentiveAccountSettingsV2
+                canManage={canManageIncentives}
+              />
+            </div>
 
             <div className="mt-4">
               <IncentiveProgramRulesSettingsV2

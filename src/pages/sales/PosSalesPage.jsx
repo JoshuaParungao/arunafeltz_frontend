@@ -1366,6 +1366,7 @@ function PosSalesPage({ selectedBranch, user }) {
 
   const [serviceStaffList, setServiceStaffList] = useState([])
   const [isLoadingServiceStaff, setIsLoadingServiceStaff] = useState(false)
+  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("")
   const [selectedServiceStaffId, setSelectedServiceStaffId] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.selectedServiceStaffId || ""
@@ -1739,8 +1740,11 @@ function PosSalesPage({ selectedBranch, user }) {
           if (!isMounted) return
           const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []
           setServiceStaffList(rows)
-          if (user?.id && rows.some((staff) => staff.id === user.id)) {
-            setSelectedServiceStaffId((prev) => prev || user.id)
+          if (user?.id) {
+            setSelectedSalesPersonId((prev) => prev || user.id)
+            if (rows.some((staff) => staff.id === user.id)) {
+              setSelectedServiceStaffId((prev) => prev || user.id)
+            }
           }
         })
         .catch(() => {
@@ -2323,6 +2327,9 @@ function PosSalesPage({ selectedBranch, user }) {
     )
     const technicianName = serviceLineWithDoneBy?.serviceStaffName || undefined
 
+    const assignedStaff = serviceStaffList.find((s) => s.id === selectedSalesPersonId)
+    const previewCashier = assignedStaff || user
+
     const previewSaleDoc = {
       receiptCode: "CHECKOUT-PREVIEW",
       saleDate: new Date().toISOString(),
@@ -2334,7 +2341,7 @@ function PosSalesPage({ selectedBranch, user }) {
         mobileNumber: customerPhone.trim() || customerObj.mobileNumber || "",
         email: customerEmail.trim() || customerObj.email || "",
       },
-      cashier: user,
+      cashier: previewCashier,
       technician: technicianName ? { fullName: technicianName } : null,
       remarks: isPcBuild
         ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
@@ -2592,6 +2599,7 @@ function PosSalesPage({ selectedBranch, user }) {
               remarks: creditRemarks.trim() || undefined,
             }
           : undefined,
+        cashierId: selectedSalesPersonId || user?.id || undefined,
       }
       const requestSignature = JSON.stringify(salePayload)
 
@@ -2619,6 +2627,9 @@ function PosSalesPage({ selectedBranch, user }) {
         })
       }
 
+      const assignedStaff = serviceStaffList.find((s) => s.id === selectedSalesPersonId)
+      const effectiveCashier = sale.cashier || assignedStaff || user
+
       const isCredit = isReceivableCheckout
       const termBasis = isCredit ? (installmentCalculation?.termBasis || 1) : 1
       const downpayment = Number(effectivePaymentAmount || 0)
@@ -2627,6 +2638,7 @@ function PosSalesPage({ selectedBranch, user }) {
 
       const receiptSale = {
         ...sale,
+        cashier: effectiveCashier,
         customer: {
           ...(sale.customer || {}),
           fullName: effectiveName || sale.customer?.fullName || "Walk-in Customer",
@@ -3200,6 +3212,44 @@ function PosSalesPage({ selectedBranch, user }) {
                   </span>
                 </div>
               ) : null}
+
+              {/* Sales Person / Attributed Staff Selector */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                      Sales Person / Attributed Staff
+                    </span>
+                    {selectedSalesPersonId && user?.id && selectedSalesPersonId !== user.id ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSalesPersonId(user.id)}
+                        className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline"
+                      >
+                        Reset to Me ({user.fullName})
+                      </button>
+                    ) : null}
+                  </div>
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
+                    value={selectedSalesPersonId || user?.id || ""}
+                    onChange={(e) => setSelectedSalesPersonId(e.target.value)}
+                  >
+                    {user ? (
+                      <option value={user.id}>
+                        {user.fullName} ({getRoleLabel(user.role)}) — (Me / Current Encoder)
+                      </option>
+                    ) : null}
+                    {serviceStaffList
+                      .filter((staff) => staff.id !== user?.id)
+                      .map((staff) => (
+                        <option key={staff.id} value={staff.id}>
+                          {staff.fullName} ({getRoleLabel(staff.role)})
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
 
               {/* Price Tier Toolbar */}
               <div className="pt-2 border-t border-slate-100">

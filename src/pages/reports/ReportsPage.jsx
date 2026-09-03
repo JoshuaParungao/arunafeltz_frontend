@@ -155,17 +155,19 @@ const REPORTS = Object.freeze({
     ],
   },
   staff: {
-    label: "Users / Staff Performance",
+    label: "Staff Sales & Solo Incentive Performance",
     statuses: ["ACTIVE", "PENDING", "DISABLED", "REJECTED"],
     supportsSearch: true,
     columns: [
-      ["Staff", (row) => row.fullName],
-      ["Access role", (row) => getRoleLabel(row.role)],
-      ["Incentive class", (row) => formatWord(row.incentiveClassification) || "None"],
-      ["Branch", (row) => row.branch?.code],
-      ["Completed sales", (row) => number(row.completedSales)],
-      ["Completed services", (row) => number(row.completedServices)],
-      ["Attributed revenue", (row) => peso(row.totalAttributedRevenue)],
+      ["Staff Member", (row) => row.fullName],
+      ["Role", (row) => getRoleLabel(row.role)],
+      ["Branch", (row) => row.branch?.code || "—"],
+      ["Completed Sales", (row) => number(row.completedSales)],
+      ["Total Gross Sales", (row) => peso(row.salesRevenue)],
+      ["Solo Incentive %", (row) => `${row.soloIncentivePercent ?? 1}%`],
+      ["Solo Incentive Earned", (row) => peso(row.soloIncentiveAmount)],
+      ["Completed Services", (row) => number(row.completedServices)],
+      ["Total Attributed Revenue", (row) => peso(row.totalAttributedRevenue)],
     ],
   },
   suppliers: {
@@ -330,6 +332,37 @@ export default function ReportsPage({ selectedBranch, user }) {
     const timer = window.setTimeout(loadReport, 0)
     return () => window.clearTimeout(timer)
   }, [loadReport])
+
+  const setDatePreset = (preset) => {
+    const today = new Date()
+    const formatDateStr = (d) => {
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, "0")
+      const day = String(d.getDate()).padStart(2, "0")
+      return `${year}-${month}-${day}`
+    }
+
+    if (preset === "TODAY") {
+      const todayStr = formatDateStr(today)
+      setDateFrom(todayStr)
+      setDateTo(todayStr)
+    } else if (preset === "WEEK") {
+      const startOfWeek = new Date(today)
+      const dayOfWeek = today.getDay()
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
+      startOfWeek.setDate(diff)
+      setDateFrom(formatDateStr(startOfWeek))
+      setDateTo(formatDateStr(today))
+    } else if (preset === "MONTH") {
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+      setDateFrom(formatDateStr(startOfMonth))
+      setDateTo(formatDateStr(today))
+    } else if (preset === "ALL") {
+      setDateFrom("")
+      setDateTo("")
+    }
+    setPage(1)
+  }
 
   const primitiveTotals = useMemo(() => {
     const totals = result?.data?.report?.totals || {}
@@ -604,6 +637,40 @@ export default function ReportsPage({ selectedBranch, user }) {
             </button>
           </div>
         </div>
+
+        {/* Date Presets Toolbar */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2 border-t border-[var(--color-border)]">
+          <span className="text-xs font-bold text-[var(--color-muted)] mr-1">Quick Range:</span>
+          <button
+            type="button"
+            onClick={() => setDatePreset("TODAY")}
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1 text-xs font-bold text-[var(--color-text-strong)] hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] transition"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => setDatePreset("WEEK")}
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1 text-xs font-bold text-[var(--color-text-strong)] hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] transition"
+          >
+            This Week
+          </button>
+          <button
+            type="button"
+            onClick={() => setDatePreset("MONTH")}
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1 text-xs font-bold text-[var(--color-text-strong)] hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] transition"
+          >
+            This Month
+          </button>
+          <button
+            type="button"
+            onClick={() => setDatePreset("ALL")}
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1 text-xs font-bold text-[var(--color-text-strong)] hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] transition"
+          >
+            All Time
+          </button>
+        </div>
+
         {config.supportsSearch ? (
           <input
             className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-4 py-3 text-sm outline-none focus:border-[var(--color-maroon)]"
