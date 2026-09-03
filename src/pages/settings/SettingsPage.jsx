@@ -2667,6 +2667,8 @@ function PaymentMethodsSetupCard({ setting, onSaved, canManageSettings = false }
 
 function SoloSaleIncentiveRulesCard({ canManageSettings, onSaved, setting }) {
   const [soloPercent, setSoloPercent] = useState(1)
+  const [servicePercent, setServicePercent] = useState(5)
+  const [pcBuildPercent, setPcBuildPercent] = useState(2)
   const [isSaving, setIsSaving] = useState(false)
   const [feedback, setFeedback] = useState({ type: "", text: "" })
 
@@ -2676,15 +2678,26 @@ function SoloSaleIncentiveRulesCard({ canManageSettings, onSaved, setting }) {
     if (typeof settingValue.defaultSoloSaleIncentivePercent === "number") {
       setSoloPercent(settingValue.defaultSoloSaleIncentivePercent)
     }
-  }, [settingValue.defaultSoloSaleIncentivePercent])
+    if (typeof settingValue.defaultServiceIncentivePercent === "number") {
+      setServicePercent(settingValue.defaultServiceIncentivePercent)
+    }
+    if (typeof settingValue.defaultPcBuildTechIncentivePercent === "number") {
+      setPcBuildPercent(settingValue.defaultPcBuildTechIncentivePercent)
+    }
+  }, [settingValue.defaultSoloSaleIncentivePercent, settingValue.defaultServiceIncentivePercent, settingValue.defaultPcBuildTechIncentivePercent])
 
   const handleSave = async (e) => {
     e?.preventDefault()
     if (!canManageSettings) return
 
-    const num = Number(soloPercent)
-    if (!Number.isFinite(num) || num < 0 || num > 100) {
-      setFeedback({ type: "error", text: "Incentive percentage must be between 0% and 100%." })
+    const numSolo = Number(soloPercent)
+    const numService = Number(servicePercent)
+    const numPcBuild = Number(pcBuildPercent)
+
+    if (!Number.isFinite(numSolo) || numSolo < 0 || numSolo > 100 ||
+        !Number.isFinite(numService) || numService < 0 || numService > 100 ||
+        !Number.isFinite(numPcBuild) || numPcBuild < 0 || numPcBuild > 100) {
+      setFeedback({ type: "error", text: "All incentive percentages must be between 0% and 100%." })
       return
     }
 
@@ -2693,13 +2706,15 @@ function SoloSaleIncentiveRulesCard({ canManageSettings, onSaved, setting }) {
       setFeedback({ type: "", text: "" })
       const updatedValue = {
         ...settingValue,
-        defaultSoloSaleIncentivePercent: num,
+        defaultSoloSaleIncentivePercent: numSolo,
+        defaultServiceIncentivePercent: numService,
+        defaultPcBuildTechIncentivePercent: numPcBuild,
       }
       const response = await updateSettingByScopeKey(setting?.scopeKey || "GLOBAL:incentive.rules", { value: updatedValue })
-      setFeedback({ type: "success", text: "Solo sales incentive percentage saved successfully!" })
+      setFeedback({ type: "success", text: "All incentive percentage rates saved successfully!" })
       if (onSaved && response?.data) onSaved(response.data)
     } catch (error) {
-      setFeedback({ type: "error", text: error?.response?.data?.message || "Failed to save incentive rate." })
+      setFeedback({ type: "error", text: error?.response?.data?.message || "Failed to save incentive rates." })
     } finally {
       setIsSaving(false)
     }
@@ -2707,45 +2722,96 @@ function SoloSaleIncentiveRulesCard({ canManageSettings, onSaved, setting }) {
 
   return (
     <Card className="p-5 sm:p-6 border border-emerald-200 bg-emerald-50/20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            🏆 Solo Sales Incentive Rate (%)
+            🏆 Staff & Technician Incentive Rates (%)
           </h3>
           <p className="text-xs text-slate-600 mt-1">
-            Percentage awarded to an individual staff member based on their total own attributed gross sales.
+            Configure percentage rates awarded to sales staff and technicians based on their attributed sales and services.
           </p>
         </div>
-        <form onSubmit={handleSave} className="flex items-center gap-2">
-          <div className="relative">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              disabled={!canManageSettings || isSaving}
-              value={soloPercent}
-              onChange={(e) => setSoloPercent(e.target.value)}
-              className="w-28 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 text-right pr-7 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
-            />
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+
+        <form onSubmit={handleSave} className="grid gap-3 sm:grid-cols-3 pt-2 border-t border-emerald-100">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-700 uppercase">
+              Solo Sales Incentive (%)
+            </label>
+            <p className="text-[10px] text-slate-500 mb-1">For own attributed sales</p>
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                disabled={!canManageSettings || isSaving}
+                value={soloPercent}
+                onChange={(e) => setSoloPercent(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 text-right pr-7 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+            </div>
           </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-700 uppercase">
+              Tech Service Incentive (%)
+            </label>
+            <p className="text-[10px] text-slate-500 mb-1">For service charge / labor</p>
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                disabled={!canManageSettings || isSaving}
+                value={servicePercent}
+                onChange={(e) => setServicePercent(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 text-right pr-7 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-700 uppercase">
+              Tech PC Build Incentive (%)
+            </label>
+            <p className="text-[10px] text-slate-500 mb-1">For assembling PC build</p>
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                disabled={!canManageSettings || isSaving}
+                value={pcBuildPercent}
+                onChange={(e) => setPcBuildPercent(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 text-right pr-7 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+            </div>
+          </div>
+
           {canManageSettings ? (
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50 transition shadow-2xs"
-            >
-              {isSaving ? "Saving..." : "Save Rate"}
-            </button>
+            <div className="sm:col-span-3 flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="rounded-xl bg-emerald-700 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50 transition shadow-2xs"
+              >
+                {isSaving ? "Saving..." : "Save All Incentive Rates (%)"}
+              </button>
+            </div>
           ) : null}
         </form>
+
+        {feedback.text ? (
+          <p className={`mt-1 text-xs font-semibold ${feedback.type === "success" ? "text-emerald-800" : "text-red-700"}`}>
+            {feedback.text}
+          </p>
+        ) : null}
       </div>
-      {feedback.text ? (
-        <p className={`mt-2 text-xs font-semibold ${feedback.type === "success" ? "text-emerald-800" : "text-red-700"}`}>
-          {feedback.text}
-        </p>
-      ) : null}
     </Card>
   )
 }

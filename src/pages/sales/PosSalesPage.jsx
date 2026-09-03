@@ -3469,8 +3469,8 @@ function PosSalesPage({ selectedBranch, user }) {
                                 isLoadingServiceStaff
                                   ? "Loading staff…"
                                   : selectedStaff
-                                  ? `${selectedStaff.fullName} (${getRoleLabel(selectedStaff.role)})`
-                                  : "Type name or role (e.g. Technician)…"
+                                  ? selectedStaff.fullName
+                                  : "Select staff name…"
                               }
                               value={serviceStaffSearch}
                               onChange={(e) => {
@@ -3500,7 +3500,6 @@ function PosSalesPage({ selectedBranch, user }) {
                                     >
                                       <div>
                                         <p className="font-bold text-slate-900">{staff.fullName}</p>
-                                        <p className="text-[10px] text-slate-400">{getRoleLabel(staff.role)}</p>
                                       </div>
                                     </button>
                                   ))
