@@ -590,319 +590,270 @@ const REPORT_CATEGORIES = [
   },
 ]
 
+  const activeCategory =
+    REPORT_CATEGORIES.find((cat) =>
+      cat.reports.some((r) => r.key === reportKey)
+    ) || REPORT_CATEGORIES[0]
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Top Header & Report Category Navigator */}
-      <div className="rounded-3xl border border-slate-200/80 bg-gradient-to-r from-white via-slate-50/50 to-white p-6 shadow-xs space-y-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-5 max-w-7xl mx-auto">
+      {/* 1. Clean Minimalist Navigation Header */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-xl bg-red-100 text-[var(--color-maroon)] px-2.5 py-0.5 text-xs font-black uppercase tracking-wider">
-                Analytics & Reports
-              </span>
-              <span className="text-xs font-semibold text-slate-500">
-                {reportBranchId
-                  ? branches.find((branch) => branch.id === reportBranchId)?.name || selectedBranch?.name || user?.branch?.name || "Selected branch"
-                  : isSuperOwner
-                    ? "All Branches"
-                    : selectedBranch?.name || user?.branch?.name || "Assigned branch"}
-              </span>
-            </div>
-            <h1 className="mt-1.5 text-2xl font-black tracking-tight text-slate-900">
-              {config.label}
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <span>{config.label}</span>
             </h1>
-            <p className="text-xs text-slate-600">
-              Real-time operational reporting, commission tracking, and financial performance data.
+            <p className="mt-0.5 text-xs text-slate-500 font-medium">
+              {reportBranchId
+                ? branches.find((b) => b.id === reportBranchId)?.name || selectedBranch?.name || user?.branch?.name || "Selected branch"
+                : isSuperOwner
+                  ? "All Branches Summary"
+                  : selectedBranch?.name || user?.branch?.name || "Branch Report"}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              className="rounded-2xl border border-[var(--color-maroon)] bg-white px-4 py-2.5 text-xs font-bold text-[var(--color-maroon)] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 transition shadow-2xs"
+              className="rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
               disabled={isLoading || isExportingPdf}
               onClick={handleExportPdf}
               type="button"
             >
-              {isExportingPdf ? "Exporting PDF..." : "📄 Export PDF"}
+              {isExportingPdf ? "Exporting..." : "Export PDF"}
             </button>
 
             <button
-              className="rounded-2xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-60 shadow-2xs"
+              className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition shadow-2xs"
               disabled={isLoading || isExportingPdf}
               onClick={loadReport}
               type="button"
             >
-              {isLoading ? "Refreshing..." : "🔄 Refresh"}
+              {isLoading ? "Refreshing..." : "Refresh"}
             </button>
           </div>
         </div>
 
-        {/* Categorized Report Tabs */}
-        <div className="pt-3 border-t border-slate-100 space-y-2.5">
-          <div className="flex flex-wrap items-center gap-1.5">
+        {/* Primary Category Switcher (Clean Segmented Bar) */}
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/70 rounded-2xl w-fit">
             {REPORT_CATEGORIES.map((cat) => {
-              const isCategoryActive = cat.reports.some((r) => r.key === reportKey)
+              const isCatActive = cat.id === activeCategory.id
               return (
-                <div key={cat.id} className="flex items-center gap-1">
-                  <span className={`text-xs font-bold px-2 py-1 rounded-xl transition ${isCategoryActive ? "text-slate-900 font-extrabold" : "text-slate-400"}`}>
-                    {cat.icon} {cat.label}:
-                  </span>
-                  {cat.reports.map((r) => {
-                    const isSelected = reportKey === r.key
-                    return (
-                      <button
-                        key={r.key}
-                        type="button"
-                        onClick={() => {
-                          setReportKey(r.key)
-                          setStatus("")
-                          setSearch("")
-                          setIsQuickService("")
-                          setReleaseOutcome("")
-                          setReleasedOnly("")
-                          setIncentiveClassification("")
-                          setPage(1)
-                        }}
-                        className={`rounded-xl px-3 py-1 text-xs font-bold transition ${
-                          isSelected
-                            ? "bg-[var(--color-maroon)] text-white shadow-2xs"
-                            : "bg-white text-slate-700 hover:bg-slate-100/80 border border-slate-200/80"
-                        }`}
-                      >
-                        {r.label}
-                      </button>
-                    )
-                  })}
-                  <div className="h-4 w-px bg-slate-200 mx-1 hidden lg:block" />
-                </div>
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    const firstReport = cat.reports[0].key
+                    setReportKey(firstReport)
+                    setStatus("")
+                    setSearch("")
+                    setPage(1)
+                  }}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                    isCatActive
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Sub-report Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-3">
+            {activeCategory.reports.map((r) => {
+              const isSelected = reportKey === r.key
+              return (
+                <button
+                  key={r.key}
+                  type="button"
+                  onClick={() => {
+                    setReportKey(r.key)
+                    setStatus("")
+                    setSearch("")
+                    setPage(1)
+                  }}
+                  className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                    isSelected
+                      ? "bg-[var(--color-maroon)] text-white shadow-2xs font-bold"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60"
+                  }`}
+                >
+                  {r.label}
+                </button>
               )
             })}
           </div>
         </div>
       </div>
 
-      {/* Filter Toolbar Card */}
-      <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-          {isSuperOwner ? (
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Branch
-              </label>
+      {/* 2. Sleek Filter Strip */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Quick Date Range Pills */}
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] font-bold text-slate-400 mr-1 uppercase">Period:</span>
+            {[
+              { label: "Today", days: 0 },
+              { label: "7 Days", days: 7 },
+              { label: "30 Days", days: 30 },
+              { label: "All Time", days: -1 },
+            ].map((preset) => {
+              const isActive =
+                preset.days === -1
+                  ? !dateFrom && !dateTo
+                  : preset.days === 0
+                    ? dateFrom === new Date().toISOString().slice(0, 10) && dateTo === new Date().toISOString().slice(0, 10)
+                    : false
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    if (preset.days === -1) {
+                      setDateFrom("")
+                      setDateTo("")
+                    } else if (preset.days === 0) {
+                      const today = new Date().toISOString().slice(0, 10)
+                      setDateFrom(today)
+                      setDateTo(today)
+                    } else {
+                      const end = new Date()
+                      const start = new Date()
+                      start.setDate(start.getDate() - preset.days)
+                      setDateFrom(start.toISOString().slice(0, 10))
+                      setDateTo(end.toISOString().slice(0, 10))
+                    }
+                    setPage(1)
+                  }}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                    isActive
+                      ? "bg-slate-900 text-white"
+                      : "bg-slate-100/70 text-slate-600 hover:bg-slate-200/70"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Controls: Branch, Status, Search */}
+          <div className="flex flex-wrap items-center gap-2 flex-1 justify-end">
+            {isSuperOwner ? (
               <select
                 aria-label="Report branch"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
-                onChange={(event) => { setReportBranchId(event.target.value); setPage(1) }}
+                className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                onChange={(e) => { setReportBranchId(e.target.value); setPage(1) }}
                 value={reportBranchId}
               >
                 <option value="">All Branches</option>
-                {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.code} — {branch.name}</option>)}
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.code} — {b.name}</option>)}
               </select>
-            </div>
-          ) : null}
+            ) : null}
 
-          {config.statuses.length > 0 ? (
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Status
-              </label>
+            {config.statuses.length > 0 ? (
               <select
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
-                onChange={(event) => { setStatus(event.target.value); setPage(1) }}
+                className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                onChange={(e) => { setStatus(e.target.value); setPage(1) }}
                 value={status}
               >
                 <option value="">{config.filterLabel || "All Statuses"}</option>
-                {config.statuses.map((value) => <option key={value} value={value}>{formatWord(value)}</option>)}
+                {config.statuses.map((v) => <option key={v} value={v}>{formatWord(v)}</option>)}
               </select>
-            </div>
-          ) : null}
+            ) : null}
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-              Start Date
-            </label>
-            <input
-              aria-label="Report start date"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
-              onChange={(event) => { setDateFrom(event.target.value); setPage(1) }}
-              type="date"
-              value={dateFrom}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-              End Date
-            </label>
-            <input
-              aria-label="Report end date"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
-              onChange={(event) => { setDateTo(event.target.value); setPage(1) }}
-              type="date"
-              value={dateTo}
-            />
-          </div>
-
-          {config.supportsSearch ? (
-            <div className="sm:col-span-2 lg:col-span-4 xl:col-span-1">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                Search
-              </label>
+            {config.supportsSearch ? (
               <input
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
-                onChange={(event) => { setSearch(event.target.value); setPage(1) }}
+                className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)] placeholder:text-slate-400 min-w-[180px]"
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                 placeholder="Search records..."
+                type="text"
                 value={search}
               />
-            </div>
-          ) : null}
-        </div>
-
-        {/* Date Presets Toolbar */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-          <span className="text-[11px] font-bold text-slate-500 mr-1">Quick Date Range:</span>
-          {[
-            ["TODAY", "Today"],
-            ["WEEK", "This Week"],
-            ["MONTH", "This Month"],
-            ["ALL", "All Time"],
-          ].map(([presetKey, label]) => (
-            <button
-              key={presetKey}
-              type="button"
-              onClick={() => setDatePreset(presetKey)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700 hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] transition"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {reportKey === "services" ? (
-          <div className="pt-2 border-t border-slate-100 grid gap-3 md:grid-cols-3">
-            <select
-              aria-label="Quick service filter"
-              className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-              onChange={(event) => { setIsQuickService(event.target.value); setPage(1) }}
-              value={isQuickService}
-            >
-              <option value="">All standard and quick jobs</option>
-              <option value="true">Quick services only</option>
-              <option value="false">Standard jobs only</option>
-            </select>
-            <select
-              aria-label="Service release outcome"
-              className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-              onChange={(event) => { setReleaseOutcome(event.target.value); setPage(1) }}
-              value={releaseOutcome}
-            >
-              <option value="">All release outcomes</option>
-              {["REPAIRED", "SERVICE_COMPLETED", "UNREPAIRED", "CUSTOMER_PULL_OUT", "NO_FAULT_FOUND", "DECLINED", "OTHER"].map((value) => (
-                <option key={value} value={value}>{formatWord(value)}</option>
-              ))}
-            </select>
-            <select
-              aria-label="Released job filter"
-              className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-              onChange={(event) => { setReleasedOnly(event.target.value); setPage(1) }}
-              value={releasedOnly}
-            >
-              <option value="">All release states</option>
-              <option value="true">Released only</option>
-              <option value="false">Not released only</option>
-            </select>
+            ) : null}
           </div>
-        ) : null}
-
-        {reportKey === "incentiveClaims" ? (
-          <div className="pt-2 border-t border-slate-100">
-            <select
-              aria-label="Incentive classification"
-              className="w-full md:max-w-xs rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-              onChange={(event) => { setIncentiveClassification(event.target.value); setPage(1) }}
-              value={incentiveClassification}
-            >
-              <option value="">All incentive classifications</option>
-              {[
-                ["SALES_AGENT", "Sales Agent"],
-                ["SENIOR_SALES_AGENT", "Senior Sales Agent"],
-                ["TECHNICIAN", "Technician"],
-                ["SENIOR_TECHNICIAN", "Senior Technician"],
-              ].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </div>
-        ) : null}
-      </section>
+        </div>
+      </div>
 
       {errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-bold text-red-700">
           {errorMessage}
         </div>
       ) : null}
 
-      {/* Financial Summary Special Panel */}
+      {/* 3. Financial Summary Special Panel */}
       {reportKey === "financial" && result?.data?.report ? (
         <FinancialSummaryPanel report={result.data.report} />
       ) : null}
 
-      {/* KPI Stats Cards */}
+      {/* 4. Minimalist Metric Cards */}
       {reportKey !== "financial" && primitiveTotals.length > 0 ? (
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {primitiveTotals.map(([key, value]) => (
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-xs" key={key}>
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs" key={key}>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 {labelForKey(key)}
               </p>
-              <p className="mt-2 text-2xl font-black text-slate-900 tracking-tight">
+              <p className="mt-1 text-xl font-black text-slate-900 tracking-tight">
                 {MONEY_KEY.test(key) ? peso(value) : number(value)}
               </p>
             </div>
           ))}
-        </section>
+        </div>
       ) : null}
 
-      {/* Data Records Table */}
-      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xs">
-        <div className="flex items-center justify-between border-b border-slate-100 p-5">
-          <div>
-            <h2 className="font-bold text-slate-900 text-base">{config.label} Records</h2>
-            <p className="text-xs text-slate-500">{meta.totalItems || records.length} matching record(s)</p>
+      {/* 5. Clean Modern Table */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-slate-800 text-sm">{config.label}</h2>
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+              {meta.totalItems || records.length} records
+            </span>
           </div>
-          <span className="text-xs font-bold text-slate-500">
+          <span className="text-xs text-slate-400 font-medium">
             Page {meta.page || page} of {meta.totalPages || 1}
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-xs">
-            <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200/60 font-bold">
+          <table className="w-full min-w-[850px] text-left text-xs">
+            <thead className="bg-slate-50/60 text-[11px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100">
               <tr>
                 {config.columns.map(([label]) => (
-                  <th className="px-4 py-3.5" key={label}>
+                  <th className="px-4 py-3" key={label}>
                     {label}
                   </th>
                 ))}
+                {reportKey === "staff" ? (
+                  <th className="px-4 py-3 text-right">Details</th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td className="px-4 py-10 text-center text-slate-400 font-semibold" colSpan={config.columns.length}>
-                    Loading report records...
+                  <td className="px-4 py-8 text-center text-slate-400 font-semibold" colSpan={config.columns.length + (reportKey === "staff" ? 1 : 0)}>
+                    Loading report data...
                   </td>
                 </tr>
               ) : null}
               {!isLoading && records.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-10 text-center text-slate-400 font-semibold" colSpan={config.columns.length}>
-                    No records match the selected filters.
+                  <td className="px-4 py-8 text-center text-slate-400 font-semibold" colSpan={config.columns.length + (reportKey === "staff" ? 1 : 0)}>
+                    No records found for the selected criteria.
                   </td>
                 </tr>
               ) : null}
               {!isLoading
                 ? records.map((row) => (
                     <tr
-                      className={`transition ${reportKey === "staff" ? "cursor-pointer hover:bg-red-50/40" : "hover:bg-slate-50/60"}`}
+                      className={`transition ${reportKey === "staff" ? "cursor-pointer hover:bg-slate-50/80" : "hover:bg-slate-50/50"}`}
                       key={row.id}
                       onClick={() => {
                         if (reportKey === "staff") {
@@ -912,14 +863,14 @@ const REPORT_CATEGORIES = [
                       }}
                     >
                       {config.columns.map(([label, render]) => (
-                        <td className="px-4 py-3.5 font-semibold text-slate-800" key={label}>
+                        <td className="px-4 py-3 font-medium text-slate-700" key={label}>
                           {render(row) ?? "—"}
                         </td>
                       ))}
                       {reportKey === "staff" ? (
-                        <td className="px-4 py-3.5 text-right font-bold">
+                        <td className="px-4 py-3 text-right">
                           <button
-                            className="rounded-xl bg-red-100 px-3 py-1 text-xs font-black text-[var(--color-maroon)] hover:bg-red-200 transition"
+                            className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200 transition"
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedStaff(row)
@@ -927,7 +878,7 @@ const REPORT_CATEGORIES = [
                             }}
                             type="button"
                           >
-                            Activity 🔍
+                            View
                           </button>
                         </td>
                       ) : null}
@@ -938,28 +889,28 @@ const REPORT_CATEGORIES = [
           </table>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 p-4">
+        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 bg-slate-50/30">
           <button
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition"
             disabled={!meta.hasPreviousPage}
-            onClick={() => setPage((value) => Math.max(value - 1, 1))}
+            onClick={() => setPage((v) => Math.max(v - 1, 1))}
             type="button"
           >
-            ← Previous
+            ← Prev
           </button>
-          <span className="text-xs font-semibold text-slate-500">
+          <span className="text-xs text-slate-500 font-medium">
             Page {meta.page || page} of {meta.totalPages || 1}
           </span>
           <button
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition"
             disabled={!meta.hasNextPage}
-            onClick={() => setPage((value) => value + 1)}
+            onClick={() => setPage((v) => v + 1)}
             type="button"
           >
             Next →
           </button>
         </div>
-      </section>
+      </div>
 
       {/* Staff Detailed Sales & Services Activity Modal */}
       {selectedStaff ? (
