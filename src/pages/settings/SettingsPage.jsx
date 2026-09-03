@@ -3025,42 +3025,6 @@ function SettingsPage({ user }) {
       {!searchQuery && activeCategory === "backup" ? (
         <div className="space-y-6">
           <DatabaseBackupRecoverySection user={user} />
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Live Database Values
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Raw saved key-value pairs stored in the database.
-                </p>
-              </div>
-              <Badge tone="maroon">{settings.length} Stored Keys</Badge>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              {Object.entries(groupedSettings).map(([groupName, groupItems]) => (
-                <ExpandableCard
-                  badge={`${groupItems.length} values`}
-                  description="Saved values currently used by the system."
-                  icon={Settings}
-                  isOpen={openSavedGroup === groupName}
-                  key={groupName}
-                  onToggle={() =>
-                    setOpenSavedGroup((current) => (current === groupName ? "" : groupName))
-                  }
-                  title={groupName}
-                >
-                  <div className="space-y-2">
-                    {groupItems.map((setting) => (
-                      <SavedSettingItem key={setting.id} setting={setting} />
-                    ))}
-                  </div>
-                </ExpandableCard>
-              ))}
-            </div>
-          </div>
         </div>
       ) : (
         <div className="space-y-4">
