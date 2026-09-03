@@ -3218,7 +3218,7 @@ function PosSalesPage({ selectedBranch, user }) {
                 <label className="block">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                      Sales Person / Attributed Staff
+                      Sales Person
                     </span>
                     {selectedSalesPersonId && user?.id && selectedSalesPersonId !== user.id ? (
                       <button
@@ -3226,7 +3226,7 @@ function PosSalesPage({ selectedBranch, user }) {
                         onClick={() => setSelectedSalesPersonId(user.id)}
                         className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline"
                       >
-                        Reset to Me ({user.fullName})
+                        Reset ({user.fullName})
                       </button>
                     ) : null}
                   </div>
@@ -3237,14 +3237,14 @@ function PosSalesPage({ selectedBranch, user }) {
                   >
                     {user ? (
                       <option value={user.id}>
-                        {user.fullName} ({getRoleLabel(user.role)}) — (Me / Current Encoder)
+                        {user.fullName}
                       </option>
                     ) : null}
                     {serviceStaffList
                       .filter((staff) => staff.id !== user?.id)
                       .map((staff) => (
                         <option key={staff.id} value={staff.id}>
-                          {staff.fullName} ({getRoleLabel(staff.role)})
+                          {staff.fullName}
                         </option>
                       ))}
                   </select>
