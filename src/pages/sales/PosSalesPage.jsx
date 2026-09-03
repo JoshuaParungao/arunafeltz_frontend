@@ -102,7 +102,7 @@ const RECEIVABLE_PROVIDER_VALUES = new Set(
 )
 
 const INSTALLMENT_TERMS = [
-  ["STRAIGHT", "Straight / 1 month"],
+  ["STRAIGHT", "Cash Promo (0% Interest)"],
   ["MONTH_3", "3 months"],
   ["MONTH_6", "6 months"],
   ["MONTH_9", "9 months"],
@@ -122,7 +122,7 @@ const INSTALLMENT_TERM_MONTHS = {
 }
 
 const DEFAULT_INSTALLMENT_BASIS = {
-  STRAIGHT: 0.96,
+  STRAIGHT: 1.0,
   MONTH_3: 0.96,
   MONTH_6: 0.935,
   MONTH_9: 0.905,
@@ -3887,8 +3887,12 @@ function PosSalesPage({ selectedBranch, user }) {
                         <span className="font-mono font-bold text-[var(--color-maroon)]">{formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}</span>
                       </div>
                       <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-1.5">
-                        <span className="text-[10px] text-emerald-800 block">Monthly ({installmentCalculation?.months} mos)</span>
-                        <span className="font-mono font-bold text-emerald-950">{formatMoney(installmentCalculation?.monthlyDueAmount || 0)}/mo</span>
+                        <span className="text-[10px] text-emerald-800 block">
+                          {creditTerm === "STRAIGHT" ? "Schedule" : `Monthly (${installmentCalculation?.months} mos)`}
+                        </span>
+                        <span className="font-mono font-bold text-emerald-950">
+                          {creditTerm === "STRAIGHT" ? "No Fixed Due" : `${formatMoney(installmentCalculation?.monthlyDueAmount || 0)}/mo`}
+                        </span>
                       </div>
                     </div>
 
@@ -3912,13 +3916,13 @@ function PosSalesPage({ selectedBranch, user }) {
                       </label>
 
                       <label className="block">
-                        <span className="text-[10px] font-bold uppercase text-blue-900 block">Due Day</span>
+                        <span className="text-[10px] font-bold uppercase text-blue-900 block">Due Day (Optional)</span>
                         <input
                           className="mt-0.5 w-full rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                           max="31"
                           min="1"
                           onChange={(event) => setCreditDueDay(event.target.value)}
-                          placeholder="1–31"
+                          placeholder="Optional (1–31)"
                           step="1"
                           type="number"
                           value={creditDueDay}
@@ -3926,7 +3930,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       </label>
 
                       <label className="block">
-                        <span className="text-[10px] font-bold uppercase text-blue-900 block">First Due Date</span>
+                        <span className="text-[10px] font-bold uppercase text-blue-900 block">First Due Date (Optional)</span>
                         <input
                           className="mt-0.5 w-full rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                           onChange={(event) => setCreditFirstDueDate(event.target.value)}
