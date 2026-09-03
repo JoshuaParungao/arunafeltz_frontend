@@ -311,150 +311,49 @@ function AccountCard({
 
       <div className="mt-5 grid gap-3 xl:grid-cols-3">
         <ToggleRateField
-          available={
-            Boolean(
-              account?.eligibility
-                ?.item,
-            )
-          }
-          disabled={
-            !canManage ||
-            isSaving
-          }
-          enabled={
-            draft.itemEnabled
-          }
-          label="Item Incentive"
+          available={true}
+          disabled={!canManage || isSaving}
+          enabled={draft.itemEnabled}
+          label="Solo Sales Incentive"
           onEnabledChange={(value) =>
-            onDraftChange(
-              "itemEnabled",
-              value,
-            )
+            onDraftChange("itemEnabled", value)
           }
           onRateChange={(value) =>
-            onDraftChange(
-              "itemRatePercent",
-              value,
-            )
+            onDraftChange("itemRatePercent", value)
           }
-          rate={
-            draft.itemRatePercent
-          }
+          rate={draft.itemRatePercent}
         />
 
         <ToggleRateField
-          available={
-            Boolean(
-              account?.eligibility
-                ?.ordinaryRepair,
-            )
-          }
-          disabled={
-            !canManage ||
-            isSaving
-          }
-          enabled={
-            draft
-              .ordinaryRepairEnabled
-          }
-          label="Ordinary Repair Incentive"
+          available={true}
+          disabled={!canManage || isSaving}
+          enabled={draft.ordinaryRepairEnabled}
+          label="Service Incentive"
           onEnabledChange={(value) =>
-            onDraftChange(
-              "ordinaryRepairEnabled",
-              value,
-            )
+            onDraftChange("ordinaryRepairEnabled", value)
           }
           onRateChange={(value) =>
-            onDraftChange(
-              "ordinaryRepairRatePercent",
-              value,
-            )
+            onDraftChange("ordinaryRepairRatePercent", value)
           }
-          rate={
-            draft
-              .ordinaryRepairRatePercent
-          }
+          rate={draft.ordinaryRepairRatePercent}
         />
 
         <ToggleRateField
-          available={
-            Boolean(
-              account?.eligibility
-                ?.boardLevelRepair,
-            )
-          }
-          disabled={
-            !canManage ||
-            isSaving
-          }
-          enabled={
-            draft
-              .boardRepairEnabled
-          }
-          label="Board Level Repair Incentive"
+          available={true}
+          disabled={!canManage || isSaving}
+          enabled={draft.boardRepairEnabled}
+          label="PC Build Incentive"
           onEnabledChange={(value) =>
-            onDraftChange(
-              "boardRepairEnabled",
-              value,
-            )
+            onDraftChange("boardRepairEnabled", value)
           }
           onRateChange={(value) =>
-            onDraftChange(
-              "boardRepairRatePercent",
-              value,
-            )
+            onDraftChange("boardRepairRatePercent", value)
           }
-          rate={
-            draft
-              .boardRepairRatePercent
-          }
+          rate={draft.boardRepairRatePercent}
         />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        {isTechnical ? (
-          <label className="block rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
-            <span className="font-bold text-[var(--color-text-strong)]">
-              Repair Fee
-            </span>
-
-            <span className="mt-1 block text-xs leading-5 text-[var(--color-muted)]">
-              One peso amount for this technician account.
-              Blank or zero is allowed.
-            </span>
-
-            <input
-              className="mt-3 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)] disabled:text-[var(--color-muted)]"
-              disabled={
-                !canManage ||
-                isSaving
-              }
-              inputMode="decimal"
-              min="0"
-              onChange={(event) =>
-                onDraftChange(
-                  "repairFee",
-                  event.target.value,
-                )
-              }
-              placeholder="Example: 500"
-              step="0.01"
-              type="number"
-              value={draft.repairFee}
-            />
-          </label>
-        ) : (
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4 opacity-75">
-            <p className="font-bold text-[var(--color-text-strong)]">
-              Repair Fee
-            </p>
-
-            <p className="mt-2 text-sm font-semibold text-[var(--color-muted)]">
-              Not available for Sales Agent accounts.
-            </p>
-          </div>
-        )}
-
+      <div className="mt-4">
         <label className="block rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
           <span className="font-bold text-[var(--color-text-strong)]">
             Configuration Notes
@@ -698,7 +597,7 @@ export default function IncentiveAccountSettingsV2({
         validateEnabledRate(
           draft.itemEnabled,
           draft.itemRatePercent,
-          "Item Incentive",
+          "Solo Sales Incentive",
         )
 
       if (!item.ok) {
@@ -714,7 +613,7 @@ export default function IncentiveAccountSettingsV2({
             .ordinaryRepairEnabled,
           draft
             .ordinaryRepairRatePercent,
-          "Ordinary Repair Incentive",
+          "Service Incentive",
         )
 
       if (!ordinary.ok) {
@@ -730,7 +629,7 @@ export default function IncentiveAccountSettingsV2({
             .boardRepairEnabled,
           draft
             .boardRepairRatePercent,
-          "Board Level Repair Incentive",
+          "PC Build Incentive",
         )
 
       if (!board.ok) {
@@ -924,15 +823,15 @@ export default function IncentiveAccountSettingsV2({
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Badge tone="gray">
-            Item: all eligible staff
+            Solo Sales: all staff accounts
           </Badge>
 
           <Badge tone="gray">
-            Ordinary Repair: technical staff
+            Service: technician & service staff
           </Badge>
 
           <Badge tone="gray">
-            Board Level: Senior Technician only
+            PC Build: assembly & tech staff
           </Badge>
         </div>
       </Card>
