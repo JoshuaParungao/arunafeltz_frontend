@@ -829,9 +829,7 @@ function UsersPage({ selectedBranch, user }) {
   const [searchText, setSearchText] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [accountTypeFilter, setAccountTypeFilter] = useState("")
-  const [branchFilter, setBranchFilter] = useState(() =>
-    isSuperOwner ? selectedBranch?.id || "" : user?.branchId || "",
-  )
+  const [branchFilter, setBranchFilter] = useState("")
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
