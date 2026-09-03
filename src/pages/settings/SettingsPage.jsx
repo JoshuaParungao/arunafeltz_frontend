@@ -2969,7 +2969,7 @@ function SettingsPage({ user }) {
             <div className="flex items-center gap-2">
               <Badge tone="maroon">Settings & Control Center</Badge>
               <span className="text-xs font-semibold text-slate-500">
-                {canManageSettings ? "Super Owner / Admin Access" : "Read Only"}
+                {canManageSettings ? "Main Admin / Admin Access" : "Read Only"}
               </span>
             </div>
             <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900">
