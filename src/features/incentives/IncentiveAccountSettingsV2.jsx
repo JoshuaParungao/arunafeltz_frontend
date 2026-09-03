@@ -309,12 +309,12 @@ function AccountCard({
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-3 xl:grid-cols-3">
+      <div className={`mt-5 grid gap-3 ${isTechnical ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>
         <ToggleRateField
           available={true}
           disabled={!canManage || isSaving}
           enabled={draft.itemEnabled}
-          label="Solo Sales Incentive"
+          label="Item Sale Incentive"
           onEnabledChange={(value) =>
             onDraftChange("itemEnabled", value)
           }
@@ -328,7 +328,7 @@ function AccountCard({
           available={true}
           disabled={!canManage || isSaving}
           enabled={draft.ordinaryRepairEnabled}
-          label="Service Incentive"
+          label="Ordinary Repair Incentive"
           onEnabledChange={(value) =>
             onDraftChange("ordinaryRepairEnabled", value)
           }
@@ -342,7 +342,7 @@ function AccountCard({
           available={true}
           disabled={!canManage || isSaving}
           enabled={draft.boardRepairEnabled}
-          label="PC Build Incentive"
+          label="Board Level Repair Incentive"
           onEnabledChange={(value) =>
             onDraftChange("boardRepairEnabled", value)
           }
@@ -351,6 +351,35 @@ function AccountCard({
           }
           rate={draft.boardRepairRatePercent}
         />
+
+        {isTechnical ? (
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4 flex flex-col justify-between">
+            <div>
+              <span className="block font-bold text-[var(--color-text-strong)]">
+                Repair Fee (₱)
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-[var(--color-muted)]">
+                Fixed repair charge fee (optional)
+              </span>
+            </div>
+            <label className="mt-4 block">
+              <span className="text-xs font-black uppercase tracking-[0.1em] text-[var(--color-muted)]">
+                Amount ₱
+              </span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3 text-sm font-bold outline-none transition focus:border-[var(--color-maroon)] disabled:bg-[var(--color-soft)]"
+                disabled={!canManage || isSaving}
+                inputMode="decimal"
+                min="0"
+                onChange={(e) => onDraftChange("repairFee", e.target.value)}
+                placeholder="Optional fee"
+                step="0.01"
+                type="number"
+                value={draft.repairFee}
+              />
+            </label>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4">
@@ -597,7 +626,7 @@ export default function IncentiveAccountSettingsV2({
         validateEnabledRate(
           draft.itemEnabled,
           draft.itemRatePercent,
-          "Solo Sales Incentive",
+          "Item Sale Incentive",
         )
 
       if (!item.ok) {
@@ -613,7 +642,7 @@ export default function IncentiveAccountSettingsV2({
             .ordinaryRepairEnabled,
           draft
             .ordinaryRepairRatePercent,
-          "Service Incentive",
+          "Ordinary Repair Incentive",
         )
 
       if (!ordinary.ok) {
@@ -629,7 +658,7 @@ export default function IncentiveAccountSettingsV2({
             .boardRepairEnabled,
           draft
             .boardRepairRatePercent,
-          "PC Build Incentive",
+          "Board Level Repair Incentive",
         )
 
       if (!board.ok) {
@@ -823,15 +852,15 @@ export default function IncentiveAccountSettingsV2({
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Badge tone="gray">
-            Solo Sales: all staff accounts
+            Item: sales & staff accounts
           </Badge>
 
           <Badge tone="gray">
-            Service: technician & service staff
+            Ordinary: technician & service staff
           </Badge>
 
           <Badge tone="gray">
-            PC Build: assembly & tech staff
+            Board Level: senior technicians & repairs
           </Badge>
         </div>
       </Card>
