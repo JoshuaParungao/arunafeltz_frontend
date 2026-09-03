@@ -53,6 +53,13 @@ function accountDraft(account) {
       configuration?.item?.ratePercent ??
       "",
 
+    soloSaleEnabled:
+      Boolean(configuration?.soloSale?.enabled),
+
+    soloSaleRatePercent:
+      configuration?.soloSale?.ratePercent ??
+      "",
+
     ordinaryRepairEnabled:
       Boolean(
         configuration?.ordinaryRepair?.enabled,
@@ -71,9 +78,14 @@ function accountDraft(account) {
       configuration?.boardLevelRepair
         ?.ratePercent ?? "",
 
-    repairFee:
-      configuration?.repairFee?.amount ??
-      "",
+    pcBuildEnabled:
+      Boolean(
+        configuration?.pcBuild?.enabled,
+      ),
+
+    pcBuildRatePercent:
+      configuration?.pcBuild
+        ?.ratePercent ?? "",
 
     notes:
       account?.configurationState ===
@@ -309,12 +321,12 @@ function AccountCard({
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-3 xl:grid-cols-3">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <ToggleRateField
           available={true}
           disabled={!canManage || isSaving}
           enabled={draft.itemEnabled}
-          label="Item Sale / Solo Sales Incentive"
+          label="Item Sale (%)"
           onEnabledChange={(value) =>
             onDraftChange("itemEnabled", value)
           }
@@ -327,8 +339,22 @@ function AccountCard({
         <ToggleRateField
           available={true}
           disabled={!canManage || isSaving}
+          enabled={draft.soloSaleEnabled}
+          label="Solo Sales (%)"
+          onEnabledChange={(value) =>
+            onDraftChange("soloSaleEnabled", value)
+          }
+          onRateChange={(value) =>
+            onDraftChange("soloSaleRatePercent", value)
+          }
+          rate={draft.soloSaleRatePercent}
+        />
+
+        <ToggleRateField
+          available={true}
+          disabled={!canManage || isSaving}
           enabled={draft.ordinaryRepairEnabled}
-          label="Service Incentive"
+          label="Service (%)"
           onEnabledChange={(value) =>
             onDraftChange("ordinaryRepairEnabled", value)
           }
@@ -342,7 +368,7 @@ function AccountCard({
           available={true}
           disabled={!canManage || isSaving}
           enabled={draft.boardRepairEnabled}
-          label="Board Level / PC Build Incentive"
+          label="Board Level (%)"
           onEnabledChange={(value) =>
             onDraftChange("boardRepairEnabled", value)
           }
@@ -350,6 +376,20 @@ function AccountCard({
             onDraftChange("boardRepairRatePercent", value)
           }
           rate={draft.boardRepairRatePercent}
+        />
+
+        <ToggleRateField
+          available={true}
+          disabled={!canManage || isSaving}
+          enabled={draft.pcBuildEnabled}
+          label="PC Build (%)"
+          onEnabledChange={(value) =>
+            onDraftChange("pcBuildEnabled", value)
+          }
+          onRateChange={(value) =>
+            onDraftChange("pcBuildRatePercent", value)
+          }
+          rate={draft.pcBuildRatePercent}
         />
       </div>
 
@@ -597,12 +637,26 @@ export default function IncentiveAccountSettingsV2({
         validateEnabledRate(
           draft.itemEnabled,
           draft.itemRatePercent,
-          "Item Sale Incentive",
+          "Item Sale (%)",
         )
 
       if (!item.ok) {
         setErrorMessage(
           `${account.fullName}: ${item.message}`,
+        )
+        return
+      }
+
+      const solo =
+        validateEnabledRate(
+          draft.soloSaleEnabled,
+          draft.soloSaleRatePercent,
+          "Solo Sales (%)",
+        )
+
+      if (!solo.ok) {
+        setErrorMessage(
+          `${account.fullName}: ${solo.message}`,
         )
         return
       }
@@ -613,7 +667,7 @@ export default function IncentiveAccountSettingsV2({
             .ordinaryRepairEnabled,
           draft
             .ordinaryRepairRatePercent,
-          "Ordinary Repair Incentive",
+          "Service (%)",
         )
 
       if (!ordinary.ok) {
@@ -629,7 +683,7 @@ export default function IncentiveAccountSettingsV2({
             .boardRepairEnabled,
           draft
             .boardRepairRatePercent,
-          "Board Level Repair Incentive",
+          "Board Level (%)",
         )
 
       if (!board.ok) {
@@ -639,105 +693,37 @@ export default function IncentiveAccountSettingsV2({
         return
       }
 
-      const repairFee =
-        draft.repairFee === "" ||
-        draft.repairFee === null ||
-        draft.repairFee ===
-          undefined
-          ? null
-          : Number(
-              draft.repairFee,
-            )
-
-      if (
-        repairFee !== null &&
-        (
-          !Number.isFinite(
-            repairFee,
-          ) ||
-          repairFee < 0 ||
-          repairFee >
-            9999999999.99
+      const pcBuild =
+        validateEnabledRate(
+          draft
+            .pcBuildEnabled,
+          draft
+            .pcBuildRatePercent,
+          "PC Build (%)",
         )
-      ) {
+
+      if (!pcBuild.ok) {
         setErrorMessage(
-          `${account.fullName}: Repair Fee must be zero or greater.`,
+          `${account.fullName}: ${pcBuild.message}`,
         )
         return
       }
 
-      const itemAvailable =
-        Boolean(
-          account?.eligibility
-            ?.item,
-        )
-
-      const ordinaryAvailable =
-        Boolean(
-          account?.eligibility
-            ?.ordinaryRepair,
-        )
-
-      const boardAvailable =
-        Boolean(
-          account?.eligibility
-            ?.boardLevelRepair,
-        )
-
-      const repairFeeAvailable =
-        Boolean(
-          account?.eligibility
-            ?.repairFee,
-        )
-
       const payload = {
-        itemEnabled:
-          itemAvailable
-            ? Boolean(
-                draft.itemEnabled,
-              )
-            : false,
+        itemEnabled: Boolean(draft.itemEnabled),
+        itemRatePercent: draft.itemEnabled ? item.value : null,
 
-        itemRatePercent:
-          itemAvailable &&
-          draft.itemEnabled
-            ? item.value
-            : null,
+        soloSaleEnabled: Boolean(draft.soloSaleEnabled),
+        soloSaleRatePercent: draft.soloSaleEnabled ? solo.value : null,
 
-        ordinaryRepairEnabled:
-          ordinaryAvailable
-            ? Boolean(
-                draft
-                  .ordinaryRepairEnabled,
-              )
-            : false,
+        ordinaryRepairEnabled: Boolean(draft.ordinaryRepairEnabled),
+        ordinaryRepairRatePercent: draft.ordinaryRepairEnabled ? ordinary.value : null,
 
-        ordinaryRepairRatePercent:
-          ordinaryAvailable &&
-          draft
-            .ordinaryRepairEnabled
-            ? ordinary.value
-            : null,
+        boardRepairEnabled: Boolean(draft.boardRepairEnabled),
+        boardRepairRatePercent: draft.boardRepairEnabled ? board.value : null,
 
-        boardRepairEnabled:
-          boardAvailable
-            ? Boolean(
-                draft
-                  .boardRepairEnabled,
-              )
-            : false,
-
-        boardRepairRatePercent:
-          boardAvailable &&
-          draft
-            .boardRepairEnabled
-            ? board.value
-            : null,
-
-        repairFee:
-          repairFeeAvailable
-            ? repairFee
-            : null,
+        pcBuildEnabled: Boolean(draft.pcBuildEnabled),
+        pcBuildRatePercent: draft.pcBuildEnabled ? pcBuild.value : null,
 
         notes:
           draft.notes.trim() ||
