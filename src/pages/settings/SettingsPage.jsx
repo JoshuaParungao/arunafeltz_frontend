@@ -2816,10 +2816,50 @@ function SoloSaleIncentiveRulesCard({ canManageSettings, onSaved, setting }) {
   )
 }
 
+const SETTINGS_CATEGORIES = [
+  {
+    id: "incentives",
+    label: "Incentives & Rules",
+    icon: Percent,
+    description: "Commission rates, per-account incentive setup, and schedules",
+    groups: ["Incentive Rules"],
+  },
+  {
+    id: "payments",
+    label: "Payments & Rates",
+    icon: Banknote,
+    description: "Payment methods, installment terms, interest rates, price tiers, and discounts",
+    groups: ["Payment Methods", "Installment / Interest Rates", "Price Tier Settings", "Discount Rules"],
+  },
+  {
+    id: "operations",
+    label: "Operations & Rules",
+    icon: Settings,
+    description: "Inventory controls, service job rules, warranty durations, and cash boxes",
+    groups: ["Inventory Rules", "Service Rules", "Warranty Rules", "Cash Box Rules"],
+  },
+  {
+    id: "general",
+    label: "Business & System",
+    icon: Building2,
+    description: "Business profile, branch details, document numbering, and system preferences",
+    groups: ["Business Profile", "Branch Settings", "Document Numbering", "System Preferences"],
+  },
+  {
+    id: "backup",
+    label: "Backup & Recovery",
+    icon: Database,
+    description: "Full database backup, disaster recovery, and live raw database values",
+    groups: [],
+  },
+]
+
 function SettingsPage({ user }) {
   const [settings, setSettings] = useState([])
   const [errorMessage, setErrorMessage] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [activeCategory, setActiveCategory] = useState("incentives")
+  const [searchQuery, setSearchQuery] = useState("")
   const [openPlannedGroup, setOpenPlannedGroup] = useState("")
   const [openSavedGroup, setOpenSavedGroup] = useState("")
 
@@ -2872,7 +2912,7 @@ function SettingsPage({ user }) {
   )
 
   const cashBoxRequireHandoverSetting = useMemo(
-    () => findSettingByKey(settings, "cash_box.require_handover_confirmation"),
+    () => findSettingByKey(settings, "cash_box.require_handover_report"),
     [settings],
   )
 
@@ -3066,152 +3106,157 @@ function SettingsPage({ user }) {
     }
   }
 
+  const currentCategory = SETTINGS_CATEGORIES.find((c) => c.id === activeCategory) || SETTINGS_CATEGORIES[0]
+
+  const visibleGroups = useMemo(() => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      return SETTINGS_GROUPS.filter((g) =>
+        g.title.toLowerCase().includes(q) ||
+        g.description.toLowerCase().includes(q) ||
+        (g.items && g.items.some((item) => item.toLowerCase().includes(q)))
+      )
+    }
+    return SETTINGS_GROUPS.filter((g) => currentCategory.groups.includes(g.title))
+  }, [currentCategory.groups, searchQuery])
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0">
-          <Badge tone="maroon">Control Center</Badge>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight text-[var(--color-text-strong)]">
-            Settings
-          </h1>
-          <p className="mt-1 max-w-4xl text-sm leading-6 text-[var(--color-muted)]">
-            Configure business rules, payment terms, interest rates, and system backups.
-          </p>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="rounded-3xl border border-slate-200/80 bg-gradient-to-r from-white via-slate-50/50 to-white p-6 shadow-xs">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge tone="maroon">Settings & Control Center</Badge>
+              <span className="text-xs font-semibold text-slate-500">
+                {canManageSettings ? "Super Owner / Admin Access" : "Read Only"}
+              </span>
+            </div>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900">
+              System Configuration
+            </h1>
+            <p className="mt-0.5 text-xs text-slate-600">
+              Manage incentive rates, payment terms, interest calculations, operational policies, and database backups.
+            </p>
+          </div>
+
+          <div className="w-full md:w-72">
+            <input
+              type="text"
+              placeholder="Search settings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-red-50"
+            />
+          </div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-semibold text-[var(--color-muted)] shadow-card">
-          {isLoading ? "Loading saved settings..." : `${settings.length} saved settings loaded`}
-        </div>
+        {!searchQuery && (
+          <div className="mt-6 flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100">
+            {SETTINGS_CATEGORIES.map((cat) => {
+              const Icon = cat.icon
+              const isActive = activeCategory === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition ${
+                    isActive
+                      ? "bg-[var(--color-maroon)] text-white shadow-sm"
+                      : "bg-white text-slate-700 hover:bg-slate-100/80 border border-slate-200"
+                  }`}
+                >
+                  <Icon className="size-4" />
+                  <span>{cat.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {errorMessage ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700">
           {errorMessage}
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 text-[var(--color-text-strong)] shadow-card">
-        <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-[var(--color-text-strong)]">Business values are controlled here</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-muted)]">
-              Interest rates, quotation computation, warranty duration, cash handling, receipt
-              information, and branch-specific rules are configured in the sections below.
-            </p>
-          </div>
+      {!searchQuery && activeCategory === "backup" ? (
+        <div className="space-y-6">
+          <DatabaseBackupRecoverySection user={user} />
 
-          <div className="rounded-2xl bg-[var(--color-soft)] p-4 text-sm leading-6 text-[var(--color-text)]">
-            {canManageSettings
-              ? "You can update available settings. Save carefully."
-              : "You can view settings. Only Main Admin or Admin can change them."}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Live Database Values
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Raw saved key-value pairs stored in the database.
+                </p>
+              </div>
+              <Badge tone="maroon">{settings.length} Stored Keys</Badge>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              {Object.entries(groupedSettings).map(([groupName, groupItems]) => (
+                <ExpandableCard
+                  badge={`${groupItems.length} values`}
+                  description="Saved values currently used by the system."
+                  icon={Settings}
+                  isOpen={openSavedGroup === groupName}
+                  key={groupName}
+                  onToggle={() =>
+                    setOpenSavedGroup((current) => (current === groupName ? "" : groupName))
+                  }
+                  title={groupName}
+                >
+                  <div className="space-y-2">
+                    {groupItems.map((setting) => (
+                      <SavedSettingItem key={setting.id} setting={setting} />
+                    ))}
+                  </div>
+                </ExpandableCard>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+      ) : (
+        <div className="space-y-4">
+          {searchQuery && (
+            <p className="text-xs font-bold text-slate-500 px-1">
+              Found {visibleGroups.length} matching setting sections for "{searchQuery}"
+            </p>
+          )}
 
-      {/* Database Backup & Disaster Recovery */}
-      <DatabaseBackupRecoverySection user={user} />
+          {visibleGroups.map((group) => {
+            const Icon = ICONS[group.title] || Settings
+            const isOpen = openPlannedGroup === group.title || visibleGroups.length === 1
 
-      {/* Settings Sections - Editable cards where users can configure any value */}
-      <section className="space-y-4">
-        <Card>
-          <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
-            Settings Sections
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-[var(--color-muted)]">
-            Click any section below to configure and update business rules.
-          </p>
-        </Card>
-
-        {SETTINGS_GROUPS.map((group) => {
-          const Icon = ICONS[group.title] || Settings
-          const isOpen = openPlannedGroup === group.title
-
-          return (
-            <ExpandableCard
-              badge={group.priority ? "Priority" : null}
-              description={group.description}
-              icon={Icon}
-              isOpen={isOpen}
-              key={group.title}
-              onToggle={() =>
-                setOpenPlannedGroup((current) =>
-                  current === group.title ? "" : group.title,
-                )
-              }
-              title={group.title}
-            >
-              <div className="[&>div]:border-0 [&>div]:bg-transparent [&>div]:p-0 [&>div]:shadow-none [&>div]:ring-0">
-                {renderSettingsSectionContent(group)}
-              </div>
-            </ExpandableCard>
-          )
-        })}
-      </section>
-
-      {/* Current Saved Business Settings */}
-      <section className="space-y-4">
-        <Card>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-[var(--color-text-strong)]">
-                Current Saved Business Settings
-              </h2>
-              <p className="mt-1 text-sm text-[var(--color-muted)]">
-                Live values currently active across the system.
-              </p>
-            </div>
-            <Badge tone="maroon">{settings.length} Settings</Badge>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            {Object.entries(groupedSettings).map(([groupName, groupItems]) => (
+            return (
               <ExpandableCard
-                badge={`${groupItems.length} saved`}
-                description="Saved values currently used by the system."
-                icon={Settings}
-                isOpen={openSavedGroup === groupName}
-                key={groupName}
+                badge={group.priority ? "Priority" : null}
+                description={group.description}
+                icon={Icon}
+                isOpen={isOpen}
+                key={group.title}
                 onToggle={() =>
-                  setOpenSavedGroup((current) => (current === groupName ? "" : groupName))
+                  setOpenPlannedGroup((current) =>
+                    current === group.title ? "" : group.title,
+                  )
                 }
-                title={groupName}
+                title={group.title}
               >
-                <div className="space-y-3">
-                  {groupItems.map((setting) => (
-                    <SavedSettingItem key={setting.id} setting={setting} />
-                  ))}
+                <div className="[&>div]:border-0 [&>div]:bg-transparent [&>div]:p-0 [&>div]:shadow-none [&>div]:ring-0 pt-2">
+                  {renderSettingsSectionContent(group)}
                 </div>
               </ExpandableCard>
-            ))}
-          </div>
-        </Card>
-      </section>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
 export default SettingsPage
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
