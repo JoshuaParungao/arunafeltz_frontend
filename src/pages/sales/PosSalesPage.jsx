@@ -2347,7 +2347,7 @@ function PosSalesPage({ selectedBranch, user }) {
           : [],
       creditAccount: isReceivableCheckout
         ? {
-            provider: settlementMethod,
+            provider: paymentMethod,
             term: creditTerm,
             initialPaymentAmount: downpayment,
             principalAmount: regularTotal,
@@ -4150,8 +4150,35 @@ function PosSalesPage({ selectedBranch, user }) {
                         <td className="px-4 py-3 font-semibold text-slate-800">{sale.customer?.fullName || "Walk-in"}</td>
                         <td className="px-4 py-3 text-slate-600">{sale.cashier?.fullName || "—"}</td>
                         <td className="px-4 py-3"><StatusBadge status={sale.status} /></td>
-                        <td className="px-4 py-3"><StatusBadge status={sale.paymentStatus} /></td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">{formatMoney(sale.grandTotal)}</td>
+                        <td className="px-4 py-3 space-y-1">
+                          <div>
+                            {sale.creditAccount ? (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-900">
+                                💳 {formatStatus(sale.creditAccount.provider)}
+                                {sale.creditAccount.term ? ` (${formatStatus(sale.creditAccount.term)})` : ""}
+                              </span>
+                            ) : (sale.payments || []).length > 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                                {sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ")}
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 text-[11px] font-medium">Cash</span>
+                            )}
+                          </div>
+                          <div>
+                            <StatusBadge status={sale.paymentStatus} />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <p className="font-mono font-bold text-slate-900 text-xs">
+                            {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
+                          </p>
+                          {sale.creditAccount && Number(sale.creditAccount.remainingBalance || 0) > 0 ? (
+                            <p className="text-[10px] text-blue-700 font-mono">
+                              Bal: {formatMoney(sale.creditAccount.remainingBalance)}
+                            </p>
+                          ) : null}
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center justify-end gap-1.5">
                             <button
@@ -4196,12 +4223,24 @@ function PosSalesPage({ selectedBranch, user }) {
                         <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
                         <p className="text-[10px] text-slate-400">{formatDate(sale.saleDate)}</p>
                       </div>
-                      <p className="font-mono font-bold text-slate-900">{formatMoney(sale.grandTotal)}</p>
+                      <p className="font-mono font-bold text-slate-900">
+                        {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
+                      </p>
                     </div>
                     <p className="mt-1.5 text-slate-700">{sale.customer?.fullName || "Walk-in customer"}</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       <StatusBadge status={sale.status} />
                       <StatusBadge status={sale.paymentStatus} />
+                      {sale.creditAccount ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-900">
+                          💳 {formatStatus(sale.creditAccount.provider)}
+                          {sale.creditAccount.term ? ` (${formatStatus(sale.creditAccount.term)})` : ""}
+                        </span>
+                      ) : (sale.payments || []).length > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">
+                          {sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ")}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="mt-2.5 flex items-center gap-1.5 pt-2 border-t border-slate-100">
                       <button
