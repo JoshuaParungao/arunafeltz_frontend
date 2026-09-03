@@ -102,16 +102,18 @@ const RECEIVABLE_PROVIDER_VALUES = new Set(
 )
 
 const INSTALLMENT_TERMS = [
-  ["STRAIGHT", "Cash Promo (0% Interest)"],
-  ["MONTH_3", "3 months"],
-  ["MONTH_6", "6 months"],
-  ["MONTH_9", "9 months"],
-  ["MONTH_12", "12 months"],
-  ["MONTH_18", "18 months"],
-  ["MONTH_24", "24 months"],
+  ["CASH_PROMO", "Cash Promo (0% Interest) (Tier Price)"],
+  ["STRAIGHT", "Straight (Rate: 0.96)"],
+  ["MONTH_3", "3 months (Rate: 0.96)"],
+  ["MONTH_6", "6 months (Rate: 0.935)"],
+  ["MONTH_9", "9 months (Rate: 0.905)"],
+  ["MONTH_12", "12 months (Rate: 0.875)"],
+  ["MONTH_18", "18 months (Rate: 0.815)"],
+  ["MONTH_24", "24 months (Rate: 0.755)"],
 ]
 
 const INSTALLMENT_TERM_MONTHS = {
+  CASH_PROMO: 1,
   STRAIGHT: 1,
   MONTH_3: 3,
   MONTH_6: 6,
@@ -122,7 +124,8 @@ const INSTALLMENT_TERM_MONTHS = {
 }
 
 const DEFAULT_INSTALLMENT_BASIS = {
-  STRAIGHT: 1.0,
+  CASH_PROMO: 1.0,
+  STRAIGHT: 0.96,
   MONTH_3: 0.96,
   MONTH_6: 0.935,
   MONTH_9: 0.905,
@@ -416,6 +419,12 @@ function SaleDetailDialog({
 
   const termsText = useMemo(() => {
     const term = sale?.creditAccount?.term || sale?.receivable?.term || sale?.creditTerm
+    if (term === "CASH_PROMO") {
+      return "Cash Promo (0% Interest)"
+    }
+    if (term === "STRAIGHT") {
+      return "Straight"
+    }
     if (term) {
       return formatStatus(term)
     }
@@ -4165,7 +4174,7 @@ function PosSalesPage({ selectedBranch, user }) {
                             {sale.creditAccount ? (
                               <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-900">
                                 💳 {formatStatus(sale.creditAccount.provider)}
-                                {sale.creditAccount.term ? ` (${formatStatus(sale.creditAccount.term)})` : ""}
+                                {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
                               </span>
                             ) : (sale.payments || []).length > 0 ? (
                               <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
@@ -4244,7 +4253,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       {sale.creditAccount ? (
                         <span className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-900">
                           💳 {formatStatus(sale.creditAccount.provider)}
-                          {sale.creditAccount.term ? ` (${formatStatus(sale.creditAccount.term)})` : ""}
+                          {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
                         </span>
                       ) : (sale.payments || []).length > 0 ? (
                         <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">
