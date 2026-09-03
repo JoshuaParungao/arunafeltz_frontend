@@ -725,7 +725,7 @@ function JobOrderPrintPreview({ defaultDoc = "RECEIPT", isBlank = false, job = {
                 onClick={() => setDocType("RECEIPT")}
                 type="button"
               >
-                {isBlank ? "Blank Dual Receipt" : "Dual-Copy JO Receipt"}
+                {isBlank ? "Blank Job Order Receipt" : "Job Order Receipt (A4)"}
               </button>
               <button
                 className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "DIAGNOSTIC" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}

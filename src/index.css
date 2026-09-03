@@ -347,6 +347,359 @@ html.dark .shadow-card,
   overflow: hidden;
 }
 
+/* =========================================================================
+   AUTHENTIC A4 JOB ORDER / SERVICE REQUEST RECEIPT (1.-NEW-JOB-ORDER-RECEIPT-1)
+   ========================================================================= */
+.jo-official-print-sheet {
+  width: 100%;
+  max-width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 6mm 9mm;
+  box-sizing: border-box;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 8.5pt;
+  line-height: 1.24;
+}
+
+.jo-official-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2.2mm;
+}
+
+.jo-official-brand {
+  flex: 1 1 auto;
+}
+
+.jo-official-shop-name {
+  font-size: 9.5pt;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+  margin: 0;
+  color: #000000 !important;
+  text-transform: uppercase;
+}
+
+.jo-official-shop-address,
+.jo-official-shop-contact {
+  font-size: 8pt;
+  margin: 0.5px 0 0;
+  color: #000000 !important;
+}
+
+.jo-official-meta {
+  flex: 0 0 auto;
+  min-width: 48mm;
+  text-align: right;
+  font-size: 8.5pt;
+}
+
+.jo-official-meta-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 1mm;
+}
+
+.jo-official-meta-label {
+  font-size: 8.5pt;
+  font-weight: normal;
+  color: #000000 !important;
+}
+
+.jo-official-meta-val {
+  font-size: 8.5pt;
+  min-width: 26mm;
+  text-align: left;
+}
+
+.jo-official-jo-num {
+  font-size: 11pt !important;
+  font-weight: bold !important;
+  color: #d90429 !important;
+  min-width: 26mm;
+  text-align: left;
+}
+
+.jo-official-title-banner {
+  text-align: center;
+  font-size: 10.5pt;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  margin: 1.8mm 0 2.5mm;
+  color: #000000 !important;
+  text-transform: uppercase;
+}
+
+.jo-official-customer-section {
+  margin-bottom: 2.5mm;
+}
+
+.jo-official-field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 4mm;
+  width: 100%;
+  margin-bottom: 1.5mm;
+}
+
+.jo-official-flex-field {
+  display: flex;
+  align-items: flex-end;
+  gap: 2mm;
+}
+
+.jo-official-field-label {
+  font-size: 8.5pt;
+  font-weight: normal;
+  color: #000000 !important;
+  white-space: nowrap;
+}
+
+.jo-official-underline-val {
+  flex: 1 1 auto;
+  border-bottom: 1px solid #000000;
+  min-height: 4.2mm;
+  font-size: 8.5pt;
+  padding: 0 3px;
+  color: #000000 !important;
+}
+
+.jo-official-section {
+  margin-bottom: 2.5mm;
+}
+
+.jo-official-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 4mm;
+  margin-bottom: 1.2mm;
+}
+
+.jo-official-section-title {
+  font-size: 8.8pt;
+  font-weight: bold;
+  color: #000000 !important;
+}
+
+.jo-official-section-sub {
+  font-size: 8pt;
+  color: #000000 !important;
+}
+
+.jo-official-checkbox-grid {
+  display: grid;
+  gap: 1.2mm 4mm;
+  padding-left: 1mm;
+}
+
+.jo-grid-3-col {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.jo-grid-4-col {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.jo-official-check-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8pt;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.jo-square-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border: 1.2px solid #000000;
+  font-size: 8.5pt;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+  line-height: 1;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.jo-inline-val-line {
+  border-bottom: 1px solid #000000;
+  padding: 0 4px;
+  min-width: 25mm;
+  display: inline-block;
+}
+
+.jo-official-issue-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+  margin-top: 1mm;
+}
+
+.jo-official-issue-line {
+  border-bottom: 1px solid #000000;
+  min-height: 4.5mm;
+  font-size: 8.5pt;
+  padding: 0 3px;
+}
+
+.jo-official-terms-section {
+  border-top: 1.2px solid #000000;
+  padding-top: 1.8mm;
+  margin-top: 2.5mm;
+  font-size: 7.2pt;
+  line-height: 1.2;
+}
+
+.jo-official-terms-title {
+  font-size: 8.2pt;
+  font-weight: bold;
+  margin: 0 0 1.2mm;
+  text-align: left;
+}
+
+.jo-official-term-item {
+  margin-bottom: 1.2mm;
+}
+
+.jo-official-declaration-section {
+  margin-top: 2.2mm;
+  border-top: 1.2px solid #000000;
+  padding-top: 1.5mm;
+  font-size: 7.2pt;
+  line-height: 1.2;
+}
+
+.jo-official-declaration-title {
+  font-size: 8.2pt;
+  font-weight: bold;
+  margin: 0 0 0.8mm;
+}
+
+.jo-official-declaration-text {
+  margin: 0;
+}
+
+.jo-official-sig-status-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 6mm;
+  margin-top: 2.5mm;
+  align-items: flex-start;
+}
+
+.jo-official-left-sig-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5mm;
+}
+
+.jo-official-sig-box {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 68mm;
+}
+
+.jo-official-sig-line {
+  border-bottom: 1px solid #000000;
+  min-height: 5mm;
+  text-align: center;
+  font-size: 8.5pt;
+  font-weight: bold;
+}
+
+.jo-official-sig-caption {
+  font-size: 7pt;
+  text-align: center;
+  margin-top: 1px;
+  color: #000000;
+}
+
+.jo-official-status-block {
+  font-size: 7.5pt;
+}
+
+.jo-official-status-label {
+  font-weight: normal;
+  margin-bottom: 1mm;
+  display: block;
+}
+
+.jo-official-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.2mm 2.2mm;
+}
+
+.jo-official-status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 7.2pt;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.jo-official-right-sig-col {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.jo-official-received-by-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 68mm;
+}
+
+.jo-official-received-label {
+  font-size: 7.8pt;
+  font-style: italic;
+  margin-bottom: 1mm;
+}
+
+.jo-official-tech-sig-box {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.jo-official-tech-name-line {
+  border-bottom: 1px solid #000000;
+  min-height: 5mm;
+  text-align: center;
+  font-size: 8.5pt;
+  font-weight: bold;
+}
+
+.jo-official-unit-release-box {
+  border: 1.5px solid #000000;
+  margin-top: 2.8mm;
+  background: #ffffff;
+}
+
+.jo-official-release-header {
+  font-size: 8.5pt;
+  font-weight: bold;
+  padding: 1mm 2.5mm;
+  border-bottom: 1px solid #000000;
+}
+
+.jo-official-release-body {
+  padding: 1.8mm 3mm;
+  font-size: 8pt;
+}
+
 .jo-receipt-half {
   display: flex;
   flex-direction: column;
