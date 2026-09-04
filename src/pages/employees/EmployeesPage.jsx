@@ -874,28 +874,40 @@ export default function EmployeesPage({ selectedBranch, user }) {
             </div>
           </div>
 
-          {/* 3 Program Rules: Item Sale, Ordinary Repair, Board Level Repair */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <div className="mb-4">
-              <h3 className="text-sm font-black uppercase tracking-wider text-[var(--color-maroon)]">
-                1 - 3. Program Rules (Price Tiers & Repair Cost Split)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Eligible Price Tiers (Item Sale) • Repair Cost Pool % (Ordinary Repair) • Repair Cost Pool % (Board Level Repair)
-              </p>
+          {/* Section 1: Program Rules */}
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-2.5">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Sliders size={16} className="text-[var(--color-maroon)]" />
+                  Program Rules (Price Tiers & Repair Cost Split)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Eligible Price Tiers (Item Sale) • Repair Cost Pool % (Ordinary Repair) • Repair Cost Pool % (Board Level Repair)
+                </p>
+              </div>
+              <span className="rounded-full bg-rose-50 border border-rose-200/80 px-2.5 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
+                3 Rules
+              </span>
             </div>
             <IncentiveProgramRulesSettingsV2 canManage={canManageIncentives} />
           </div>
 
-          {/* 3 Program Schedules: Item Sale Schedule, Ordinary Repair Schedule, Board Level Repair Schedule */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <div className="mb-4">
-              <h3 className="text-sm font-black uppercase tracking-wider text-[var(--color-maroon)]">
-                4 - 6. Program Schedules (Frequencies & Claim Windows)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Item Sale Schedule • Ordinary Repair Schedule • Board Level Repair Schedule
-              </p>
+          {/* Section 2: Program Schedules */}
+          <div className="space-y-4 pt-4 border-t border-slate-200/80">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-2.5">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Calendar size={16} className="text-[var(--color-maroon)]" />
+                  Program Schedules (Cutoffs & Payout Windows)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Frequency, anchor dates, at claim windows para sa Item Sales at Repair jobs
+                </p>
+              </div>
+              <span className="rounded-full bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 text-[10px] font-black text-blue-700">
+                3 Schedules
+              </span>
             </div>
             <IncentiveProgramSchedulesSettingsV2 canManage={canManageIncentives} />
           </div>
