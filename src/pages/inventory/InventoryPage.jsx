@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { AlertCircle, PackageSearch, RefreshCw, Search } from "lucide-react"
+import { AlertCircle, PackageSearch, RefreshCw, Search, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { getBranches } from "../../features/branches/branches.api"
