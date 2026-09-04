@@ -25,6 +25,9 @@ import { getReport } from "../../features/reports/reports.api"
 import { getBranches } from "../../features/branches/branches.api"
 import { exportReportExcel, exportReportPdf } from "../../utils/businessDocumentExport"
 import { getRoleLabel } from "../../constants/roles"
+import SaleReceiptModal from "../../components/sales/SaleReceiptModal"
+import JobOrderReceiptModal from "../../components/services/JobOrderReceiptModal"
+import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 
 function peso(value) {
   return `₱${Number(value || 0).toLocaleString("en-PH", {
@@ -74,6 +77,9 @@ export default function EmployeesPage({ selectedBranch, user }) {
   const [errorMessage, setErrorMessage] = useState("")
   const [selectedStaff, setSelectedStaff] = useState(null)
   const [modalTab, setModalTab] = useState("sales")
+  const [previewSale, setPreviewSale] = useState(null)
+  const [previewJob, setPreviewJob] = useState(null)
+  const [previewQuotation, setPreviewQuotation] = useState(null)
   const [isExportingExcel, setIsExportingExcel] = useState(false)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
 
@@ -528,7 +534,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
               ) : records.length === 0 ? (
                 <tr>
                   <td className="px-5 py-12 text-center text-sm font-bold text-[var(--color-muted)]" colSpan={9}>
-                    Walang nahanap na employee records sa napiling filter.
+                    No employee performance records found for the selected filter.
                   </td>
                 </tr>
               ) : (
@@ -696,11 +702,11 @@ export default function EmployeesPage({ selectedBranch, user }) {
               {modalTab === "sales" ? (
                 <div>
                   <h3 className="text-sm font-black text-[var(--color-text-strong)] mb-3">
-                    Mga Naitalang Benta at Resibo ni {selectedStaff.fullName}
+                    Recorded Sales & Invoices for {selectedStaff.fullName}
                   </h3>
                   {(!selectedStaff.recentSales || selectedStaff.recentSales.length === 0) ? (
                     <div className="rounded-2xl bg-[var(--color-soft)] p-8 text-center text-xs font-bold text-[var(--color-muted)]">
-                      Walang recorded sales ang staff sa napiling period.
+                      No recorded sales found for this staff member in the selected period.
                     </div>
                   ) : (
                     <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
@@ -713,12 +719,21 @@ export default function EmployeesPage({ selectedBranch, user }) {
                             <th className="p-3">Payment</th>
                             <th className="p-3 text-right">Total Amount</th>
                             <th className="p-3 text-right">Solo Commission ({selectedStaff.soloIncentivePercent ?? 0}%)</th>
+                            <th className="p-3 text-right">Official Document</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--color-border)]">
                           {selectedStaff.recentSales.map((s) => (
                             <tr className="hover:bg-[var(--color-soft)]/50" key={s.id}>
-                              <td className="p-3 font-bold text-[var(--color-maroon)]">{s.saleCode || s.receiptCode}</td>
+                              <td className="p-3">
+                                <button
+                                  className="font-bold text-[var(--color-maroon)] hover:underline flex items-center gap-1 text-left"
+                                  onClick={() => setPreviewSale(s)}
+                                  type="button"
+                                >
+                                  {s.saleCode || s.receiptCode}
+                                </button>
+                              </td>
                               <td className="p-3 text-[var(--color-muted)]">{formatDate(s.saleDate, true)}</td>
                               <td className="p-3 font-semibold">{s.customerName}</td>
                               <td className="p-3">
@@ -728,6 +743,15 @@ export default function EmployeesPage({ selectedBranch, user }) {
                               </td>
                               <td className="p-3 text-right font-black text-[var(--color-text-strong)]">{peso(s.grandTotal)}</td>
                               <td className="p-3 text-right font-black text-amber-700">{peso(s.commission || 0)}</td>
+                              <td className="p-3 text-right">
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-maroon)] text-white px-2.5 py-1 text-[11px] font-bold hover:bg-[var(--color-maroon-hover)] shadow-xs transition"
+                                  onClick={() => setPreviewSale(s)}
+                                  type="button"
+                                >
+                                  <Printer size={12} /> View Receipt
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -740,11 +764,11 @@ export default function EmployeesPage({ selectedBranch, user }) {
               {modalTab === "services" ? (
                 <div>
                   <h3 className="text-sm font-black text-[var(--color-text-strong)] mb-3">
-                    Mga Service / Repair Jobs na Hinawakan ni {selectedStaff.fullName}
+                    Service & Repair Jobs Handled by {selectedStaff.fullName}
                   </h3>
                   {(!selectedStaff.recentServices || selectedStaff.recentServices.length === 0) ? (
                     <div className="rounded-2xl bg-[var(--color-soft)] p-8 text-center text-xs font-bold text-[var(--color-muted)]">
-                      Walang recorded service jobs ang technician sa napiling period.
+                      No recorded service jobs found for this technician in the selected period.
                     </div>
                   ) : (
                     <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
@@ -758,12 +782,21 @@ export default function EmployeesPage({ selectedBranch, user }) {
                             <th className="p-3">Status</th>
                             <th className="p-3 text-right">Service Charge</th>
                             <th className="p-3 text-right">Labor Commission</th>
+                            <th className="p-3 text-right">Official Document</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--color-border)]">
                           {selectedStaff.recentServices.map((j) => (
                             <tr className="hover:bg-[var(--color-soft)]/50" key={j.id}>
-                              <td className="p-3 font-bold text-blue-700">{j.jobCode}</td>
+                              <td className="p-3">
+                                <button
+                                  className="font-bold text-blue-700 hover:underline flex items-center gap-1 text-left"
+                                  onClick={() => setPreviewJob(j)}
+                                  type="button"
+                                >
+                                  {j.jobCode}
+                                </button>
+                              </td>
                               <td className="p-3 text-[var(--color-muted)]">{formatDate(j.receivedAt)}</td>
                               <td className="p-3 font-semibold">{j.customerName}</td>
                               <td className="p-3">
@@ -777,6 +810,15 @@ export default function EmployeesPage({ selectedBranch, user }) {
                               </td>
                               <td className="p-3 text-right font-black text-[var(--color-text-strong)]">{peso(j.finalServiceCharge)}</td>
                               <td className="p-3 text-right font-black text-blue-700">{peso(j.commission || 0)}</td>
+                              <td className="p-3 text-right">
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-lg bg-blue-700 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-blue-800 shadow-xs transition"
+                                  onClick={() => setPreviewJob(j)}
+                                  type="button"
+                                >
+                                  <Printer size={12} /> View Job Order
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -789,11 +831,11 @@ export default function EmployeesPage({ selectedBranch, user }) {
               {modalTab === "quotations" ? (
                 <div>
                   <h3 className="text-sm font-black text-[var(--color-text-strong)] mb-3">
-                    Mga Quotations na Ginawa ni {selectedStaff.fullName}
+                    Quotations Prepared by {selectedStaff.fullName}
                   </h3>
                   {(!selectedStaff.recentQuotations || selectedStaff.recentQuotations.length === 0) ? (
                     <div className="rounded-2xl bg-[var(--color-soft)] p-8 text-center text-xs font-bold text-[var(--color-muted)]">
-                      Walang recorded quotations sa napiling period.
+                      No recorded quotations found in the selected period.
                     </div>
                   ) : (
                     <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
@@ -805,12 +847,21 @@ export default function EmployeesPage({ selectedBranch, user }) {
                             <th className="p-3">Customer</th>
                             <th className="p-3">Status</th>
                             <th className="p-3 text-right">Grand Total</th>
+                            <th className="p-3 text-right">Official Document</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--color-border)]">
                           {selectedStaff.recentQuotations.map((q) => (
                             <tr className="hover:bg-[var(--color-soft)]/50" key={q.id}>
-                              <td className="p-3 font-bold text-[var(--color-maroon)]">{q.quotationCode}</td>
+                              <td className="p-3">
+                                <button
+                                  className="font-bold text-[var(--color-maroon)] hover:underline flex items-center gap-1 text-left"
+                                  onClick={() => setPreviewQuotation(q)}
+                                  type="button"
+                                >
+                                  {q.quotationCode}
+                                </button>
+                              </td>
                               <td className="p-3 text-[var(--color-muted)]">{formatDate(q.createdAt)}</td>
                               <td className="p-3 font-semibold">{q.customerName}</td>
                               <td className="p-3">
@@ -824,6 +875,15 @@ export default function EmployeesPage({ selectedBranch, user }) {
                                 </span>
                               </td>
                               <td className="p-3 text-right font-black text-[var(--color-text-strong)]">{peso(q.grandTotal)}</td>
+                              <td className="p-3 text-right">
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-lg bg-slate-800 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-black shadow-xs transition"
+                                  onClick={() => setPreviewQuotation(q)}
+                                  type="button"
+                                >
+                                  <FileText size={12} /> View Quotation
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -846,6 +906,30 @@ export default function EmployeesPage({ selectedBranch, user }) {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {/* Official Receipt & Document Preview Modals */}
+      {previewSale ? (
+        <SaleReceiptModal
+          onClose={() => setPreviewSale(null)}
+          sale={previewSale}
+          saleId={previewSale.id}
+        />
+      ) : null}
+
+      {previewJob ? (
+        <JobOrderReceiptModal
+          job={previewJob}
+          jobId={previewJob.id}
+          onClose={() => setPreviewJob(null)}
+        />
+      ) : null}
+
+      {previewQuotation ? (
+        <QuotationDetailDialog
+          onClose={() => setPreviewQuotation(null)}
+          quotation={previewQuotation}
+        />
       ) : null}
     </div>
   )

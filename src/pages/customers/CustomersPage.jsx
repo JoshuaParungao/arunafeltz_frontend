@@ -7,10 +7,12 @@ import {
   ClipboardList,
   Edit3,
   Eye,
+  FileText,
   Mail,
   MapPin,
   Phone,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   Tag,
@@ -26,6 +28,9 @@ import {
   getCustomers,
   updateCustomerById,
 } from "../../features/customers/customers.api"
+import SaleReceiptModal from "../../components/sales/SaleReceiptModal"
+import JobOrderReceiptModal from "../../components/services/JobOrderReceiptModal"
+import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 
 const CUSTOMER_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -106,6 +111,10 @@ function formatStatus(status) {
     .toLowerCase()
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function formatWord(value) {
+  return formatStatus(value)
 }
 
 function formatTerm(term) {
@@ -567,7 +576,7 @@ function EmptyHistory({ label }) {
   )
 }
 
-function QuotationHistory({ data }) {
+function QuotationHistory({ data, onViewQuotation }) {
   const items = Array.isArray(data?.items) ? data.items : []
 
   if (items.length === 0) return <EmptyHistory label="quotation history" />
@@ -576,14 +585,18 @@ function QuotationHistory({ data }) {
     <div className="space-y-2.5">
       {items.map((quotation) => (
         <article
-          className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs"
+          className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs space-y-2 hover:border-slate-300 transition"
           key={quotation.id}
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <p className="font-bold text-slate-900">
+              <button
+                className="font-bold text-[var(--color-maroon)] hover:underline text-left text-sm"
+                onClick={() => onViewQuotation?.(quotation)}
+                type="button"
+              >
                 {quotation.quotationCode}
-              </p>
+              </button>
               <p className="mt-0.5 text-slate-500">
                 {quotation.title || "Quotation"} · {formatDate(quotation.createdAt, true)}
               </p>
@@ -591,11 +604,20 @@ function QuotationHistory({ data }) {
                 Prepared by {quotation.preparedBy?.fullName || "Unassigned"}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <StatusBadge status={quotation.status} />
-              <p className="font-mono font-bold text-slate-900">
-                {formatMoney(quotation.grandTotal)}
-              </p>
+            <div className="flex flex-col sm:items-end gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                <StatusBadge status={quotation.status} />
+                <p className="font-mono font-bold text-slate-900 text-sm">
+                  {formatMoney(quotation.grandTotal)}
+                </p>
+              </div>
+              <button
+                className="inline-flex items-center gap-1 rounded-lg bg-slate-800 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-black shadow-xs transition"
+                onClick={() => onViewQuotation?.(quotation)}
+                type="button"
+              >
+                <FileText size={12} /> View Quotation
+              </button>
             </div>
           </div>
 
@@ -641,7 +663,7 @@ function QuotationHistory({ data }) {
   )
 }
 
-function SalesHistory({ data }) {
+function SalesHistory({ data, onViewSale }) {
   const items = Array.isArray(data?.items) ? data.items : []
 
   if (items.length === 0) return <EmptyHistory label="sales history" />
@@ -650,12 +672,18 @@ function SalesHistory({ data }) {
     <div className="space-y-2.5">
       {items.map((sale) => (
         <article
-          className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs"
+          className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs space-y-2 hover:border-slate-300 transition"
           key={sale.id}
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <p className="font-bold text-slate-900">{sale.receiptCode}</p>
+              <button
+                className="font-bold text-[var(--color-maroon)] hover:underline text-left text-sm"
+                onClick={() => onViewSale?.(sale)}
+                type="button"
+              >
+                {sale.receiptCode || sale.saleCode}
+              </button>
               <p className="mt-0.5 text-slate-500">
                 {formatDate(sale.saleDate, true)} · Cashier: {sale.cashier?.fullName || "Unassigned"}
               </p>
@@ -665,17 +693,26 @@ function SalesHistory({ data }) {
                 </p>
               ) : null}
             </div>
-            <div className="sm:text-right">
+            <div className="flex flex-col sm:items-end gap-1.5">
               <div className="flex flex-wrap gap-1.5 sm:justify-end">
                 <StatusBadge status={sale.status} />
                 <StatusBadge status={sale.paymentStatus} />
               </div>
-              <p className="mt-1 font-mono font-bold text-slate-900">
+              <p className="font-mono font-bold text-slate-900 text-sm">
                 {formatMoney(sale.grandTotal)}
               </p>
-              <p className="text-[11px] font-medium text-slate-500">
-                Paid {formatMoney(sale.amountPaid)}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-medium text-slate-500">
+                  Paid {formatMoney(sale.amountPaid)}
+                </p>
+                <button
+                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-maroon)] text-white px-2.5 py-1 text-[11px] font-bold hover:bg-[var(--color-maroon-hover)] shadow-xs transition"
+                  onClick={() => onViewSale?.(sale)}
+                  type="button"
+                >
+                  <Printer size={12} /> View Receipt
+                </button>
+              </div>
             </div>
           </div>
 
@@ -795,7 +832,7 @@ function CreditHistory({ data }) {
   )
 }
 
-function ServiceJobHistory({ data }) {
+function ServiceJobHistory({ data, onViewJob }) {
   const items = Array.isArray(data?.items) ? data.items : []
 
   if (items.length === 0) return <EmptyHistory label="service & repair history" />
@@ -810,7 +847,13 @@ function ServiceJobHistory({ data }) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-bold text-[var(--color-maroon)]">{job.jobCode}</p>
+                <button
+                  className="font-bold text-blue-700 hover:underline text-left text-sm"
+                  onClick={() => onViewJob?.(job)}
+                  type="button"
+                >
+                  {job.jobCode}
+                </button>
                 {job.isQuickService ? (
                   <span className="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.2 text-[9px] font-black text-amber-800 uppercase">
                     ⚡ Quick Service
@@ -825,7 +868,7 @@ function ServiceJobHistory({ data }) {
                 {job.assignedTechnician?.fullName ? ` · Tech: ${job.assignedTechnician.fullName}` : ""}
               </p>
             </div>
-            <div className="sm:text-right flex flex-col sm:items-end">
+            <div className="sm:text-right flex flex-col sm:items-end gap-1">
               <div className="flex flex-wrap gap-1.5 sm:justify-end">
                 <StatusBadge status={job.status} />
                 {job.releaseOutcome ? (
@@ -834,14 +877,23 @@ function ServiceJobHistory({ data }) {
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 font-mono font-black text-slate-900">
+              <p className="mt-0.5 font-mono font-black text-slate-900 text-sm">
                 {formatMoney(job.finalServiceCharge)}
               </p>
-              {job.releasedAt ? (
-                <p className="text-[10px] text-emerald-700 font-semibold">
-                  Released {formatDate(job.releasedAt)}
-                </p>
-              ) : null}
+              <div className="flex items-center gap-2">
+                {job.releasedAt ? (
+                  <p className="text-[10px] text-emerald-700 font-semibold">
+                    Released {formatDate(job.releasedAt)}
+                  </p>
+                ) : null}
+                <button
+                  className="inline-flex items-center gap-1 rounded-lg bg-blue-700 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-blue-800 shadow-xs transition"
+                  onClick={() => onViewJob?.(job)}
+                  type="button"
+                >
+                  <Printer size={12} /> View Job Order
+                </button>
+              </div>
             </div>
           </div>
 
@@ -977,6 +1029,9 @@ function CustomerDetailModal({
   const [activeTab, setActiveTab] = useState("sales")
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
+  const [previewSale, setPreviewSale] = useState(null)
+  const [previewJob, setPreviewJob] = useState(null)
+  const [previewQuotation, setPreviewQuotation] = useState(null)
   const requestIdRef = useRef(0)
 
   const loadCustomer = useCallback(async () => {
@@ -1029,206 +1084,232 @@ function CustomerDetailModal({
   ]
 
   return (
-    <ModalFrame labelledBy="customer-detail-title" onClose={onClose} size="max-w-4xl">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Customer Ledger</span>
-            <StatusBadge status={customer.status} />
-            <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-              Price Tier {customer.priceTier || 1}
-            </span>
-          </div>
-          <h2
-            className="mt-0.5 truncate text-base font-black text-slate-900 leading-tight"
-            id="customer-detail-title"
-          >
-            {customer.fullName}
-          </h2>
-          {customer.companyName ? (
-            <p className="text-xs text-slate-500 font-medium">
-              {customer.companyName}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            aria-label="Refresh customer details"
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-            disabled={isLoading}
-            onClick={loadCustomer}
-            type="button"
-          >
-            <RefreshCw className={isLoading ? "animate-spin" : ""} size={15} />
-          </button>
-          {canManage ? (
-            <button
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
-              onClick={() => onEdit(customer)}
-              type="button"
+    <>
+      <ModalFrame labelledBy="customer-detail-title" onClose={onClose} size="max-w-4xl">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Customer Ledger</span>
+              <StatusBadge status={customer.status} />
+              <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                Price Tier {customer.priceTier || 1}
+              </span>
+            </div>
+            <h2
+              className="mt-0.5 truncate text-base font-black text-slate-900 leading-tight"
+              id="customer-detail-title"
             >
-              <Edit3 size={14} />
-              Edit
-            </button>
-          ) : null}
-          <button
-            aria-label="Close customer details"
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-            onClick={onClose}
-            type="button"
-          >
-            <X size={15} />
-          </button>
-        </div>
-      </div>
+              {customer.fullName}
+            </h2>
+            {customer.companyName ? (
+              <p className="text-xs text-slate-500 font-medium">
+                {customer.companyName}
+              </p>
+            ) : null}
+          </div>
 
-      <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
-        {errorMessage ? (
-          <div className="space-y-2">
-            <ErrorBanner>{errorMessage}</ErrorBanner>
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+              aria-label="Refresh customer details"
+              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              disabled={isLoading}
               onClick={loadCustomer}
               type="button"
             >
-              Try again
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={15} />
             </button>
-          </div>
-        ) : null}
-
-        {/* Customer Profile Contact Strip */}
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-          <DetailValue icon={Building2} label="Branch">
-            {customer.branch?.name
-              ? `${customer.branch.code} · ${customer.branch.name}`
-              : customer.branch?.code || "—"}
-          </DetailValue>
-          <DetailValue icon={Tag} label="Price Tier">
-            Price Tier {customer.priceTier || 1}
-          </DetailValue>
-          <DetailValue icon={Phone} label="Mobile number">
-            {customer.mobileNumber || "—"}
-          </DetailValue>
-          <DetailValue icon={Mail} label="Email">
-            {customer.email || "—"}
-          </DetailValue>
-          <DetailValue icon={Building2} label="Company">
-            {customer.companyName || "—"}
-          </DetailValue>
-          <div className="sm:col-span-1 lg:col-span-1">
-            <DetailValue icon={MapPin} label="Address">
-              {customer.address || "—"}
-            </DetailValue>
-          </div>
-        </div>
-
-        {customer.notes ? (
-          <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Internal notes
-            </p>
-            <p className="mt-1 whitespace-pre-wrap text-xs text-slate-700">
-              {customer.notes}
-            </p>
-          </div>
-        ) : null}
-
-        {/* 360-Degree Lifetime Activity Stats */}
-        <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-red-50/30 p-3 shadow-2xs">
-            <p className="text-[10px] font-black uppercase text-slate-400">Total Lifetime Spent</p>
-            <p className="mt-0.5 text-lg font-black text-[var(--color-maroon)]">
-              {formatMoney(summary.totalLifetimeSpent || 0)}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
-            <p className="text-[10px] font-black uppercase text-slate-400">Purchases / Sales</p>
-            <p className="mt-0.5 text-base font-bold text-slate-900">
-              {summary.saleCount || 0} sale(s)
-            </p>
-            <p className="text-[11px] text-slate-500 font-semibold">{formatMoney(summary.completedSalesTotal || 0)}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
-            <p className="text-[10px] font-black uppercase text-slate-400">Repairs & Services</p>
-            <p className="mt-0.5 text-base font-bold text-slate-900">
-              {summary.serviceJobCount || 0} job(s)
-            </p>
-            <p className="text-[11px] text-slate-500 font-semibold">{formatMoney(summary.completedServicesTotal || 0)}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
-            <p className="text-[10px] font-black uppercase text-slate-400">Outstanding Credit</p>
-            <p className="mt-0.5 text-base font-mono font-bold text-slate-900">
-              {formatMoney(summary.outstandingCreditBalance)}
-            </p>
-            <p className="text-[11px] text-slate-500 font-semibold">{summary.creditAccountCount || 0} account(s)</p>
-          </div>
-        </div>
-
-        {/* Transaction History Tabs */}
-        <section className="space-y-3">
-          <div className="flex max-w-full gap-1.5 overflow-x-auto border-b border-slate-200 pb-2">
-            {tabs.map((tab) => (
+            {canManage ? (
               <button
-                className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                  activeTab === tab.id
-                    ? "bg-[var(--color-maroon)] text-white shadow-2xs"
-                    : "bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200"
-                }`}
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                onClick={() => onEdit(customer)}
                 type="button"
               >
-                {tab.icon} {tab.label} ({tab.count})
+                <Edit3 size={14} />
+                Edit
               </button>
-            ))}
-          </div>
-
-          <div className="mt-3">
-            {errorMessage ? null : isLoading ? (
-              <div className="rounded-xl bg-slate-50 p-6 text-xs font-semibold text-slate-500 text-center">
-                Loading complete customer transaction records…
-              </div>
-            ) : activeTab === "sales" ? (
-              <SalesHistory data={history.sales} />
-            ) : activeTab === "services" ? (
-              <ServiceJobHistory data={history.serviceJobs} />
-            ) : activeTab === "quotations" ? (
-              <QuotationHistory data={history.quotations} />
-            ) : activeTab === "credits" ? (
-              <CreditHistory data={history.creditAccounts} />
-            ) : (
-              <WarrantyClaimHistory data={history.warrantyClaims} />
-            )}
-          </div>
-        </section>
-
-        <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-slate-500 text-[11px]">
-            <p>Created {formatDate(customer.createdAt, true)}</p>
-            <p>
-              Last updated {formatDate(customer.updatedAt, true)}
-              {customer.updatedBy?.fullName ? ` by ${customer.updatedBy.fullName}` : ""}
-            </p>
-          </div>
-          {canManage ? (
+            ) : null}
             <button
-              className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
-                customer.status === "ACTIVE"
-                  ? "border-red-200 bg-white text-red-700 hover:bg-red-50"
-                  : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
-              }`}
-              onClick={() =>
-                onRequestStatus(customer, customer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
-              }
+              aria-label="Close customer details"
+              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              onClick={onClose}
               type="button"
             >
-              {customer.status === "ACTIVE" ? "Deactivate Customer" : "Reactivate Customer"}
+              <X size={15} />
             </button>
-          ) : null}
+          </div>
         </div>
-      </div>
-    </ModalFrame>
+
+        <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+          {errorMessage ? (
+            <div className="space-y-2">
+              <ErrorBanner>{errorMessage}</ErrorBanner>
+              <button
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                onClick={loadCustomer}
+                type="button"
+              >
+                Try again
+              </button>
+            </div>
+          ) : null}
+
+          {/* Customer Profile Contact Strip */}
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs">
+            <DetailValue icon={Building2} label="Branch">
+              {customer.branch?.name
+                ? `${customer.branch.code} · ${customer.branch.name}`
+                : customer.branch?.code || "—"}
+            </DetailValue>
+            <DetailValue icon={Tag} label="Price Tier">
+              Price Tier {customer.priceTier || 1}
+            </DetailValue>
+            <DetailValue icon={Phone} label="Mobile number">
+              {customer.mobileNumber || "—"}
+            </DetailValue>
+            <DetailValue icon={Mail} label="Email">
+              {customer.email || "—"}
+            </DetailValue>
+            <DetailValue icon={Building2} label="Company">
+              {customer.companyName || "—"}
+            </DetailValue>
+            <div className="sm:col-span-1 lg:col-span-1">
+              <DetailValue icon={MapPin} label="Address">
+                {customer.address || "—"}
+              </DetailValue>
+            </div>
+          </div>
+
+          {customer.notes ? (
+            <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Internal notes
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-xs text-slate-700">
+                {customer.notes}
+              </p>
+            </div>
+          ) : null}
+
+          {/* 360-Degree Lifetime Activity Stats */}
+          <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-red-50/30 p-3 shadow-2xs">
+              <p className="text-[10px] font-black uppercase text-slate-400">Total Lifetime Spent</p>
+              <p className="mt-0.5 text-lg font-black text-[var(--color-maroon)]">
+                {formatMoney(summary.totalLifetimeSpent || 0)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+              <p className="text-[10px] font-black uppercase text-slate-400">Purchases / Sales</p>
+              <p className="mt-0.5 text-base font-bold text-slate-900">
+                {summary.saleCount || 0} sale(s)
+              </p>
+              <p className="text-[11px] text-slate-500 font-semibold">{formatMoney(summary.completedSalesTotal || 0)}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+              <p className="text-[10px] font-black uppercase text-slate-400">Repairs & Services</p>
+              <p className="mt-0.5 text-base font-bold text-slate-900">
+                {summary.serviceJobCount || 0} job(s)
+              </p>
+              <p className="text-[11px] text-slate-500 font-semibold">{formatMoney(summary.completedServicesTotal || 0)}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+              <p className="text-[10px] font-black uppercase text-slate-400">Outstanding Credit</p>
+              <p className="mt-0.5 text-base font-mono font-bold text-slate-900">
+                {formatMoney(summary.outstandingCreditBalance)}
+              </p>
+              <p className="text-[11px] text-slate-500 font-semibold">{summary.creditAccountCount || 0} account(s)</p>
+            </div>
+          </div>
+
+          {/* Transaction History Tabs */}
+          <section className="space-y-3">
+            <div className="flex max-w-full gap-1.5 overflow-x-auto border-b border-slate-200 pb-2">
+              {tabs.map((tab) => (
+                <button
+                  className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                    activeTab === tab.id
+                      ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                      : "bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+                  }`}
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  type="button"
+                >
+                  {tab.icon} {tab.label} ({tab.count})
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3">
+              {errorMessage ? null : isLoading ? (
+                <div className="rounded-xl bg-slate-50 p-6 text-xs font-semibold text-slate-500 text-center">
+                  Loading complete customer transaction records…
+                </div>
+              ) : activeTab === "sales" ? (
+                <SalesHistory data={history.sales} onViewSale={setPreviewSale} />
+              ) : activeTab === "services" ? (
+                <ServiceJobHistory data={history.serviceJobs} onViewJob={setPreviewJob} />
+              ) : activeTab === "quotations" ? (
+                <QuotationHistory data={history.quotations} onViewQuotation={setPreviewQuotation} />
+              ) : activeTab === "credits" ? (
+                <CreditHistory data={history.creditAccounts} />
+              ) : (
+                <WarrantyClaimHistory data={history.warrantyClaims} />
+              )}
+            </div>
+          </section>
+
+          <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-slate-500 text-[11px]">
+              <p>Created {formatDate(customer.createdAt, true)}</p>
+              <p>
+                Last updated {formatDate(customer.updatedAt, true)}
+                {customer.updatedBy?.fullName ? ` by ${customer.updatedBy.fullName}` : ""}
+              </p>
+            </div>
+            {canManage ? (
+              <button
+                className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                  customer.status === "ACTIVE"
+                    ? "border-red-200 bg-white text-red-700 hover:bg-red-50"
+                    : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+                }`}
+                onClick={() =>
+                  onRequestStatus(customer, customer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
+                }
+                type="button"
+              >
+                {customer.status === "ACTIVE" ? "Deactivate Customer" : "Reactivate Customer"}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </ModalFrame>
+
+      {/* Official Receipt & Document Modals */}
+      {previewSale ? (
+        <SaleReceiptModal
+          onClose={() => setPreviewSale(null)}
+          sale={previewSale}
+          saleId={previewSale.id}
+        />
+      ) : null}
+
+      {previewJob ? (
+        <JobOrderReceiptModal
+          job={previewJob}
+          jobId={previewJob.id}
+          onClose={() => setPreviewJob(null)}
+        />
+      ) : null}
+
+      {previewQuotation ? (
+        <QuotationDetailDialog
+          onClose={() => setPreviewQuotation(null)}
+          quotation={previewQuotation}
+        />
+      ) : null}
+    </>
   )
 }
 
