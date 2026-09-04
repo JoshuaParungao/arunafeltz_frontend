@@ -482,35 +482,71 @@ export default function EmployeesPage({ selectedBranch, user }) {
         </div>
       </div>
 
-      {/* Hub Mode Navigation */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] pb-2">
-        <button
-          className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-black transition ${
-            activeHubTab === "performance"
-              ? "bg-[var(--color-maroon)] text-white shadow-sm"
-              : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
-          }`}
-          onClick={() => setActiveHubTab("performance")}
-          type="button"
-        >
-          <Users size={16} />
-          Staff Performance & Commissions
-        </button>
-
-        {canManageIncentives ? (
+      {/* Hub Mode Navigation (Clean Segmented Pill Control) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
+        <div className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100/90 p-1.5 border border-slate-200/80 shadow-xs">
           <button
-            className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-black transition ${
-              activeHubTab === "program-rules"
-                ? "bg-[var(--color-maroon)] text-white shadow-sm"
-                : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+            className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              activeHubTab === "performance"
+                ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/90 font-black"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
             }`}
-            onClick={() => setActiveHubTab("program-rules")}
+            onClick={() => setActiveHubTab("performance")}
             type="button"
           >
-            <Sliders size={16} />
-            Program Rules & Schedules (6 Settings)
+            <div
+              className={`grid size-6 place-items-center rounded-lg transition ${
+                activeHubTab === "performance"
+                  ? "bg-rose-50 text-[var(--color-maroon)]"
+                  : "text-slate-500"
+              }`}
+            >
+              <Users size={14} />
+            </div>
+            <span>Staff Performance & Commissions</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-black transition ${
+                activeHubTab === "performance"
+                  ? "bg-slate-100 text-slate-700"
+                  : "bg-white/80 text-slate-500"
+              }`}
+            >
+              {records.length}
+            </span>
           </button>
-        ) : null}
+
+          {canManageIncentives ? (
+            <button
+              className={`inline-flex items-center gap-2.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeHubTab === "program-rules"
+                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/90 font-black"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              }`}
+              onClick={() => setActiveHubTab("program-rules")}
+              type="button"
+            >
+              <div
+                className={`grid size-6 place-items-center rounded-lg transition ${
+                  activeHubTab === "program-rules"
+                    ? "bg-rose-50 text-[var(--color-maroon)]"
+                    : "text-slate-500"
+                }`}
+              >
+                <Sliders size={14} />
+              </div>
+              <span>Program Rules & Schedules</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-black border transition ${
+                  activeHubTab === "program-rules"
+                    ? "bg-rose-50 border-rose-200 text-[var(--color-maroon)]"
+                    : "bg-white border-slate-200 text-slate-600"
+                }`}
+              >
+                6 Programs
+              </span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {activeHubTab === "performance" ? (
@@ -820,12 +856,17 @@ export default function EmployeesPage({ selectedBranch, user }) {
         /* Program Rules & Schedules Tab (6 Settings) */
         <div className="space-y-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <div className="flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-xl bg-[var(--color-maroon)] text-white">
-                <Sliders size={18} />
-              </span>
+            <div className="flex items-center gap-3.5">
+              <div className="grid size-11 place-items-center rounded-2xl bg-rose-50 text-[var(--color-maroon)] border border-rose-100/80 shadow-2xs">
+                <Sliders size={20} />
+              </div>
               <div>
-                <h2 className="text-base font-black text-slate-900">Incentive Program Rules & Schedules</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-black text-slate-900">Incentive Program Rules & Schedules</h2>
+                  <span className="rounded-full bg-rose-50 border border-rose-200/80 px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
+                    6 Programs Active
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Pamahalaan ang eligible price tiers, repair cost pools, at cutoff schedules para sa Item Sales, Ordinary Repairs, at Board-Level Repairs.
                 </p>
