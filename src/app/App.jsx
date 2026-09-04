@@ -34,6 +34,7 @@ const ItemsPage = lazy(() => import("../pages/items/ItemsPage"))
 const InventoryPage = lazy(() => import("../pages/inventory/InventoryPage"))
 const StockTransfersPage = lazy(() => import("../pages/stock-transfers/StockTransfersPage"))
 const QuotationsPage = lazy(() => import("../pages/quotations/QuotationsPage"))
+const PcBuildsPage = lazy(() => import("../pages/pc-builds/PcBuildsPage"))
 const CustomersPage = lazy(() => import("../pages/customers/CustomersPage"))
 const ReportsPage = lazy(() => import("../pages/reports/ReportsPage"))
 const AlertsPage = lazy(() => import("../pages/alerts/AlertsPage"))
@@ -341,6 +342,10 @@ function App() {
 
     if (activePage === "quotations") {
       return <QuotationsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "pc-builds") {
+      return <PcBuildsPage selectedBranch={selectedBranch} user={user} />
     }
 
     if (activePage === "customers") {

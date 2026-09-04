@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   History,
   Layers,
+  Monitor,
   PackageCheck,
   PackageSearch,
   ShieldCheck,
@@ -27,6 +28,7 @@ import {
 const ICONS = {
   pos: ShoppingCart,
   quotations: ClipboardList,
+  "pc-builds": Monitor,
   services: Wrench,
   warranty: ShieldCheck,
   inventory: Boxes,

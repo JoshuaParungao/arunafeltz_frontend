@@ -39,6 +39,12 @@ export const APP_MODULES = [
     roles: BRANCH_OPERATION_ROLES,
   },
   {
+    key: "pc-builds",
+    label: "PC Builds (Sold Systems)",
+    group: "Operations",
+    roles: BRANCH_OPERATION_ROLES,
+  },
+  {
     key: "services",
     label: "Services / Job Orders",
     group: "Operations",
