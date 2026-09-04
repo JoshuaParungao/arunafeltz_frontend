@@ -25,10 +25,8 @@ function Topbar({
   const [showPassword, setShowPassword] = useState(false)
   const [profileForm, setProfileForm] = useState({
     firstName: user?.firstName || "",
-    middleName: user?.middleName || "",
     lastName: user?.lastName || "",
     username: user?.username || "",
-    email: user?.email || "",
     password: "",
     confirmPassword: "",
   })
@@ -38,10 +36,8 @@ function Topbar({
   const openProfileModal = () => {
     setProfileForm({
       firstName: user?.firstName || "",
-      middleName: user?.middleName || "",
       lastName: user?.lastName || "",
       username: user?.username || "",
-      email: user?.email || "",
       password: "",
       confirmPassword: "",
     })
@@ -74,10 +70,8 @@ function Topbar({
       setIsSavingProfile(true)
       const payload = {
         firstName: profileForm.firstName.trim(),
-        middleName: profileForm.middleName.trim() || null,
         lastName: profileForm.lastName.trim(),
         username: profileForm.username.trim(),
-        email: profileForm.email.trim() || null,
       }
       if (profileForm.password.trim()) {
         payload.password = profileForm.password.trim()
@@ -308,19 +302,6 @@ function Topbar({
                     className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                  Middle Name <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={profileForm.middleName}
-                  onChange={(e) => setProfileForm((prev) => ({ ...prev, middleName: e.target.value }))}
-                  placeholder="e.g. Ople"
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
-                />
               </div>
 
               <div>

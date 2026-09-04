@@ -269,12 +269,9 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
       : actor.branchId || "")
 
   const [form, setForm] = useState(() => ({
-    employeeCode: target?.employeeCode || "",
     username: target?.username || "",
-    email: target?.email || "",
     password: "",
     firstName: target?.firstName || "",
-    middleName: target?.middleName || "",
     lastName: target?.lastName || "",
     role: defaultRole,
     incentiveClassification: defaultIncentiveClassification,
@@ -345,11 +342,8 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
     }
 
     const payload = {
-      employeeCode: toNullableText(form.employeeCode),
       username: form.username.trim(),
-      email: toNullableText(form.email),
       firstName: form.firstName.trim(),
-      middleName: toNullableText(form.middleName),
       lastName: form.lastName.trim(),
       role: form.role,
       incentiveClassification: form.incentiveClassification,
@@ -426,15 +420,6 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                 value={form.firstName}
               />
             </FormField>
-            <FormField label="Middle name">
-              <input
-                className={inputClassName}
-                maxLength={100}
-                onChange={(event) => updateField("middleName", event.target.value)}
-                placeholder="Optional middle name"
-                value={form.middleName}
-              />
-            </FormField>
             <FormField label="Last name" required>
               <input
                 className={inputClassName}
@@ -443,15 +428,6 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                 placeholder="Family name"
                 required
                 value={form.lastName}
-              />
-            </FormField>
-            <FormField label="Employee code">
-              <input
-                className={`${inputClassName} font-mono`}
-                maxLength={50}
-                onChange={(event) => updateField("employeeCode", event.target.value)}
-                placeholder="e.g. EMP-001"
-                value={form.employeeCode}
               />
             </FormField>
             <FormField label="Username" required>
@@ -463,16 +439,6 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                 placeholder="Login username"
                 required
                 value={form.username}
-              />
-            </FormField>
-            <FormField label="Email">
-              <input
-                className={inputClassName}
-                maxLength={254}
-                onChange={(event) => updateField("email", event.target.value)}
-                placeholder="user@company.com"
-                type="email"
-                value={form.email}
               />
             </FormField>
             <FormField
