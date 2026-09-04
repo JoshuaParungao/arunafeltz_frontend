@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react"
-import { AlertCircle, Eye, RefreshCw, Search, X } from "lucide-react"
+import {
+  AlertCircle,
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Eye,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react"
 
 import {
   getStockTransferById,
@@ -36,6 +45,33 @@ function extractSerialRows(response) {
   if (Array.isArray(response?.data)) return response.data
   if (Array.isArray(response?.items)) return response.items
   return []
+}
+
+function DirectionBadge({ transfer, activeBranchId }) {
+  const isOut = Boolean(activeBranchId && transfer.fromBranchId === activeBranchId)
+  const isIn = Boolean(activeBranchId && transfer.toBranchId === activeBranchId)
+
+  if (isOut) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 whitespace-nowrap">
+        <ArrowUpRight size={11} className="text-amber-600 shrink-0" /> Transfer Out
+      </span>
+    )
+  }
+
+  if (isIn) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-800 whitespace-nowrap">
+        <ArrowDownLeft size={11} className="text-sky-600 shrink-0" /> Transfer In
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 whitespace-nowrap">
+      <ArrowLeftRight size={11} className="shrink-0" /> Transfer
+    </span>
+  )
 }
 
 function StatusBadge({ status }) {
@@ -121,9 +157,11 @@ function ActionButtons({ transfer, user, busy, onAction, onView }) {
 export default function StockTransfersPage({ selectedBranch, user: userProp }) {
   const user = userProp || getUser()
   const branchId = selectedBranch?.id || (user?.role === "SUPER_OWNER" ? "" : user?.branchId || "")
+  const effectiveBranchId = branchId || user?.branchId || ""
   const [transfers, setTransfers] = useState([])
   const [pagination, setPagination] = useState(null)
   const [statusFilter, setStatusFilter] = useState("")
+  const [directionFilter, setDirectionFilter] = useState("ALL") // "ALL" | "OUT" | "IN"
   const [searchText, setSearchText] = useState("")
   const [page, setPage] = useState(1)
   const [selectedTransfer, setSelectedTransfer] = useState(null)
@@ -148,13 +186,24 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
     setErrorMessage("")
 
     try {
-      const response = await getStockTransfers({
-        branchId: branchId || undefined,
+      const queryParams = {
         status: statusFilter || undefined,
         search: searchText.trim() || undefined,
         page,
         limit: 10,
-      })
+      }
+
+      if (effectiveBranchId) {
+        if (directionFilter === "OUT") {
+          queryParams.fromBranchId = effectiveBranchId
+        } else if (directionFilter === "IN") {
+          queryParams.toBranchId = effectiveBranchId
+        } else {
+          queryParams.branchId = effectiveBranchId
+        }
+      }
+
+      const response = await getStockTransfers(queryParams)
       const result = response?.data || {}
       setTransfers(Array.isArray(result.items) ? result.items : [])
       setPagination(result.pagination || null)
@@ -165,7 +214,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
     } finally {
       setIsLoading(false)
     }
-  }, [branchId, page, searchText, statusFilter])
+  }, [directionFilter, effectiveBranchId, page, searchText, statusFilter])
 
   const openTransfer = async (transfer) => {
     setSelectedTransfer(transfer)
@@ -435,6 +484,57 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
       {errorMessage ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700 flex items-center gap-2"><AlertCircle size={15} />{errorMessage}</div> : null}
       {successMessage ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{successMessage}</div> : null}
 
+      {/* Transfer In / Out Direction Tabs */}
+      <div className="flex items-center border-b border-slate-200 gap-2 sm:gap-4 overflow-x-auto">
+        <button
+          className={`relative pb-2.5 pt-1 px-2 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+            directionFilter === "ALL"
+              ? "text-[var(--color-maroon)] border-b-2 border-[var(--color-maroon)]"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+          onClick={() => {
+            setDirectionFilter("ALL")
+            setPage(1)
+          }}
+          type="button"
+        >
+          <ArrowLeftRight size={13} />
+          <span>All Transfers</span>
+        </button>
+
+        <button
+          className={`relative pb-2.5 pt-1 px-2 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+            directionFilter === "OUT"
+              ? "text-amber-800 border-b-2 border-amber-700 font-black"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+          onClick={() => {
+            setDirectionFilter("OUT")
+            setPage(1)
+          }}
+          type="button"
+        >
+          <ArrowUpRight size={14} className={directionFilter === "OUT" ? "text-amber-700" : ""} />
+          <span>Transfer Out</span>
+        </button>
+
+        <button
+          className={`relative pb-2.5 pt-1 px-2 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+            directionFilter === "IN"
+              ? "text-sky-800 border-b-2 border-sky-700 font-black"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+          onClick={() => {
+            setDirectionFilter("IN")
+            setPage(1)
+          }}
+          type="button"
+        >
+          <ArrowDownLeft size={14} className={directionFilter === "IN" ? "text-sky-700" : ""} />
+          <span>Transfer In</span>
+        </button>
+      </div>
+
       <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
         <label className="relative block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
@@ -478,7 +578,14 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                     <p className="mt-0.5 max-w-52 truncate text-[11px] text-slate-500">{transfer.notes || "No notes"}</p>
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={transfer.status} /></td>
-                  <td className="px-4 py-3 font-semibold text-slate-800">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+                      <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
+                      <span className="font-semibold text-slate-800">
+                        {transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{transfer.requestedBy?.fullName || transfer.requestedBy?.username || "—"}</td>
                   <td className="px-4 py-3 font-mono font-bold text-slate-800">{transfer.items?.length || 0}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(transfer.requestedAt || transfer.transferDate)}</td>
@@ -496,9 +603,10 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
             <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs text-xs" key={transfer.id}>
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
                     <WorkflowBadge transfer={transfer} />
+                    <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
                   </div>
                   <p className="mt-0.5 text-[11px] text-slate-500">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</p>
                 </div>
