@@ -98,6 +98,8 @@ export default function EmployeesPage({ selectedBranch, user }) {
   const [activeHubTab, setActiveHubTab] = useState("performance")
   const [editingIncentiveStaff, setEditingIncentiveStaff] = useState(null)
   const [incentiveForm, setIncentiveForm] = useState({
+    itemSaleEnabled: false,
+    itemSaleRatePercent: "1",
     soloSaleEnabled: false,
     soloSaleRatePercent: "2",
     ordinaryRepairEnabled: false,
@@ -118,6 +120,8 @@ export default function EmployeesPage({ selectedBranch, user }) {
     setIncentiveModalSuccess("")
     const config = staff.incentiveConfig || {}
     setIncentiveForm({
+      itemSaleEnabled: Boolean(config.itemEnabled ?? (staff.itemIncentivePercent > 0)),
+      itemSaleRatePercent: String(config.itemRatePercent ?? (staff.itemIncentivePercent || "1")),
       soloSaleEnabled: Boolean(config.soloSaleEnabled ?? (staff.soloIncentivePercent > 0)),
       soloSaleRatePercent: String(config.soloSaleRatePercent ?? (staff.soloIncentivePercent || "2")),
       ordinaryRepairEnabled: Boolean(config.ordinaryRepairEnabled ?? (staff.serviceIncentivePercent > 0)),
@@ -145,6 +149,12 @@ export default function EmployeesPage({ selectedBranch, user }) {
       return { ok: true, value: num }
     }
 
+    const itemSale = validateRate(incentiveForm.itemSaleEnabled, incentiveForm.itemSaleRatePercent, "Branch Item Sale Pool")
+    if (!itemSale.ok) {
+      setIncentiveModalError(itemSale.message)
+      return
+    }
+
     const solo = validateRate(incentiveForm.soloSaleEnabled, incentiveForm.soloSaleRatePercent, "Solo Product Sales")
     if (!solo.ok) {
       setIncentiveModalError(solo.message)
@@ -170,10 +180,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
     }
 
     const payload = {
+      itemEnabled: Boolean(incentiveForm.itemSaleEnabled),
+      itemRatePercent: itemSale.value,
       soloSaleEnabled: Boolean(incentiveForm.soloSaleEnabled),
       soloSaleRatePercent: solo.value,
-      itemEnabled: Boolean(incentiveForm.soloSaleEnabled),
-      itemRatePercent: solo.value,
       ordinaryRepairEnabled: Boolean(incentiveForm.ordinaryRepairEnabled),
       ordinaryRepairRatePercent: ordinary.value,
       boardRepairEnabled: Boolean(incentiveForm.boardRepairEnabled),
@@ -897,13 +907,59 @@ export default function EmployeesPage({ selectedBranch, user }) {
                 </div>
               ) : null}
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900 leading-relaxed font-medium">
-                I-toggle ang mga specific incentive programs na eligible makuha ng empleyadong ito. Kapag naka-ON (Enabled), ilagay ang percentage (%) na ikakaltas/ikukwenta sa kanyang benta o completed jobs.
-              </div>
-
-              {/* 4 Incentive Program Toggles */}
+              {/* 5 Incentive Program Toggles */}
               <div className="space-y-3.5">
-                {/* 1. Solo Product Sales */}
+                {/* 1. Branch / Store Item Sale Pool Incentive */}
+                <div className={`rounded-2xl border p-4 transition ${incentiveForm.itemSaleEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`grid size-9 shrink-0 place-items-center rounded-xl ${incentiveForm.itemSaleEnabled ? "bg-[var(--color-maroon)] text-white" : "bg-slate-200 text-slate-500"}`}>
+                        <Building2 size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Branch Item Sale Pool Incentive</p>
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">Branch Pool</span>
+                        </div>
+                        <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                          Incentive share (%) mula sa kabuuang kita o benta ng store/branch sa mga eligible price tiers (hal. Price 1-3).
+                        </p>
+                      </div>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                      <input
+                        type="checkbox"
+                        checked={incentiveForm.itemSaleEnabled}
+                        onChange={(e) => setIncentiveForm((prev) => ({ ...prev, itemSaleEnabled: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-maroon)]"></div>
+                    </label>
+                  </div>
+
+                  {incentiveForm.itemSaleEnabled ? (
+                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 flex flex-wrap items-center gap-3">
+                      <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Pool Share Rate (%):</label>
+                      <div className="relative max-w-[140px]">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          max="100"
+                          value={incentiveForm.itemSaleRatePercent}
+                          onChange={(e) => setIncentiveForm((prev) => ({ ...prev, itemSaleRatePercent: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                          placeholder="1.0"
+                        />
+                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 font-medium">ng kabuuang benta ng branch sa eligible price tiers</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* 2. Solo Product Sales Commission */}
                 <div className={`rounded-2xl border p-4 transition ${incentiveForm.soloSaleEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -911,9 +967,12 @@ export default function EmployeesPage({ selectedBranch, user }) {
                         <ShoppingBag size={18} />
                       </div>
                       <div>
-                        <p className="font-bold text-sm text-[var(--color-text-strong)]">Solo Product Sales Commission</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Solo Product Sales Commission</p>
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">Personal Sales</span>
+                        </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Komisyon sa direct closed retail at computer product sales.
+                          Komisyon sa pansariling benta ng empleyado base sa eligible price tiers (Price 1-5) ng branch.
                         </p>
                       </div>
                     </div>
@@ -930,7 +989,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   </div>
 
                   {incentiveForm.soloSaleEnabled ? (
-                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 flex items-center gap-3">
+                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 flex flex-wrap items-center gap-3">
                       <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Commission Rate (%):</label>
                       <div className="relative max-w-[140px]">
                         <input
@@ -945,12 +1004,12 @@ export default function EmployeesPage({ selectedBranch, user }) {
                         />
                         <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 font-medium">ng kabuuang benta ng produkto</span>
+                      <span className="text-[11px] text-slate-500 font-medium">ng sariling benta sa eligible price tiers</span>
                     </div>
                   ) : null}
                 </div>
 
-                {/* 2. Ordinary Repair / Service */}
+                {/* 3. Ordinary Repair / Service Jobs */}
                 <div className={`rounded-2xl border p-4 transition ${incentiveForm.ordinaryRepairEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -958,9 +1017,12 @@ export default function EmployeesPage({ selectedBranch, user }) {
                         <Wrench size={18} />
                       </div>
                       <div>
-                        <p className="font-bold text-sm text-[var(--color-text-strong)]">Ordinary Repair / Service Jobs</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Ordinary Repair Commission (Labor / Repair Cost Pool)</p>
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">Repair Pool</span>
+                        </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Komisyon sa karaniwang repairs, formatting, cleaning, at service jobs.
+                          Komisyon sa karaniwang repairs, formatting, at cleaning. Kinakaltas mula sa Repair Cost Pool % (ang matitira ay Company Share).
                         </p>
                       </div>
                     </div>
@@ -977,27 +1039,32 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   </div>
 
                   {incentiveForm.ordinaryRepairEnabled ? (
-                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 flex items-center gap-3">
-                      <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Commission Rate (%):</label>
-                      <div className="relative max-w-[140px]">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          max="100"
-                          value={incentiveForm.ordinaryRepairRatePercent}
-                          onChange={(e) => setIncentiveForm((prev) => ({ ...prev, ordinaryRepairRatePercent: e.target.value }))}
-                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
-                          placeholder="5.0"
-                        />
-                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 space-y-2">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Commission Rate (%):</label>
+                        <div className="relative max-w-[140px]">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max="100"
+                            value={incentiveForm.ordinaryRepairRatePercent}
+                            onChange={(e) => setIncentiveForm((prev) => ({ ...prev, ordinaryRepairRatePercent: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                            placeholder="5.0"
+                          />
+                          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium">mula sa Ordinary Repair Cost Pool</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 font-medium">ng labor/service fee</span>
+                      <p className="text-[11px] text-emerald-700 font-semibold">
+                        ✓ Kukuhanin sa Ordinary Repair Cost Pool; ang matitira ay mananatili bilang Company Share.
+                      </p>
                     </div>
                   ) : null}
                 </div>
 
-                {/* 3. Board Level Repair */}
+                {/* 4. Board Level Repair */}
                 <div className={`rounded-2xl border p-4 transition ${incentiveForm.boardRepairEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -1005,9 +1072,12 @@ export default function EmployeesPage({ selectedBranch, user }) {
                         <Cpu size={18} />
                       </div>
                       <div>
-                        <p className="font-bold text-sm text-[var(--color-text-strong)]">Board Level Repair</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Board Level Repair Commission (Micro-soldering / Chip Pool)</p>
+                          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-black text-purple-700">Board Pool</span>
+                        </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Komisyon sa micro-soldering, motherboard level, at complex chip repair.
+                          Komisyon sa micro-soldering, motherboard level, at chip repair. Kinakaltas mula sa Board Level Repair Cost Pool % (ang matitira ay Company Share).
                         </p>
                       </div>
                     </div>
@@ -1024,27 +1094,32 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   </div>
 
                   {incentiveForm.boardRepairEnabled ? (
-                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 flex items-center gap-3">
-                      <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Commission Rate (%):</label>
-                      <div className="relative max-w-[140px]">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          max="100"
-                          value={incentiveForm.boardRepairRatePercent}
-                          onChange={(e) => setIncentiveForm((prev) => ({ ...prev, boardRepairRatePercent: e.target.value }))}
-                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
-                          placeholder="10.0"
-                        />
-                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 space-y-2">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Commission Rate (%):</label>
+                        <div className="relative max-w-[140px]">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max="100"
+                            value={incentiveForm.boardRepairRatePercent}
+                            onChange={(e) => setIncentiveForm((prev) => ({ ...prev, boardRepairRatePercent: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                            placeholder="10.0"
+                          />
+                          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium">mula sa Board Level Repair Cost Pool</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 font-medium">ng board repair revenue</span>
+                      <p className="text-[11px] text-emerald-700 font-semibold">
+                        ✓ Kukuhanin sa Board Level Repair Cost Pool; ang matitira ay mananatili bilang Company Share.
+                      </p>
                     </div>
                   ) : null}
                 </div>
 
-                {/* 4. PC Build */}
+                {/* 5. Custom PC Build */}
                 <div className={`rounded-2xl border p-4 transition ${incentiveForm.pcBuildEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -1052,7 +1127,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
                         <Monitor size={18} />
                       </div>
                       <div>
-                        <p className="font-bold text-sm text-[var(--color-text-strong)]">Custom PC Build & Assembly</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Custom PC Build & Assembly</p>
+                          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700">PC Assembly</span>
+                        </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
                           Komisyon sa pag-assemble at build ng sold PC systems.
                         </p>
@@ -1071,7 +1149,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   </div>
 
                   {incentiveForm.pcBuildEnabled ? (
-                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 flex items-center gap-3">
+                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 flex flex-wrap items-center gap-3">
                       <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Commission Rate (%):</label>
                       <div className="relative max-w-[140px]">
                         <input
