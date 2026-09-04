@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { AlertCircle, Barcode, Check, CheckCircle2, ChevronRight, LoaderCircle, Search, Trash2, X } from "lucide-react"
+import { AlertCircle, Barcode, Check, CheckCircle2, ChevronRight, LoaderCircle, Plus, Search, Trash2, X } from "lucide-react"
 
 export default function SerialScannerModal({
   isOpen,
@@ -12,9 +12,9 @@ export default function SerialScannerModal({
   onConfirm,
 }) {
   const [activeItemIndex, setActiveItemIndex] = useState(0)
-  const [selectedSerialsByItem, setSelectedSerialsByItem] = useState({}) // { [stockTransferItemId]: string[] (serialIds) }
+  const [selectedSerialsByItem, setSelectedSerialsByItem] = useState({}) // { [stockTransferItemId]: Array<{ id?: string, serialNumber: string, isNew?: boolean }> }
   const [scanInput, setScanInput] = useState("")
-  const [scanFeedback, setScanFeedback] = useState(null) // { type: "error" | "success" | "warning", message: string }
+  const [scanFeedback, setScanFeedback] = useState(null) // { type: "error" | "success" | "warning" | "unlisted", message: string, serialNumber?: string }
   const inputRef = useRef(null)
 
   // Reset state when opened or items change
@@ -39,7 +39,7 @@ export default function SerialScannerModal({
   }, [isOpen, activeItemIndex])
 
   const currentItem = items[activeItemIndex] || null
-  const currentSelectedIds = currentItem ? (selectedSerialsByItem[currentItem.stockTransferItemId] || []) : []
+  const currentSelected = currentItem ? (selectedSerialsByItem[currentItem.stockTransferItemId] || []) : []
   const availableSerials = currentItem?.availableSerials || []
 
   // Filter available serials based on search input if typing
@@ -50,7 +50,7 @@ export default function SerialScannerModal({
   }, [availableSerials, scanInput])
 
   const totalRequired = items.reduce((sum, item) => sum + Number(item.requiredQuantity || 0), 0)
-  const totalSelected = Object.values(selectedSerialsByItem).reduce((sum, ids) => sum + ids.length, 0)
+  const totalSelected = Object.values(selectedSerialsByItem).reduce((sum, list) => sum + list.length, 0)
   const isAllComplete = items.length > 0 && items.every((item) => {
     const selected = selectedSerialsByItem[item.stockTransferItemId] || []
     return selected.length === Number(item.requiredQuantity || 0)
@@ -64,27 +64,19 @@ export default function SerialScannerModal({
     if (!raw) return
 
     const normalized = raw.toLowerCase()
-    const match = availableSerials.find(
+    const alreadySelected = currentSelected.some(
       (s) => s.serialNumber?.trim().toLowerCase() === normalized
     )
 
-    if (!match) {
-      setScanFeedback({
-        type: "error",
-        message: `Serial number "${raw}" doesn't exist in this branch's available inventory.`,
-      })
-      return
-    }
-
-    if (currentSelectedIds.includes(match.id)) {
+    if (alreadySelected) {
       setScanFeedback({
         type: "warning",
-        message: `Serial "${match.serialNumber}" is already selected for this item.`,
+        message: `Serial "${raw}" is already selected for this item.`,
       })
       return
     }
 
-    if (currentSelectedIds.length >= Number(currentItem.requiredQuantity || 0)) {
+    if (currentSelected.length >= Number(currentItem.requiredQuantity || 0)) {
       setScanFeedback({
         type: "warning",
         message: `All ${currentItem.requiredQuantity} required units have already been selected for this item. Remove one first to replace it.`,
@@ -92,8 +84,24 @@ export default function SerialScannerModal({
       return
     }
 
+    const match = availableSerials.find(
+      (s) => s.serialNumber?.trim().toLowerCase() === normalized
+    )
+
+    if (!match) {
+      setScanFeedback({
+        type: "unlisted",
+        serialNumber: raw,
+        message: `Serial "${raw}" is not in this branch's available inventory.`,
+      })
+      return
+    }
+
     // Add matched serial
-    const nextSelected = [...currentSelectedIds, match.id]
+    const nextSelected = [
+      ...currentSelected,
+      { id: match.id, serialNumber: match.serialNumber, isNew: false },
+    ]
     setSelectedSerialsByItem((prev) => ({
       ...prev,
       [currentItem.stockTransferItemId]: nextSelected,
@@ -114,18 +122,71 @@ export default function SerialScannerModal({
     }
   }
 
-  const toggleSerialSelection = (serialId) => {
+  const handleAddNewSerial = (rawSerial) => {
     if (!currentItem) return
-    const isSelected = currentSelectedIds.includes(serialId)
+    const raw = (rawSerial || scanInput).trim()
+    if (!raw) return
+
+    const normalized = raw.toLowerCase()
+    const alreadySelected = currentSelected.some(
+      (s) => s.serialNumber?.trim().toLowerCase() === normalized
+    )
+
+    if (alreadySelected) {
+      setScanFeedback({
+        type: "warning",
+        message: `Serial "${raw}" is already selected for this item.`,
+      })
+      return
+    }
+
+    if (currentSelected.length >= Number(currentItem.requiredQuantity || 0)) {
+      setScanFeedback({
+        type: "warning",
+        message: `All ${currentItem.requiredQuantity} required units have already been selected for this item.`,
+      })
+      return
+    }
+
+    const nextSelected = [
+      ...currentSelected,
+      { serialNumber: raw, isNew: true },
+    ]
+    setSelectedSerialsByItem((prev) => ({
+      ...prev,
+      [currentItem.stockTransferItemId]: nextSelected,
+    }))
+
+    setScanInput("")
+    setScanFeedback({
+      type: "success",
+      message: `Added new physical serial: ${raw}`,
+    })
+
+    if (nextSelected.length === Number(currentItem.requiredQuantity || 0) && activeItemIndex < items.length - 1) {
+      setTimeout(() => {
+        setActiveItemIndex((curr) => Math.min(curr + 1, items.length - 1))
+        setScanFeedback(null)
+      }, 500)
+    }
+  }
+
+  const toggleSerialSelection = (serial) => {
+    if (!currentItem) return
+    const isSelected = currentSelected.some(
+      (s) => (s.id && s.id === serial.id) || s.serialNumber?.toLowerCase() === serial.serialNumber?.toLowerCase()
+    )
 
     if (isSelected) {
       setSelectedSerialsByItem((prev) => ({
         ...prev,
-        [currentItem.stockTransferItemId]: currentSelectedIds.filter((id) => id !== serialId),
+        [currentItem.stockTransferItemId]: currentSelected.filter(
+          (s) => (s.id ? s.id !== serial.id : s.serialNumber !== serial.serialNumber)
+        ),
       }))
       setScanFeedback(null)
     } else {
-      if (currentSelectedIds.length >= Number(currentItem.requiredQuantity || 0)) {
+      if (currentSelected.length >= Number(currentItem.requiredQuantity || 0)) {
         setScanFeedback({
           type: "warning",
           message: `All ${currentItem.requiredQuantity} required units have been selected.`,
@@ -134,23 +195,36 @@ export default function SerialScannerModal({
       }
       setSelectedSerialsByItem((prev) => ({
         ...prev,
-        [currentItem.stockTransferItemId]: [...currentSelectedIds, serialId],
+        [currentItem.stockTransferItemId]: [
+          ...currentSelected,
+          { id: serial.id, serialNumber: serial.serialNumber, isNew: false },
+        ],
       }))
       setScanFeedback(null)
     }
   }
 
-  const removeSelectedSerial = (serialId) => {
+  const removeSelectedSerial = (target) => {
     if (!currentItem) return
     setSelectedSerialsByItem((prev) => ({
       ...prev,
-      [currentItem.stockTransferItemId]: currentSelectedIds.filter((id) => id !== serialId),
+      [currentItem.stockTransferItemId]: currentSelected.filter(
+        (s) => (target.id ? s.id !== target.id : s.serialNumber !== target.serialNumber)
+      ),
     }))
   }
 
   const handleConfirm = () => {
     if (!isAllComplete || isSubmitting) return
-    onConfirm(selectedSerialsByItem)
+    const formatted = {}
+    for (const item of items) {
+      const list = selectedSerialsByItem[item.stockTransferItemId] || []
+      formatted[item.stockTransferItemId] = {
+        serialIds: list.filter((s) => !s.isNew && s.id).map((s) => s.id),
+        newSerialNumbers: list.filter((s) => s.isNew).map((s) => s.serialNumber),
+      }
+    }
+    onConfirm(formatted)
   }
 
   if (!isOpen) return null
@@ -251,14 +325,14 @@ export default function SerialScannerModal({
                 <div className="flex items-center gap-2">
                   <div
                     className={`rounded-xl px-3 py-1.5 text-center ${
-                      currentSelectedIds.length === Number(currentItem.requiredQuantity || 0)
+                      currentSelected.length === Number(currentItem.requiredQuantity || 0)
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                         : "bg-amber-50 text-amber-800 border border-amber-200"
                     }`}
                   >
                     <p className="text-[9px] font-bold uppercase tracking-wider">Units</p>
                     <p className="text-sm font-mono font-black">
-                      {currentSelectedIds.length} / {currentItem.requiredQuantity}
+                      {currentSelected.length} / {currentItem.requiredQuantity}
                     </p>
                   </div>
                 </div>
@@ -297,32 +371,55 @@ export default function SerialScannerModal({
 
               {/* Real-time Feedback Banner */}
               {scanFeedback && (
-                <div
-                  className={`flex items-center gap-2 rounded-xl p-2.5 text-xs font-semibold transition ${
-                    scanFeedback.type === "error"
-                      ? "bg-rose-50 text-rose-800 border border-rose-200"
-                      : scanFeedback.type === "warning"
-                      ? "bg-amber-50 text-amber-800 border border-amber-200"
-                      : "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                  }`}
-                >
-                  {scanFeedback.type === "error" ? (
-                    <AlertCircle className="shrink-0 text-rose-600" size={14} />
-                  ) : scanFeedback.type === "warning" ? (
-                    <AlertCircle className="shrink-0 text-amber-600" size={14} />
-                  ) : (
-                    <CheckCircle2 className="shrink-0 text-emerald-600" size={14} />
-                  )}
-                  <span>{scanFeedback.message}</span>
-                </div>
+                scanFeedback.type === "unlisted" ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">
+                    <div className="flex items-start gap-2 text-amber-900">
+                      <AlertCircle className="shrink-0 text-amber-600 mt-0.5" size={15} />
+                      <div>
+                        <p className="font-bold">
+                          Serial &ldquo;<span className="font-mono">{scanFeedback.serialNumber}</span>&rdquo; is not in source inventory.
+                        </p>
+                        <p className="text-[11px] text-amber-700 mt-0.5">
+                          Unrecorded or newly arrived unit? You can register and dispatch it directly.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-900 transition shrink-0 shadow-2xs"
+                      onClick={() => handleAddNewSerial(scanFeedback.serialNumber)}
+                      type="button"
+                    >
+                      <Plus size={14} /> Add as New Serial
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className={`flex items-center gap-2 rounded-xl p-2.5 text-xs font-semibold transition ${
+                      scanFeedback.type === "error"
+                        ? "bg-rose-50 text-rose-800 border border-rose-200"
+                        : scanFeedback.type === "warning"
+                        ? "bg-amber-50 text-amber-800 border border-amber-200"
+                        : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    }`}
+                  >
+                    {scanFeedback.type === "error" ? (
+                      <AlertCircle className="shrink-0 text-rose-600" size={14} />
+                    ) : scanFeedback.type === "warning" ? (
+                      <AlertCircle className="shrink-0 text-amber-600" size={14} />
+                    ) : (
+                      <CheckCircle2 className="shrink-0 text-emerald-600" size={14} />
+                    )}
+                    <span>{scanFeedback.message}</span>
+                  </div>
+                )
               )}
 
               {/* Selected Serials Tray */}
-              {currentSelectedIds.length > 0 && (
+              {currentSelected.length > 0 && (
                 <div className="rounded-xl border border-slate-200 p-3 bg-slate-50/50">
                   <div className="flex items-center justify-between mb-1.5">
                     <p className="text-[10px] font-bold uppercase text-slate-500">
-                      Selected Serials ({currentSelectedIds.length})
+                      Selected Serials ({currentSelected.length})
                     </p>
                     <button
                       className="text-[10px] font-bold text-rose-600 hover:underline"
@@ -338,18 +435,26 @@ export default function SerialScannerModal({
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                    {currentSelectedIds.map((id) => {
-                      const serial = availableSerials.find((s) => s.id === id)
+                    {currentSelected.map((s) => {
                       return (
                         <span
-                          key={id}
-                          className="inline-flex items-center gap-1 rounded-md bg-white border border-slate-200 px-2 py-0.5 text-xs font-mono font-semibold text-slate-800 shadow-2xs"
+                          key={s.id || s.serialNumber}
+                          className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-mono font-semibold shadow-2xs ${
+                            s.isNew
+                              ? "bg-purple-50 border-purple-200 text-purple-900"
+                              : "bg-white border-slate-200 text-slate-800"
+                          }`}
                         >
-                          <span>{serial?.serialNumber || id}</span>
+                          <span>{s.serialNumber}</span>
+                          {s.isNew && (
+                            <span className="rounded bg-purple-200/80 px-1 py-0.2 text-[9px] font-sans font-bold text-purple-800">
+                              New
+                            </span>
+                          )}
                           <button
                             aria-label="Remove serial"
                             className="rounded-full p-0.5 hover:text-rose-700 text-slate-400 transition ml-0.5"
-                            onClick={() => removeSelectedSerial(id)}
+                            onClick={() => removeSelectedSerial(s)}
                             type="button"
                           >
                             <X size={12} />
@@ -367,32 +472,34 @@ export default function SerialScannerModal({
                   Available Serials in Branch ({filteredAvailableSerials.length})
                 </p>
                 {availableSerials.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-rose-200 bg-rose-50/50 p-4 text-center">
-                    <AlertCircle className="mx-auto text-rose-500 mb-1" size={20} />
-                    <p className="text-xs font-bold text-rose-800">
-                      No Available Serial Numbers in Source Branch
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-4 text-center">
+                    <AlertCircle className="mx-auto text-slate-400 mb-1" size={20} />
+                    <p className="text-xs font-bold text-slate-700">
+                      No Pre-existing Serial Numbers in Source Branch
                     </p>
-                    <p className="text-[11px] text-rose-600 mt-0.5">
-                      No units with status 'AVAILABLE'.
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Type or scan the physical unit&apos;s serial number above to register and dispatch it.
                     </p>
                   </div>
                 ) : filteredAvailableSerials.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center">
                     <p className="text-xs font-semibold text-slate-400">
-                      No serial matching "{scanInput}"
+                      No serial matching &ldquo;{scanInput}&rdquo;
                     </p>
                   </div>
                 ) : (
                   <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
                     {filteredAvailableSerials.map((serial) => {
-                      const isSelected = currentSelectedIds.includes(serial.id)
+                      const isSelected = currentSelected.some(
+                        (s) => (s.id && s.id === serial.id) || s.serialNumber?.toLowerCase() === serial.serialNumber?.toLowerCase()
+                      )
                       return (
                         <button
                           key={serial.id}
                           className={`w-full flex items-center justify-between p-2.5 text-left text-xs transition hover:bg-slate-50 ${
                             isSelected ? "bg-emerald-50/70" : ""
                           }`}
-                          onClick={() => toggleSerialSelection(serial.id)}
+                          onClick={() => toggleSerialSelection(serial)}
                           type="button"
                         >
                           <div className="flex items-center gap-2">

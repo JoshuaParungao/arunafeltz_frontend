@@ -367,10 +367,20 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
 
     try {
       const itemsPayload = Object.entries(selectedSerialsMap).map(
-        ([stockTransferItemId, serialIds]) => ({
-          stockTransferItemId,
-          serialIds,
-        })
+        ([stockTransferItemId, val]) => {
+          if (Array.isArray(val)) {
+            return {
+              stockTransferItemId,
+              serialIds: val,
+              newSerialNumbers: [],
+            }
+          }
+          return {
+            stockTransferItemId,
+            serialIds: val?.serialIds || [],
+            newSerialNumbers: val?.newSerialNumbers || [],
+          }
+        }
       )
 
       const response = await updateStockTransferStatusById(
