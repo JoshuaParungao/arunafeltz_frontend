@@ -322,9 +322,6 @@ export default function EmployeesPage({ selectedBranch, user }) {
           <h1 className="mt-1 text-2xl font-black text-[var(--color-text-strong)]">
             Employee & Staff Module
           </h1>
-          <p className="mt-1 text-xs font-semibold text-[var(--color-muted)]">
-            Subaybayan ang lahat ng benta, serbisyo, job orders, quotations, at solo sales commissions ng bawat staff.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
