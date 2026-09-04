@@ -39,6 +39,7 @@ const ReportsPage = lazy(() => import("../pages/reports/ReportsPage"))
 const AlertsPage = lazy(() => import("../pages/alerts/AlertsPage"))
 const AuditLogsPage = lazy(() => import("../pages/audit-logs/AuditLogsPage"))
 const UsersPage = lazy(() => import("../pages/users/UsersPage"))
+const EmployeesPage = lazy(() => import("../pages/employees/EmployeesPage"))
 const CashBoxesPage = lazy(() => import("../pages/cash-boxes/CashBoxesPage"))
 const CreditsPage = lazy(() => import("../pages/credits/CreditsPage"))
 const SuppliersPage = lazy(() => import("../pages/suppliers/SuppliersPage"))
@@ -362,6 +363,10 @@ function App() {
 
     if (activePage === "audit-logs") {
       return <AuditLogsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "employees") {
+      return <EmployeesPage selectedBranch={selectedBranch} user={user} />
     }
 
     if (activePage === "users") {

@@ -129,6 +129,12 @@ export const APP_MODULES = [
     roles: OWNER_ADMIN_ROLES,
   },
   {
+    key: "employees",
+    label: "Employees & Staff Hub",
+    group: "File Maintenance",
+    roles: OWNER_ADMIN_ROLES,
+  },
+  {
     key: "users",
     label: "Users & Staff Accounts",
     group: "File Maintenance",
