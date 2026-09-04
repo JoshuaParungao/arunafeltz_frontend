@@ -22,10 +22,12 @@ import {
   Mail,
   MapPin,
   Package,
+  Download,
   PackageCheck,
   Pencil,
   Phone,
   Plus,
+  Printer,
   RefreshCw,
   RotateCcw,
   Search,
@@ -46,6 +48,14 @@ import {
   updateSupplier,
   updateSupplierStatus,
 } from "../../features/suppliers/suppliers.api"
+import { getPurchaseOrderById } from "../../features/purchase-orders/purchaseOrders.api"
+import { getPurchaseReceivingById } from "../../features/purchase-receivings/purchaseReceivings.api"
+import {
+  exportPurchaseOrderPdf,
+  printPurchaseOrder,
+  exportReceivingPdf,
+  printReceiving,
+} from "../../utils/businessDocumentExport"
 
 const EMPTY_FORM = {
   supplierCode: "",
@@ -286,9 +296,427 @@ function SupplierFormModal({ initial, isSaving, onClose, onSave }) {
   )
 }
 
-function SupplierLedgerModal({ historyData, isLoading, onClose, onEdit, supplier }) {
+function SupplierPoDetailModal({
+  linkedReceivings = [],
+  onClose,
+  onOpenReceiving,
+  order,
+  selectedBranch,
+  user,
+}) {
+  if (!order) return null
+
+  return (
+    <div className="fixed inset-0 z-60 grid place-items-center overflow-y-auto bg-slate-950/70 p-3 sm:p-5 backdrop-blur-xs">
+      <section className="my-auto flex flex-col max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 px-5 py-3.5">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--color-maroon)]">
+                {order.poCode}
+              </span>
+              <StatusBadge status={order.status} />
+              <span className="rounded bg-slate-200 px-1.5 py-0.2 text-[10px] font-bold text-slate-700">
+                {order.branch?.code || selectedBranch?.code || "Branch"}
+              </span>
+            </div>
+            <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight">
+              {order.supplierNameSnapshot || order.supplier?.name || "Purchase Order Details"}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+              onClick={() =>
+                exportPurchaseOrderPdf(order, {
+                  branch: order.branch || selectedBranch,
+                  generatedBy: user,
+                })
+              }
+              type="button"
+            >
+              <Download size={13} /> Export PDF
+            </button>
+
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+              onClick={() =>
+                printPurchaseOrder(order, {
+                  branch: order.branch || selectedBranch,
+                  generatedBy: user,
+                })
+              }
+              type="button"
+            >
+              <Printer size={13} /> Print
+            </button>
+
+            <button
+              aria-label="Close PO details"
+              className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+              onClick={onClose}
+              type="button"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="grid gap-2.5 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Order Date</p>
+              <p className="mt-1 font-semibold text-slate-900">{formatDate(order.orderDate)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Expected Date</p>
+              <p className="mt-1 font-semibold text-slate-900">{formatDate(order.expectedDate)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Ordered By</p>
+              <p className="mt-1 font-semibold text-slate-900">{order.orderedBy?.fullName || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Grand Total</p>
+              <p className="mt-1 font-mono font-black text-slate-900">{formatMoney(order.grandTotal)}</p>
+            </div>
+          </div>
+
+          {/* Linked Receivings Section */}
+          {linkedReceivings.length > 0 ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <Truck size={14} className="text-emerald-700" />
+                  Deliveries Received for this PO ({linkedReceivings.length})
+                </span>
+                <span className="text-[11px] font-semibold text-emerald-800">
+                  Total Received: {formatMoney(linkedReceivings.reduce((sum, r) => sum + Number(r.grandTotal || 0), 0))}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {linkedReceivings.map((rcv) => (
+                  <div
+                    key={rcv.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs"
+                  >
+                    <div>
+                      <span className="font-mono font-bold text-slate-900 mr-2">{rcv.receivingCode}</span>
+                      <StatusBadge status={rcv.status} />
+                      <span className="text-[11px] text-slate-500 ml-2">
+                        Received: {formatDate(rcv.receivingDate, true)}
+                        {rcv.supplierDeliveryNo ? ` · DR #${rcv.supplierDeliveryNo}` : ""}
+                        {rcv.supplierInvoiceNo ? ` · Inv #${rcv.supplierInvoiceNo}` : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-slate-900">{formatMoney(rcv.grandTotal)}</span>
+                      <button
+                        className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 transition"
+                        onClick={() => onOpenReceiving(rcv)}
+                        type="button"
+                      >
+                        <Eye size={11} /> View Receiving Slip
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Items Table */}
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full min-w-[620px] text-left text-xs">
+              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                <tr>
+                  <th className="p-3">#</th>
+                  <th className="p-3">Item Description</th>
+                  <th className="p-3 text-right">Ordered Qty</th>
+                  <th className="p-3 text-right">Received Qty</th>
+                  <th className="p-3 text-right">Unit Cost</th>
+                  <th className="p-3 text-right">Line Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {(order.items || []).map((line, idx) => (
+                  <tr key={line.id || idx}>
+                    <td className="p-3 font-mono text-slate-400">{line.lineNo || idx + 1}</td>
+                    <td className="p-3">
+                      <p className="font-bold text-slate-900">{line.description}</p>
+                      {line.item?.itemCode ? (
+                        <p className="font-mono text-[10px] text-slate-500">Code: {line.item.itemCode}</p>
+                      ) : null}
+                    </td>
+                    <td className="p-3 text-right font-mono font-bold text-slate-800">{Number(line.quantity || 0)}</td>
+                    <td className="p-3 text-right font-mono">
+                      <span
+                        className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${
+                          Number(line.receivedQuantity || 0) >= Number(line.quantity || 0)
+                            ? "bg-emerald-50 text-emerald-700"
+                            : Number(line.receivedQuantity || 0) > 0
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {Number(line.receivedQuantity || 0)}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-mono text-slate-700">{formatMoney(line.unitCost)}</td>
+                    <td className="p-3 text-right font-mono font-bold text-slate-900">{formatMoney(line.lineTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {order.notes ? (
+            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs text-slate-600">
+              <strong className="font-semibold text-slate-800">Order Notes: </strong>
+              {order.notes}
+            </div>
+          ) : null}
+        </div>
+
+        <footer className="flex items-center justify-end border-t border-slate-200 bg-slate-50/75 px-5 py-3 text-xs">
+          <button
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+            onClick={onClose}
+            type="button"
+          >
+            Close
+          </button>
+        </footer>
+      </section>
+    </div>
+  )
+}
+
+function SupplierReceivingDetailModal({
+  onClose,
+  onOpenPo,
+  receiving,
+  selectedBranch,
+  user,
+}) {
+  if (!receiving) return null
+
+  return (
+    <div className="fixed inset-0 z-60 grid place-items-center overflow-y-auto bg-slate-950/70 p-3 sm:p-5 backdrop-blur-xs">
+      <section className="my-auto flex flex-col max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 px-5 py-3.5">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--color-maroon)]">
+                {receiving.receivingCode}
+              </span>
+              <StatusBadge status={receiving.status} />
+              {receiving.purchaseOrder?.poCode ? (
+                <button
+                  className="rounded bg-blue-50 px-2 py-0.5 font-mono text-[10px] font-bold text-blue-700 border border-blue-200 hover:bg-blue-100 transition inline-flex items-center gap-1"
+                  onClick={() => onOpenPo(receiving.purchaseOrder)}
+                  title="View Original Purchase Order"
+                  type="button"
+                >
+                  PO: {receiving.purchaseOrder.poCode}
+                </button>
+              ) : null}
+            </div>
+            <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight">
+              {receiving.supplierNameSnapshot || receiving.supplier?.name || "Delivery & Stock-in Receiving"}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+              onClick={() =>
+                exportReceivingPdf(receiving, {
+                  branch: receiving.branch || selectedBranch,
+                  generatedBy: user,
+                })
+              }
+              type="button"
+            >
+              <Download size={13} /> Export PDF
+            </button>
+
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+              onClick={() =>
+                printReceiving(receiving, {
+                  branch: receiving.branch || selectedBranch,
+                  generatedBy: user,
+                })
+              }
+              type="button"
+            >
+              <Printer size={13} /> Print Slip
+            </button>
+
+            <button
+              aria-label="Close receiving details"
+              className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+              onClick={onClose}
+              type="button"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="grid gap-2.5 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Receiving Date</p>
+              <p className="mt-1 font-semibold text-slate-900">{formatDate(receiving.receivingDate, true)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Supplier DR #</p>
+              <p className="mt-1 font-semibold text-slate-900">{receiving.supplierDeliveryNo || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Invoice / Ref #</p>
+              <p className="mt-1 font-semibold text-slate-900">{receiving.supplierInvoiceNo || receiving.referenceNo || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Received Total</p>
+              <p className="mt-1 font-mono font-black text-slate-900">{formatMoney(receiving.grandTotal)}</p>
+            </div>
+          </div>
+
+          {/* Received Items Breakdown */}
+          <div className="space-y-2.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">Received Inventory & Serials</h3>
+            {(receiving.items || []).map((line, idx) => (
+              <article
+                className="rounded-xl border border-slate-200 bg-white p-3.5 text-xs shadow-2xs space-y-2"
+                key={line.id || idx}
+              >
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm">
+                      {line.item?.itemCode ? `${line.item.itemCode} · ` : ""}
+                      {line.description}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-600 font-medium">
+                      {line.batchCode ? (
+                        <span className="inline-block rounded bg-purple-50 border border-purple-200 px-1.5 py-0.2 font-mono text-[10px] font-bold text-purple-700 mr-2">
+                          Batch: {line.batchCode}
+                        </span>
+                      ) : null}
+                      Qty Received: <strong className="text-slate-900">{Number(line.quantityReceived || 0)}</strong> · Cost: {formatMoney(line.unitCost)} each
+                    </p>
+                  </div>
+                  <p className="font-mono text-sm font-bold text-slate-900">{formatMoney(line.lineTotal)}</p>
+                </div>
+
+                {Array.isArray(line.serials) && line.serials.length > 0 ? (
+                  <div className="border-t border-slate-100 pt-2">
+                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">
+                      Scanned / Registered Serial Numbers ({line.serials.length}):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {line.serials.map((s, sIdx) => (
+                        <span
+                          className="rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-700"
+                          key={s.id || sIdx}
+                        >
+                          {s.serialNumber || s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+
+          {receiving.notes ? (
+            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs text-slate-600">
+              <strong className="font-semibold text-slate-800">Receiving Notes: </strong>
+              {receiving.notes}
+            </div>
+          ) : null}
+        </div>
+
+        <footer className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 px-5 py-3 text-xs">
+          <p className="text-slate-500">
+            {receiving.postedBy?.fullName ? `Received by ${receiving.postedBy.fullName}` : ""}
+          </p>
+          <button
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+            onClick={onClose}
+            type="button"
+          >
+            Close
+          </button>
+        </footer>
+      </section>
+    </div>
+  )
+}
+
+function SupplierLedgerModal({
+  historyData,
+  isLoading,
+  onClose,
+  onEdit,
+  onNavigate,
+  selectedBranch,
+  supplier,
+  user,
+}) {
   const [activeTab, setActiveTab] = useState("orders") // 'orders' | 'receivings' | 'returns' | 'info'
   const [tabSearch, setTabSearch] = useState("")
+  const [selectedPoForDetail, setSelectedPoForDetail] = useState(null)
+  const [selectedReceivingForDetail, setSelectedReceivingForDetail] = useState(null)
+
+  const allReceivings = historyData?.purchaseReceivings?.items || []
+
+  const getReceivingsForPo = useCallback(
+    (po) => {
+      if (!po) return []
+      return allReceivings.filter(
+        (pr) =>
+          pr.purchaseOrderId === po.id ||
+          pr.purchaseOrder?.id === po.id ||
+          pr.purchaseOrder?.poCode === po.poCode,
+      )
+    },
+    [allReceivings],
+  )
+
+  const handleOpenPoDetail = async (po) => {
+    setSelectedPoForDetail(po)
+    if (po?.id) {
+      try {
+        const response = await getPurchaseOrderById(po.id)
+        if (response?.data) {
+          setSelectedPoForDetail(response.data)
+        }
+      } catch (err) {
+        console.warn("Could not load fresh PO details, using snapshot:", err)
+      }
+    }
+  }
+
+  const handleOpenReceivingDetail = async (receivingOrId) => {
+    const rcvId = typeof receivingOrId === "string" ? receivingOrId : receivingOrId?.id
+    const fallbackRcv = typeof receivingOrId === "object" ? receivingOrId : null
+    if (fallbackRcv) setSelectedReceivingForDetail(fallbackRcv)
+    if (rcvId) {
+      try {
+        const response = await getPurchaseReceivingById(rcvId)
+        if (response?.data) {
+          setSelectedReceivingForDetail(response.data)
+        }
+      } catch (err) {
+        console.warn("Could not load fresh receiving details, using snapshot:", err)
+      }
+    }
+  }
 
   const summary = historyData?.summary || {
     totalPurchaseOrderCount: 0,
@@ -612,13 +1040,72 @@ function SupplierLedgerModal({ historyData, isLoading, onClose, onEdit, supplier
                         </p>
                       </div>
 
-                      <div className="text-right">
-                        <span className="text-[10px] font-bold uppercase text-slate-500">
-                          Grand Total
-                        </span>
-                        <p className="font-mono text-base font-black text-slate-900">
-                          {formatMoney(po.grandTotal)}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-[10px] font-bold uppercase text-slate-500">
+                            Grand Total
+                          </span>
+                          <p className="font-mono text-base font-black text-slate-900">
+                            {formatMoney(po.grandTotal)}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                          <button
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 shadow-2xs transition"
+                            onClick={() => handleOpenPoDetail(po)}
+                            title="View PO Details & Items"
+                            type="button"
+                          >
+                            <Eye size={13} /> View PO
+                          </button>
+
+                          {(() => {
+                            const linkedReceivings = getReceivingsForPo(po)
+                            const hasReceivedQty = (po.items || []).some(
+                              (it) => Number(it.receivedQuantity || 0) > 0,
+                            )
+                            if (linkedReceivings.length > 0) {
+                              return (
+                                <button
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 shadow-2xs transition"
+                                  onClick={() => {
+                                    if (linkedReceivings.length === 1) {
+                                      handleOpenReceivingDetail(linkedReceivings[0])
+                                    } else {
+                                      setActiveTab("receivings")
+                                      setTabSearch(po.poCode)
+                                    }
+                                  }}
+                                  title="View Received Deliveries"
+                                  type="button"
+                                >
+                                  <Truck size={13} /> View Received ({linkedReceivings.length})
+                                </button>
+                              )
+                            }
+                            if (
+                              hasReceivedQty ||
+                              po.status === "RECEIVED" ||
+                              po.status === "PARTIALLY_RECEIVED"
+                            ) {
+                              return (
+                                <button
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 shadow-2xs transition"
+                                  onClick={() => {
+                                    setActiveTab("receivings")
+                                    setTabSearch(po.poCode)
+                                  }}
+                                  title="Filter Deliveries for this PO"
+                                  type="button"
+                                >
+                                  <Truck size={13} /> View Received
+                                </button>
+                              )
+                            }
+                            return null
+                          })()}
+                        </div>
                       </div>
                     </div>
 
@@ -740,13 +1227,26 @@ function SupplierLedgerModal({ historyData, isLoading, onClose, onEdit, supplier
                         </p>
                       </div>
 
-                      <div className="text-right">
-                        <span className="text-[10px] font-bold uppercase text-slate-500">
-                          Received Total
-                        </span>
-                        <p className="font-mono text-base font-black text-slate-900">
-                          {formatMoney(pr.grandTotal)}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-[10px] font-bold uppercase text-slate-500">
+                            Received Total
+                          </span>
+                          <p className="font-mono text-base font-black text-slate-900">
+                            {formatMoney(pr.grandTotal)}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                          <button
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 shadow-2xs transition"
+                            onClick={() => handleOpenReceivingDetail(pr)}
+                            title="View Delivery / Receiving Slip"
+                            type="button"
+                          >
+                            <Eye size={13} /> View Delivery
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -1012,11 +1512,39 @@ function SupplierLedgerModal({ historyData, isLoading, onClose, onEdit, supplier
           </button>
         </footer>
       </section>
+
+      {/* Sub-modals for PO Detail and Receiving Detail */}
+      {selectedPoForDetail ? (
+        <SupplierPoDetailModal
+          linkedReceivings={getReceivingsForPo(selectedPoForDetail)}
+          onClose={() => setSelectedPoForDetail(null)}
+          onOpenReceiving={(rcv) => {
+            setSelectedPoForDetail(null)
+            handleOpenReceivingDetail(rcv)
+          }}
+          order={selectedPoForDetail}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      ) : null}
+
+      {selectedReceivingForDetail ? (
+        <SupplierReceivingDetailModal
+          onClose={() => setSelectedReceivingForDetail(null)}
+          onOpenPo={(po) => {
+            setSelectedReceivingForDetail(null)
+            handleOpenPoDetail(po)
+          }}
+          receiving={selectedReceivingForDetail}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      ) : null}
     </div>
   )
 }
 
-export default function SuppliersPage({ selectedBranch, user }) {
+export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
   const branchId =
     selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const [suppliers, setSuppliers] = useState([])
@@ -1409,7 +1937,10 @@ export default function SuppliersPage({ selectedBranch, user }) {
             setHistoryData(null)
           }}
           onEdit={(sup) => setEditing(sup)}
+          onNavigate={onNavigate}
+          selectedBranch={selectedBranch}
           supplier={selectedSupplier}
+          user={user}
         />
       ) : null}
     </div>

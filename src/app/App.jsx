@@ -397,7 +397,13 @@ function App() {
     }
 
     if (activePage === "suppliers") {
-      return <SuppliersPage selectedBranch={selectedBranch} user={user} />
+      return (
+        <SuppliersPage
+          onNavigate={setSafeActivePage}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
     }
 
     if (activePage === "purchase-orders") {
