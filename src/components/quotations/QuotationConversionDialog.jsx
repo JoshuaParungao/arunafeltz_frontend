@@ -106,7 +106,7 @@ export default function QuotationConversionDialog({
       Math.round((cashPromoTotal / termBasis) * 100) / 100
     const interestAmount = Math.max(regularPriceTotalAmount - cashPromoTotal, 0)
     const financedBalance = Math.max(
-      Math.round(((cashPromoTotal - downpayment) / termBasis) * 100) / 100,
+      Math.round((regularPriceTotalAmount - downpayment) * 100) / 100,
       0,
     )
     const monthlyDueAmount = Math.round((financedBalance / months) * 100) / 100

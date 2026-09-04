@@ -152,19 +152,34 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
   }, [sale])
 
   const totalAmount = useMemo(() => {
+    if (
+      isCredit &&
+      (sale?.creditAccount?.regularPriceTotalAmount ||
+        sale?.creditAccount?.principalAmount ||
+        sale?.installmentCalculation?.regularPriceTotalAmount)
+    ) {
+      return Number(
+        sale?.creditAccount?.regularPriceTotalAmount ||
+          sale?.creditAccount?.principalAmount ||
+          sale?.installmentCalculation?.regularPriceTotalAmount
+      )
+    }
     return Number(sale?.grandTotal || sale?.subtotal || 0)
-  }, [sale])
+  }, [isCredit, sale])
 
   const paidAmount = useMemo(() => {
-    return Number(sale?.amountPaid || sale?.creditAccount?.downpaymentAmount || 0)
+    return Number(
+      sale?.amountPaid ??
+        sale?.creditAccount?.downpaymentAmount ??
+        sale?.creditAccount?.initialPaymentAmount ??
+        sale?.installmentCalculation?.downpayment ??
+        0
+    )
   }, [sale])
 
   const balanceToPay = useMemo(() => {
-    if (sale?.creditAccount?.remainingBalance != null) {
-      return Number(sale.creditAccount.remainingBalance)
-    }
     return Math.max(0, totalAmount - paidAmount)
-  }, [paidAmount, sale, totalAmount])
+  }, [paidAmount, totalAmount])
 
   return createPortal(
     <div

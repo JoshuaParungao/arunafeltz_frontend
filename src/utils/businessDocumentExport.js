@@ -1280,27 +1280,22 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   const totalAmount =
     isCredit &&
     (sale?.creditAccount?.regularPriceTotalAmount ||
-      sale?.creditAccount?.principalAmount)
+      sale?.creditAccount?.principalAmount ||
+      options?.installmentCalculation?.regularPriceTotalAmount)
       ? Number(
-          sale.creditAccount.regularPriceTotalAmount ||
-            sale.creditAccount.principalAmount
+          sale.creditAccount?.regularPriceTotalAmount ||
+            sale.creditAccount?.principalAmount ||
+            options?.installmentCalculation?.regularPriceTotalAmount
         )
       : Number(sale?.grandTotal || sale?.subtotal || 0)
   const paidAmount = Number(
     sale?.amountPaid ??
       sale?.creditAccount?.downpaymentAmount ??
       sale?.creditAccount?.initialPaymentAmount ??
+      options?.installmentCalculation?.downpayment ??
       0
   )
-  const balanceToPay =
-    isCredit &&
-    (sale?.creditAccount?.balanceAmount != null ||
-      sale?.creditAccount?.financedBalance != null)
-      ? Number(
-          sale.creditAccount.balanceAmount ??
-            sale.creditAccount.financedBalance
-        )
-      : Math.max(0, totalAmount - paidAmount)
+  const balanceToPay = Math.max(0, totalAmount - paidAmount)
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)

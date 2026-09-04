@@ -453,13 +453,17 @@ function SaleDetailDialog({
   }, [sale])
 
   const isCredit = Boolean(sale?.creditAccount || sale?.installmentCalculation)
-  const paidAmount = Number(sale?.amountPaid ?? sale?.creditAccount?.downpaymentAmount ?? sale?.creditAccount?.initialPaymentAmount ?? 0)
-  const totalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount)
-    ? Number(sale.creditAccount.regularPriceTotalAmount || sale.creditAccount.principalAmount)
+  const paidAmount = Number(
+    sale?.amountPaid ??
+      sale?.creditAccount?.downpaymentAmount ??
+      sale?.creditAccount?.initialPaymentAmount ??
+      sale?.installmentCalculation?.downpayment ??
+      0
+  )
+  const totalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
+    ? Number(sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
     : Number(sale?.grandTotal || sale?.subtotal || 0)
-  const balanceToPay = isCredit && (sale?.creditAccount?.balanceAmount != null || sale?.creditAccount?.financedBalance != null)
-    ? Number(sale.creditAccount.balanceAmount ?? sale.creditAccount.financedBalance)
-    : Math.max(0, totalAmount - paidAmount)
+  const balanceToPay = Math.max(0, totalAmount - paidAmount)
 
   const handleConfirmCheckout = () => {
     if (onConfirmCheckout) {
@@ -1592,7 +1596,7 @@ function PosSalesPage({ selectedBranch, user }) {
       Math.round((cashPromoTotal / termBasis) * 100) / 100
     const interestAmount = Math.max(regularPriceTotalAmount - cashPromoTotal, 0)
     const financedBalance = Math.max(
-      Math.round(((cashPromoTotal - downpayment) / termBasis) * 100) / 100,
+      Math.round((regularPriceTotalAmount - downpayment) * 100) / 100,
       0,
     )
     const monthlyDueAmount = Math.round((financedBalance / months) * 100) / 100
