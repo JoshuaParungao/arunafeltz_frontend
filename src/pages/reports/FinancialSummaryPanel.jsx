@@ -98,13 +98,79 @@ export default function FinancialSummaryPanel({ report }) {
   const legacyCount = Number(coverage.legacySaleLinesWithoutBaseSnapshot || 0)
     + Number(coverage.legacyJobOrdersWithoutFinancialSnapshot || 0)
 
+  const itemProfitBase = Number(item.itemProfitBeforeUnresolvedDiscountAndReturnAllocation || 0)
+  const totalMarkup = Number(markup.totalMarkupSales || 0)
+  const baseSalesTotal = Number(item.baseSales || 0) + Number(service.totalServiceBaseSales || 0)
+  const arOriginatedTotal = Number(ar.originatedInPeriod?.receivable || 0)
+  const totalGrossWithMarkupAndAR = Number(gross.classifiedGross || 0)
+  const totalTuboConsolidated = itemProfitBase + totalMarkup + Number(service.totalServiceBaseSales || 0)
+
   return (
     <section className="space-y-4">
+      {/* Executive Sales & Profit Breakdown Matrix (Owner View) */}
+      <div className="rounded-3xl border border-[var(--color-border)] bg-gradient-to-br from-slate-900 via-[#3a0e14] to-[#7a1f2b] p-6 text-white shadow-xl">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-white/10 pb-4">
+          <div>
+            <span className="rounded-full bg-amber-400/20 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-amber-300">
+              Executive Profit & Sales Matrix (Owner Summary)
+            </span>
+            <h2 className="mt-2 text-2xl font-black text-white">Kabuuang Benta, Mark-Up, AR, at Tubo</h2>
+          </div>
+          <p className="text-xs font-semibold text-slate-300">
+            {report.period?.dateFrom ? manilaDate(report.period.startInclusive) : "All history"} through {manilaDate(new Date(new Date(report.period?.endExclusive).getTime() - 1))} · Asia/Manila
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Card 1: Kabuuang Sale with Mark Up + AR */}
+          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">1. Kabuuang Sale (with Mark-Up + AR)</p>
+            <p className="mt-2 text-2xl font-black text-white">{peso(totalGrossWithMarkupAndAR)}</p>
+            <p className="mt-1 text-[11px] text-slate-300">Gross classified sales kasama ang store markup at AR contract values</p>
+          </div>
+
+          {/* Card 2: Kabuuang Sale without Mark Up + without AR */}
+          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">2. Kabuuang Sale (without Mark-Up & AR)</p>
+            <p className="mt-2 text-2xl font-black text-slate-200">{peso(baseSalesTotal)}</p>
+            <p className="mt-1 text-[11px] text-slate-300">Base sales sa outright cash / SRP tier bago ang patong at financing</p>
+          </div>
+
+          {/* Card 3: Tubo Kabuuan with Mark Up + AR */}
+          <div className="rounded-2xl bg-emerald-500/20 p-4 backdrop-blur border border-emerald-400/30">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">3. Tubo Kabuuan (with Mark-Up & AR)</p>
+            <p className="mt-2 text-2xl font-black text-emerald-300">{peso(totalTuboConsolidated)}</p>
+            <p className="mt-1 text-[11px] text-emerald-200/90">Kabuuang kita mula sa Base Profit + Mark-up + Services</p>
+          </div>
+
+          {/* Card 4: Tubo sa Mark Up Price Lang */}
+          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300">4. Tubo sa Mark-Up Price Lang</p>
+            <p className="mt-2 text-2xl font-black text-amber-300">{peso(totalMarkup)}</p>
+            <p className="mt-1 text-[11px] text-slate-300">Kita mula sa idinagdag na patong/markup sa produkto at serbisyo</p>
+          </div>
+
+          {/* Card 5: Tubo sa AR (Originated Receivable in Period) */}
+          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-sky-300">5. AR Originated in Period</p>
+            <p className="mt-2 text-2xl font-black text-sky-300">{peso(arOriginatedTotal)}</p>
+            <p className="mt-1 text-[11px] text-slate-300">Kabuuang pumasok na bagong installment / AR contract receivable</p>
+          </div>
+
+          {/* Card 6: Tubo na Walang Mark Up at Walang AR */}
+          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">6. Tubo (Walang Mark-Up & Walang AR)</p>
+            <p className="mt-2 text-2xl font-black text-slate-200">{peso(itemProfitBase)}</p>
+            <p className="mt-1 text-[11px] text-slate-300">Base profit ng item sales (Base Price minus Operational COGS)</p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--color-maroon)]">Snapshot accounting</p>
-            <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]">Unified financial view</h2>
+            <h2 className="mt-1 text-xl font-black text-[var(--color-text-strong)]">Unified Financial Details & Breakdown</h2>
           </div>
           <p className="text-xs font-bold text-[var(--color-muted)]">
             {report.period?.dateFrom ? manilaDate(report.period.startInclusive) : "All history"} through {manilaDate(new Date(new Date(report.period?.endExclusive).getTime() - 1))} · Asia/Manila
