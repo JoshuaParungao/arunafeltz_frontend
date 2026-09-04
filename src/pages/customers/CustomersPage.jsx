@@ -912,7 +912,7 @@ function WarrantyClaimHistory({ data }) {
             <div className="min-w-0">
               <p className="font-bold text-[var(--color-maroon)]">{claim.claimCode}</p>
               <p className="mt-0.5 text-slate-800 font-bold">
-                {claim.item?.name || "Product Item"}
+                {claim.item?.itemName || claim.item?.name || "Product Item"}
                 {claim.serial?.serialNumber ? (
                   <span className="ml-2 font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded">
                     S/N: {claim.serial.serialNumber}
