@@ -158,7 +158,7 @@ export const APP_MODULES = [
     key: "alerts",
     label: "Action Alerts",
     group: "Reports & Audit",
-    roles: OWNER_ADMIN_ROLES,
+    roles: Object.values(USER_ROLES),
   },
   {
     key: "audit-logs",

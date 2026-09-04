@@ -59,6 +59,7 @@ function MainLayout({
             canSwitchBranch={canSwitchBranch}
             isDesktopSidebarCollapsed={isDesktopSidebarCollapsed}
             onLogout={onLogout}
+            onNavigate={onChangePage}
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             onOpenSearch={onOpenSearch}
             onSwitchBranch={onSwitchBranch}
