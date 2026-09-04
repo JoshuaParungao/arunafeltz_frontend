@@ -1410,6 +1410,10 @@ function PosSalesPage({ selectedBranch, user }) {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.customerEmail || ""
   })
+  const [customerCompany, setCustomerCompany] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.customerCompany || ""
+  })
   const [customers, setCustomers] = useState([])
   const [selectedCustomerId, setSelectedCustomerId] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
@@ -1536,7 +1540,7 @@ function PosSalesPage({ selectedBranch, user }) {
   useEffect(() => {
     if (!branchId || !user?.id) return
     const draftKey = `pos_draft_${user.id}_${branchId}`
-    if (cart.length > 0 || customerSearch || customerAddress || customerPhone || remarks || selectedCustomerId) {
+    if (cart.length > 0 || customerSearch || customerAddress || customerPhone || customerCompany || remarks || selectedCustomerId) {
       saveFormDraft(draftKey, {
         cart,
         selectedCustomerId,
@@ -1544,6 +1548,7 @@ function PosSalesPage({ selectedBranch, user }) {
         customerAddress,
         customerPhone,
         customerEmail,
+        customerCompany,
         selectedPriceTier,
         remarks,
         isPcBuild,
@@ -1569,6 +1574,7 @@ function PosSalesPage({ selectedBranch, user }) {
     customerAddress,
     customerPhone,
     customerEmail,
+    customerCompany,
     selectedPriceTier,
     remarks,
     isPcBuild,
@@ -2099,6 +2105,7 @@ function PosSalesPage({ selectedBranch, user }) {
         setCustomerPhone(found.mobileNumber || "")
         setCustomerAddress(found.address || "")
         setCustomerEmail(found.email || "")
+        setCustomerCompany(found.companyName || "")
       }
     } else if (job.customerNameSnapshot) {
       setCustomerSearch(job.customerNameSnapshot)
@@ -2338,6 +2345,7 @@ function PosSalesPage({ selectedBranch, user }) {
     setCustomerAddress("")
     setCustomerPhone("")
     setCustomerEmail("")
+    setCustomerCompany("")
     setIsCustomerDropdownOpen(false)
     setSelectedPriceTier(1)
     setServiceCharge("0")
@@ -3137,6 +3145,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       setCustomerAddress("")
                       setCustomerPhone("")
                       setCustomerEmail("")
+                      setCustomerCompany("")
                       setIsCustomerDropdownOpen(false)
                       setSelectedPriceTier(1)
                     }}
@@ -3179,6 +3188,7 @@ function PosSalesPage({ selectedBranch, user }) {
                         setCustomerAddress("")
                         setCustomerPhone("")
                         setCustomerEmail("")
+                        setCustomerCompany("")
                         setIsCustomerDropdownOpen(false)
                       }}
                       type="button"
@@ -3206,6 +3216,7 @@ function PosSalesPage({ selectedBranch, user }) {
                               setCustomerAddress(customer.address || "")
                               setCustomerPhone(customer.mobileNumber || "")
                               setCustomerEmail(customer.email || "")
+                              setCustomerCompany(customer.companyName || "")
                               setIsCustomerDropdownOpen(false)
                               const tier = customer.priceTier ? Number(customer.priceTier) : 1
                               setSelectedPriceTier(tier)

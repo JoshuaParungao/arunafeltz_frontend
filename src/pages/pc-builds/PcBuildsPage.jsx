@@ -39,7 +39,7 @@ import {
   Zap,
 } from "lucide-react"
 
-import apiClient from "../../lib/apiClient"
+import { getSales } from "../../features/sales/sales.api"
 import SaleReceiptModal from "../../components/sales/SaleReceiptModal"
 
 const COMPONENT_CATEGORIES = [
@@ -149,9 +149,11 @@ function formatDate(value, includeTime = false) {
 }
 
 function isPcBuildSale(sale) {
+  if (!sale) return false
   const items = Array.isArray(sale.items) ? sale.items : []
   const remarks = String(sale.remarks || "").toLowerCase()
   if (remarks.includes("[pc build]") || remarks.includes("assembled by")) return true
+  if (sale.quotation?.serviceDoneBy) return true
   if (items.length >= 3) return true
   const title = String(sale.quotation?.title || "").toLowerCase()
   if (
@@ -207,13 +209,23 @@ export default function PcBuildsPage({ selectedBranch, user }) {
     setIsLoading(true)
     setErrorMessage("")
     try {
-      const response = await apiClient.get("/sales", {
-        params: {
-          ...(branchId ? { branchId } : {}),
-          limit: 100,
-        },
+      const response = await getSales({
+        ...(branchId ? { branchId } : {}),
+        limit: 100,
       })
-      const items = response?.data?.data || []
+
+      // Backend returns { success: true, data: { data: [sales], meta: {...} } } or { data: [sales] }
+      let items = []
+      if (Array.isArray(response?.data?.data)) {
+        items = response.data.data
+      } else if (Array.isArray(response?.data)) {
+        items = response.data
+      } else if (Array.isArray(response?.items)) {
+        items = response.items
+      } else if (Array.isArray(response)) {
+        items = response
+      }
+
       setSales(items)
       // Automatically expand the first 5 builds for convenience
       const buildIds = items
@@ -224,7 +236,7 @@ export default function PcBuildsPage({ selectedBranch, user }) {
     } catch (error) {
       setSales([])
       setErrorMessage(
-        error?.response?.data?.message || "Unable to load sales records.",
+        error?.response?.data?.message || error?.message || "Unable to load sales records.",
       )
     } finally {
       setIsLoading(false)
@@ -358,62 +370,70 @@ export default function PcBuildsPage({ selectedBranch, user }) {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 shadow-2xs">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               Total PC Builds Sold
             </span>
-            <Monitor size={17} className="text-blue-600" />
+            <div className="grid size-8 place-items-center rounded-xl bg-slate-100 text-slate-700">
+              <Monitor size={16} />
+            </div>
           </div>
-          <p className="mt-1 font-mono text-2xl font-black text-slate-900">
+          <p className="mt-2 font-mono text-2xl font-black text-slate-900">
             {metrics.totalBuilds}
           </p>
-          <p className="text-[11px] font-medium text-blue-700/80">
+          <p className="mt-0.5 text-[11px] text-slate-500">
             Sold & assembled rigs
           </p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-2xs">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               PC Builds Revenue
             </span>
-            <Receipt size={17} className="text-emerald-600" />
+            <div className="grid size-8 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+              <Receipt size={16} />
+            </div>
           </div>
-          <p className="mt-1 font-mono text-2xl font-black text-slate-900">
+          <p className="mt-2 font-mono text-2xl font-black text-slate-900">
             {formatMoney(metrics.totalBuildsRevenue)}
           </p>
-          <p className="text-[11px] font-medium text-emerald-700/80">
+          <p className="mt-0.5 text-[11px] text-slate-500">
             Total sales volume
           </p>
         </div>
 
-        <div className="rounded-2xl border border-purple-100 bg-purple-50/70 p-4 shadow-2xs">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               Components Installed
             </span>
-            <Cpu size={17} className="text-purple-600" />
+            <div className="grid size-8 place-items-center rounded-xl bg-slate-100 text-slate-700">
+              <Cpu size={16} />
+            </div>
           </div>
-          <p className="mt-1 font-mono text-2xl font-black text-slate-900">
+          <p className="mt-2 font-mono text-2xl font-black text-slate-900">
             {metrics.totalPartsCount}
           </p>
-          <p className="text-[11px] font-medium text-purple-700/80">
+          <p className="mt-0.5 text-[11px] text-slate-500">
             Individual hardware lines
           </p>
         </div>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 shadow-2xs">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               Serialized Hardware
             </span>
-            <ShieldCheck size={17} className="text-amber-600" />
+            <div className="grid size-8 place-items-center rounded-xl bg-amber-50 text-amber-700">
+              <ShieldCheck size={16} />
+            </div>
           </div>
-          <p className="mt-1 font-mono text-2xl font-black text-slate-900">
+          <p className="mt-2 font-mono text-2xl font-black text-slate-900">
             {metrics.totalSerializedParts}
           </p>
-          <p className="text-[11px] font-medium text-amber-700/80">
+          <p className="mt-0.5 text-[11px] text-slate-500">
             Tracked with S/N & warranty
           </p>
         </div>
