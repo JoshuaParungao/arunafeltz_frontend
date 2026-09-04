@@ -1,3 +1,14 @@
+import {
+  Calendar,
+  HandCoins,
+  PackageCheck,
+  Percent,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react"
+
 const BUSINESS_TIME_ZONE = "Asia/Manila"
 
 const PROVIDER_LABELS = Object.freeze({
@@ -108,60 +119,162 @@ export default function FinancialSummaryPanel({ report }) {
   return (
     <section className="space-y-4">
       {/* Executive Sales & Profit Breakdown Matrix (Owner Summary) */}
-      <div className="rounded-3xl border border-[var(--color-border)] bg-gradient-to-br from-slate-900 via-[#3a0e14] to-[#7a1f2b] p-6 text-white shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-white/10 pb-4">
+      <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 dark:border-slate-800/80 md:flex-row md:items-center md:justify-between">
           <div>
-            <span className="rounded-full bg-amber-400/20 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-amber-300">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-maroon)]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-maroon)] dark:bg-[var(--color-maroon)]/25 dark:text-rose-300">
+              <ShieldCheck className="shrink-0" size={13} />
               Executive Profit & Sales Matrix (Owner Summary)
-            </span>
-            <h2 className="mt-2 text-2xl font-black text-white">Consolidated Sales, Mark-Up, AR & Profit Matrix</h2>
+            </div>
+            <h2 className="mt-2 text-xl font-black tracking-tight text-slate-900 dark:text-white sm:text-2xl">
+              Consolidated Sales, Mark-Up, AR & Profit Matrix
+            </h2>
           </div>
-          <p className="text-xs font-semibold text-slate-300">
-            {report.period?.dateFrom ? manilaDate(report.period.startInclusive) : "All history"} through {manilaDate(new Date(new Date(report.period?.endExclusive).getTime() - 1))} · Asia/Manila
-          </p>
+          <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300 self-start md:self-auto">
+            <Calendar className="text-slate-400 shrink-0" size={13} />
+            <span>
+              {report.period?.dateFrom ? manilaDate(report.period.startInclusive) : "All history"} through {manilaDate(new Date(new Date(report.period?.endExclusive).getTime() - 1))} · Asia/Manila
+            </span>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Card 1: Total Sales (with Mark-Up & AR) */}
-          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">1. Total Sales (with Mark-Up & AR)</p>
-            <p className="mt-2 text-2xl font-black text-white">{peso(totalGrossWithMarkupAndAR)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Gross classified sales including store markup and AR contract values</p>
+          <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 transition hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-800/30 dark:hover:border-slate-700">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="grid size-9 place-items-center rounded-xl bg-rose-50 text-[var(--color-maroon)] dark:bg-rose-950/50 dark:text-rose-400">
+                  <TrendingUp size={17} />
+                </span>
+                <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 shadow-2xs dark:bg-slate-800 dark:text-slate-400">
+                  01
+                </span>
+              </div>
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                1. Total Sales (with Mark-Up & AR)
+              </p>
+              <p className="mt-1 font-mono text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                {peso(totalGrossWithMarkupAndAR)}
+              </p>
+            </div>
+            <p className="mt-3 border-t border-slate-200/60 pt-2 text-[11px] font-medium leading-relaxed text-slate-500 dark:border-slate-800/60 dark:text-slate-400">
+              Gross classified sales including store markup and AR contract values
+            </p>
           </div>
 
           {/* Card 2: Base Sales (without Mark-Up & AR) */}
-          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">2. Base Sales (without Mark-Up & AR)</p>
-            <p className="mt-2 text-2xl font-black text-slate-200">{peso(baseSalesTotal)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Base sales at outright cash / SRP tier before markup and financing</p>
+          <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 transition hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-800/30 dark:hover:border-slate-700">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <ShoppingBag size={17} />
+                </span>
+                <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 shadow-2xs dark:bg-slate-800 dark:text-slate-400">
+                  02
+                </span>
+              </div>
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                2. Base Sales (without Mark-Up & AR)
+              </p>
+              <p className="mt-1 font-mono text-2xl font-black tracking-tight text-slate-800 dark:text-slate-100 sm:text-3xl">
+                {peso(baseSalesTotal)}
+              </p>
+            </div>
+            <p className="mt-3 border-t border-slate-200/60 pt-2 text-[11px] font-medium leading-relaxed text-slate-500 dark:border-slate-800/60 dark:text-slate-400">
+              Base sales at outright cash / SRP tier before markup and financing
+            </p>
           </div>
 
-          {/* Card 3: Total Gross Profit (with Mark-Up & AR) */}
-          <div className="rounded-2xl bg-emerald-500/20 p-4 backdrop-blur border border-emerald-400/30">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">3. Total Gross Profit (with Mark-Up & AR)</p>
-            <p className="mt-2 text-2xl font-black text-emerald-300">{peso(totalTuboConsolidated)}</p>
-            <p className="mt-1 text-[11px] text-emerald-200/90">Consolidated profit from Base Margin + Mark-up + Services</p>
+          {/* Card 3: Total Gross Profit (with Mark-Up & AR) - Hero Card */}
+          <div className="group relative flex flex-col justify-between rounded-2xl border-2 border-emerald-500/50 bg-emerald-50/50 p-5 shadow-xs transition hover:border-emerald-500/70 hover:bg-emerald-50/70 dark:border-emerald-600/50 dark:bg-emerald-950/25 dark:hover:border-emerald-500/60">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="grid size-9 place-items-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
+                  <Sparkles size={17} />
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-200">
+                  03 · Hero Margin
+                </span>
+              </div>
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+                3. Total Gross Profit (with Mark-Up & AR)
+              </p>
+              <p className="mt-1 font-mono text-2xl font-black tracking-tight text-emerald-700 dark:text-emerald-400 sm:text-3xl">
+                {peso(totalTuboConsolidated)}
+              </p>
+            </div>
+            <p className="mt-3 border-t border-emerald-200/70 pt-2 text-[11px] font-semibold leading-relaxed text-emerald-700/90 dark:border-emerald-800/60 dark:text-emerald-300/90">
+              Consolidated profit from Base Margin + Mark-up + Services
+            </p>
           </div>
 
           {/* Card 4: Mark-Up Profit (Product & Service) */}
-          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300">4. Mark-Up Profit (Product & Service)</p>
-            <p className="mt-2 text-2xl font-black text-amber-300">{peso(totalMarkup)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Profit generated exclusively from price markups on products and labor</p>
+          <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 transition hover:border-amber-200 hover:bg-amber-50/20 dark:border-slate-800 dark:bg-slate-800/30 dark:hover:border-amber-900/50">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="grid size-9 place-items-center rounded-xl bg-amber-100/80 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                  <Percent size={17} />
+                </span>
+                <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 shadow-2xs dark:bg-slate-800 dark:text-slate-400">
+                  04
+                </span>
+              </div>
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400">
+                4. Mark-Up Profit (Product & Service)
+              </p>
+              <p className="mt-1 font-mono text-2xl font-black tracking-tight text-amber-700 dark:text-amber-400 sm:text-3xl">
+                {peso(totalMarkup)}
+              </p>
+            </div>
+            <p className="mt-3 border-t border-slate-200/60 pt-2 text-[11px] font-medium leading-relaxed text-slate-500 dark:border-slate-800/60 dark:text-slate-400">
+              Profit generated exclusively from price markups on products and labor
+            </p>
           </div>
 
           {/* Card 5: AR Contracts Originated in Period */}
-          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-sky-300">5. AR Contracts Originated in Period</p>
-            <p className="mt-2 text-2xl font-black text-sky-300">{peso(arOriginatedTotal)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Total new installment and accounts receivable contracts issued</p>
+          <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 transition hover:border-sky-200 hover:bg-sky-50/20 dark:border-slate-800 dark:bg-slate-800/30 dark:hover:border-sky-900/50">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="grid size-9 place-items-center rounded-xl bg-sky-100/80 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300">
+                  <HandCoins size={17} />
+                </span>
+                <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 shadow-2xs dark:bg-slate-800 dark:text-slate-400">
+                  05
+                </span>
+              </div>
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-sky-800 dark:text-sky-400">
+                5. AR Contracts Originated in Period
+              </p>
+              <p className="mt-1 font-mono text-2xl font-black tracking-tight text-sky-700 dark:text-sky-400 sm:text-3xl">
+                {peso(arOriginatedTotal)}
+              </p>
+            </div>
+            <p className="mt-3 border-t border-slate-200/60 pt-2 text-[11px] font-medium leading-relaxed text-slate-500 dark:border-slate-800/60 dark:text-slate-400">
+              Total new installment and accounts receivable contracts issued
+            </p>
           </div>
 
           {/* Card 6: Base Profit (without Mark-Up & AR) */}
-          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">6. Base Profit (without Mark-Up & AR)</p>
-            <p className="mt-2 text-2xl font-black text-slate-200">{peso(itemProfitBase)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Base profit margin of item sales (Base Price minus Operational COGS)</p>
+          <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 transition hover:border-indigo-200 hover:bg-indigo-50/20 dark:border-slate-800 dark:bg-slate-800/30 dark:hover:border-indigo-900/50">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="grid size-9 place-items-center rounded-xl bg-indigo-100/80 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                  <PackageCheck size={17} />
+                </span>
+                <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 shadow-2xs dark:bg-slate-800 dark:text-slate-400">
+                  06
+                </span>
+              </div>
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-indigo-800 dark:text-indigo-300">
+                6. Base Profit (without Mark-Up & AR)
+              </p>
+              <p className="mt-1 font-mono text-2xl font-black tracking-tight text-indigo-950 dark:text-indigo-200 sm:text-3xl">
+                {peso(itemProfitBase)}
+              </p>
+            </div>
+            <p className="mt-3 border-t border-slate-200/60 pt-2 text-[11px] font-medium leading-relaxed text-slate-500 dark:border-slate-800/60 dark:text-slate-400">
+              Base profit margin of item sales (Base Price minus Operational COGS)
+            </p>
           </div>
         </div>
       </div>
