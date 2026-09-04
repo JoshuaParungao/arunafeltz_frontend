@@ -107,14 +107,14 @@ export default function FinancialSummaryPanel({ report }) {
 
   return (
     <section className="space-y-4">
-      {/* Executive Sales & Profit Breakdown Matrix (Owner View) */}
+      {/* Executive Sales & Profit Breakdown Matrix (Owner Summary) */}
       <div className="rounded-3xl border border-[var(--color-border)] bg-gradient-to-br from-slate-900 via-[#3a0e14] to-[#7a1f2b] p-6 text-white shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-white/10 pb-4">
           <div>
             <span className="rounded-full bg-amber-400/20 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-amber-300">
               Executive Profit & Sales Matrix (Owner Summary)
             </span>
-            <h2 className="mt-2 text-2xl font-black text-white">Kabuuang Benta, Mark-Up, AR, at Tubo</h2>
+            <h2 className="mt-2 text-2xl font-black text-white">Consolidated Sales, Mark-Up, AR & Profit Matrix</h2>
           </div>
           <p className="text-xs font-semibold text-slate-300">
             {report.period?.dateFrom ? manilaDate(report.period.startInclusive) : "All history"} through {manilaDate(new Date(new Date(report.period?.endExclusive).getTime() - 1))} · Asia/Manila
@@ -122,46 +122,46 @@ export default function FinancialSummaryPanel({ report }) {
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Card 1: Kabuuang Sale with Mark Up + AR */}
+          {/* Card 1: Total Sales (with Mark-Up & AR) */}
           <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">1. Kabuuang Sale (with Mark-Up + AR)</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">1. Total Sales (with Mark-Up & AR)</p>
             <p className="mt-2 text-2xl font-black text-white">{peso(totalGrossWithMarkupAndAR)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Gross classified sales kasama ang store markup at AR contract values</p>
+            <p className="mt-1 text-[11px] text-slate-300">Gross classified sales including store markup and AR contract values</p>
           </div>
 
-          {/* Card 2: Kabuuang Sale without Mark Up + without AR */}
+          {/* Card 2: Base Sales (without Mark-Up & AR) */}
           <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">2. Kabuuang Sale (without Mark-Up & AR)</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">2. Base Sales (without Mark-Up & AR)</p>
             <p className="mt-2 text-2xl font-black text-slate-200">{peso(baseSalesTotal)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Base sales sa outright cash / SRP tier bago ang patong at financing</p>
+            <p className="mt-1 text-[11px] text-slate-300">Base sales at outright cash / SRP tier before markup and financing</p>
           </div>
 
-          {/* Card 3: Tubo Kabuuan with Mark Up + AR */}
+          {/* Card 3: Total Gross Profit (with Mark-Up & AR) */}
           <div className="rounded-2xl bg-emerald-500/20 p-4 backdrop-blur border border-emerald-400/30">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">3. Tubo Kabuuan (with Mark-Up & AR)</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">3. Total Gross Profit (with Mark-Up & AR)</p>
             <p className="mt-2 text-2xl font-black text-emerald-300">{peso(totalTuboConsolidated)}</p>
-            <p className="mt-1 text-[11px] text-emerald-200/90">Kabuuang kita mula sa Base Profit + Mark-up + Services</p>
+            <p className="mt-1 text-[11px] text-emerald-200/90">Consolidated profit from Base Margin + Mark-up + Services</p>
           </div>
 
-          {/* Card 4: Tubo sa Mark Up Price Lang */}
+          {/* Card 4: Mark-Up Profit (Product & Service) */}
           <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300">4. Tubo sa Mark-Up Price Lang</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300">4. Mark-Up Profit (Product & Service)</p>
             <p className="mt-2 text-2xl font-black text-amber-300">{peso(totalMarkup)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Kita mula sa idinagdag na patong/markup sa produkto at serbisyo</p>
+            <p className="mt-1 text-[11px] text-slate-300">Profit generated exclusively from price markups on products and labor</p>
           </div>
 
-          {/* Card 5: Tubo sa AR (Originated Receivable in Period) */}
+          {/* Card 5: AR Contracts Originated in Period */}
           <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-sky-300">5. AR Originated in Period</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-sky-300">5. AR Contracts Originated in Period</p>
             <p className="mt-2 text-2xl font-black text-sky-300">{peso(arOriginatedTotal)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Kabuuang pumasok na bagong installment / AR contract receivable</p>
+            <p className="mt-1 text-[11px] text-slate-300">Total new installment and accounts receivable contracts issued</p>
           </div>
 
-          {/* Card 6: Tubo na Walang Mark Up at Walang AR */}
+          {/* Card 6: Base Profit (without Mark-Up & AR) */}
           <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">6. Tubo (Walang Mark-Up & Walang AR)</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">6. Base Profit (without Mark-Up & AR)</p>
             <p className="mt-2 text-2xl font-black text-slate-200">{peso(itemProfitBase)}</p>
-            <p className="mt-1 text-[11px] text-slate-300">Base profit ng item sales (Base Price minus Operational COGS)</p>
+            <p className="mt-1 text-[11px] text-slate-300">Base profit margin of item sales (Base Price minus Operational COGS)</p>
           </div>
         </div>
       </div>
