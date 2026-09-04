@@ -624,70 +624,66 @@ export default function EmployeesPage({ selectedBranch, user }) {
 
       {/* 5. Comprehensive Employee Transactions & Activity Modal */}
       {selectedStaff ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-5">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-gradient-to-r from-slate-900 to-[#7a1f2b] p-6 text-white">
-              <div className="flex items-center gap-4">
-                <div className="grid size-12 place-items-center rounded-2xl bg-white/10 text-white font-black text-lg backdrop-blur">
-                  {selectedStaff.fullName?.charAt(0).toUpperCase()}
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-900 px-5 py-4 text-white shrink-0">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-white">{selectedStaff.fullName}</h2>
+                  <span className="rounded bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-slate-200">
+                    {getRoleLabel(selectedStaff.role)}
+                  </span>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-black text-white">{selectedStaff.fullName}</h2>
-                    <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
-                      {getRoleLabel(selectedStaff.role)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-white/80">
-                    @{selectedStaff.username} {selectedStaff.employeeCode ? `· ID: ${selectedStaff.employeeCode}` : ""} · Branch: {selectedStaff.branch?.code || "Global"}
-                  </p>
-                </div>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  @{selectedStaff.username} {selectedStaff.employeeCode ? `· ID: ${selectedStaff.employeeCode}` : ""} · Branch: {selectedStaff.branch?.code || "Global"}
+                </p>
               </div>
               <button
-                className="grid size-9 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
+                className="rounded-lg bg-white/10 p-2 text-white hover:bg-white/20 transition"
                 onClick={() => setSelectedStaff(null)}
+                title="Close"
                 type="button"
               >
-                <X size={18} />
+                <X size={15} />
               </button>
             </div>
 
-            {/* Modal Mini KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[var(--color-soft)] p-4 border-b border-[var(--color-border)]">
-              <div className="rounded-2xl bg-white p-3 border border-[var(--color-border)]">
-                <p className="text-[10px] font-black uppercase text-[var(--color-muted)]">Sales Closed</p>
-                <p className="mt-1 text-lg font-black text-emerald-700">{peso(selectedStaff.salesRevenue)}</p>
-                <p className="text-[10px] text-[var(--color-muted)]">{number(selectedStaff.completedSales)} transactions</p>
+            {/* Modal Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 border-b border-slate-200">
+              <div className="rounded-xl bg-white p-3 border border-slate-200">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sales Closed</p>
+                <p className="mt-1 font-mono text-base font-bold text-slate-900">{peso(selectedStaff.salesRevenue)}</p>
+                <p className="text-[10px] text-slate-400">{number(selectedStaff.completedSales)} transactions</p>
               </div>
-              <div className="rounded-2xl bg-white p-3 border border-[var(--color-border)]">
-                <p className="text-[10px] font-black uppercase text-[var(--color-muted)]">Solo Commission ({selectedStaff.soloIncentivePercent ?? 0}%)</p>
-                <p className="mt-1 text-lg font-black text-amber-700">{peso(selectedStaff.soloIncentiveAmount)}</p>
-                <p className="text-[10px] text-[var(--color-muted)]">Rate applied per sale</p>
+              <div className="rounded-xl bg-white p-3 border border-slate-200">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Solo Commission ({selectedStaff.soloIncentivePercent ?? 0}%)</p>
+                <p className="mt-1 font-mono text-base font-bold text-slate-900">{peso(selectedStaff.soloIncentiveAmount)}</p>
+                <p className="text-[10px] text-slate-400">Rate applied per sale</p>
               </div>
-              <div className="rounded-2xl bg-white p-3 border border-[var(--color-border)]">
-                <p className="text-[10px] font-black uppercase text-[var(--color-muted)]">Services Completed</p>
-                <p className="mt-1 text-lg font-black text-blue-700">{peso(selectedStaff.serviceRevenue)}</p>
-                <p className="text-[10px] text-[var(--color-muted)]">{number(selectedStaff.completedServices)} repair jobs</p>
+              <div className="rounded-xl bg-white p-3 border border-slate-200">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Services Handled</p>
+                <p className="mt-1 font-mono text-base font-bold text-slate-900">{peso(selectedStaff.serviceRevenue)}</p>
+                <p className="text-[10px] text-slate-400">{number(selectedStaff.completedServices)} repair jobs</p>
               </div>
-              <div className="rounded-2xl bg-white p-3 border border-[var(--color-border)]">
-                <p className="text-[10px] font-black uppercase text-[var(--color-muted)]">Total Combined Incentives</p>
-                <p className="mt-1 text-lg font-black text-[var(--color-maroon)]">{peso(selectedStaff.totalIncentiveAmount)}</p>
-                <p className="text-[10px] text-[var(--color-muted)]">Solo + Tech labor share</p>
+              <div className="rounded-xl bg-white p-3 border border-slate-200">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Incentives</p>
+                <p className="mt-1 font-mono text-base font-bold text-slate-900">{peso(selectedStaff.totalIncentiveAmount)}</p>
+                <p className="text-[10px] text-slate-400">Solo + Service labor share</p>
               </div>
             </div>
 
             {/* Modal Tabs */}
-            <div className="flex border-b border-[var(--color-border)] bg-white px-6">
+            <div className="flex border-b border-slate-200 bg-white px-5 text-xs">
               {[
                 ["sales", `Sales & Invoices (${selectedStaff.recentSales?.length || 0})`],
                 ["services", `Service Jobs & Repairs (${selectedStaff.recentServices?.length || 0})`],
                 ["quotations", `Quotations Prepared (${selectedStaff.recentQuotations?.length || 0})`],
               ].map(([key, label]) => (
                 <button
-                  className={`border-b-2 px-5 py-3 text-xs font-black transition ${modalTab === key
-                      ? "border-[var(--color-maroon)] text-[var(--color-maroon)]"
-                      : "border-transparent text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                  className={`border-b-2 px-4 py-3 font-bold transition ${modalTab === key
+                      ? "border-slate-900 text-slate-900"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
                     }`}
                   key={key}
                   onClick={() => setModalTab(key)}
@@ -699,58 +695,58 @@ export default function EmployeesPage({ selectedBranch, user }) {
             </div>
 
             {/* Modal Body Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-5 text-xs">
               {modalTab === "sales" ? (
-                <div>
-                  <h3 className="text-sm font-black text-[var(--color-text-strong)] mb-3">
-                    Recorded Sales & Invoices for {selectedStaff.fullName}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-slate-900">
+                    Recorded Sales & Invoices ({selectedStaff.recentSales?.length || 0})
                   </h3>
                   {(!selectedStaff.recentSales || selectedStaff.recentSales.length === 0) ? (
-                    <div className="rounded-2xl bg-[var(--color-soft)] p-8 text-center text-xs font-bold text-[var(--color-muted)]">
-                      No recorded sales found for this staff member in the selected period.
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400 font-medium">
+                      No recorded sales found for this staff in the selected period.
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-[var(--color-soft)] text-[var(--color-muted)] font-black uppercase">
+                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
                           <tr>
-                            <th className="p-3">Receipt Code</th>
-                            <th className="p-3">Date & Time</th>
-                            <th className="p-3">Customer</th>
-                            <th className="p-3">Payment</th>
-                            <th className="p-3 text-right">Total Amount</th>
-                            <th className="p-3 text-right">Solo Commission ({selectedStaff.soloIncentivePercent ?? 0}%)</th>
-                            <th className="p-3 text-right">Official Document</th>
+                            <th className="px-3.5 py-2.5">Receipt Code</th>
+                            <th className="px-3.5 py-2.5">Date & Time</th>
+                            <th className="px-3.5 py-2.5">Customer</th>
+                            <th className="px-3.5 py-2.5">Payment</th>
+                            <th className="px-3.5 py-2.5 text-right">Total Amount</th>
+                            <th className="px-3.5 py-2.5 text-right">Solo Commission ({selectedStaff.soloIncentivePercent ?? 0}%)</th>
+                            <th className="px-3.5 py-2.5 text-right">Document</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[var(--color-border)]">
+                        <tbody className="divide-y divide-slate-100">
                           {selectedStaff.recentSales.map((s) => (
-                            <tr className="hover:bg-[var(--color-soft)]/50" key={s.id}>
-                              <td className="p-3">
+                            <tr className="hover:bg-slate-50 transition" key={s.id}>
+                              <td className="px-3.5 py-2.5">
                                 <button
-                                  className="font-bold text-[var(--color-maroon)] hover:underline flex items-center gap-1 text-left"
+                                  className="font-mono font-bold text-slate-900 hover:underline text-left"
                                   onClick={() => setPreviewSale(s)}
                                   type="button"
                                 >
                                   {s.saleCode || s.receiptCode}
                                 </button>
                               </td>
-                              <td className="p-3 text-[var(--color-muted)]">{formatDate(s.saleDate, true)}</td>
-                              <td className="p-3 font-semibold">{s.customerName}</td>
-                              <td className="p-3">
-                                <span className="rounded-full bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-bold">
+                              <td className="px-3.5 py-2.5 text-slate-500">{formatDate(s.saleDate, true)}</td>
+                              <td className="px-3.5 py-2.5 font-medium text-slate-800">{s.customerName}</td>
+                              <td className="px-3.5 py-2.5">
+                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                                   {s.paymentMethod || "CASH"}
                                 </span>
                               </td>
-                              <td className="p-3 text-right font-black text-[var(--color-text-strong)]">{peso(s.grandTotal)}</td>
-                              <td className="p-3 text-right font-black text-amber-700">{peso(s.commission || 0)}</td>
-                              <td className="p-3 text-right">
+                              <td className="px-3.5 py-2.5 text-right font-mono font-bold text-slate-900">{peso(s.grandTotal)}</td>
+                              <td className="px-3.5 py-2.5 text-right font-mono font-semibold text-slate-700">{peso(s.commission || 0)}</td>
+                              <td className="px-3.5 py-2.5 text-right">
                                 <button
-                                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-maroon)] text-white px-2.5 py-1 text-[11px] font-bold hover:bg-[var(--color-maroon-hover)] shadow-xs transition"
+                                  className="rounded-lg bg-slate-900 text-white px-2.5 py-1 text-[11px] font-semibold hover:bg-black transition"
                                   onClick={() => setPreviewSale(s)}
                                   type="button"
                                 >
-                                  <Printer size={12} /> View Receipt
+                                  View Receipt
                                 </button>
                               </td>
                             </tr>
@@ -763,61 +759,61 @@ export default function EmployeesPage({ selectedBranch, user }) {
               ) : null}
 
               {modalTab === "services" ? (
-                <div>
-                  <h3 className="text-sm font-black text-[var(--color-text-strong)] mb-3">
-                    Service & Repair Jobs Handled by {selectedStaff.fullName}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-slate-900">
+                    Service & Repair Jobs ({selectedStaff.recentServices?.length || 0})
                   </h3>
                   {(!selectedStaff.recentServices || selectedStaff.recentServices.length === 0) ? (
-                    <div className="rounded-2xl bg-[var(--color-soft)] p-8 text-center text-xs font-bold text-[var(--color-muted)]">
-                      No recorded service jobs found for this technician in the selected period.
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400 font-medium">
+                      No recorded service jobs found for this staff in the selected period.
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-[var(--color-soft)] text-[var(--color-muted)] font-black uppercase">
+                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
                           <tr>
-                            <th className="p-3">Job Code</th>
-                            <th className="p-3">Received Date</th>
-                            <th className="p-3">Customer</th>
-                            <th className="p-3">Device / Problem</th>
-                            <th className="p-3">Status</th>
-                            <th className="p-3 text-right">Service Charge</th>
-                            <th className="p-3 text-right">Labor Commission</th>
-                            <th className="p-3 text-right">Official Document</th>
+                            <th className="px-3.5 py-2.5">Job Code</th>
+                            <th className="px-3.5 py-2.5">Received Date</th>
+                            <th className="px-3.5 py-2.5">Customer</th>
+                            <th className="px-3.5 py-2.5">Device / Problem</th>
+                            <th className="px-3.5 py-2.5">Status</th>
+                            <th className="px-3.5 py-2.5 text-right">Service Charge</th>
+                            <th className="px-3.5 py-2.5 text-right">Labor Commission</th>
+                            <th className="px-3.5 py-2.5 text-right">Document</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[var(--color-border)]">
+                        <tbody className="divide-y divide-slate-100">
                           {selectedStaff.recentServices.map((j) => (
-                            <tr className="hover:bg-[var(--color-soft)]/50" key={j.id}>
-                              <td className="p-3">
+                            <tr className="hover:bg-slate-50 transition" key={j.id}>
+                              <td className="px-3.5 py-2.5">
                                 <button
-                                  className="font-bold text-blue-700 hover:underline flex items-center gap-1 text-left"
+                                  className="font-mono font-bold text-slate-900 hover:underline text-left"
                                   onClick={() => setPreviewJob(j)}
                                   type="button"
                                 >
                                   {j.jobCode}
                                 </button>
                               </td>
-                              <td className="p-3 text-[var(--color-muted)]">{formatDate(j.receivedAt)}</td>
-                              <td className="p-3 font-semibold">{j.customerName}</td>
-                              <td className="p-3">
-                                <p className="font-bold text-[var(--color-text-strong)]">{j.deviceDescription}</p>
-                                <p className="text-[11px] text-[var(--color-muted)]">{j.problemDescription}</p>
+                              <td className="px-3.5 py-2.5 text-slate-500">{formatDate(j.receivedAt)}</td>
+                              <td className="px-3.5 py-2.5 font-medium text-slate-800">{j.customerName}</td>
+                              <td className="px-3.5 py-2.5">
+                                <p className="font-semibold text-slate-900">{j.deviceDescription}</p>
+                                <p className="text-[10px] text-slate-400">{j.problemDescription}</p>
                               </td>
-                              <td className="p-3">
-                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                              <td className="px-3.5 py-2.5">
+                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                                   {j.status}
                                 </span>
                               </td>
-                              <td className="p-3 text-right font-black text-[var(--color-text-strong)]">{peso(j.finalServiceCharge)}</td>
-                              <td className="p-3 text-right font-black text-blue-700">{peso(j.commission || 0)}</td>
-                              <td className="p-3 text-right">
+                              <td className="px-3.5 py-2.5 text-right font-mono font-bold text-slate-900">{peso(j.finalServiceCharge)}</td>
+                              <td className="px-3.5 py-2.5 text-right font-mono font-semibold text-slate-700">{peso(j.commission || 0)}</td>
+                              <td className="px-3.5 py-2.5 text-right">
                                 <button
-                                  className="inline-flex items-center gap-1 rounded-lg bg-blue-700 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-blue-800 shadow-xs transition"
+                                  className="rounded-lg bg-slate-900 text-white px-2.5 py-1 text-[11px] font-semibold hover:bg-black transition"
                                   onClick={() => setPreviewJob(j)}
                                   type="button"
                                 >
-                                  <Printer size={12} /> View Job Order
+                                  View Job Order
                                 </button>
                               </td>
                             </tr>
@@ -830,59 +826,54 @@ export default function EmployeesPage({ selectedBranch, user }) {
               ) : null}
 
               {modalTab === "quotations" ? (
-                <div>
-                  <h3 className="text-sm font-black text-[var(--color-text-strong)] mb-3">
-                    Quotations Prepared by {selectedStaff.fullName}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-slate-900">
+                    Quotations Prepared ({selectedStaff.recentQuotations?.length || 0})
                   </h3>
                   {(!selectedStaff.recentQuotations || selectedStaff.recentQuotations.length === 0) ? (
-                    <div className="rounded-2xl bg-[var(--color-soft)] p-8 text-center text-xs font-bold text-[var(--color-muted)]">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400 font-medium">
                       No recorded quotations found in the selected period.
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-[var(--color-soft)] text-[var(--color-muted)] font-black uppercase">
+                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
                           <tr>
-                            <th className="p-3">Quote Code</th>
-                            <th className="p-3">Date</th>
-                            <th className="p-3">Customer</th>
-                            <th className="p-3">Status</th>
-                            <th className="p-3 text-right">Grand Total</th>
-                            <th className="p-3 text-right">Official Document</th>
+                            <th className="px-3.5 py-2.5">Quote Code</th>
+                            <th className="px-3.5 py-2.5">Date</th>
+                            <th className="px-3.5 py-2.5">Customer</th>
+                            <th className="px-3.5 py-2.5">Status</th>
+                            <th className="px-3.5 py-2.5 text-right">Grand Total</th>
+                            <th className="px-3.5 py-2.5 text-right">Document</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[var(--color-border)]">
+                        <tbody className="divide-y divide-slate-100">
                           {selectedStaff.recentQuotations.map((q) => (
-                            <tr className="hover:bg-[var(--color-soft)]/50" key={q.id}>
-                              <td className="p-3">
+                            <tr className="hover:bg-slate-50 transition" key={q.id}>
+                              <td className="px-3.5 py-2.5">
                                 <button
-                                  className="font-bold text-[var(--color-maroon)] hover:underline flex items-center gap-1 text-left"
+                                  className="font-mono font-bold text-slate-900 hover:underline text-left"
                                   onClick={() => setPreviewQuotation(q)}
                                   type="button"
                                 >
                                   {q.quotationCode}
                                 </button>
                               </td>
-                              <td className="p-3 text-[var(--color-muted)]">{formatDate(q.createdAt)}</td>
-                              <td className="p-3 font-semibold">{q.customerName}</td>
-                              <td className="p-3">
-                                <span
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-black ${q.status === "CONVERTED"
-                                      ? "bg-emerald-50 text-emerald-700"
-                                      : "bg-amber-50 text-amber-800"
-                                    }`}
-                                >
+                              <td className="px-3.5 py-2.5 text-slate-500">{formatDate(q.createdAt)}</td>
+                              <td className="px-3.5 py-2.5 font-medium text-slate-800">{q.customerName}</td>
+                              <td className="px-3.5 py-2.5">
+                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                                   {q.status}
                                 </span>
                               </td>
-                              <td className="p-3 text-right font-black text-[var(--color-text-strong)]">{peso(q.grandTotal)}</td>
-                              <td className="p-3 text-right">
+                              <td className="px-3.5 py-2.5 text-right font-mono font-bold text-slate-900">{peso(q.grandTotal)}</td>
+                              <td className="px-3.5 py-2.5 text-right">
                                 <button
-                                  className="inline-flex items-center gap-1 rounded-lg bg-slate-800 text-white px-2.5 py-1 text-[11px] font-bold hover:bg-black shadow-xs transition"
+                                  className="rounded-lg bg-slate-900 text-white px-2.5 py-1 text-[11px] font-semibold hover:bg-black transition"
                                   onClick={() => setPreviewQuotation(q)}
                                   type="button"
                                 >
-                                  <FileText size={12} /> View Quotation
+                                  View Quotation
                                 </button>
                               </td>
                             </tr>
@@ -896,7 +887,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end border-t border-[var(--color-border)] bg-[var(--color-soft)] px-6 py-3">
+            <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50 px-5 py-3 shrink-0">
               <button
                 className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-bold text-white hover:bg-black transition"
                 onClick={() => setSelectedStaff(null)}
