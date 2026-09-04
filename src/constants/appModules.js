@@ -102,12 +102,6 @@ export const APP_MODULES = [
     group: "Finance & Credits",
     roles: BRANCH_OPERATION_ROLES,
   },
-  {
-    key: "incentives",
-    label: "Staff Incentives",
-    group: "Finance & Credits",
-    roles: [...OWNER_ADMIN_ROLES, ...STAFF_OPERATION_ROLES],
-  },
 
   // --- FILE MAINTENANCE (MASTER DATA) ---
   {

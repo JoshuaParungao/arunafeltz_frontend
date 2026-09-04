@@ -1,4 +1,4 @@
-﻿export const SETTINGS_GROUPS = [
+export const SETTINGS_GROUPS = [
   {
     title: "Business Profile",
     description: "Business identity and document display information.",
@@ -136,18 +136,6 @@
       "Require handover confirmation",
       "Daily collection cut-off time",
       "Separate cash, GCash, bank, card, and cheque",
-    ],
-  },
-  {
-    title: "Incentive Rules",
-    description: "Employee and item-based incentive configuration.",
-    items: [
-      "Enable incentives",
-      "Default incentive percentage",
-      "Item-based incentive percentage",
-      "Employee-based incentive rule",
-      "Who can view incentives",
-      "When incentive counts",
     ],
   },
   {

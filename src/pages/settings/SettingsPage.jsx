@@ -23,9 +23,6 @@ import {
   removeCashCustodianAssignment,
 } from "../../features/cash-boxes/cashBoxes.api"
 import { getSettings, updateSettingByScopeKey } from "../../features/settings/settings.api"
-import IncentiveAccountSettingsV2 from "../../features/incentives/IncentiveAccountSettingsV2"
-import IncentiveProgramRulesSettingsV2 from "../../features/incentives/IncentiveProgramRulesSettingsV2"
-import IncentiveProgramSchedulesSettingsV2 from "../../features/incentives/IncentiveProgramSchedulesSettingsV2"
 import DatabaseBackupRecoverySection from "../../features/backup/DatabaseBackupRecoverySection"
 import {
   findSettingByKey,
@@ -48,7 +45,6 @@ const ICONS = {
   "Warranty Rules": ShieldCheck,
   "Service Rules": Settings,
   "Cash Box Rules": Banknote,
-  "Incentive Rules": Percent,
   "Document Numbering": FileText,
   "System Preferences": SlidersHorizontal,
   "All Saved Database Values": ListTree,
@@ -2667,13 +2663,6 @@ function PaymentMethodsSetupCard({ setting, onSaved, canManageSettings = false }
 
 const SETTINGS_CATEGORIES = [
   {
-    id: "incentives",
-    label: "Incentives & Rules",
-    icon: Percent,
-    description: "Commission rates, per-account incentive setup, and schedules",
-    groups: ["Incentive Rules"],
-  },
-  {
     id: "payments",
     label: "Payments & Rates",
     icon: Banknote,
@@ -2707,13 +2696,12 @@ function SettingsPage({ user }) {
   const [settings, setSettings] = useState([])
   const [errorMessage, setErrorMessage] = useState("")
   const [isLoading, setIsLoading] = useState(true)
-  const [activeCategory, setActiveCategory] = useState("incentives")
+  const [activeCategory, setActiveCategory] = useState("payments")
   const [searchQuery, setSearchQuery] = useState("")
   const [openPlannedGroup, setOpenPlannedGroup] = useState("")
   const [openSavedGroup, setOpenSavedGroup] = useState("")
 
   const canManageSettings = ["SUPER_OWNER", "ADMIN"].includes(user?.role)
-  const canManageIncentives = ["SUPER_OWNER", "ADMIN"].includes(user?.role)
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -2912,26 +2900,6 @@ function SettingsPage({ user }) {
           />
         )
 
-      case "Incentive Rules":
-        return (
-          <>
-            <IncentiveAccountSettingsV2
-              canManage={canManageIncentives}
-            />
-
-            <div className="mt-4">
-              <IncentiveProgramRulesSettingsV2
-                canManage={canManageIncentives}
-              />
-            </div>
-
-            <div className="mt-4">
-              <IncentiveProgramSchedulesSettingsV2
-                canManage={canManageIncentives}
-              />
-            </div>
-          </>
-        )
       case "Document Numbering":
         return (
           <DocumentNumberingDisplay setting={documentNumberingSetting} />
