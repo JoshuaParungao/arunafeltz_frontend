@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   HandCoins,
+  Landmark,
   Lightbulb,
   Plus,
   Receipt,
@@ -48,6 +49,7 @@ const EXPENSE_CATEGORIES = [
   { id: "UTILITIES_BILLS", label: "Utilities & Store Bills", icon: Lightbulb, color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-950/40 dark:text-yellow-400" },
   { id: "SHOP_TOOLS_MAINTENANCE", label: "Shop Tools & Repairs", icon: Wrench, color: "text-orange-600 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400" },
   { id: "SALARY_VALE", label: "Salary Advance / Vale", icon: UserCheck, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400" },
+  { id: "PERMITS_TAXES", label: "Permits & Taxes", icon: Landmark, color: "text-rose-600 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400" },
   { id: "OTHER_EXPENSE", label: "Other Store Expense", icon: Receipt, color: "text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300" },
 ]
 
@@ -431,13 +433,19 @@ export default function CashBoxesPage({
             foundCat = cat.id
           }
         })
+        if (foundCat === "OTHER_EXPENSE") {
+          const lowerDesc = tx.description?.toLowerCase() || ""
+          if (lowerDesc.includes("permit") || lowerDesc.includes("tax") || lowerDesc.includes("bir") || lowerDesc.includes("mayor")) {
+            foundCat = "PERMITS_TAXES"
+          }
+        }
         if (!map[foundCat]) map[foundCat] = { id: foundCat, label: "Other", total: 0, count: 0 }
         map[foundCat].total += amt
         map[foundCat].count += 1
       }
     })
 
-    return Object.values(map).filter((c) => c.total > 0 || c.id === "MEALS_SNACKS" || c.id === "LOGISTICS_COURIER")
+    return Object.values(map).filter((c) => c.total > 0 || c.id === "MEALS_SNACKS" || c.id === "LOGISTICS_COURIER" || c.id === "PERMITS_TAXES")
   }, [expenseTransactions])
 
   // Handlers
@@ -1402,7 +1410,7 @@ export default function CashBoxesPage({
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
                     minLength={3}
                     onChange={(e) => setExpenseForm((f) => ({ ...f, description: e.target.value }))}
-                    placeholder="e.g. Lunch for staff / Courier delivery to client"
+                    placeholder="e.g. Lunch for staff / Courier delivery / Mayor's permit / BIR tax"
                     required
                     value={expenseForm.description}
                   />
