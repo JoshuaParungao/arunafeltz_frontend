@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { getReport } from "../../features/reports/reports.api"
 import { getBranches } from "../../features/branches/branches.api"
 import FinancialSummaryPanel from "./FinancialSummaryPanel"
-import { exportReportPdf } from "../../utils/businessDocumentExport"
+import { exportReportExcel, exportReportPdf } from "../../utils/businessDocumentExport"
 import { getRoleLabel } from "../../constants/roles"
 
 function formatWord(value) {
@@ -215,7 +215,7 @@ const REPORTS = Object.freeze({
     supportsSearch: true,
     columns: [
       ["Transfer", (row) => row.transferCode],
-      ["Date", (row) => formatDate(row.transferDate)],
+      ["Date", (row) => formatDate(row.date || row.transferDate)],
       ["From", (row) => row.fromBranch?.code],
       ["To", (row) => row.toBranch?.code],
       ["Status", (row) => formatWord(row.status)],
@@ -225,6 +225,24 @@ const REPORTS = Object.freeze({
       ["Transfer purchase", (row) => peso(row.incomingTransferPurchases)],
       ["Acquisition cost", (row) => peso(row.totalAcquisitionCost)],
       ["Source margin", (row) => peso(row.sourceInternalMargin)],
+    ],
+  },
+  shrinkage: {
+    label: "Inventory Shrinkage & Loss Value Breakdown",
+    statuses: [],
+    supportsSearch: true,
+    columns: [
+      ["Date", (row) => formatDate(row.date, true)],
+      ["Movement Code", (row) => row.movementCode],
+      ["Product / Item", (row) => `${row.itemCode} — ${row.product}`],
+      ["Category", (row) => row.category],
+      ["Serial Number", (row) => row.serialNumber || "—"],
+      ["Units Lost", (row) => `${number(row.quantity)} ${row.unit}`],
+      ["Unit Cost", (row) => peso(row.unitCost)],
+      ["Total Loss Money (₱)", (row) => peso(row.totalLossMoney)],
+      ["Reason / Remarks", (row) => row.reason],
+      ["Adjusted By", (row) => row.adjustedBy],
+      ["Branch", (row) => row.branch?.code || "—"],
     ],
   },
 })
@@ -272,6 +290,7 @@ export default function ReportsPage({ selectedBranch, user }) {
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [isExportingExcel, setIsExportingExcel] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [branches, setBranches] = useState([])
   const [reportBranchId, setReportBranchId] = useState(
@@ -545,6 +564,69 @@ export default function ReportsPage({ selectedBranch, user }) {
     }
   }
 
+  const handleExportExcel = async () => {
+    setIsExportingExcel(true)
+    setErrorMessage("")
+
+    try {
+      const selectedReportBranch = branches.find(
+        (branch) => branch.id === reportBranchId,
+      )
+
+      const exportParams = {
+        ...(reportBranchId ? { branchId: reportBranchId } : {}),
+        ...(status ? { [config.statusParam || "status"]: status } : {}),
+        ...(dateFrom ? { dateFrom } : {}),
+        ...(dateTo ? { dateTo } : {}),
+        ...(config.supportsSearch && search.trim() ? { search: search.trim() } : {}),
+        ...(reportKey === "services" && isQuickService ? { isQuickService } : {}),
+        ...(reportKey === "services" && releaseOutcome ? { releaseOutcome } : {}),
+        ...(reportKey === "services" && releasedOnly ? { releasedOnly } : {}),
+        ...(reportKey === "incentiveClaims" && incentiveClassification
+          ? { classification: incentiveClassification }
+          : {}),
+        page: 1,
+        limit: 1000,
+      }
+
+      const response = await getReport(reportKey, exportParams)
+      const exportRecords = response?.data?.records || []
+      const exportTotals = Object.entries(
+        response?.data?.report?.totals || {},
+      ).map(([key, value]) => [
+        labelForKey(key),
+        MONEY_KEY.test(key) ? peso(value) : number(value),
+      ])
+
+      const exportFilters = []
+      if (selectedReportBranch) {
+        exportFilters.push([
+          "Branch",
+          `${selectedReportBranch.code} - ${selectedReportBranch.name}`,
+        ])
+      }
+      if (status) exportFilters.push(["Status", status])
+      if (dateFrom) exportFilters.push(["From", dateFrom])
+      if (dateTo) exportFilters.push(["To", dateTo])
+      if (search.trim()) exportFilters.push(["Search", search.trim()])
+
+      exportReportExcel({
+        label: config.label,
+        columns: config.columns,
+        records: exportRecords,
+        totals: exportTotals,
+        branch: selectedReportBranch,
+        generatedBy: user,
+        filters: exportFilters,
+        filename: `${reportKey}-report-${new Date().toISOString().slice(0, 10)}`,
+      })
+    } catch (error) {
+      setErrorMessage(apiError(error, "Could not export report to Excel."))
+    } finally {
+      setIsExportingExcel(false)
+    }
+  }
+
 const REPORT_CATEGORIES = [
   {
     id: "staff",
@@ -582,6 +664,7 @@ const REPORT_CATEGORIES = [
     icon: "📦",
     reports: [
       { key: "inventory", label: "Inventory Stock" },
+      { key: "shrinkage", label: "Shrinkage & Loss Value" },
       { key: "purchaseOrders", label: "Purchase Orders" },
       { key: "receivings", label: "Receiving Deliveries" },
       { key: "transfers", label: "Stock Transfers" },
@@ -615,21 +698,33 @@ const REPORT_CATEGORIES = [
 
           <div className="flex items-center gap-2">
             <button
-              className="rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+              className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40 transition shadow-2xs flex items-center gap-1.5"
+              disabled={isLoading || isExportingExcel}
+              onClick={handleExportExcel}
+              type="button"
+            >
+              <span>📊</span>
+              <span>{isExportingExcel ? "Exporting Excel..." : "Export Excel (.xlsx)"}</span>
+            </button>
+
+            <button
+              className="rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition flex items-center gap-1.5"
               disabled={isLoading || isExportingPdf}
               onClick={handleExportPdf}
               type="button"
             >
-              {isExportingPdf ? "Exporting..." : "Export PDF"}
+              <span>📄</span>
+              <span>{isExportingPdf ? "Exporting PDF..." : "Export PDF"}</span>
             </button>
 
             <button
-              className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition shadow-2xs"
-              disabled={isLoading || isExportingPdf}
+              className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50 transition shadow-2xs flex items-center gap-1.5"
+              disabled={isLoading || isExportingPdf || isExportingExcel}
               onClick={loadReport}
               type="button"
             >
-              {isLoading ? "Refreshing..." : "Refresh"}
+              <span>🔄</span>
+              <span>{isLoading ? "Loading..." : "Refresh"}</span>
             </button>
           </div>
         </div>

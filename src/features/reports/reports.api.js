@@ -3,6 +3,7 @@ import apiClient from "../../lib/apiClient"
 const REPORT_PATHS = Object.freeze({
   financial: "financial-summary",
   inventory: "inventory-summary",
+  shrinkage: "shrinkage-summary",
   sales: "sales-summary",
   services: "service-summary",
   warranty: "warranty-summary",
