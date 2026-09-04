@@ -479,7 +479,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-2 border-t border-[var(--color-border)]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 pt-2 border-t border-[var(--color-border)]">
           {/* Search Box */}
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={16} />
@@ -490,20 +490,6 @@ export default function EmployeesPage({ selectedBranch, user }) {
               value={search}
             />
           </div>
-
-          {/* Role Filter */}
-          <select
-            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-2.5 text-xs font-bold text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
-            onChange={(e) => setRoleFilter(e.target.value)}
-            value={roleFilter}
-          >
-            <option value="">All Roles</option>
-            <option value="CASHIER">Cashier / Sales Encoder</option>
-            <option value="TECHNICIAN">Technician / Repair Specialist</option>
-            <option value="ADMIN">Branch Admin</option>
-            <option value="BRANCH_OWNER">Branch Owner</option>
-            <option value="SUPER_OWNER">Super Owner</option>
-          </select>
 
           {/* Branch Filter (if Super Owner) */}
           {isSuperOwner ? (
