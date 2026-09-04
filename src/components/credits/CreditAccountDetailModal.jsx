@@ -78,7 +78,6 @@ export default function CreditAccountDetailModal({
   onClose,
   onSuccess,
 }) {
-  const navigate = useNavigate()
   const user = getUser()
   const targetId = accountId || initialAccount?.id
 
@@ -255,7 +254,7 @@ export default function CreditAccountDetailModal({
 
   const handleNavigateToCredits = () => {
     onClose?.()
-    navigate("/credits")
+    window.location.hash = "#credits"
   }
 
   return (
