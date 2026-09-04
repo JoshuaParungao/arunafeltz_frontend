@@ -958,7 +958,7 @@ export default function InventoryPage({ selectedBranch, user }) {
             onClose={closeAdjustModal}
           />
         ) : null}
-        {adjustItem ? (
+        {adjustItem && adjustMode === "BATCHES" ? (
           <section className="m-5 rounded-3xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -981,7 +981,7 @@ export default function InventoryPage({ selectedBranch, user }) {
             </div>
           </section>
         ) : null}
-        {adjustItem ? (
+        {adjustItem && adjustMode === "BATCHES" ? (
           <StockMovementHistoryPanel movements={stockMovements} isLoading={isLoadingMovements} message={movementMessage} />
         ) : null}
         {isLoading ? (
