@@ -1,4 +1,4 @@
-﻿import apiClient from "../../lib/apiClient"
+import apiClient from "../../lib/apiClient"
 
 export async function loginUser(payload) {
   const response = await apiClient.post("/auth/login", payload)
@@ -7,5 +7,10 @@ export async function loginUser(payload) {
 
 export async function getCurrentUser() {
   const response = await apiClient.get("/auth/me")
+  return response.data
+}
+
+export async function updateCurrentUserProfile(payload) {
+  const response = await apiClient.patch("/auth/profile", payload)
   return response.data
 }

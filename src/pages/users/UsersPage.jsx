@@ -329,6 +329,11 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
       return
     }
 
+    if (isEdit && form.password.trim() && form.password.trim().length < 8) {
+      setErrorMessage("New password must be at least 8 characters.")
+      return
+    }
+
     if (!form.role) {
       setErrorMessage("Select a role.")
       return
@@ -351,7 +356,9 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
       branchId: form.role === USER_ROLES.SUPER_OWNER ? null : form.branchId,
     }
 
-    if (!isEdit) payload.password = form.password
+    if (form.password.trim()) {
+      payload.password = form.password.trim()
+    }
 
     setIsSaving(true)
 
@@ -468,20 +475,21 @@ function UserEditorModal({ actor, branches, mode, onClose, onSaved, selectedBran
                 value={form.email}
               />
             </FormField>
-            {!isEdit ? (
-              <FormField label="Temporary password" required>
-                <input
-                  autoComplete="new-password"
-                  className={inputClassName}
-                  maxLength={128}
-                  minLength={8}
-                  onChange={(event) => updateField("password", event.target.value)}
-                  placeholder="Min. 8 characters"
-                  type="password"
-                  value={form.password}
-                />
-              </FormField>
-            ) : null}
+            <FormField
+              label={isEdit ? "Change / Reset Password (Optional)" : "Temporary password"}
+              required={!isEdit}
+            >
+              <input
+                autoComplete="new-password"
+                className={inputClassName}
+                maxLength={128}
+                minLength={8}
+                onChange={(event) => updateField("password", event.target.value)}
+                placeholder={isEdit ? "Leave blank to keep unchanged, or min. 8 chars" : "Min. 8 characters"}
+                type="password"
+                value={form.password}
+              />
+            </FormField>
             <FormField label="Account type" required>
               <select
                 className={inputClassName}

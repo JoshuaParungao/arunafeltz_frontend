@@ -3,7 +3,7 @@ import { Bell, Building2, Edit3, Eye, EyeOff, Menu, Moon, PanelLeftClose, PanelL
 
 import { getRoleLabel } from "../constants/roles"
 import { useTheme } from "../context/ThemeContext"
-import { updateUserById } from "../features/users/users.api"
+import { updateCurrentUserProfile } from "../features/auth/auth.api"
 import { saveUser } from "../lib/sessionStorage"
 
 function Topbar({
@@ -83,8 +83,10 @@ function Topbar({
         payload.password = profileForm.password.trim()
       }
 
-      const response = await updateUserById(user.id, payload)
-      if (response?.data) {
+      const response = await updateCurrentUserProfile(payload)
+      if (response?.data?.user) {
+        saveUser(response.data.user)
+      } else if (response?.data) {
         saveUser(response.data)
       }
       setIsProfileModalOpen(false)
