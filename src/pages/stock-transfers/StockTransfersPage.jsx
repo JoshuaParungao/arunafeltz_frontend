@@ -4,15 +4,20 @@ import {
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
+  CheckCircle2,
   Eye,
+  PackageCheck,
   RefreshCw,
   Search,
+  Truck,
   X,
 } from "lucide-react"
 
 import {
+  dispatchStockTransfer,
   getStockTransferById,
   getStockTransfers,
+  receiveStockTransfer,
   updateStockTransferPricingById,
   updateStockTransferStatusById,
 } from "../../features/stock-transfers/stockTransfers.api"
@@ -74,7 +79,15 @@ function DirectionBadge({ transfer, activeBranchId }) {
   )
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status, fulfillmentStatus }) {
+  if (fulfillmentStatus === "IN_TRANSIT" && status !== "CANCELLED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-3 py-1 text-xs font-black text-sky-800">
+        <Truck size={12} /> In Transit
+      </span>
+    )
+  }
+
   const styles = {
     REQUESTED: "bg-amber-50 text-amber-700",
     APPROVED: "bg-blue-50 text-blue-700",
@@ -111,10 +124,12 @@ function WorkflowBadge({ transfer }) {
   )
 }
 
-function ActionButtons({ transfer, user, busy, onAction, onView }) {
+function ActionButtons({ transfer, user, busy, onAction, onView, onReceive }) {
   const isSuperOwner = user?.role === "SUPER_OWNER"
   const isSourceManager = isSuperOwner || transfer.fromBranchId === user?.branchId
-  const isLinkedManager = isSourceManager || transfer.toBranchId === user?.branchId
+  const isDestinationManager = isSuperOwner || transfer.toBranchId === user?.branchId
+  const isLinkedManager = isSourceManager || isDestinationManager
+  const isInTransit = transfer.fulfillmentStatus === "IN_TRANSIT"
   const isTerminal = ["POSTED", "REJECTED", "CANCELLED"].includes(transfer.status)
   const pricingComplete = (transfer.items || []).every(
     (item) => item.agreedTransferUnitPrice !== null && item.agreedTransferUnitPrice !== undefined
@@ -140,12 +155,17 @@ function ActionButtons({ transfer, user, busy, onAction, onView }) {
           </button>
         </>
       ) : null}
-      {isSourceManager && transfer.status === "APPROVED" ? (
-        <button className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition" disabled={busy} onClick={() => onAction(transfer, "POSTED")} type="button">
-          Fulfill / Post
+      {isSourceManager && transfer.status === "APPROVED" && !isInTransit ? (
+        <button className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition" disabled={busy} onClick={() => onAction(transfer, "DISPATCH")} type="button">
+          Dispatch
         </button>
       ) : null}
-      {isLinkedManager && !isTerminal ? (
+      {isDestinationManager && isInTransit ? (
+        <button className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition" disabled={busy} onClick={() => onReceive(transfer)} type="button">
+          <PackageCheck size={13} /> Receive Stock
+        </button>
+      ) : null}
+      {isLinkedManager && !isTerminal && !isInTransit ? (
         <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition" disabled={busy} onClick={() => onAction(transfer, "CANCELLED")} type="button">
           Cancel
         </button>
@@ -332,8 +352,62 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
     }
   }
 
+  const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false)
+  const [receiveModalTransfer, setReceiveModalTransfer] = useState(null)
+  const [isReceiving, setIsReceiving] = useState(false)
+
+  const handleOpenReceive = async (transfer) => {
+    setActionTransferId(transfer.id)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const response = await getStockTransferById(transfer.id)
+      const detail = response?.data || transfer
+      setReceiveModalTransfer(detail)
+      setIsReceiveModalOpen(true)
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not load transfer details for receiving."
+      )
+    } finally {
+      setActionTransferId("")
+    }
+  }
+
+  const handleConfirmReceive = async () => {
+    if (!receiveModalTransfer) return
+
+    setIsReceiving(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const response = await receiveStockTransfer(receiveModalTransfer.id, {})
+      setSuccessMessage(
+        `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully received and confirmed. Stock has been added to your branch inventory.`
+      )
+      setIsReceiveModalOpen(false)
+      setReceiveModalTransfer(null)
+      if (selectedTransfer?.id === receiveModalTransfer.id) {
+        setSelectedTransfer(response?.data || null)
+      }
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not confirm stock transfer receipt."
+      )
+    } finally {
+      setIsReceiving(false)
+    }
+  }
+
   const handleAction = async (transfer, nextStatus) => {
-    if (nextStatus === "POSTED") {
+    if (nextStatus === "DISPATCH" || nextStatus === "POSTED") {
       setActionTransferId(transfer.id)
       setErrorMessage("")
       setSuccessMessage("")
@@ -392,16 +466,25 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
           setIsSerialModalOpen(true)
           return
         }
+
+        if (!window.confirm(`Confirm dispatch for ${transfer.transferCode}? Stock will be deducted from source branch and marked in-transit.`)) {
+          return
+        }
+
+        const dispatchRes = await dispatchStockTransfer(transfer.id, {})
+        setSuccessMessage(`${dispatchRes?.data?.transferCode || transfer.transferCode} dispatched. Stock is now in transit.`)
+        if (selectedTransfer?.id === transfer.id) setSelectedTransfer(dispatchRes?.data || null)
+        await loadTransfers()
       } catch (error) {
         setErrorMessage(
           error?.response?.data?.error?.message ||
             error?.message ||
-            "Could not load transfer details for serial verification."
+            "Could not dispatch stock transfer."
         )
-        return
       } finally {
         setActionTransferId("")
       }
+      return
     }
 
     await updateTransferStatus(transfer, nextStatus)
@@ -432,16 +515,15 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
         }
       )
 
-      const response = await updateStockTransferStatusById(
+      const response = await dispatchStockTransfer(
         serialModalTransfer.id,
         {
-          status: "POSTED",
           items: itemsPayload,
         }
       )
 
       setSuccessMessage(
-        `${response?.data?.transferCode || serialModalTransfer.transferCode} successfully fulfilled and dispatched with assigned serial numbers.`
+        `${response?.data?.transferCode || serialModalTransfer.transferCode} successfully dispatched with assigned serial numbers. Stock is now in transit.`
       )
       setIsSerialModalOpen(false)
       setSerialModalTransfer(null)
@@ -454,7 +536,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
       setErrorMessage(
         error?.response?.data?.error?.message ||
           error?.message ||
-          "Could not complete serial transfer fulfillment."
+          "Could not complete serial transfer dispatch."
       )
     } finally {
       setIsFulfillingSerials(false)
@@ -577,7 +659,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                     </div>
                     <p className="mt-0.5 max-w-52 truncate text-[11px] text-slate-500">{transfer.notes || "No notes"}</p>
                   </td>
-                  <td className="px-4 py-3"><StatusBadge status={transfer.status} /></td>
+                  <td className="px-4 py-3"><StatusBadge status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} /></td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
                       <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
@@ -589,7 +671,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                   <td className="px-4 py-3 text-slate-600">{transfer.requestedBy?.fullName || transfer.requestedBy?.username || "—"}</td>
                   <td className="px-4 py-3 font-mono font-bold text-slate-800">{transfer.items?.length || 0}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(transfer.requestedAt || transfer.transferDate)}</td>
-                  <td className="px-4 py-3 text-right"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} /></td>
+                  <td className="px-4 py-3 text-right"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} onReceive={handleOpenReceive} /></td>
                 </tr>
               )) : null}
             </tbody>
@@ -610,10 +692,10 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                   </div>
                   <p className="mt-0.5 text-[11px] text-slate-500">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</p>
                 </div>
-                <StatusBadge status={transfer.status} />
+                <StatusBadge status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} />
               </div>
               <p className="mt-2 text-[11px] text-slate-500">{transfer.items?.length || 0} line(s) · {formatDate(transfer.requestedAt || transfer.transferDate)}</p>
-              <div className="mt-3"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} /></div>
+              <div className="mt-3"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} onReceive={handleOpenReceive} /></div>
             </article>
           )) : null}
         </div>
@@ -637,7 +719,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-maroon)]">{selectedTransfer.transferCode}</span>
                   <WorkflowBadge transfer={selectedTransfer} />
-                  <StatusBadge status={selectedTransfer.status} />
+                  <StatusBadge status={selectedTransfer.status} fulfillmentStatus={selectedTransfer.fulfillmentStatus} />
                 </div>
                 <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight">Stock Transfer Details</h2>
               </div>
@@ -655,6 +737,18 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                   <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">To Branch</p><p className="mt-1 font-bold text-slate-900">{selectedTransfer.toBranch?.code || "—"}</p></div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Requested</p><p className="mt-1 font-semibold text-slate-700">{formatDate(selectedTransfer.requestedAt || selectedTransfer.transferDate)}</p></div>
                   <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Posted</p><p className="mt-1 font-semibold text-slate-700">{formatDate(selectedTransfer.postedAt)}</p></div>
+                  {selectedTransfer.dispatchedAt ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                      <p className="text-[10px] font-bold uppercase text-slate-500">Dispatched</p>
+                      <p className="mt-1 font-semibold text-slate-700">{formatDate(selectedTransfer.dispatchedAt)}</p>
+                    </div>
+                  ) : null}
+                  {selectedTransfer.receivedAt ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                      <p className="text-[10px] font-bold uppercase text-slate-500">Received</p>
+                      <p className="mt-1 font-semibold text-slate-700">{formatDate(selectedTransfer.receivedAt)}</p>
+                    </div>
+                  ) : null}
                   {selectedTransfer.fulfillmentMethod ? (
                     <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Fulfillment</p><p className="mt-1 font-semibold text-slate-700">{selectedTransfer.fulfillmentMethod.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}{selectedTransfer.fulfillmentStatus ? ` (${selectedTransfer.fulfillmentStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())})` : ""}</p></div>
                   ) : null}
@@ -701,6 +795,25 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                         </label>
                       ) : null}
 
+                      {item.dispatchAllocations?.length ? (
+                        <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Dispatched Allocations (In Transit)</p>
+                          {item.dispatchAllocations.map((alloc) => (
+                            <div className="rounded-lg bg-amber-50/50 border border-amber-200/60 p-2 text-[11px]" key={alloc.id}>
+                              <div className="grid gap-1.5 sm:grid-cols-2">
+                                <p><span className="font-bold text-slate-600">Batch:</span> {alloc.sourceBatch?.batchCode}</p>
+                                <p><span className="font-bold text-slate-600">Qty:</span> {formatQuantity(alloc.quantity)}</p>
+                              </div>
+                              {alloc.serials?.length ? (
+                                <p className="mt-1 text-[10px] text-slate-600">
+                                  Serials: {alloc.serials.map((serial) => serial.serialNumberSnapshot).join(", ")}
+                                </p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
                       {item.allocations?.length ? (
                         <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-2">
                           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Posted Allocations</p>
@@ -738,7 +851,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
                   <div className="text-[11px] text-slate-500">
                     <span>Requested by: <strong className="text-slate-700">{selectedTransfer.requestedBy?.fullName || selectedTransfer.requestedBy?.username || "—"}</strong></span>
                   </div>
-                  <ActionButtons transfer={selectedTransfer} user={user} busy={actionTransferId === selectedTransfer.id} onAction={handleAction} onView={() => {}} />
+                  <ActionButtons transfer={selectedTransfer} user={user} busy={actionTransferId === selectedTransfer.id} onAction={handleAction} onView={() => {}} onReceive={handleOpenReceive} />
                 </div>
               </div>
             )}
@@ -759,9 +872,125 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
         }}
         onConfirm={handleConfirmSerialFulfillment}
         subtitle={`Scan barcode or type serial numbers from ${serialModalTransfer?.fromBranch?.name || serialModalTransfer?.fromBranch?.code || "source branch"} to dispatch.`}
-        title="Fulfill Stock Transfer"
+        title="Dispatch Stock Transfer"
         transferCode={serialModalTransfer?.transferCode || ""}
       />
+
+      {isReceiveModalOpen && receiveModalTransfer ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
+                  Step 2 · Receive & Confirm
+                </span>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Receive Stock Transfer: {receiveModalTransfer.transferCode}
+                </h3>
+              </div>
+              <button
+                aria-label="Close"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                disabled={isReceiving}
+                onClick={() => {
+                  setIsReceiveModalOpen(false)
+                  setReceiveModalTransfer(null)
+                }}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </header>
+
+            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto text-xs">
+              <div className="rounded-xl border border-blue-100 bg-blue-50/75 p-3.5 text-slate-700 space-y-1">
+                <p className="font-bold text-blue-900">
+                  Verify Physical Stock & Serial Numbers
+                </p>
+                <p className="text-[11px] text-blue-800">
+                  Check that the items and serial numbers delivered to your branch match the dispatched list below. Once confirmed, stock will be immediately admitted to your branch inventory.
+                </p>
+                <div className="pt-1 flex items-center gap-4 text-[11px] font-semibold text-slate-600">
+                  <span>From: <strong className="text-slate-900">{receiveModalTransfer.fromBranch?.name || receiveModalTransfer.fromBranch?.code}</strong></span>
+                  <span>To: <strong className="text-slate-900">{receiveModalTransfer.toBranch?.name || receiveModalTransfer.toBranch?.code}</strong></span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {(receiveModalTransfer.items || []).map((item) => {
+                  const dispatchedSerials = (item.serials || []).map(
+                    (s) => s.serialNumberSnapshot || s.itemSerial?.serialNumber
+                  ).filter(Boolean)
+
+                  return (
+                    <article
+                      key={item.id}
+                      className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm">
+                            {item.item?.itemCode || "—"} · {item.item?.itemName || item.description || "Item"}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {[item.item?.brand, item.item?.modelName].filter(Boolean).join(" • ")}
+                          </p>
+                        </div>
+                        <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono font-bold text-slate-800">
+                          Qty {formatQuantity(item.quantity)}
+                        </span>
+                      </div>
+
+                      {dispatchedSerials.length > 0 ? (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-2.5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 mb-1.5 flex items-center gap-1">
+                            <CheckCircle2 size={12} className="text-emerald-600" />
+                            Dispatched Serial Numbers ({dispatchedSerials.length}):
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {dispatchedSerials.map((sn, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-white px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-900 shadow-2xs"
+                              >
+                                <CheckCircle2 size={11} className="text-emerald-500" />
+                                {sn}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </article>
+                  )
+                })}
+              </div>
+            </div>
+
+            <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                disabled={isReceiving}
+                onClick={() => {
+                  setIsReceiveModalOpen(false)
+                  setReceiveModalTransfer(null)
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 transition disabled:opacity-50"
+                disabled={isReceiving}
+                onClick={handleConfirmReceive}
+                type="button"
+              >
+                <PackageCheck size={15} />
+                {isReceiving ? "Confirming Receipt…" : "Confirm & Receive Stock"}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

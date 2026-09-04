@@ -1,4 +1,4 @@
-﻿import apiClient from "../../lib/apiClient"
+import apiClient from "../../lib/apiClient"
 
 export async function getStockTransfers(params = {}) {
   const response = await apiClient.get("/stock-transfers", { params })
@@ -17,5 +17,15 @@ export async function updateStockTransferStatusById(stockTransferId, payload) {
 
 export async function updateStockTransferPricingById(stockTransferId, payload) {
   const response = await apiClient.patch(`/stock-transfers/${stockTransferId}/pricing`, payload)
+  return response.data
+}
+
+export async function dispatchStockTransfer(stockTransferId, payload = {}) {
+  const response = await apiClient.post(`/stock-transfers/${stockTransferId}/dispatch`, payload)
+  return response.data
+}
+
+export async function receiveStockTransfer(stockTransferId, payload = {}) {
+  const response = await apiClient.post(`/stock-transfers/${stockTransferId}/receive`, payload)
   return response.data
 }
