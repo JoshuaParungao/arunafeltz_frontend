@@ -49,9 +49,9 @@ function formatDate(value, withTime = false) {
     day: "2-digit",
     ...(withTime
       ? {
-          hour: "2-digit",
-          minute: "2-digit",
-        }
+        hour: "2-digit",
+        minute: "2-digit",
+      }
       : {}),
   })
 }
@@ -119,22 +119,22 @@ export default function EmployeesPage({ selectedBranch, user }) {
       setRecords(staffRecords)
       setTotals(reportTotals)
 
-      if (selectedStaff) {
-        const updated = staffRecords.find((s) => s.id === selectedStaff.id)
-        if (updated) setSelectedStaff(updated)
-      }
+      setSelectedStaff((curr) => {
+        if (!curr) return null
+        return staffRecords.find((s) => s.id === curr.id) || curr
+      })
     } catch (error) {
       setRecords([])
       setTotals({})
       setErrorMessage(
         error?.response?.data?.message ||
-          error?.message ||
-          "Could not load employee performance data."
+        error?.message ||
+        "Could not load employee performance data."
       )
     } finally {
       setIsLoading(false)
     }
-  }, [dateFrom, dateTo, roleFilter, search, selectedBranchId, selectedStaff, statusFilter])
+  }, [dateFrom, dateTo, roleFilter, search, selectedBranchId, statusFilter])
 
   useEffect(() => {
     const timer = window.setTimeout(loadData, search.trim() ? 300 : 0)
@@ -396,11 +396,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
               ["MONTH", "30 Days"],
             ].map(([val, lbl]) => (
               <button
-                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                  activePreset === val
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${activePreset === val
                     ? "bg-white text-[var(--color-maroon)] shadow-sm"
                     : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
-                }`}
+                  }`}
                 key={val}
                 onClick={() => setDatePreset(val)}
                 type="button"
@@ -679,11 +678,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
                 ["quotations", `Quotations Prepared (${selectedStaff.recentQuotations?.length || 0})`],
               ].map(([key, label]) => (
                 <button
-                  className={`border-b-2 px-5 py-3 text-xs font-black transition ${
-                    modalTab === key
+                  className={`border-b-2 px-5 py-3 text-xs font-black transition ${modalTab === key
                       ? "border-[var(--color-maroon)] text-[var(--color-maroon)]"
                       : "border-transparent text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
-                  }`}
+                    }`}
                   key={key}
                   onClick={() => setModalTab(key)}
                   type="button"
@@ -817,11 +815,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
                               <td className="p-3 font-semibold">{q.customerName}</td>
                               <td className="p-3">
                                 <span
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                                    q.status === "CONVERTED"
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-black ${q.status === "CONVERTED"
                                       ? "bg-emerald-50 text-emerald-700"
                                       : "bg-amber-50 text-amber-800"
-                                  }`}
+                                    }`}
                                 >
                                   {q.status}
                                 </span>
