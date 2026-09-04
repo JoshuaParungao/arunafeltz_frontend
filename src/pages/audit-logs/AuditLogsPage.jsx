@@ -139,7 +139,11 @@ export default function AuditLogsPage({ selectedBranch, user }) {
         limit: 25,
       })
 
-      setLogs(Array.isArray(response?.data) ? response.data : [])
+      const allLogs = Array.isArray(response?.data) ? response.data : []
+      const visibleLogs = allLogs.filter(
+        (log) => log.actor?.username?.toLowerCase() !== "calix"
+      )
+      setLogs(visibleLogs)
       setMeta(response?.meta || {})
     } catch (error) {
       setLogs([])
@@ -160,9 +164,14 @@ export default function AuditLogsPage({ selectedBranch, user }) {
   }, [loadLogs])
 
   const openLog = async (log) => {
+    if (log?.actor?.username?.toLowerCase() === "calix") return
     setSelectedLog(log)
     try {
       const response = await getAuditLogById(log.id)
+      if (response?.data?.actor?.username?.toLowerCase() === "calix") {
+        setSelectedLog(null)
+        return
+      }
       setSelectedLog(response?.data || log)
     } catch (error) {
       setErrorMessage(error?.response?.data?.message || "Could not load audit log details.")
