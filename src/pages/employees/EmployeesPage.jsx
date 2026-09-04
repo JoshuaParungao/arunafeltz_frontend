@@ -93,8 +93,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
   const [previewJob, setPreviewJob] = useState(null)
   const [previewQuotation, setPreviewQuotation] = useState(null)
   const [isExportingExcel, setIsExportingExcel] = useState(false)
-  const isExportingPdfState = isExportingPdf
-  void isExportingPdfState
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
   const canManageIncentives = ["SUPER_OWNER", "ADMIN"].includes(user?.role)
   const [activeHubTab, setActiveHubTab] = useState("performance")
   const [editingIncentiveStaff, setEditingIncentiveStaff] = useState(null)
