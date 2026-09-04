@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertCircle,
+  Banknote,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,7 @@ import {
 import SaleReceiptModal from "../../components/sales/SaleReceiptModal"
 import JobOrderReceiptModal from "../../components/services/JobOrderReceiptModal"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
+import CreditAccountDetailModal from "../../components/credits/CreditAccountDetailModal"
 
 const CUSTOMER_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -763,7 +765,7 @@ function SalesHistory({ data, onViewSale }) {
   )
 }
 
-function CreditHistory({ data }) {
+function CreditHistory({ data, onViewCredit }) {
   const items = Array.isArray(data?.items) ? data.items : []
 
   if (items.length === 0) return <EmptyHistory label="credit history" />
@@ -772,53 +774,86 @@ function CreditHistory({ data }) {
     <div className="space-y-2.5">
       {items.map((account) => {
         const collections = Array.isArray(account.collections) ? account.collections : []
+        const hasBalance = Number(account.remainingBalance ?? account.balanceAmount ?? 0) > 0
+        const isActive = account.status === "ACTIVE"
 
         return (
           <article
-            className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs"
+            className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs space-y-2 hover:border-slate-300 transition"
             key={account.id}
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="font-bold text-slate-900">{account.creditCode}</p>
+                <button
+                  className="font-bold text-[var(--color-maroon)] hover:underline text-left text-sm"
+                  onClick={() => onViewCredit?.(account)}
+                  type="button"
+                >
+                  {account.creditCode}
+                </button>
                 <p className="mt-0.5 text-slate-500">
                   {formatTerm(account.term)} · Opened {formatDate(account.createdAt)}
                 </p>
                 {account.sale?.receiptCode ? (
                   <p className="text-[11px] font-medium text-slate-500">
-                    Sale {account.sale.receiptCode}
+                    Linked Sale: {account.sale.receiptCode}
                   </p>
                 ) : null}
               </div>
-              <div className="sm:text-right">
+              <div className="sm:text-right flex flex-col sm:items-end gap-1">
                 <StatusBadge status={account.status} />
-                <p className="mt-1 font-mono font-bold text-slate-900">
+                <p className="mt-0.5 font-mono font-bold text-slate-900 text-sm">
                   {formatMoney(account.balanceAmount)}
                 </p>
-                <p className="text-[11px] text-slate-500">
-                  Principal {formatMoney(account.principalAmount)}
+                <p className="text-[11px] text-slate-500 font-semibold">
+                  Principal {formatMoney(account.principalAmount || account.regularPriceTotalAmount)}
                 </p>
               </div>
             </div>
 
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+              <div className="text-[11px] font-semibold text-slate-600">
+                {account.monthlyDueAmount ? (
+                  <span className="text-blue-900 font-bold">
+                    Monthly Due: {formatMoney(account.monthlyDueAmount)}/mo
+                  </span>
+                ) : null}
+              </div>
+              <button
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition ${
+                  isActive && hasBalance
+                    ? "bg-emerald-700 hover:bg-emerald-800"
+                    : "bg-slate-800 hover:bg-black"
+                }`}
+                onClick={() => onViewCredit?.(account)}
+                type="button"
+              >
+                <Banknote size={14} />
+                {isActive && hasBalance ? "Pay / Collect Payment" : "View AR Ledger"}
+              </button>
+            </div>
+
             {collections.length > 0 ? (
-              <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                <div className="border-b border-slate-200 bg-slate-100/70 px-3 py-1.5 text-[11px] font-bold text-slate-600">
-                  Payment Collections ({collections.length})
+              <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <div className="border-b border-slate-200 bg-slate-100/70 px-3 py-1.5 text-[11px] font-bold text-slate-600 flex justify-between items-center">
+                  <span>Payment Collections ({collections.length})</span>
+                  <span className="font-mono text-emerald-800">
+                    Total: {formatMoney(account.totalCollected || collections.reduce((s, c) => s + Number(c.amount || c.amountPaid || 0), 0))}
+                  </span>
                 </div>
                 <div className="divide-y divide-slate-200 text-xs">
                   {collections.map((coll) => (
                     <div className="flex items-center justify-between px-3 py-1.5" key={coll.id}>
                       <div>
                         <span className="font-semibold text-slate-800">
-                          {coll.receiptCode || "Payment"}
+                          {coll.receiptCode || coll.collectionCode || "Payment"}
                         </span>
                         <span className="ml-2 text-[11px] text-slate-500">
-                          {formatDate(coll.collectionDate || coll.createdAt)}
+                          {formatDate(coll.paidAt || coll.collectionDate || coll.createdAt)}
                         </span>
                       </div>
                       <div className="font-mono font-bold text-emerald-700">
-                        {formatMoney(coll.amountPaid)}
+                        {formatMoney(coll.amount || coll.amountPaid)}
                       </div>
                     </div>
                   ))}
@@ -1032,6 +1067,7 @@ function CustomerDetailModal({
   const [previewSale, setPreviewSale] = useState(null)
   const [previewJob, setPreviewJob] = useState(null)
   const [previewQuotation, setPreviewQuotation] = useState(null)
+  const [previewCredit, setPreviewCredit] = useState(null)
   const requestIdRef = useRef(0)
 
   const loadCustomer = useCallback(async () => {
@@ -1252,7 +1288,7 @@ function CustomerDetailModal({
               ) : activeTab === "quotations" ? (
                 <QuotationHistory data={history.quotations} onViewQuotation={setPreviewQuotation} />
               ) : activeTab === "credits" ? (
-                <CreditHistory data={history.creditAccounts} />
+                <CreditHistory data={history.creditAccounts} onViewCredit={setPreviewCredit} />
               ) : (
                 <WarrantyClaimHistory data={history.warrantyClaims} />
               )}
@@ -1307,6 +1343,17 @@ function CustomerDetailModal({
         <QuotationDetailDialog
           onClose={() => setPreviewQuotation(null)}
           quotation={previewQuotation}
+        />
+      ) : null}
+
+      {previewCredit ? (
+        <CreditAccountDetailModal
+          account={previewCredit}
+          accountId={previewCredit.id}
+          onClose={() => setPreviewCredit(null)}
+          onSuccess={() => {
+            loadCustomer()
+          }}
         />
       ) : null}
     </>
