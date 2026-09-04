@@ -1476,6 +1476,10 @@ function PosSalesPage({ selectedBranch, user }) {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return Boolean(draft?.isPcBuild)
   })
+  const [selectedBuilderId, setSelectedBuilderId] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.selectedBuilderId || ""
+  })
 
   const [paymentMethod, setPaymentMethod] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
@@ -1543,6 +1547,7 @@ function PosSalesPage({ selectedBranch, user }) {
         selectedPriceTier,
         remarks,
         isPcBuild,
+        selectedBuilderId,
         paymentMethod,
         settlementMethod,
         paymentAmount,
@@ -1567,6 +1572,7 @@ function PosSalesPage({ selectedBranch, user }) {
     selectedPriceTier,
     remarks,
     isPcBuild,
+    selectedBuilderId,
     paymentMethod,
     settlementMethod,
     paymentAmount,
@@ -2337,6 +2343,7 @@ function PosSalesPage({ selectedBranch, user }) {
     setServiceCharge("0")
     setRemarks("")
     setIsPcBuild(false)
+    setSelectedBuilderId("")
     setPaymentMethod("CASH")
     setSettlementMethod("CASH")
     setPaymentAmount("0")
@@ -2406,7 +2413,14 @@ function PosSalesPage({ selectedBranch, user }) {
       cashier: previewCashier,
       technician: technicianName ? { fullName: technicianName } : null,
       remarks: isPcBuild
-        ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
+        ? (() => {
+            const builder = serviceStaffList.find((s) => s.id === selectedBuilderId)
+            return builder?.fullName
+              ? `[PC BUILD] Assembled by: ${builder.fullName}${remarks.trim() ? ` | ${remarks.trim()}` : ""}`
+              : remarks.trim()
+                ? `[PC BUILD] ${remarks.trim()}`
+                : "[PC BUILD]"
+          })()
         : remarks.trim() || undefined,
       isPcBuild,
       subtotal: totals.subtotal,
@@ -2591,8 +2605,13 @@ function PosSalesPage({ selectedBranch, user }) {
       setCustomerEmail(effectiveEmail)
 
       const settlementAmount = Number(effectivePaymentAmount || 0)
+      const builderStaff = serviceStaffList.find((s) => s.id === selectedBuilderId)
       const formattedRemarks = isPcBuild
-        ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
+        ? builderStaff?.fullName
+          ? `[PC BUILD] Assembled by: ${builderStaff.fullName}${remarks.trim() ? ` | ${remarks.trim()}` : ""}`
+          : remarks.trim()
+            ? `[PC BUILD] ${remarks.trim()}`
+            : "[PC BUILD]"
         : remarks.trim() || undefined
       const salePayload = {
         branchId,
@@ -3645,6 +3664,27 @@ function PosSalesPage({ selectedBranch, user }) {
                 ) : null}
               </div>
             </header>
+
+            {isPcBuild ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rose-200 bg-rose-50/75 px-3.5 py-2 text-xs">
+                <span className="font-bold text-[var(--color-maroon)] flex items-center gap-1.5">
+                  <Wrench size={13} />
+                  Assembled / Built By:
+                </span>
+                <select
+                  className="rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                  value={selectedBuilderId}
+                  onChange={(e) => setSelectedBuilderId(e.target.value)}
+                >
+                  <option value="">-- Select Staff / Assembler (Optional) --</option>
+                  {serviceStaffList.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
             {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800">{cartMessage}</div> : null}
 

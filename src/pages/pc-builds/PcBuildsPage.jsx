@@ -150,6 +150,8 @@ function formatDate(value, includeTime = false) {
 
 function isPcBuildSale(sale) {
   const items = Array.isArray(sale.items) ? sale.items : []
+  const remarks = String(sale.remarks || "").toLowerCase()
+  if (remarks.includes("[pc build]") || remarks.includes("assembled by")) return true
   if (items.length >= 3) return true
   const title = String(sale.quotation?.title || "").toLowerCase()
   if (
@@ -178,6 +180,18 @@ function isPcBuildSale(sale) {
   return hasCoreParts && items.length >= 2
 }
 
+export function getBuilderName(sale) {
+  if (sale?.quotation?.serviceDoneBy?.fullName) {
+    return sale.quotation.serviceDoneBy.fullName
+  }
+  const remarks = String(sale?.remarks || "")
+  const match = remarks.match(/Assembled by:\s*([^|\]\n]+)/i) || remarks.match(/Done by:\s*([^|\]\n]+)/i)
+  if (match && match[1]) {
+    return match[1].trim()
+  }
+  return null
+}
+
 export default function PcBuildsPage({ selectedBranch, user }) {
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const [sales, setSales] = useState([])
@@ -185,6 +199,7 @@ export default function PcBuildsPage({ selectedBranch, user }) {
   const [errorMessage, setErrorMessage] = useState("")
   const [search, setSearch] = useState("")
   const [filterMode, setFilterMode] = useState("all_builds") // 'all_builds' | 'all_sales'
+  const [selectedBuilderFilter, setSelectedBuilderFilter] = useState("ALL")
   const [selectedReceiptSale, setSelectedReceiptSale] = useState(null)
   const [expandedBuildIds, setExpandedBuildIds] = useState(new Set())
 
@@ -240,10 +255,24 @@ export default function PcBuildsPage({ selectedBranch, user }) {
     setExpandedBuildIds(new Set())
   }
 
+  // Extract distinct builders for filter dropdown
+  const uniqueBuilders = useMemo(() => {
+    const set = new Set()
+    for (const sale of sales) {
+      const builder = getBuilderName(sale)
+      if (builder) set.add(builder)
+    }
+    return Array.from(set).sort()
+  }, [sales])
+
   const filteredBuilds = useMemo(() => {
     return sales.filter((sale) => {
       if (filterMode === "all_builds" && !isPcBuildSale(sale)) {
         return false
+      }
+      if (selectedBuilderFilter !== "ALL") {
+        const builder = getBuilderName(sale)
+        if (builder !== selectedBuilderFilter) return false
       }
       if (!search.trim()) return true
       const q = search.toLowerCase().trim()
@@ -252,15 +281,16 @@ export default function PcBuildsPage({ selectedBranch, user }) {
         sale.customer?.fullName?.toLowerCase().includes(q) ||
         sale.customer?.companyName?.toLowerCase().includes(q)
       const matchesQuotation = sale.quotation?.quotationCode?.toLowerCase().includes(q)
+      const matchesBuilder = getBuilderName(sale)?.toLowerCase().includes(q)
       const matchesItems = sale.items?.some(
         (it) =>
           it.description?.toLowerCase().includes(q) ||
           it.serial?.serialNumber?.toLowerCase().includes(q) ||
           it.warrantyDuration?.toLowerCase().includes(q),
       )
-      return matchesReceipt || matchesCustomer || matchesQuotation || matchesItems
+      return matchesReceipt || matchesCustomer || matchesQuotation || matchesBuilder || matchesItems
     })
-  }, [sales, filterMode, search])
+  }, [sales, filterMode, selectedBuilderFilter, search])
 
   // Top summary KPIs
   const metrics = useMemo(() => {
@@ -421,6 +451,21 @@ export default function PcBuildsPage({ selectedBranch, user }) {
             <option value="all_sales">🧾 All Sales & Orders ({sales.length})</option>
           </select>
 
+          {uniqueBuilders.length > 0 ? (
+            <select
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+              onChange={(e) => setSelectedBuilderFilter(e.target.value)}
+              value={selectedBuilderFilter}
+            >
+              <option value="ALL">🛠️ All Assemblers ({uniqueBuilders.length})</option>
+              {uniqueBuilders.map((builderName) => (
+                <option key={builderName} value={builderName}>
+                  🛠️ {builderName}
+                </option>
+              ))}
+            </select>
+          ) : null}
+
           <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
             <button
               className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs"
@@ -466,6 +511,7 @@ export default function PcBuildsPage({ selectedBranch, user }) {
             const isExpanded = expandedBuildIds.has(sale.id)
             const items = Array.isArray(sale.items) ? sale.items : []
             const partsWithWarranty = items.filter((it) => Boolean(it.warrantyDuration))
+            const builderName = getBuilderName(sale)
 
             return (
               <article
@@ -482,7 +528,7 @@ export default function PcBuildsPage({ selectedBranch, user }) {
                       <Monitor size={20} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-sm font-bold text-[var(--color-maroon)]">
                           {sale.receiptCode}
                         </span>
@@ -494,6 +540,12 @@ export default function PcBuildsPage({ selectedBranch, user }) {
                         <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.2 text-[10px] font-bold text-emerald-700">
                           {sale.paymentStatus || "PAID"}
                         </span>
+                        {builderName ? (
+                          <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800 flex items-center gap-1">
+                            <Wrench size={10} />
+                            Assembled: {builderName}
+                          </span>
+                        ) : null}
                       </div>
                       <h3 className="text-sm font-black text-slate-900 leading-tight mt-0.5">
                         {sale.customer?.fullName || "Walk-in Customer"}
@@ -547,7 +599,7 @@ export default function PcBuildsPage({ selectedBranch, user }) {
                 {isExpanded ? (
                   <div className="p-4 sm:p-5 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
                           <Cpu size={14} className="text-[var(--color-maroon)]" />
                           Component Specifications ({items.length} Parts)
@@ -555,6 +607,12 @@ export default function PcBuildsPage({ selectedBranch, user }) {
                         <span className="text-[11px] text-slate-500">
                           · Cashier: {sale.cashier?.fullName || "Counter"}
                         </span>
+                        {builderName ? (
+                          <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Wrench size={11} />
+                            Assembled by: {builderName}
+                          </span>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                         <ShieldCheck size={13} />
