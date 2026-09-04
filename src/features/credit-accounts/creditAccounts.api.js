@@ -19,3 +19,8 @@ export async function cancelCreditCollection(id, payload) {
   const response = await apiClient.post(`/credit-accounts/collections/${id}/cancel`, payload)
   return response.data
 }
+
+export async function declareCreditAccountDefaulted(id, payload) {
+  const response = await apiClient.post(`/credit-accounts/${id}/default`, payload)
+  return response.data
+}

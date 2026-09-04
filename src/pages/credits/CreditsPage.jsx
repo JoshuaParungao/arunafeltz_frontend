@@ -15,6 +15,7 @@ import {
 import {
   cancelCreditCollection,
   createCreditCollection,
+  declareCreditAccountDefaulted,
   getCreditAccountById,
   getCreditAccounts,
 } from "../../features/credit-accounts/creditAccounts.api";
@@ -122,6 +123,8 @@ export default function CreditsPage({ selectedBranch, user }) {
   const [detail, setDetail] = useState(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [showCollectionForm, setShowCollectionForm] = useState(false);
+  const [showDefaultModal, setShowDefaultModal] = useState(false);
+  const [defaultReason, setDefaultReason] = useState("");
   const [collectionForm, setCollectionForm] = useState({
     amount: "",
     paymentMethod: "CASH",
@@ -248,6 +251,31 @@ export default function CreditsPage({ selectedBranch, user }) {
       await Promise.all([refreshDetail(), loadAccounts()]);
     } catch (error) {
       setMessage(apiError(error, "Could not reverse credit collection."));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeclareDefault = async () => {
+    if (!detail) return;
+    if (!defaultReason.trim()) {
+      setMessage("Please enter a reason for declaring this account as bad debt / write-off.");
+      return;
+    }
+    setIsSaving(true);
+    setMessage("");
+    try {
+      const response = await declareCreditAccountDefaulted(detail.id, {
+        reason: defaultReason.trim(),
+      });
+      const updated = response?.data || response;
+      setDetail(updated);
+      setShowDefaultModal(false);
+      setDefaultReason("");
+      setNotice(`Credit account ${updated.creditCode || detail.creditCode} declared as Defaulted / Bad Debt Write-off.`);
+      await loadAccounts();
+    } catch (error) {
+      setMessage(apiError(error, "Could not declare credit account as defaulted."));
     } finally {
       setIsSaving(false);
     }
@@ -697,7 +725,7 @@ export default function CreditsPage({ selectedBranch, user }) {
                 </div>
 
                 {detail.status === "ACTIVE" ? (
-                  <div>
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition"
                       onClick={() => setShowCollectionForm((value) => !value)}
@@ -706,6 +734,15 @@ export default function CreditsPage({ selectedBranch, user }) {
                       <Banknote size={14} />
                       Post Collection
                     </button>
+                    {canCancelCollections ? (
+                      <button
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
+                        onClick={() => setShowDefaultModal(true)}
+                        type="button"
+                      >
+                        ⚠️ Declare Bad Debt / Default
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -838,6 +875,65 @@ export default function CreditsPage({ selectedBranch, user }) {
               </div>
             )}
           </section>
+        </div>
+      ) : null}
+
+      {/* Declare Bad Debt / Default Write-off Modal */}
+      {showDefaultModal && detail ? (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">⚠️</span>
+                <h3 className="text-base font-black text-slate-900">
+                  Declare Bad Debt / Default
+                </h3>
+              </div>
+              <button
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                onClick={() => setShowDefaultModal(false)}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to declare <strong>{detail.creditCode}</strong> ({detail.customer?.fullName || "Customer"}) as <strong>Bad Debt / Defaulted</strong>?
+              This will officially close the collection queue and log the remaining uncollected balance of <strong className="text-rose-700 font-mono">{money(detail.remainingBalance)}</strong> as Credit Loss in reports.
+            </p>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                Reason / Explanation <span className="text-rose-600">*</span>
+              </label>
+              <textarea
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 outline-none focus:border-rose-500 focus:bg-white min-h-[90px]"
+                onChange={(e) => setDefaultReason(e.target.value)}
+                placeholder="e.g., Customer uncontactable after multiple follow-ups, relocated without notice, or unable to pay..."
+                required
+                value={defaultReason}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
+                onClick={() => setShowDefaultModal(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-rose-700 px-4 py-2 text-xs font-bold text-white hover:bg-rose-800 transition disabled:opacity-50 shadow-2xs"
+                disabled={isSaving || !defaultReason.trim()}
+                onClick={handleDeclareDefault}
+                type="button"
+              >
+                {isSaving ? "Declaring..." : "Confirm Bad Debt Write-off"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
