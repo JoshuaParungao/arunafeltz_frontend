@@ -11,6 +11,11 @@ const OWNER_ROLES = new Set([
   USER_ROLES.ADMIN,
 ])
 
+const PRICE_ADMIN_ROLES = new Set([
+  USER_ROLES.SUPER_OWNER,
+  USER_ROLES.ADMIN,
+])
+
 const PRICE_FIELDS = [
   { key: "price1", label: "Price 1" },
   { key: "price2", label: "Price 2" },
@@ -19,6 +24,7 @@ const PRICE_FIELDS = [
   { key: "price5", label: "Price 5" },
 ]
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function parseItemWarranty(item) {
   if (!item) return "1 YEAR WARRANTY"
   if (item.warrantyDuration) return item.warrantyDuration
@@ -27,7 +33,9 @@ export function parseItemWarranty(item) {
     try {
       const stored = localStorage.getItem(`item_warranty_${item.id}`)
       if (stored) return stored
-    } catch {}
+    } catch {
+      // ignore storage error
+    }
   }
 
   if (item.description) {
@@ -42,6 +50,7 @@ export function parseItemWarranty(item) {
   return item.isSerialized ? "1 YEAR WARRANTY" : (item.hasWarranty ? "1 YEAR WARRANTY" : "1 MONTH WARRANTY")
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function stripWarrantyTag(description) {
   if (!description) return ""
   return description.replace(/\[WARRANTY:\s*[^\]]+\]/gi, "").trim()
@@ -107,6 +116,11 @@ function getItemApiError(error, fallback) {
     error?.response?.data?.message ||
     fallback
   )
+}
+
+function numberValue(value) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function formatMoney(value) {
@@ -255,6 +269,7 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
   )
 }
 function ItemEditorModal({
+  canAdjustPrices,
   categories,
   errorMessage,
   form,
@@ -542,15 +557,23 @@ function ItemEditorModal({
 
           {/* Section 3: Pricing (Cost & Selling Prices 1 to 5) */}
           <section className="space-y-2.5 pt-1 border-t border-slate-100">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Prices
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+                Prices
+              </h3>
+              {!canAdjustPrices ? (
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                  Adjustment restricted to Main Admin & Admin
+                </span>
+              ) : null}
+            </div>
 
             <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3">
               <label className="block">
                 <span className={`${labelClass} text-amber-900`}>Cost Price</span>
                 <input
-                  className={`${inputClass} font-mono`}
+                  className={`${inputClass} font-mono ${!canAdjustPrices ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
+                  disabled={!canAdjustPrices}
                   min="0"
                   onChange={(event) =>
                     onChange("costPrice", event.target.value)
@@ -565,7 +588,8 @@ function ItemEditorModal({
                 <label className="block" key={field.key}>
                   <span className={labelClass}>{field.label}</span>
                   <input
-                    className={`${inputClass} font-mono`}
+                    className={`${inputClass} font-mono ${!canAdjustPrices ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
+                    disabled={!canAdjustPrices}
                     min="0"
                     onChange={(event) =>
                       onChange(field.key, event.target.value)
@@ -865,8 +889,9 @@ function ItemsPage({ selectedBranch, user }) {
   const [isSavingItem, setIsSavingItem] = useState(false)
 
   const canManageCatalog = useMemo(() => OWNER_ROLES.has(user?.role), [user?.role])
-  const canManagePrices = canManageCatalog
-  const canViewCost = canManageCatalog
+  const canAdjustPrices = useMemo(() => PRICE_ADMIN_ROLES.has(user?.role), [user?.role])
+  const canManagePrices = canAdjustPrices
+  const canViewCost = true
 
   const loadFilterOptions = useCallback(async () => {
     try {
@@ -1030,12 +1055,16 @@ function ItemsPage({ selectedBranch, user }) {
       unitId: itemForm.unitId,
       isSerialized: Boolean(itemForm.isSerialized),
       hasWarranty: warrantyStr !== "NO WARRANTY" && Boolean(warrantyStr),
-      costPrice: numberValue(itemForm.costPrice),
-      price1: numberValue(itemForm.price1),
-      price2: numberValue(itemForm.price2),
-      price3: numberValue(itemForm.price3),
-      price4: numberValue(itemForm.price4),
-      price5: numberValue(itemForm.price5),
+      ...(canAdjustPrices
+        ? {
+            costPrice: numberValue(itemForm.costPrice),
+            price1: numberValue(itemForm.price1),
+            price2: numberValue(itemForm.price2),
+            price3: numberValue(itemForm.price3),
+            price4: numberValue(itemForm.price4),
+            price5: numberValue(itemForm.price5),
+          }
+        : {}),
       minimumStock: numberValue(itemForm.minimumStock),
       reorderLevel: numberValue(itemForm.reorderLevel),
     }
@@ -1064,7 +1093,9 @@ function ItemsPage({ selectedBranch, user }) {
       if (savedItem?.id && warrantyStr) {
         try {
           localStorage.setItem(`item_warranty_${savedItem.id}`, warrantyStr)
-        } catch {}
+        } catch {
+          // ignore storage error
+        }
       }
 
       setItemForm(null)
@@ -1518,6 +1549,7 @@ function ItemsPage({ selectedBranch, user }) {
       ) : null}
 
       <ItemEditorModal
+        canAdjustPrices={canAdjustPrices}
         categories={categoryOptions}
         errorMessage={itemEditorError}
         form={itemForm}
