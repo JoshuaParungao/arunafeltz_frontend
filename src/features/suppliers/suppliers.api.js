@@ -10,6 +10,11 @@ export async function getSupplierById(id) {
   return response.data
 }
 
+export async function getSupplierHistory(id, params = {}) {
+  const response = await apiClient.get(`/suppliers/${id}/history`, { params })
+  return response.data
+}
+
 export async function createSupplier(payload) {
   const response = await apiClient.post("/suppliers", payload)
   return response.data
