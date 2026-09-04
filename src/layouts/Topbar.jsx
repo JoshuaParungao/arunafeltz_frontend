@@ -198,14 +198,11 @@ function Topbar({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <p className="max-w-36 truncate text-xs font-bold text-[var(--color-text-strong)]">
-                  {user?.fullName || user?.username || "User"}
+                <p className="max-w-44 truncate text-xs font-bold text-[var(--color-text-strong)]">
+                  {[user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.fullName || user?.username || "User"}
                 </p>
                 <Edit3 size={11} className="text-slate-400 hover:text-[var(--color-maroon)]" />
               </div>
-              <p className="max-w-36 truncate text-[11px] font-semibold text-[var(--color-muted)]">
-                {getRoleLabel(user?.role)}
-              </p>
             </div>
           </button>
 
@@ -379,13 +376,6 @@ function Topbar({
                       className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
                     />
                   </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 text-[11px] text-slate-600 space-y-1">
-                <div className="flex justify-between font-bold">
-                  <span>Role:</span>
-                  <span className="text-[var(--color-maroon)]">{getRoleLabel(user?.role)} (Protected)</span>
                 </div>
               </div>
 

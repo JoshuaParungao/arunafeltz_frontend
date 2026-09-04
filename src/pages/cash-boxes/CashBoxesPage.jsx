@@ -1696,7 +1696,7 @@ export default function CashBoxesPage({
                     <option value="">Open Branch Handover (Any Custodian)</option>
                     {staff.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.fullName} ({getRoleLabel(m.role)})
+                        {m.fullName}
                       </option>
                     ))}
                   </select>

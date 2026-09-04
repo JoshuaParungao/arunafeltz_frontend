@@ -3616,7 +3616,7 @@ function PosSalesPage({ selectedBranch, user }) {
                           <h3 className="truncate font-bold text-slate-900">{line.item?.itemName || line.description}</h3>
                           {line.item ? <p className="text-[10px] font-mono text-slate-400">{line.item.itemCode}{line.item.isSerialized ? " · Serialized" : ""}</p> : null}
                           {line.type === "SERVICE" && line.serviceStaffName ? (
-                            <p className="text-[10px] font-semibold text-rose-800">👤 {line.serviceStaffName} {line.serviceStaffRole ? `(${line.serviceStaffRole})` : ""}</p>
+                            <p className="text-[10px] font-semibold text-rose-800">👤 {line.serviceStaffName}</p>
                           ) : null}
                         </div>
                         <button aria-label="Remove line" className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition shrink-0" onClick={() => removeCartLine(line.localId)} type="button">

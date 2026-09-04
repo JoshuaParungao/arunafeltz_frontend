@@ -1111,7 +1111,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                       <option value="">No specific staff assigned</option>
                       {serviceStaffList.map((st) => (
                         <option key={st.id} value={st.id}>
-                          {st.fullName} ({getRoleLabel(st.role)})
+                          {st.fullName}
                         </option>
                       ))}
                     </select>
