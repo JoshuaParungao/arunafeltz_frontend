@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
+import * as XLSX from "xlsx"
 
 const MAROON = [122, 31, 43]
 const DARK = [31, 41, 55]
@@ -1681,29 +1682,47 @@ export function exportReportExcel({
     rows.push(row)
   })
 
-  const csvContent =
-    "\uFEFF" +
-    rows
-      .map((r) =>
-        r
-          .map((cell) => {
-            const escaped = String(cell).replace(/"/g, '""')
-            return `"${escaped}"`
-          })
-          .join(",")
-      )
-      .join("\r\n")
+  try {
+    const worksheet = XLSX.utils.aoa_to_sheet(rows)
+    const maxCols = rows.reduce((max, r) => Math.max(max, r.length), 0)
+    worksheet["!cols"] = Array.from({ length: maxCols }, (_, i) => ({
+      wch: Math.max(
+        15,
+        ...rows.map((r) => (r[i] ? String(r[i]).length + 4 : 10))
+      ),
+    }))
 
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-  link.setAttribute("href", url)
-  const cleanName = filename.replace(/\.(csv|xlsx|pdf)$/i, "")
-  link.setAttribute("download", `${cleanName}.csv`)
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Report Data")
+
+    const cleanName = filename.replace(/\.(csv|xlsx|pdf)$/i, "")
+    XLSX.writeFile(workbook, `${cleanName}.xlsx`)
+  } catch (error) {
+    console.error("XLSX export fallback:", error)
+    const csvContent =
+      "\uFEFF" +
+      rows
+        .map((r) =>
+          r
+            .map((cell) => {
+              const escaped = String(cell).replace(/"/g, '""')
+              return `"${escaped}"`
+            })
+            .join(",")
+        )
+        .join("\r\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    const cleanName = filename.replace(/\.(csv|xlsx|pdf)$/i, "")
+    link.setAttribute("download", `${cleanName}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 }
 
 
