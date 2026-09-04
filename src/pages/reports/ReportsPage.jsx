@@ -232,17 +232,17 @@ const REPORTS = Object.freeze({
     statuses: [],
     supportsSearch: true,
     columns: [
-      ["Date", (row) => formatDate(row.date, true)],
-      ["Movement Code", (row) => row.movementCode],
-      ["Product / Item", (row) => `${row.itemCode} — ${row.product}`],
-      ["Category", (row) => row.category],
+      ["Date", (row) => formatDate(row.date)],
+      ["Movement Code", (row) => row.movementCode || "—"],
+      ["Product / Item", (row) => `${row.itemCode || "—"} — ${row.product || row.itemName || "Item"}`],
+      ["Category", (row) => (typeof row.category === "object" ? row.category?.name : row.category) || "—"],
       ["Serial Number", (row) => row.serialNumber || "—"],
-      ["Units Lost", (row) => `${number(row.quantity)} ${row.unit}`],
+      ["Units Lost", (row) => `${number(row.quantity)} ${typeof row.unit === "object" ? row.unit?.name || "PCS" : row.unit || "PCS"}`],
       ["Unit Cost", (row) => peso(row.unitCost)],
       ["Total Loss Money", (row) => peso(row.totalLossMoney)],
-      ["Reason / Remarks", (row) => row.reason],
-      ["Adjusted By", (row) => row.adjustedBy],
-      ["Branch", (row) => row.branch?.code || "—"],
+      ["Reason / Remarks", (row) => row.reason || "—"],
+      ["Adjusted By", (row) => (typeof row.adjustedBy === "object" ? row.adjustedBy?.fullName : row.adjustedBy) || "—"],
+      ["Branch", (row) => (typeof row.branch === "object" ? row.branch?.code || row.branch?.name : row.branch) || "—"],
     ],
   },
 })
@@ -836,6 +836,8 @@ const REPORT_CATEGORIES = [
                   onClick={() => {
                     const firstReport = cat.reports[0].key
                     setReportKey(firstReport)
+                    setResult(null)
+                    setIsLoading(true)
                     setStatus("")
                     setSearch("")
                     setPage(1)
@@ -863,6 +865,8 @@ const REPORT_CATEGORIES = [
                   type="button"
                   onClick={() => {
                     setReportKey(r.key)
+                    setResult(null)
+                    setIsLoading(true)
                     setStatus("")
                     setSearch("")
                     setPage(1)
@@ -1041,10 +1045,10 @@ const REPORT_CATEGORIES = [
                 </tr>
               ) : null}
               {!isLoading
-                ? records.map((row) => (
+                ? records.map((row, rowIndex) => (
                     <tr
                       className={`transition ${reportKey === "staff" ? "cursor-pointer hover:bg-slate-50/80" : "hover:bg-slate-50/50"}`}
-                      key={row.id}
+                      key={row.id || row.movementCode || rowIndex}
                       onClick={() => {
                         if (reportKey === "staff") {
                           setSelectedStaff(row)
@@ -1052,11 +1056,26 @@ const REPORT_CATEGORIES = [
                         }
                       }}
                     >
-                      {config.columns.map(([label, render]) => (
-                        <td className="px-4 py-3 font-medium text-slate-700" key={label}>
-                          {render(row) ?? "—"}
-                        </td>
-                      ))}
+                      {config.columns.map(([label, render]) => {
+                        let cellContent = "—"
+                        try {
+                          const val = render(row)
+                          if (val !== null && val !== undefined) {
+                            if (typeof val === "object") {
+                              cellContent = val.name || val.code || val.label || val.fullName || "—"
+                            } else {
+                              cellContent = val
+                            }
+                          }
+                        } catch {
+                          cellContent = "—"
+                        }
+                        return (
+                          <td className="px-4 py-3 font-medium text-slate-700" key={label}>
+                            {cellContent}
+                          </td>
+                        )
+                      })}
                       {reportKey === "staff" ? (
                         <td className="px-4 py-3 text-right">
                           <button
