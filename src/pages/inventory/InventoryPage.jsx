@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react"
-import { AlertCircle, PackageSearch, RefreshCw, Search, X } from "lucide-react"
+import { AlertCircle, CheckCircle2, PackagePlus, PackageSearch, Plus, RefreshCw, Search, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { getBranches } from "../../features/branches/branches.api"
 import StockAdjustmentPanel from "./StockAdjustmentPanel"
 import StockMovementHistoryPanel from "./StockMovementHistoryPanel"
+import AddStockModal from "./AddStockModal"
 import {
   createStockAdjustment,
   createStockTransferRequest,
   getInventoryOverview,
   getInventoryBatches,
   getInventoryMovements,
+  getInventorySerials,
   getRequestableStock,
 } from "../../features/inventory/inventory.api"
 
@@ -118,7 +120,7 @@ function InventoryMobileCard({ item, canAdjust, onView, onAdjust }) {
         >
           View details
         </button>
-        {canAdjust && !item.isSerialized ? (
+        {canAdjust ? (
           <button
             className="rounded-2xl border border-[#7A1F2B] px-4 py-2 text-xs font-black text-[#7A1F2B]"
             onClick={() => onAdjust(item)}
@@ -146,16 +148,20 @@ export default function InventoryPage({ selectedBranch, user }) {
   const [bulkRequestItems, setBulkRequestItems] = useState([])
   const [requestSourceBranchId, setRequestSourceBranchId] = useState("")
   const [requestCatalogItems, setRequestCatalogItems] = useState([])
-  const [isLoadingRequestCatalog, setIsLoadingRequestCatalog] = useState(false)
   const [adjustItem, setAdjustItem] = useState(null)
+  const [adjustMode, setAdjustMode] = useState("ADJUST")
   const [adjustBatches, setAdjustBatches] = useState([])
   const [adjustBatchId, setAdjustBatchId] = useState("")
   const [adjustType, setAdjustType] = useState("INCREASE")
   const [adjustQuantity, setAdjustQuantity] = useState("1")
   const [adjustReferenceNo, setAdjustReferenceNo] = useState("")
   const [adjustRemarks, setAdjustRemarks] = useState("")
+  const [adjustSerialNumbersText, setAdjustSerialNumbersText] = useState("")
+  const [adjustAvailableSerials, setAdjustAvailableSerials] = useState([])
   const [adjustMessage, setAdjustMessage] = useState("")
   const [isAdjusting, setIsAdjusting] = useState(false)
+  const [isAddStockOpen, setIsAddStockOpen] = useState(false)
+  const [noticeMessage, setNoticeMessage] = useState("")
   const [stockMovements, setStockMovements] = useState([])
   const [isLoadingMovements, setIsLoadingMovements] = useState(false)
   const [movementMessage, setMovementMessage] = useState("")
@@ -355,28 +361,48 @@ export default function InventoryPage({ selectedBranch, user }) {
       setIsLoadingMovements(false)
     }
   }
-  const openAdjustModal = async (item) => {
+  const openAdjustModal = async (item, mode = "ADJUST") => {
     setAdjustMessage("")
     setAdjustItem(item)
+    setAdjustMode(mode)
     setAdjustBatchId("")
     setAdjustType("INCREASE")
     setAdjustQuantity("1")
     setAdjustReferenceNo("")
     setAdjustRemarks("")
     setAdjustBatches([])
+    setAdjustSerialNumbersText("")
+    setAdjustAvailableSerials([])
 
     try {
-      const response = await getInventoryBatches({
-        branchId: item.branch?.id || viewingBranchId,
-        itemId: item.id,
-        limit: 50,
-      })
+      const branchId = item.branch?.id || viewingBranchId
+      const [batchRes, serialRes] = await Promise.all([
+        getInventoryBatches({
+          branchId,
+          itemId: item.id,
+          limit: 50,
+        }),
+        item.isSerialized
+          ? getInventorySerials({
+              branchId,
+              itemId: item.id,
+              status: "AVAILABLE",
+              limit: 100,
+            })
+          : Promise.resolve(null),
+      ])
 
-      const batches = response?.data?.data || response?.data?.items || []
+      const batches = batchRes?.data?.data || batchRes?.data?.items || []
       setAdjustBatches(batches)
 
       const firstActiveBatch = batches.find((batch) => Number(batch.quantityAvailable || 0) > 0) || batches[0]
       setAdjustBatchId(firstActiveBatch?.id || "")
+
+      if (serialRes) {
+        const serials = serialRes?.data?.data || serialRes?.data?.items || []
+        setAdjustAvailableSerials(serials)
+      }
+
       await loadStockMovements(item)
     } catch (error) {
       const message =
@@ -397,13 +423,15 @@ export default function InventoryPage({ selectedBranch, user }) {
     setAdjustQuantity("1")
     setAdjustReferenceNo("")
     setAdjustRemarks("")
+    setAdjustSerialNumbersText("")
+    setAdjustAvailableSerials([])
     setAdjustMessage("")
     setStockMovements([])
     setMovementMessage("")
   }
   const submitStockAdjustment = async () => {
-    if (!adjustItem || !adjustBatchId) {
-      setAdjustMessage("Choose a batch first.")
+    if (!adjustItem) {
+      setAdjustMessage("Choose an item first.")
       return
     }
 
@@ -420,11 +448,29 @@ export default function InventoryPage({ selectedBranch, user }) {
     }
 
     const selectedBatch = adjustBatches.find((batch) => batch.id === adjustBatchId)
-    const availableQuantity = Number(selectedBatch?.quantityAvailable || 0)
+    const availableQuantity = Number(selectedBatch?.quantityAvailable || adjustItem.quantityAvailable || 0)
 
     if (adjustType === "DECREASE" && quantity > availableQuantity) {
       setAdjustMessage("Deduct quantity cannot be higher than available stock.")
       return
+    }
+
+    let parsedSerials = []
+    if (adjustItem.isSerialized) {
+      parsedSerials = adjustSerialNumbersText
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+
+      if (parsedSerials.length !== quantity) {
+        setAdjustMessage(`Please enter exactly ${quantity} serial number(s). Currently entered: ${parsedSerials.length}.`)
+        return
+      }
+
+      if (new Set(parsedSerials).size !== parsedSerials.length) {
+        setAdjustMessage("Duplicate serial numbers found in the input list.")
+        return
+      }
     }
 
     const confirmed = window.confirm(
@@ -439,17 +485,21 @@ export default function InventoryPage({ selectedBranch, user }) {
     try {
       await createStockAdjustment({
         branchId: adjustItem.branch?.id || viewingBranchId,
-        batchId: adjustBatchId,
+        batchId: adjustBatchId || undefined,
+        itemId: adjustItem.id,
         type: adjustType,
         quantity,
         referenceNo: adjustReferenceNo.trim() || undefined,
         remarks: adjustRemarks.trim(),
+        serialNumbers: adjustItem.isSerialized ? parsedSerials : undefined,
       })
 
+      setNoticeMessage(`Stock adjustment recorded successfully for ${adjustItem.itemName}!`)
       await loadInventory()
       closeAdjustModal()
     } catch (error) {
       const message =
+        error?.response?.data?.message ||
         error?.response?.data?.error?.message ||
         "Could not save stock adjustment. Please try again."
 
@@ -724,10 +774,20 @@ export default function InventoryPage({ selectedBranch, user }) {
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {canAdjustStock ? (
+            <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-black text-white transition hover:bg-[var(--color-maroon-hover)] shadow-xs"
+              onClick={() => setIsAddStockOpen(true)}
+              type="button"
+            >
+              <Plus size={16} />
+              Add Stock
+            </button>
+          ) : null}
           {canOpenStockRequest ? (
             <button
-              className="rounded-2xl bg-[#7A1F2B] px-4 py-3 text-sm font-black text-white"
+              className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 transition"
               onClick={() => {
                 setRequestSourceBranchId(requestSourceOptions[0]?.id || "")
                 setBulkSearchText("")
@@ -744,7 +804,7 @@ export default function InventoryPage({ selectedBranch, user }) {
           ) : null}
           <div className="flex flex-wrap gap-2">
             <button
-              className="inline-flex items-center justify-center rounded-2xl bg-[#7A1F2B] px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
               onClick={handleExportInventoryPdf}
               type="button"
             >
@@ -855,6 +915,18 @@ export default function InventoryPage({ selectedBranch, user }) {
         </div>
       </section>
 
+      {noticeMessage ? (
+        <section className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold text-emerald-800">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="shrink-0 text-emerald-600" size={16} />
+            <span>{noticeMessage}</span>
+          </div>
+          <button onClick={() => setNoticeMessage("")} type="button" className="text-emerald-600 hover:text-emerald-900">
+            <X size={14} />
+          </button>
+        </section>
+      ) : null}
+
       {errorMessage ? (
         <section className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-semibold leading-6 text-red-700">
           <AlertCircle className="mt-0.5 shrink-0" size={18} />
@@ -863,7 +935,7 @@ export default function InventoryPage({ selectedBranch, user }) {
       ) : null}
 
       <section className="rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
-        {adjustItem && canAdjustStock && !adjustItem.isSerialized && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id) ? (
+        {adjustItem && adjustMode === "ADJUST" && canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id) ? (
           <StockAdjustmentPanel
             item={adjustItem}
             batches={adjustBatches}
@@ -872,11 +944,14 @@ export default function InventoryPage({ selectedBranch, user }) {
             quantity={adjustQuantity}
             referenceNo={adjustReferenceNo}
             remarks={adjustRemarks}
+            serialNumbersText={adjustSerialNumbersText}
+            availableSerials={adjustAvailableSerials}
             onBatchChange={setAdjustBatchId}
             onTypeChange={setAdjustType}
             onQuantityChange={setAdjustQuantity}
             onReferenceNoChange={setAdjustReferenceNo}
             onRemarksChange={setAdjustRemarks}
+            onSerialNumbersChange={setAdjustSerialNumbersText}
             message={adjustMessage}
             isSaving={isAdjusting}
             onSave={submitStockAdjustment}
@@ -986,9 +1061,9 @@ export default function InventoryPage({ selectedBranch, user }) {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-2">
-                          <button className="rounded-2xl border border-[var(--color-border)] px-4 py-2 text-xs font-black" onClick={() => openAdjustModal(item)} type="button">View details</button>
-                          {canAdjustStock && !item.isSerialized && (user?.role === "SUPER_OWNER" || item.branch?.id === selectedBranch?.id) ? (
-                            <button className="rounded-2xl border border-[#7A1F2B] px-4 py-2 text-xs font-black text-[#7A1F2B]" onClick={() => openAdjustModal(item)} type="button">Adjust stock</button>
+                          <button className="rounded-2xl border border-[var(--color-border)] px-4 py-2 text-xs font-black" onClick={() => openAdjustModal(item, "VIEW")} type="button">View details</button>
+                          {canAdjustStock && (user?.role === "SUPER_OWNER" || item.branch?.id === selectedBranch?.id) ? (
+                            <button className="rounded-2xl border border-[#7A1F2B] px-4 py-2 text-xs font-black text-[#7A1F2B]" onClick={() => openAdjustModal(item, "ADJUST")} type="button">Adjust stock</button>
                           ) : null}
                         </div>
                       </td>
@@ -1004,8 +1079,8 @@ export default function InventoryPage({ selectedBranch, user }) {
                   item={item}
                   key={item.id}
                   canAdjust={canAdjustStock && (user?.role === "SUPER_OWNER" || item.branch?.id === selectedBranch?.id)}
-                  onView={openAdjustModal}
-                  onAdjust={openAdjustModal}
+                  onView={(i) => openAdjustModal(i, "VIEW")}
+                  onAdjust={(i) => openAdjustModal(i, "ADJUST")}
                 />
               ))}
             </div>
@@ -1475,6 +1550,15 @@ export default function InventoryPage({ selectedBranch, user }) {
           </div>
         </section>
       ) : null}
+
+      {/* Add Stock Modal */}
+      <AddStockModal
+        isOpen={isAddStockOpen}
+        onClose={() => setIsAddStockOpen(false)}
+        onSuccess={(msg) => setNoticeMessage(msg)}
+        branchId={viewingBranchId}
+        branchName={viewingBranch?.name || viewingBranch?.code}
+      />
     </div>
   )
 }
