@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertCircle,
   Banknote,
   CalendarClock,
   ChevronLeft,
@@ -284,15 +285,39 @@ export default function CreditsPage({ selectedBranch, user }) {
   const totals = useMemo(
     () =>
       accounts.reduce(
-        (summary, account) => ({
-          balance: summary.balance + Number(account.remainingBalance || 0),
-          collected: summary.collected + Number(account.totalCollected || 0),
-          overdue: summary.overdue + (isOverdue(account) ? 1 : 0),
-        }),
-        { balance: 0, collected: 0, overdue: 0 },
+        (summary, account) => {
+          const isDefaulted = account.status === "DEFAULTED";
+          const isCancelled = account.status === "CANCELLED";
+          const remBalance = Number(account.remainingBalance || 0);
+          const collected = Number(account.totalCollected || 0);
+
+          return {
+            balance: summary.balance + (!isDefaulted && !isCancelled ? remBalance : 0),
+            collected: summary.collected + collected,
+            overdue: summary.overdue + (isOverdue(account) ? 1 : 0),
+            defaultedBalance: summary.defaultedBalance + (isDefaulted ? remBalance : 0),
+            defaultedCount: summary.defaultedCount + (isDefaulted ? 1 : 0),
+          };
+        },
+        { balance: 0, collected: 0, overdue: 0, defaultedBalance: 0, defaultedCount: 0 },
       ),
     [accounts],
   );
+
+  const displayTotals = useMemo(() => {
+    const summary = meta?.summary;
+    if (!summary) {
+      return totals;
+    }
+    return {
+      balance: summary.totalActiveBalance !== undefined ? summary.totalActiveBalance : totals.balance,
+      collected: summary.totalCollections !== undefined ? summary.totalCollections : totals.collected,
+      overdue: totals.overdue,
+      defaultedBalance: summary.totalDefaultedBalance !== undefined ? summary.totalDefaultedBalance : totals.defaultedBalance,
+      defaultedCount: summary.totalDefaultedCount !== undefined ? summary.totalDefaultedCount : totals.defaultedCount,
+    };
+  }, [meta, totals]);
+
   const totalPages = Math.max(1, meta.totalPages || 1);
 
   return (
@@ -334,25 +359,68 @@ export default function CreditsPage({ selectedBranch, user }) {
         </div>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Visible remaining balance
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Remaining Balance
+            </p>
+            <span className="grid size-7 place-items-center rounded-lg bg-blue-50 text-blue-700">
+              <CreditCard size={14} />
+            </span>
+          </div>
+          <p className="mt-1 font-mono text-xl font-black text-slate-900">
+            {money(displayTotals.balance)}
           </p>
-          <p className="mt-1 font-mono text-xl font-black text-slate-900">{money(totals.balance)}</p>
+          <p className="mt-0.5 text-[11px] text-slate-400 font-medium">Active installment receivables</p>
         </div>
+
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Visible collections
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Collections
+            </p>
+            <span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-emerald-700">
+              <Banknote size={14} />
+            </span>
+          </div>
+          <p className="mt-1 font-mono text-xl font-black text-slate-900">
+            {money(displayTotals.collected)}
           </p>
-          <p className="mt-1 font-mono text-xl font-black text-slate-900">{money(totals.collected)}</p>
+          <p className="mt-0.5 text-[11px] text-slate-400 font-medium">Total collected payments</p>
         </div>
+
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Overdue on this page
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Overdue on this page
+            </p>
+            <span className="grid size-7 place-items-center rounded-lg bg-amber-50 text-amber-700">
+              <CalendarClock size={14} />
+            </span>
+          </div>
+          <p className={`mt-1 font-mono text-xl font-black ${displayTotals.overdue > 0 ? "text-amber-600" : "text-slate-900"}`}>
+            {displayTotals.overdue}
           </p>
-          <p className="mt-1 font-mono text-xl font-black text-rose-600">
-            {totals.overdue}
+          <p className="mt-0.5 text-[11px] text-slate-400 font-medium">Accounts past due date</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Defaulted / Bad Debt
+            </p>
+            <span className="grid size-7 place-items-center rounded-lg bg-rose-50 text-rose-700">
+              <AlertCircle size={14} />
+            </span>
+          </div>
+          <p className={`mt-1 font-mono text-xl font-black ${displayTotals.defaultedBalance > 0 ? "text-rose-700" : "text-slate-900"}`}>
+            {money(displayTotals.defaultedBalance)}
+          </p>
+          <p className="mt-0.5 text-[11px] text-slate-400 font-medium">
+            {displayTotals.defaultedCount > 0
+              ? `${displayTotals.defaultedCount} bad debt write-off account(s)`
+              : "No write-off accounts"}
           </p>
         </div>
       </section>
