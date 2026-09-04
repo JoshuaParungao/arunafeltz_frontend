@@ -78,6 +78,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
   const [errorMessage, setErrorMessage] = useState("")
   const [selectedStaff, setSelectedStaff] = useState(null)
   const [modalTab, setModalTab] = useState("sales")
+  const [modalSearch, setModalSearch] = useState("")
   const [previewSale, setPreviewSale] = useState(null)
   const [previewJob, setPreviewJob] = useState(null)
   const [previewQuotation, setPreviewQuotation] = useState(null)
@@ -270,6 +271,43 @@ export default function EmployeesPage({ selectedBranch, user }) {
       setIsExportingPdf(false)
     }
   }
+
+  // Filtered lists for the Employee Transactions Modal
+  const filteredModalSales = useMemo(() => {
+    const list = selectedStaff?.recentSales || []
+    if (!modalSearch.trim()) return list
+    const q = modalSearch.toLowerCase().trim()
+    return list.filter((s) => {
+      const cust = String(s.customerName || "").toLowerCase()
+      const code = String(s.saleCode || s.receiptCode || "").toLowerCase()
+      const pay = String(s.paymentMethod || "").toLowerCase()
+      return cust.includes(q) || code.includes(q) || pay.includes(q)
+    })
+  }, [selectedStaff?.recentSales, modalSearch])
+
+  const filteredModalServices = useMemo(() => {
+    const list = selectedStaff?.recentServices || []
+    if (!modalSearch.trim()) return list
+    const q = modalSearch.toLowerCase().trim()
+    return list.filter((j) => {
+      const cust = String(j.customerName || "").toLowerCase()
+      const code = String(j.jobCode || "").toLowerCase()
+      const dev = String(j.deviceDescription || "").toLowerCase()
+      const prob = String(j.problemDescription || "").toLowerCase()
+      return cust.includes(q) || code.includes(q) || dev.includes(q) || prob.includes(q)
+    })
+  }, [selectedStaff?.recentServices, modalSearch])
+
+  const filteredModalQuotations = useMemo(() => {
+    const list = selectedStaff?.recentQuotations || []
+    if (!modalSearch.trim()) return list
+    const q = modalSearch.toLowerCase().trim()
+    return list.filter((qItem) => {
+      const cust = String(qItem.customerName || "").toLowerCase()
+      const code = String(qItem.quotationCode || "").toLowerCase()
+      return cust.includes(q) || code.includes(q)
+    })
+  }, [selectedStaff?.recentQuotations, modalSearch])
 
   return (
     <div className="min-w-0 space-y-6">
@@ -673,37 +711,68 @@ export default function EmployeesPage({ selectedBranch, user }) {
               </div>
             </div>
 
-            {/* Modal Tabs */}
-            <div className="flex border-b border-slate-200 bg-white px-5 text-xs">
-              {[
-                ["sales", `Sales & Invoices (${selectedStaff.recentSales?.length || 0})`],
-                ["services", `Service Jobs & Repairs (${selectedStaff.recentServices?.length || 0})`],
-                ["quotations", `Quotations Prepared (${selectedStaff.recentQuotations?.length || 0})`],
-              ].map(([key, label]) => (
-                <button
-                  className={`border-b-2 px-4 py-3 font-bold transition ${modalTab === key
-                      ? "border-slate-900 text-slate-900"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
-                    }`}
-                  key={key}
-                  onClick={() => setModalTab(key)}
-                  type="button"
-                >
-                  {label}
-                </button>
-              ))}
+            {/* Modal Tabs & Search Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5">
+              <div className="flex text-xs">
+                {[
+                  ["sales", `Sales & Invoices (${filteredModalSales.length})`],
+                  ["services", `Service Jobs & Repairs (${filteredModalServices.length})`],
+                  ["quotations", `Quotations Prepared (${filteredModalQuotations.length})`],
+                ].map(([key, label]) => (
+                  <button
+                    className={`border-b-2 px-4 py-3 font-bold transition ${modalTab === key
+                        ? "border-slate-900 text-slate-900"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
+                      }`}
+                    key={key}
+                    onClick={() => setModalTab(key)}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Customer Search Bar */}
+              <div className="relative py-2 min-w-[240px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                <input
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 pl-7 pr-7 text-xs text-slate-800 outline-none focus:border-slate-700 focus:bg-white placeholder:text-slate-400 font-medium"
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  placeholder="Search customer name or code…"
+                  value={modalSearch}
+                />
+                {modalSearch ? (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    onClick={() => setModalSearch("")}
+                    type="button"
+                  >
+                    <X size={12} />
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             {/* Modal Body Content */}
             <div className="flex-1 overflow-y-auto p-5 text-xs">
               {modalTab === "sales" ? (
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-slate-900">
-                    Recorded Sales & Invoices ({selectedStaff.recentSales?.length || 0})
-                  </h3>
-                  {(!selectedStaff.recentSales || selectedStaff.recentSales.length === 0) ? (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-slate-900">
+                      Recorded Sales & Invoices ({filteredModalSales.length})
+                    </h3>
+                    {modalSearch ? (
+                      <span className="text-[11px] text-slate-500">
+                        Filtering by: &ldquo;<strong className="text-slate-800">{modalSearch}</strong>&rdquo;
+                      </span>
+                    ) : null}
+                  </div>
+                  {filteredModalSales.length === 0 ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400 font-medium">
-                      No recorded sales found for this staff in the selected period.
+                      {modalSearch
+                        ? `No sales found matching customer "${modalSearch}".`
+                        : "No recorded sales found for this staff in the selected period."}
                     </div>
                   ) : (
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -720,7 +789,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {selectedStaff.recentSales.map((s) => (
+                          {filteredModalSales.map((s) => (
                             <tr className="hover:bg-slate-50 transition" key={s.id}>
                               <td className="px-3.5 py-2.5">
                                 <button
@@ -760,12 +829,21 @@ export default function EmployeesPage({ selectedBranch, user }) {
 
               {modalTab === "services" ? (
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-slate-900">
-                    Service & Repair Jobs ({selectedStaff.recentServices?.length || 0})
-                  </h3>
-                  {(!selectedStaff.recentServices || selectedStaff.recentServices.length === 0) ? (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-slate-900">
+                      Service & Repair Jobs ({filteredModalServices.length})
+                    </h3>
+                    {modalSearch ? (
+                      <span className="text-[11px] text-slate-500">
+                        Filtering by: &ldquo;<strong className="text-slate-800">{modalSearch}</strong>&rdquo;
+                      </span>
+                    ) : null}
+                  </div>
+                  {filteredModalServices.length === 0 ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400 font-medium">
-                      No recorded service jobs found for this staff in the selected period.
+                      {modalSearch
+                        ? `No service jobs found matching customer "${modalSearch}".`
+                        : "No recorded service jobs found for this staff in the selected period."}
                     </div>
                   ) : (
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -783,7 +861,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {selectedStaff.recentServices.map((j) => (
+                          {filteredModalServices.map((j) => (
                             <tr className="hover:bg-slate-50 transition" key={j.id}>
                               <td className="px-3.5 py-2.5">
                                 <button
@@ -827,12 +905,21 @@ export default function EmployeesPage({ selectedBranch, user }) {
 
               {modalTab === "quotations" ? (
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-slate-900">
-                    Quotations Prepared ({selectedStaff.recentQuotations?.length || 0})
-                  </h3>
-                  {(!selectedStaff.recentQuotations || selectedStaff.recentQuotations.length === 0) ? (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-slate-900">
+                      Quotations Prepared ({filteredModalQuotations.length})
+                    </h3>
+                    {modalSearch ? (
+                      <span className="text-[11px] text-slate-500">
+                        Filtering by: &ldquo;<strong className="text-slate-800">{modalSearch}</strong>&rdquo;
+                      </span>
+                    ) : null}
+                  </div>
+                  {filteredModalQuotations.length === 0 ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400 font-medium">
-                      No recorded quotations found in the selected period.
+                      {modalSearch
+                        ? `No quotations found matching customer "${modalSearch}".`
+                        : "No recorded quotations found in the selected period."}
                     </div>
                   ) : (
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -848,7 +935,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {selectedStaff.recentQuotations.map((q) => (
+                          {filteredModalQuotations.map((q) => (
                             <tr className="hover:bg-slate-50 transition" key={q.id}>
                               <td className="px-3.5 py-2.5">
                                 <button
