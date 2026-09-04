@@ -10,6 +10,7 @@ import {
   FileText,
   Percent,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   ShoppingCart,
