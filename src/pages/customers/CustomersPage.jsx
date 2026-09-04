@@ -40,11 +40,18 @@ const EMPTY_HISTORY = {
     quotationCount: 0,
     saleCount: 0,
     creditAccountCount: 0,
+    serviceJobCount: 0,
+    warrantyClaimCount: 0,
+    totalLifetimeSpent: 0,
+    completedSalesTotal: 0,
+    completedServicesTotal: 0,
     outstandingCreditBalance: 0,
   },
-  quotations: { items: [], totalItems: 0, limit: 10 },
-  sales: { items: [], totalItems: 0, limit: 10 },
-  creditAccounts: { items: [], totalItems: 0, limit: 10 },
+  quotations: { items: [], totalItems: 0, limit: 50 },
+  sales: { items: [], totalItems: 0, limit: 50 },
+  serviceJobs: { items: [], totalItems: 0, limit: 50 },
+  creditAccounts: { items: [], totalItems: 0, limit: 50 },
+  warrantyClaims: { items: [], totalItems: 0, limit: 50 },
 }
 
 const STATUS_STYLES = {
@@ -788,6 +795,174 @@ function CreditHistory({ data }) {
   )
 }
 
+function ServiceJobHistory({ data }) {
+  const items = Array.isArray(data?.items) ? data.items : []
+
+  if (items.length === 0) return <EmptyHistory label="service & repair history" />
+
+  return (
+    <div className="space-y-2.5">
+      {items.map((job) => (
+        <article
+          className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs space-y-2 hover:border-slate-300 transition"
+          key={job.id}
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-bold text-[var(--color-maroon)]">{job.jobCode}</p>
+                {job.isQuickService ? (
+                  <span className="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.2 text-[9px] font-black text-amber-800 uppercase">
+                    ⚡ Quick Service
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-0.5 text-slate-800 font-bold">
+                {job.jobTitle || job.deviceDescription || "Service Repair"}
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Received: {formatDate(job.receivedAt, true)}
+                {job.assignedTechnician?.fullName ? ` · Tech: ${job.assignedTechnician.fullName}` : ""}
+              </p>
+            </div>
+            <div className="sm:text-right flex flex-col sm:items-end">
+              <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                <StatusBadge status={job.status} />
+                {job.releaseOutcome ? (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                    {formatWord(job.releaseOutcome)}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 font-mono font-black text-slate-900">
+                {formatMoney(job.finalServiceCharge)}
+              </p>
+              {job.releasedAt ? (
+                <p className="text-[10px] text-emerald-700 font-semibold">
+                  Released {formatDate(job.releasedAt)}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 grid gap-1.5 sm:grid-cols-2 text-[11px]">
+            {job.deviceDescription ? (
+              <div>
+                <span className="font-bold text-slate-400 uppercase text-[9px] block">Unit / Device:</span>
+                <span className="font-semibold text-slate-800">{job.deviceDescription}</span>
+                {job.serialNumber ? (
+                  <span className="ml-1 font-mono text-slate-500">({job.serialNumber})</span>
+                ) : null}
+              </div>
+            ) : null}
+            {job.problemDescription ? (
+              <div>
+                <span className="font-bold text-slate-400 uppercase text-[9px] block">Problem / Defect:</span>
+                <span className="font-semibold text-slate-800">{job.problemDescription}</span>
+              </div>
+            ) : null}
+            {job.diagnosis ? (
+              <div className="sm:col-span-2">
+                <span className="font-bold text-slate-400 uppercase text-[9px] block">Diagnosis:</span>
+                <span className="text-slate-700">{job.diagnosis}</span>
+              </div>
+            ) : null}
+            {job.serviceNotes ? (
+              <div className="sm:col-span-2">
+                <span className="font-bold text-slate-400 uppercase text-[9px] block">Service Notes:</span>
+                <span className="text-slate-700">{job.serviceNotes}</span>
+              </div>
+            ) : null}
+          </div>
+
+          {Array.isArray(job.payments) && job.payments.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 text-[10px]">
+              <span className="font-bold text-slate-400">Payments:</span>
+              {job.payments.map((p) => (
+                <span key={p.id} className="rounded bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-emerald-800 font-bold">
+                  {p.paymentMethod || "Payment"}: {formatMoney(p.amount)} ({p.status})
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </article>
+      ))}
+      {data.totalItems > items.length ? (
+        <p className="text-center text-[11px] font-semibold text-slate-400">
+          Showing latest {items.length} of {data.totalItems} service jobs.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function WarrantyClaimHistory({ data }) {
+  const items = Array.isArray(data?.items) ? data.items : []
+
+  if (items.length === 0) return <EmptyHistory label="warranty claim history" />
+
+  return (
+    <div className="space-y-2.5">
+      {items.map((claim) => (
+        <article
+          className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs text-xs space-y-2 hover:border-slate-300 transition"
+          key={claim.id}
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-bold text-[var(--color-maroon)]">{claim.claimCode}</p>
+              <p className="mt-0.5 text-slate-800 font-bold">
+                {claim.item?.name || "Product Item"}
+                {claim.serial?.serialNumber ? (
+                  <span className="ml-2 font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded">
+                    S/N: {claim.serial.serialNumber}
+                  </span>
+                ) : null}
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Claim Filed: {formatDate(claim.receivedAt, true)}
+                {claim.sale?.receiptCode ? ` · From Sale: ${claim.sale.receiptCode}` : ""}
+              </p>
+            </div>
+            <div className="sm:text-right flex flex-col sm:items-end">
+              <StatusBadge status={claim.status} />
+              {claim.releasedAt ? (
+                <p className="text-[10px] text-emerald-700 font-semibold mt-1">
+                  Released {formatDate(claim.releasedAt)}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 grid gap-1.5 sm:grid-cols-2 text-[11px]">
+            <div>
+              <span className="font-bold text-slate-400 uppercase text-[9px] block">Reported Defect:</span>
+              <span className="font-semibold text-slate-800">{claim.issueDescription || claim.customerComplaint || "—"}</span>
+            </div>
+            {claim.diagnosis ? (
+              <div>
+                <span className="font-bold text-slate-400 uppercase text-[9px] block">Diagnosis:</span>
+                <span className="text-slate-700">{claim.diagnosis}</span>
+              </div>
+            ) : null}
+            {claim.actionTaken ? (
+              <div className="sm:col-span-2">
+                <span className="font-bold text-slate-400 uppercase text-[9px] block">Resolution / Action:</span>
+                <span className="font-semibold text-emerald-800">{claim.actionTaken}</span>
+              </div>
+            ) : null}
+          </div>
+        </article>
+      ))}
+      {data.totalItems > items.length ? (
+        <p className="text-center text-[11px] font-semibold text-slate-400">
+          Showing latest {items.length} of {data.totalItems} warranty claims.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 
 function CustomerDetailModal({
   canManage,
@@ -799,7 +974,7 @@ function CustomerDetailModal({
 }) {
   const [customer, setCustomer] = useState(initialCustomer)
   const [history, setHistory] = useState(EMPTY_HISTORY)
-  const [activeTab, setActiveTab] = useState("quotations")
+  const [activeTab, setActiveTab] = useState("sales")
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const requestIdRef = useRef(0)
@@ -813,7 +988,7 @@ function CustomerDetailModal({
     try {
       const [customerResponse, historyResponse] = await Promise.all([
         getCustomerById(initialCustomer.id),
-        getCustomerHistory(initialCustomer.id, { limit: 10 }),
+        getCustomerHistory(initialCustomer.id, { limit: 50 }),
       ])
 
       if (requestId !== requestIdRef.current) return
@@ -846,9 +1021,11 @@ function CustomerDetailModal({
 
   const summary = history?.summary || EMPTY_HISTORY.summary
   const tabs = [
-    { id: "quotations", label: "Quotations", count: summary.quotationCount || 0 },
-    { id: "sales", label: "Sales", count: summary.saleCount || 0 },
-    { id: "credits", label: "Credits", count: summary.creditAccountCount || 0 },
+    { id: "sales", label: "Purchases & Invoices", icon: "🛒", count: summary.saleCount || 0 },
+    { id: "services", label: "Services & Repairs", icon: "🛠️", count: summary.serviceJobCount || 0 },
+    { id: "quotations", label: "Quotations", icon: "📄", count: summary.quotationCount || 0 },
+    { id: "credits", label: "Credit Accounts", icon: "💳", count: summary.creditAccountCount || 0 },
+    { id: "warranty", label: "Warranty Claims", icon: "🛡️", count: summary.warrantyClaimCount || 0 },
   ]
 
   return (
@@ -856,10 +1033,10 @@ function CustomerDetailModal({
       <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Customer Profile</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Customer Ledger</span>
             <StatusBadge status={customer.status} />
             <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-              Price {customer.priceTier || 1}
+              Price Tier {customer.priceTier || 1}
             </span>
           </div>
           <h2
@@ -920,14 +1097,15 @@ function CustomerDetailModal({
           </div>
         ) : null}
 
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Customer Profile Contact Strip */}
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs">
           <DetailValue icon={Building2} label="Branch">
             {customer.branch?.name
               ? `${customer.branch.code} · ${customer.branch.name}`
               : customer.branch?.code || "—"}
           </DetailValue>
           <DetailValue icon={Tag} label="Price Tier">
-            Price {customer.priceTier || 1}
+            Price Tier {customer.priceTier || 1}
           </DetailValue>
           <DetailValue icon={Phone} label="Mobile number">
             {customer.mobileNumber || "—"}
@@ -938,7 +1116,7 @@ function CustomerDetailModal({
           <DetailValue icon={Building2} label="Company">
             {customer.companyName || "—"}
           </DetailValue>
-          <div className="sm:col-span-1 lg:col-span-3">
+          <div className="sm:col-span-1 lg:col-span-1">
             <DetailValue icon={MapPin} label="Address">
               {customer.address || "—"}
             </DetailValue>
@@ -956,38 +1134,43 @@ function CustomerDetailModal({
           </div>
         ) : null}
 
+        {/* 360-Degree Lifetime Activity Stats */}
         <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-center">
-            <p className="text-[10px] font-bold uppercase text-slate-500">Quotations</p>
-            <p className="mt-0.5 text-base font-bold text-slate-900">
-              {summary.quotationCount || 0}
+          <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-red-50/30 p-3 shadow-2xs">
+            <p className="text-[10px] font-black uppercase text-slate-400">Total Lifetime Spent</p>
+            <p className="mt-0.5 text-lg font-black text-[var(--color-maroon)]">
+              {formatMoney(summary.totalLifetimeSpent || 0)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-center">
-            <p className="text-[10px] font-bold uppercase text-slate-500">Sales</p>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+            <p className="text-[10px] font-black uppercase text-slate-400">Purchases / Sales</p>
             <p className="mt-0.5 text-base font-bold text-slate-900">
-              {summary.saleCount || 0}
+              {summary.saleCount || 0} sale(s)
             </p>
+            <p className="text-[11px] text-slate-500 font-semibold">{formatMoney(summary.completedSalesTotal || 0)}</p>
           </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-center">
-            <p className="text-[10px] font-bold uppercase text-slate-500">Credit Accounts</p>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+            <p className="text-[10px] font-black uppercase text-slate-400">Repairs & Services</p>
             <p className="mt-0.5 text-base font-bold text-slate-900">
-              {summary.creditAccountCount || 0}
+              {summary.serviceJobCount || 0} job(s)
             </p>
+            <p className="text-[11px] text-slate-500 font-semibold">{formatMoney(summary.completedServicesTotal || 0)}</p>
           </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-2.5 text-center">
-            <p className="text-[10px] font-bold uppercase text-slate-500">Outstanding Credit</p>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+            <p className="text-[10px] font-black uppercase text-slate-400">Outstanding Credit</p>
             <p className="mt-0.5 text-base font-mono font-bold text-slate-900">
               {formatMoney(summary.outstandingCreditBalance)}
             </p>
+            <p className="text-[11px] text-slate-500 font-semibold">{summary.creditAccountCount || 0} account(s)</p>
           </div>
         </div>
 
-        <section>
+        {/* Transaction History Tabs */}
+        <section className="space-y-3">
           <div className="flex max-w-full gap-1.5 overflow-x-auto border-b border-slate-200 pb-2">
             {tabs.map((tab) => (
               <button
-                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                   activeTab === tab.id
                     ? "bg-[var(--color-maroon)] text-white shadow-2xs"
                     : "bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200"
@@ -996,22 +1179,26 @@ function CustomerDetailModal({
                 onClick={() => setActiveTab(tab.id)}
                 type="button"
               >
-                {tab.label} ({tab.count})
+                {tab.icon} {tab.label} ({tab.count})
               </button>
             ))}
           </div>
 
           <div className="mt-3">
             {errorMessage ? null : isLoading ? (
-              <div className="rounded-xl bg-slate-50 p-4 text-xs font-semibold text-slate-500 text-center">
-                Loading customer history…
+              <div className="rounded-xl bg-slate-50 p-6 text-xs font-semibold text-slate-500 text-center">
+                Loading complete customer transaction records…
               </div>
-            ) : activeTab === "quotations" ? (
-              <QuotationHistory data={history.quotations} />
             ) : activeTab === "sales" ? (
               <SalesHistory data={history.sales} />
-            ) : (
+            ) : activeTab === "services" ? (
+              <ServiceJobHistory data={history.serviceJobs} />
+            ) : activeTab === "quotations" ? (
+              <QuotationHistory data={history.quotations} />
+            ) : activeTab === "credits" ? (
               <CreditHistory data={history.creditAccounts} />
+            ) : (
+              <WarrantyClaimHistory data={history.warrantyClaims} />
             )}
           </div>
         </section>
