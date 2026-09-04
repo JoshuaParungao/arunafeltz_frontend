@@ -28,6 +28,16 @@ function formatMoney(value) {
   })
 }
 
+function extractSerialRows(response) {
+  if (Array.isArray(response)) return response
+  if (Array.isArray(response?.data?.data)) return response.data.data
+  if (Array.isArray(response?.data?.items)) return response.data.items
+  if (Array.isArray(response?.data?.records)) return response.data.records
+  if (Array.isArray(response?.data)) return response.data
+  if (Array.isArray(response?.items)) return response.items
+  return []
+}
+
 function StatusBadge({ status }) {
   const styles = {
     REQUESTED: "bg-amber-50 text-amber-700",
@@ -287,20 +297,35 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
         )
 
         if (serializedLines.length > 0) {
+          const fromBranchId = detail.fromBranchId || detail.fromBranch?.id || transfer.fromBranchId || transfer.fromBranch?.id
           const itemsWithSerials = await Promise.all(
             serializedLines.map(async (line) => {
               const itemId = line.itemId || line.item?.id
               const serialRes = await getInventorySerials({
-                branchId: detail.fromBranchId,
+                branchId: fromBranchId,
                 itemId,
                 status: "AVAILABLE",
                 limit: 100,
               })
-              const serialRows = Array.isArray(serialRes?.data?.items)
-                ? serialRes.data.items
-                : Array.isArray(serialRes?.data)
-                ? serialRes.data
-                : []
+              let serialRows = extractSerialRows(serialRes)
+
+              // Fallback: if no serials returned by itemId, try fetching by branchId + search itemCode
+              if (serialRows.length === 0 && (line.item?.itemCode || line.itemCode)) {
+                try {
+                  const fallbackRes = await getInventorySerials({
+                    branchId: fromBranchId,
+                    search: line.item?.itemCode || line.itemCode,
+                    status: "AVAILABLE",
+                    limit: 100,
+                  })
+                  const fallbackRows = extractSerialRows(fallbackRes)
+                  if (fallbackRows.length > 0) {
+                    serialRows = fallbackRows
+                  }
+                } catch {
+                  // ignore fallback error
+                }
+              }
 
               return {
                 stockTransferItemId: line.id,
