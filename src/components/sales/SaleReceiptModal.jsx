@@ -267,6 +267,11 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                   <span className="font-bold text-slate-600">Customer:</span>
                   <span className="col-span-2 font-bold uppercase">
                     {sale.customer?.fullName || "WALK-IN CUSTOMER"}
+                    {sale.customer?.companyName ? (
+                      <span className="ml-1.5 text-slate-500 font-semibold normal-case">
+                        ({sale.customer.companyName})
+                      </span>
+                    ) : null}
                   </span>
 
                   <span className="font-bold text-slate-600">Address:</span>

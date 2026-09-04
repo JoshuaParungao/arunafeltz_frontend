@@ -375,12 +375,16 @@ function SaleDetailDialog({
     sale?.customer?.mobileNumber || sale?.customer?.phone || ""
   )
   const [previewCustomerEmail, setPreviewCustomerEmail] = useState(sale?.customer?.email || "")
+  const [previewCustomerCompany, setPreviewCustomerCompany] = useState(sale?.customer?.companyName || "")
+  const [checkoutError, setCheckoutError] = useState("")
 
   useEffect(() => {
     setPreviewCustomerName(sale?.customer?.fullName || "")
     setPreviewCustomerAddress(sale?.customer?.address || "")
     setPreviewCustomerPhone(sale?.customer?.mobileNumber || sale?.customer?.phone || "")
     setPreviewCustomerEmail(sale?.customer?.email || "")
+    setPreviewCustomerCompany(sale?.customer?.companyName || "")
+    setCheckoutError("")
   }, [sale])
 
   useEffect(() => {
@@ -466,12 +470,30 @@ function SaleDetailDialog({
   const balanceToPay = Math.max(0, totalAmount - paidAmount)
 
   const handleConfirmCheckout = () => {
+    setCheckoutError("")
+
+    if (!previewCustomerName.trim()) {
+      setCheckoutError("Customer Full Name is required before completing the sale.")
+      return
+    }
+
+    if (!previewCustomerPhone.trim()) {
+      setCheckoutError("Contact / Mobile No. is required for the warranty receipt.")
+      return
+    }
+
+    if (!previewCustomerAddress.trim()) {
+      setCheckoutError("Address (Street, City, Province) is required for the warranty receipt.")
+      return
+    }
+
     if (onConfirmCheckout) {
       onConfirmCheckout({
-        customerName: previewCustomerName,
-        customerAddress: previewCustomerAddress,
-        customerPhone: previewCustomerPhone,
-        customerEmail: previewCustomerEmail,
+        customerName: previewCustomerName.trim(),
+        customerAddress: previewCustomerAddress.trim(),
+        customerPhone: previewCustomerPhone.trim(),
+        customerEmail: previewCustomerEmail.trim(),
+        customerCompany: previewCustomerCompany.trim() || undefined,
       })
     }
   }
@@ -566,7 +588,7 @@ function SaleDetailDialog({
                       Customer Information for Warranty Receipt
                     </h3>
                     <p className="text-[11px] text-amber-800">
-                      You can enter or update the customer address and contact number before finalizing.
+                      Please ensure contact number and complete address are provided before finalizing.
                     </p>
                   </div>
                 </div>
@@ -575,7 +597,14 @@ function SaleDetailDialog({
                 </span>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3 text-xs">
+              {checkoutError ? (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 p-2.5 text-xs font-bold text-red-700">
+                  <AlertCircle className="shrink-0" size={15} />
+                  <span>{checkoutError}</span>
+                </div>
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-1">
                     Customer Full Name <span className="text-red-500">*</span>
@@ -583,32 +612,56 @@ function SaleDetailDialog({
                   <input
                     className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
                     value={previewCustomerName}
-                    onChange={(e) => setPreviewCustomerName(e.target.value)}
+                    onChange={(e) => {
+                      setPreviewCustomerName(e.target.value)
+                      if (checkoutError) setCheckoutError("")
+                    }}
                     placeholder="e.g. Juan Dela Cruz"
+                    required
                   />
                 </label>
 
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-1">
-                    Contact / Mobile No.
+                    Contact / Mobile No. <span className="text-red-500">*</span>
                   </span>
                   <input
                     className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
                     value={previewCustomerPhone}
-                    onChange={(e) => setPreviewCustomerPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPreviewCustomerPhone(e.target.value)
+                      if (checkoutError) setCheckoutError("")
+                    }}
                     placeholder="e.g. 0917-123-4567 / 0961-873-5798"
+                    required
                   />
                 </label>
 
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-1">
-                    Address (Street, City, Province)
+                    Address (Street, City, Province) <span className="text-red-500">*</span>
                   </span>
                   <input
                     className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
                     value={previewCustomerAddress}
-                    onChange={(e) => setPreviewCustomerAddress(e.target.value)}
+                    onChange={(e) => {
+                      setPreviewCustomerAddress(e.target.value)
+                      if (checkoutError) setCheckoutError("")
+                    }}
                     placeholder="e.g. Brgy. San Isidro, CSFP"
+                    required
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-1">
+                    Company <span className="text-slate-500 font-normal">(Optional)</span>
+                  </span>
+                  <input
+                    className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
+                    value={previewCustomerCompany}
+                    onChange={(e) => setPreviewCustomerCompany(e.target.value)}
+                    placeholder="e.g. Company / Business Name"
                   />
                 </label>
               </div>
@@ -651,6 +704,11 @@ function SaleDetailDialog({
                     <span className="font-bold text-slate-600">Customer Name:</span>
                     <span className="col-span-2 font-bold uppercase">
                       {(isCheckoutPreview ? previewCustomerName : sale.customer?.fullName) || "WALK-IN CUSTOMER"}
+                      {(isCheckoutPreview ? previewCustomerCompany : sale.customer?.companyName) ? (
+                        <span className="ml-1.5 text-slate-500 font-semibold normal-case">
+                          ({isCheckoutPreview ? previewCustomerCompany : sale.customer?.companyName})
+                        </span>
+                      ) : null}
                     </span>
 
                     <span className="font-bold text-slate-600">Address:</span>
@@ -2446,6 +2504,9 @@ function PosSalesPage({ selectedBranch, user }) {
     const effectivePhone = (
       overrideCustomerDetails?.customerPhone ?? customerPhone
     ).trim()
+    const effectiveCompany = (
+      overrideCustomerDetails?.customerCompany ?? customerCompany ?? ""
+    ).trim()
     const effectiveEmail = (
       overrideCustomerDetails?.customerEmail ?? customerEmail
     ).trim()
@@ -2475,6 +2536,7 @@ function PosSalesPage({ selectedBranch, user }) {
             fullName: effectiveName || undefined,
             address: effectiveAddress || null,
             mobileNumber: effectivePhone || null,
+            companyName: effectiveCompany || null,
             email: effectiveEmail || null,
           })
         } catch (updateErr) {
@@ -2491,6 +2553,7 @@ function PosSalesPage({ selectedBranch, user }) {
             await updateCustomerById(existingMatch.id, {
               address: effectiveAddress || null,
               mobileNumber: effectivePhone || null,
+              companyName: effectiveCompany || null,
               email: effectiveEmail || null,
             })
           } catch (updateErr) {
@@ -2505,6 +2568,7 @@ function PosSalesPage({ selectedBranch, user }) {
               fullName: effectiveName,
               address: effectiveAddress || undefined,
               mobileNumber: effectivePhone || undefined,
+              companyName: effectiveCompany || undefined,
               email: effectiveEmail || undefined,
               branchId,
               priceTier: selectedPriceTier || 1,
@@ -2523,6 +2587,7 @@ function PosSalesPage({ selectedBranch, user }) {
       setCustomerSearch(effectiveName)
       setCustomerAddress(effectiveAddress)
       setCustomerPhone(effectivePhone)
+      setCustomerCompany(effectiveCompany)
       setCustomerEmail(effectiveEmail)
 
       const settlementAmount = Number(effectivePaymentAmount || 0)
@@ -2648,6 +2713,7 @@ function PosSalesPage({ selectedBranch, user }) {
           fullName: effectiveName || sale.customer?.fullName || "Walk-in Customer",
           address: effectiveAddress || sale.customer?.address || null,
           mobileNumber: effectivePhone || sale.customer?.mobileNumber || null,
+          companyName: effectiveCompany || sale.customer?.companyName || null,
           email: effectiveEmail || sale.customer?.email || null,
         },
         creditAccount: isReceivableCheckout
