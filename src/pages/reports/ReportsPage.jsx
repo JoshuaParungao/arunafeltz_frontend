@@ -239,7 +239,7 @@ const REPORTS = Object.freeze({
       ["Serial Number", (row) => row.serialNumber || "—"],
       ["Units Lost", (row) => `${number(row.quantity)} ${row.unit}`],
       ["Unit Cost", (row) => peso(row.unitCost)],
-      ["Total Loss Money (₱)", (row) => peso(row.totalLossMoney)],
+      ["Total Loss Money", (row) => peso(row.totalLossMoney)],
       ["Reason / Remarks", (row) => row.reason],
       ["Adjusted By", (row) => row.adjustedBy],
       ["Branch", (row) => row.branch?.code || "—"],
@@ -569,46 +569,141 @@ export default function ReportsPage({ selectedBranch, user }) {
     setErrorMessage("")
 
     try {
-      const selectedReportBranch = branches.find(
-        (branch) => branch.id === reportBranchId,
-      )
+      const exportRecords = []
+      let exportPage = 1
+      let exportTotalPages = 1
+      let exportReportData = result?.data?.report || {}
 
-      const exportParams = {
-        ...(reportBranchId ? { branchId: reportBranchId } : {}),
-        ...(status ? { [config.statusParam || "status"]: status } : {}),
-        ...(dateFrom ? { dateFrom } : {}),
-        ...(dateTo ? { dateTo } : {}),
-        ...(config.supportsSearch && search.trim() ? { search: search.trim() } : {}),
-        ...(reportKey === "services" && isQuickService ? { isQuickService } : {}),
-        ...(reportKey === "services" && releaseOutcome ? { releaseOutcome } : {}),
-        ...(reportKey === "services" && releasedOnly ? { releasedOnly } : {}),
-        ...(reportKey === "incentiveClaims" && incentiveClassification
-          ? { classification: incentiveClassification }
-          : {}),
-        page: 1,
-        limit: 1000,
-      }
+      do {
+        const response = await getReport(reportKey, {
+          ...(reportBranchId ? { branchId: reportBranchId } : {}),
+          ...(status ? { [config.statusParam || "status"]: status } : {}),
+          ...(dateFrom ? { dateFrom } : {}),
+          ...(dateTo ? { dateTo } : {}),
+          ...(config.supportsSearch && search.trim()
+            ? { search: search.trim() }
+            : {}),
+          ...(reportKey === "services" && isQuickService
+            ? { isQuickService }
+            : {}),
+          ...(reportKey === "services" && releaseOutcome
+            ? { releaseOutcome }
+            : {}),
+          ...(reportKey === "services" && releasedOnly
+            ? { releasedOnly }
+            : {}),
+          ...(reportKey === "incentiveClaims" &&
+          incentiveClassification
+            ? { classification: incentiveClassification }
+            : {}),
+          page: exportPage,
+          limit: 100,
+        })
 
-      const response = await getReport(reportKey, exportParams)
-      const exportRecords = response?.data?.records || []
-      const exportTotals = Object.entries(
-        response?.data?.report?.totals || {},
-      ).map(([key, value]) => [
-        labelForKey(key),
-        MONEY_KEY.test(key) ? peso(value) : number(value),
-      ])
+        const pageRecords = Array.isArray(
+          response?.data?.records,
+        )
+          ? response.data.records
+          : []
 
-      const exportFilters = []
+        exportRecords.push(...pageRecords)
+
+        if (response?.data?.report) {
+          exportReportData = response.data.report
+        }
+
+        exportTotalPages = Math.max(
+          1,
+          Number(response?.meta?.totalPages || 1),
+        )
+
+        exportPage += 1
+      } while (exportPage <= exportTotalPages)
+
+      const selectedReportBranch = reportBranchId
+        ? branches.find(
+            (branch) => branch.id === reportBranchId,
+          ) ||
+          (selectedBranch?.id === reportBranchId
+            ? selectedBranch
+            : user?.branch?.id === reportBranchId
+              ? user.branch
+              : null)
+        : null
+
+      const rawTotals = exportReportData?.totals || {}
+
+      const exportTotals = Object.entries(rawTotals)
+        .filter(([, value]) => typeof value === "number")
+        .map(([key, value]) => [
+          labelForKey(key),
+          MONEY_KEY.test(key) ? peso(value) : number(value),
+        ])
+
+      const exportFilters = [
+        ["Report", config.label],
+        [
+          "Status",
+          status
+            ? status.replaceAll("_", " ")
+            : config.filterLabel || "All statuses",
+        ],
+        ["Date from", dateFrom || "Beginning"],
+        ["Date to", dateTo || "Latest"],
+      ]
+
       if (selectedReportBranch) {
         exportFilters.push([
           "Branch",
           `${selectedReportBranch.code} - ${selectedReportBranch.name}`,
         ])
       }
-      if (status) exportFilters.push(["Status", status])
-      if (dateFrom) exportFilters.push(["From", dateFrom])
-      if (dateTo) exportFilters.push(["To", dateTo])
-      if (search.trim()) exportFilters.push(["Search", search.trim()])
+
+      if (config.supportsSearch && search.trim()) {
+        exportFilters.push([
+          "Search",
+          search.trim(),
+        ])
+      }
+
+      if (reportKey === "services") {
+        exportFilters.push(
+          [
+            "Service type",
+            isQuickService === "true"
+              ? "Quick services only"
+              : isQuickService === "false"
+                ? "Standard jobs only"
+                : "All standard and quick jobs",
+          ],
+          [
+            "Release outcome",
+            releaseOutcome
+              ? releaseOutcome.replaceAll("_", " ")
+              : "All release outcomes",
+          ],
+          [
+            "Release state",
+            releasedOnly === "true"
+              ? "Released only"
+              : releasedOnly === "false"
+                ? "Not released only"
+                : "All release states",
+          ],
+        )
+      }
+
+      if (reportKey === "incentiveClaims" && incentiveClassification) {
+        exportFilters.push([
+          "Incentive classification",
+          incentiveClassification.replaceAll("_", " "),
+        ])
+      }
+
+      exportFilters.push([
+        "Matching records",
+        number(exportRecords.length),
+      ])
 
       exportReportExcel({
         label: config.label,

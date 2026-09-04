@@ -6,6 +6,7 @@ const MAROON = [122, 31, 43]
 const DARK = [31, 41, 55]
 const MUTED = [100, 116, 139]
 const BORDER = [226, 232, 240]
+const BG_LIGHT = [248, 250, 252]
 
 const INSTALLMENT_TERM_MONTHS = {
   STRAIGHT: 1,
@@ -17,13 +18,66 @@ const INSTALLMENT_TERM_MONTHS = {
   MONTH_24: 24,
 }
 
+/**
+ * Universal Sanitizer for PDF Text Rendering.
+ * Strips/normalizes Unicode glyphs that break jsPDF WinAnsiEncoding into '+++' or corrupted characters.
+ */
+export function sanitizeForPdf(value) {
+  if (value === null || value === undefined) return ""
+  let str = String(value)
+
+  // Replace Philippine Peso sign
+  str = str.replace(/₱/g, "PHP ")
+
+  // Replace various dashes with standard ASCII hyphen
+  str = str.replace(/[\u2010\u2012\u2013\u2014\u2015\u2212]/g, " - ")
+
+  // Replace bullets and list marks
+  str = str.replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, "-")
+
+  // Replace smart quotes and primes
+  str = str.replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+  str = str.replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"')
+
+  // Replace ellipsis
+  str = str.replace(/\u2026/g, "...")
+
+  // Replace non-breaking spaces & thin spaces
+  str = str.replace(/[\u00A0\u202F\u2007\u200B]/g, " ")
+
+  // Remove any remaining unsupported non-ASCII control characters that cause jsPDF artifacts
+  str = str.replace(/[^\x20-\x7E\r\n\t]/g, "")
+
+  // Normalize duplicate spaces
+  str = str.replace(/ {2,}/g, " ").trim()
+
+  return str
+}
+
+/**
+ * Universal Sanitizer for Excel (XLSX/CSV) Text.
+ */
+export function sanitizeExcelText(value) {
+  if (value === null || value === undefined) return ""
+  let str = String(value)
+
+  str = str.replace(/₱/g, "PHP ")
+  str = str.replace(/[\u2010\u2012\u2013\u2014\u2015\u2212]/g, " - ")
+  str = str.replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, "-")
+  str = str.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"')
+  str = str.replace(/[\u00A0\u202F\u2007\u200B]/g, " ")
+  str = str.replace(/ {2,}/g, " ").trim()
+
+  return str
+}
+
 function number(value) {
   const parsed = Number(value || 0)
   return Number.isFinite(parsed) ? parsed : 0
 }
 
 function text(value, fallback = "-") {
-  const normalized = String(value ?? "").trim()
+  const normalized = sanitizeForPdf(value)
   return normalized || fallback
 }
 
@@ -69,28 +123,28 @@ function dateTimeText(value = new Date()) {
 }
 
 function branchText(branch) {
-  if (!branch) return "All / Unspecified branch"
+  if (!branch) return "All Branches / Consolidated"
 
-  const code = text(branch.code, "")
-  const name = text(branch.name, "")
+  const code = sanitizeForPdf(branch.code || "")
+  const name = sanitizeForPdf(branch.name || "")
 
   if (code && name) return `${code} - ${name}`
-  return code || name || "Unspecified branch"
+  return code || name || "All Branches / Consolidated"
 }
 
 function generatedByText(user) {
-  return (
+  return sanitizeForPdf(
     user?.fullName ||
     user?.name ||
     user?.username ||
     user?.email ||
-    "Arunafeltz Computer user"
+    "Arunafeltz Computer User"
   )
 }
 
 function cleanFilename(value) {
   return String(value || "document")
-    .replace(/[<>:"/\\|?*]+/g, "-")
+    .replace(/[<>:"/\\|?*₱]+/g, "-")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
 }
@@ -104,20 +158,70 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;")
 }
 
+function getColumnAlignment(columnLabel = "") {
+  const label = String(columnLabel).toLowerCase()
+
+  // Monetary and financial amounts -> right align
+  if (
+    /(amount|charge|price|cost|revenue|margin|total|discount|balance|value|incentive|elimination|basis|grand|loss|paid|originated|effect|commission|refund|subtotal)/i.test(
+      label
+    )
+  ) {
+    return "right"
+  }
+
+  // Numerical counts and quantities -> right align
+  if (
+    /(qty|quantity|count|units|batches|serials|available|ordered|received|lost|reorder)/i.test(
+      label
+    )
+  ) {
+    return "right"
+  }
+
+  // Codes, dates, and short statuses -> center align
+  if (
+    /(date|status|code|po|receiving|job|claim|receipt|transfer|movement|branch|quick|role|type|next due|expiry|serial)/i.test(
+      label
+    )
+  ) {
+    return "center"
+  }
+
+  return "left"
+}
+
 function normalizeDocument(config) {
   return {
-    title: config.title || "Business Document",
-    reference: config.reference || "",
-    status: config.status || "",
-    branch: config.branch || "",
-    generatedBy: config.generatedBy || "",
+    title: sanitizeForPdf(config.title || "Business Document"),
+    reference: sanitizeForPdf(config.reference || ""),
+    status: sanitizeForPdf(config.status || ""),
+    branch: sanitizeForPdf(config.branch || ""),
+    generatedBy: sanitizeForPdf(config.generatedBy || ""),
     generatedAt: config.generatedAt || new Date(),
-    meta: Array.isArray(config.meta) ? config.meta : [],
-    columns: Array.isArray(config.columns) ? config.columns : [],
-    rows: Array.isArray(config.rows) ? config.rows : [],
-    totals: Array.isArray(config.totals) ? config.totals : [],
+    meta: Array.isArray(config.meta)
+      ? config.meta.map(([k, v]) => [sanitizeForPdf(k), sanitizeForPdf(v)])
+      : [],
+    columns: Array.isArray(config.columns)
+      ? config.columns.map((c) => sanitizeForPdf(c))
+      : [],
+    rows: Array.isArray(config.rows)
+      ? config.rows.map((row) =>
+          Array.isArray(row)
+            ? row.map((cell) => sanitizeForPdf(cell))
+            : [sanitizeForPdf(row)]
+        )
+      : [],
+    totals: Array.isArray(config.totals)
+      ? config.totals.map(([k, v]) => [sanitizeForPdf(k), sanitizeForPdf(v)])
+      : [],
     notes: Array.isArray(config.notes)
-      ? config.notes.filter((entry) => String(entry?.value || "").trim())
+      ? config.notes
+          .filter((entry) => String(entry?.value || "").trim())
+          .map((entry) => ({
+            label: sanitizeForPdf(entry.label || "Notes"),
+            value: sanitizeForPdf(entry.value),
+          }))
       : [],
     filename: cleanFilename(config.filename || config.reference || config.title),
     orientation: config.orientation || "portrait",
@@ -136,60 +240,105 @@ export function exportBusinessPdf(rawConfig) {
   const margin = 12
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
+  const contentWidth = pageWidth - margin * 2
 
+  // 1. TOP CORPORATE HEADER
   doc.setTextColor(...MAROON)
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(18)
-  doc.text("Arunafeltz Computer", margin, 16)
+  doc.setFontSize(16)
+  doc.text("ARUNAFELTZ COMPUTER PARTS & ACCESSORIES", margin, 15)
 
   doc.setTextColor(...MUTED)
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
-  doc.text("Cloud POS and Business Monitoring", margin, 21)
+  doc.text("Enterprise Cloud POS, Inventory & Business Monitoring System", margin, 20)
 
+  // Accent Line
+  doc.setLineWidth(0.4)
+  doc.setDrawColor(...MAROON)
+  doc.line(margin, 23, pageWidth - margin, 23)
+
+  // 2. DOCUMENT TITLE & SUB-BANNER
   doc.setTextColor(...DARK)
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(14)
-  doc.text(config.title, margin, 31)
+  doc.setFontSize(13)
+  doc.text(config.title.toUpperCase(), margin, 31)
 
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(9)
-
-  let y = 38
-
+  // 3. STRUCTURED METADATA GRID (Compact 2-Column Box)
   const headerMeta = [
-    ...(config.reference
-      ? [["Reference", config.reference]]
-      : []),
-    ...(config.status
-      ? [["Status", config.status]]
-      : []),
-    ...(config.branch
-      ? [["Branch", config.branch]]
-      : []),
+    ...(config.reference ? [["Reference / Code", config.reference]] : []),
+    ...(config.branch ? [["Branch Scope", config.branch]] : []),
+    ...(config.status ? [["Status", config.status]] : []),
     ...config.meta,
   ]
 
-  for (const [label, value] of headerMeta) {
-    doc.setTextColor(...MUTED)
-    doc.setFont("helvetica", "bold")
-    doc.text(`${text(label)}:`, margin, y)
+  let y = 35
 
-    doc.setTextColor(...DARK)
-    doc.setFont("helvetica", "normal")
+  if (headerMeta.length > 0) {
+    const halfWidth = (contentWidth - 6) / 2
+    const metaBoxPadding = 3
+    const rowHeight = 4.5
+    const metaRowsCount = Math.ceil(headerMeta.length / 2)
+    const boxHeight = metaRowsCount * rowHeight + metaBoxPadding * 2
 
-    const wrapped = doc.splitTextToSize(
-      text(value),
-      pageWidth - margin * 2 - 37,
-    )
+    // Background Card for Meta
+    doc.setFillColor(...BG_LIGHT)
+    doc.setDrawColor(...BORDER)
+    doc.setLineWidth(0.2)
+    doc.roundedRect(margin, y, contentWidth, boxHeight, 1.5, 1.5, "FD")
 
-    doc.text(wrapped, margin + 37, y)
+    let currentMetaY = y + metaBoxPadding + 3.5
 
-    y += Math.max(5, wrapped.length * 4)
+    for (let i = 0; i < headerMeta.length; i += 2) {
+      // Left Column
+      const [lbl1, val1] = headerMeta[i]
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(7.5)
+      doc.setTextColor(...MUTED)
+      doc.text(`${lbl1}:`, margin + 3, currentMetaY)
+
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(...DARK)
+      const val1Wrapped = doc.splitTextToSize(String(val1 || "-"), halfWidth - 30)
+      doc.text(val1Wrapped, margin + 30, currentMetaY)
+
+      // Right Column (if exists)
+      if (i + 1 < headerMeta.length) {
+        const [lbl2, val2] = headerMeta[i + 1]
+        const col2X = margin + halfWidth + 6
+        doc.setFont("helvetica", "bold")
+        doc.setTextColor(...MUTED)
+        doc.text(`${lbl2}:`, col2X, currentMetaY)
+
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(...DARK)
+        const val2Wrapped = doc.splitTextToSize(String(val2 || "-"), halfWidth - 30)
+        doc.text(val2Wrapped, col2X + 27, currentMetaY)
+      }
+
+      currentMetaY += rowHeight
+    }
+
+    y += boxHeight + 4
+  } else {
+    y += 4
   }
 
-  y += 2
+  // 4. COLUMN STYLING & ALIGNMENT CONFIGURATION
+  const columnStyles = {}
+  config.columns.forEach((col, index) => {
+    const align = getColumnAlignment(col)
+    columnStyles[index] = {
+      halign: align,
+      fontStyle: align === "right" ? "bold" : "normal",
+    }
+  })
 
+  const isWide = config.columns.length >= 8
+  const tableFontSize = isWide ? 6.8 : config.columns.length >= 6 ? 7.2 : 7.8
+  const cellPadding = isWide ? 1.6 : 2.0
+
+  // 5. MAIN DATA TABLE (AutoTable)
   autoTable(doc, {
     startY: y,
     head: [config.columns],
@@ -201,8 +350,8 @@ export function exportBusinessPdf(rawConfig) {
     },
     styles: {
       font: "helvetica",
-      fontSize: 7.5,
-      cellPadding: 2.2,
+      fontSize: tableFontSize,
+      cellPadding: cellPadding,
       textColor: DARK,
       lineColor: BORDER,
       lineWidth: 0.15,
@@ -214,45 +363,60 @@ export function exportBusinessPdf(rawConfig) {
       textColor: [255, 255, 255],
       fontStyle: "bold",
       lineColor: MAROON,
+      lineWidth: 0.2,
+      fontSize: tableFontSize + 0.5,
     },
+    columnStyles,
     alternateRowStyles: {
-      fillColor: [248, 250, 252],
+      fillColor: BG_LIGHT,
     },
   })
 
-  let cursorY = (doc.lastAutoTable?.finalY || y) + 7
+  let cursorY = (doc.lastAutoTable?.finalY || y) + 6
 
-  if (config.totals.length) {
-    const totalLabelX = pageWidth - margin - 55
-    const totalValueX = pageWidth - margin
+  // 6. TOTALS / SUMMARY CARD
+  if (config.totals.length > 0) {
+    const summaryWidth = Math.min(110, contentWidth * 0.55)
+    const summaryX = pageWidth - margin - summaryWidth
+    const rowH = 5
+    const totalBoxHeight = config.totals.length * rowH + 6
+
+    if (cursorY + totalBoxHeight > pageHeight - 25) {
+      doc.addPage()
+      cursorY = 16
+    }
+
+    // Background Card for Totals
+    doc.setFillColor(...BG_LIGHT)
+    doc.setDrawColor(...BORDER)
+    doc.setLineWidth(0.2)
+    doc.roundedRect(summaryX, cursorY, summaryWidth, totalBoxHeight, 1.5, 1.5, "FD")
+
+    let tY = cursorY + 4.5
 
     for (const [label, value] of config.totals) {
-      if (cursorY > pageHeight - 30) {
-        doc.addPage()
-        cursorY = 18
-      }
-
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setFont("helvetica", "bold")
       doc.setTextColor(...MUTED)
-      doc.text(text(label), totalLabelX, cursorY)
+      doc.text(text(label), summaryX + 4, tY)
 
       doc.setTextColor(...DARK)
-      doc.text(text(value), totalValueX, cursorY, {
+      doc.text(text(value), summaryX + summaryWidth - 4, tY, {
         align: "right",
       })
 
-      cursorY += 5
+      tY += rowH
     }
+
+    cursorY += totalBoxHeight + 4
   }
 
-  if (config.notes.length) {
-    cursorY += 4
-
+  // 7. NOTES & REMARKS SECTION
+  if (config.notes.length > 0) {
     for (const note of config.notes) {
       if (cursorY > pageHeight - 35) {
         doc.addPage()
-        cursorY = 18
+        cursorY = 16
       }
 
       doc.setFont("helvetica", "bold")
@@ -265,48 +429,36 @@ export function exportBusinessPdf(rawConfig) {
       doc.setFont("helvetica", "normal")
       doc.setTextColor(...DARK)
 
-      const wrapped = doc.splitTextToSize(
-        text(note.value),
-        pageWidth - margin * 2,
-      )
-
+      const wrapped = doc.splitTextToSize(text(note.value), contentWidth)
       doc.text(wrapped, margin, cursorY)
       cursorY += wrapped.length * 4 + 4
     }
   }
 
+  // 8. MULTI-PAGE NUMBERING & PROFESSIONAL FOOTER
   const pageCount = doc.getNumberOfPages()
 
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     doc.setPage(pageNumber)
 
     doc.setDrawColor(...BORDER)
-    doc.line(
-      margin,
-      pageHeight - 12,
-      pageWidth - margin,
-      pageHeight - 12,
-    )
+    doc.setLineWidth(0.2)
+    doc.line(margin, pageHeight - 11, pageWidth - margin, pageHeight - 11)
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7)
     doc.setTextColor(...MUTED)
 
-    doc.text(
-      `Generated by ${config.generatedBy || "Arunafeltz Computer"} - ${dateTimeText(
-        config.generatedAt,
-      )}`,
-      margin,
-      pageHeight - 7,
-    )
+    const genText = `Generated by ${config.generatedBy || "Arunafeltz User"} | ${dateTimeText(
+      config.generatedAt
+    )} | Official Arunafeltz Report`
+    doc.text(genText, margin, pageHeight - 6.5)
 
     doc.text(
       `Page ${pageNumber} of ${pageCount}`,
       pageWidth - margin,
-      pageHeight - 7,
-      {
-        align: "right",
-      },
+      pageHeight - 6.5,
+      { align: "right" }
     )
   }
 
@@ -316,11 +468,7 @@ export function exportBusinessPdf(rawConfig) {
 export function printBusinessDocument(rawConfig) {
   const config = normalizeDocument(rawConfig)
 
-  const popup = window.open(
-    "",
-    "_blank",
-    "width=1100,height=800",
-  )
+  const popup = window.open("", "_blank", "width=1100,height=800")
 
   if (!popup) {
     window.alert("Please allow pop-ups to print this document.")
@@ -328,15 +476,9 @@ export function printBusinessDocument(rawConfig) {
   }
 
   const metaRows = [
-    ...(config.reference
-      ? [["Reference", config.reference]]
-      : []),
-    ...(config.status
-      ? [["Status", config.status]]
-      : []),
-    ...(config.branch
-      ? [["Branch", config.branch]]
-      : []),
+    ...(config.reference ? [["Reference", config.reference]] : []),
+    ...(config.status ? [["Status", config.status]] : []),
+    ...(config.branch ? [["Branch", config.branch]] : []),
     ...config.meta,
   ]
 
@@ -348,11 +490,9 @@ export function printBusinessDocument(rawConfig) {
     .map(
       (row) => `
         <tr>
-          ${row
-            .map((cell) => `<td>${escapeHtml(cell)}</td>`)
-            .join("")}
+          ${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}
         </tr>
-      `,
+      `
     )
     .join("")
 
@@ -363,7 +503,7 @@ export function printBusinessDocument(rawConfig) {
           <strong>${escapeHtml(label)}</strong>
           <span>${escapeHtml(value)}</span>
         </div>
-      `,
+      `
     )
     .join("")
 
@@ -374,7 +514,7 @@ export function printBusinessDocument(rawConfig) {
           <strong>${escapeHtml(label)}</strong>
           <strong>${escapeHtml(value)}</strong>
         </div>
-      `,
+      `
     )
     .join("")
 
@@ -385,7 +525,7 @@ export function printBusinessDocument(rawConfig) {
           <strong>${escapeHtml(note.label)}</strong>
           <p>${escapeHtml(note.value)}</p>
         </section>
-      `,
+      `
     )
     .join("")
 
@@ -414,7 +554,7 @@ export function printBusinessDocument(rawConfig) {
 
           .company {
             color: #7a1f2b;
-            font-size: 23px;
+            font-size: 20px;
             font-weight: 800;
           }
 
@@ -425,15 +565,19 @@ export function printBusinessDocument(rawConfig) {
           }
 
           h1 {
-            margin: 18px 0 10px;
-            font-size: 20px;
+            margin: 14px 0 10px;
+            font-size: 17px;
           }
 
           .meta {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 7px 18px;
-            margin-bottom: 16px;
+            gap: 6px 16px;
+            margin-bottom: 14px;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
           }
 
           .meta-row {
@@ -452,7 +596,7 @@ export function printBusinessDocument(rawConfig) {
           }
 
           th {
-            padding: 8px;
+            padding: 7px 8px;
             background: #7a1f2b;
             color: white;
             border: 1px solid #7a1f2b;
@@ -461,9 +605,14 @@ export function printBusinessDocument(rawConfig) {
           }
 
           td {
-            padding: 7px 8px;
+            padding: 6px 8px;
             border: 1px solid #e2e8f0;
             vertical-align: top;
+            font-size: 9.5px;
+          }
+
+          tr:nth-child(even) {
+            background-color: #f8fafc;
           }
 
           tr {
@@ -471,19 +620,23 @@ export function printBusinessDocument(rawConfig) {
           }
 
           .totals {
-            width: 310px;
-            margin: 16px 0 0 auto;
+            width: 320px;
+            margin: 14px 0 0 auto;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
           }
 
           .total-row {
             display: flex;
             justify-content: space-between;
             gap: 20px;
-            padding: 4px 0;
+            padding: 3px 0;
           }
 
           .note {
-            margin-top: 16px;
+            margin-top: 14px;
           }
 
           .note strong {
@@ -496,7 +649,7 @@ export function printBusinessDocument(rawConfig) {
           }
 
           footer {
-            margin-top: 24px;
+            margin-top: 20px;
             padding-top: 8px;
             border-top: 1px solid #e2e8f0;
             color: #64748b;
@@ -512,8 +665,8 @@ export function printBusinessDocument(rawConfig) {
       </head>
 
       <body>
-        <div class="company">Arunafeltz Computer</div>
-        <div class="subtitle">Cloud POS and Business Monitoring</div>
+        <div class="company">ARUNAFELTZ COMPUTER</div>
+        <div class="subtitle">Cloud POS and Business Monitoring System</div>
 
         <h1>${escapeHtml(config.title)}</h1>
 
@@ -531,19 +684,14 @@ export function printBusinessDocument(rawConfig) {
           </tbody>
         </table>
 
-        ${
-          totalsHtml
-            ? `<div class="totals">${totalsHtml}</div>`
-            : ""
-        }
+        ${totalsHtml ? `<div class="totals">${totalsHtml}</div>` : ""}
 
         ${notesHtml}
 
         <footer>
           Generated by ${escapeHtml(
-            config.generatedBy || "Arunafeltz Computer",
-          )} -
-          ${escapeHtml(dateTimeText(config.generatedAt))}
+            config.generatedBy || "Arunafeltz Computer User"
+          )} - ${escapeHtml(dateTimeText(config.generatedAt))}
         </footer>
       </body>
     </html>
@@ -580,7 +728,7 @@ export function purchaseOrderDocument(order, context = {}) {
 
     return [
       text(line.item?.itemCode || "Unlinked"),
-      text(line.description),
+      text(line.description || line.item?.itemName),
       quantity(ordered),
       quantity(received),
       php(unitCost),
@@ -590,14 +738,10 @@ export function purchaseOrderDocument(order, context = {}) {
   })
 
   const subtotal =
-    order?.subtotal != null
-      ? number(order.subtotal)
-      : computedSubtotal
+    order?.subtotal != null ? number(order.subtotal) : computedSubtotal
 
   const totalDiscount =
-    order?.totalDiscount != null
-      ? number(order.totalDiscount)
-      : computedDiscount
+    order?.totalDiscount != null ? number(order.totalDiscount) : computedDiscount
 
   const grandTotal =
     order?.grandTotal != null
@@ -643,9 +787,7 @@ export function purchaseOrderDocument(order, context = {}) {
 }
 
 export function receivingDocument(receiving, context = {}) {
-  const lines = Array.isArray(receiving?.items)
-    ? receiving.items
-    : []
+  const lines = Array.isArray(receiving?.items) ? receiving.items : []
 
   let computedSubtotal = 0
   let computedDiscount = 0
@@ -679,7 +821,7 @@ export function receivingDocument(receiving, context = {}) {
       php(discount),
       text(line.batchCode),
       dateText(line.expiryDate),
-      serials || "-",
+      serials ? sanitizeForPdf(serials) : "-",
       php(lineTotal),
     ]
   })
@@ -707,15 +849,12 @@ export function receivingDocument(receiving, context = {}) {
     generatedBy: generatedByText(context.generatedBy),
     filename: `${text(
       receiving?.receivingCode,
-      "Receiving",
+      "Receiving"
     )}_${new Date().toISOString().slice(0, 10)}`,
     orientation: "landscape",
     meta: [
       ["Supplier", text(receiving?.supplierNameSnapshot)],
-      [
-        "Purchase order",
-        text(receiving?.purchaseOrder?.poCode || "Standalone"),
-      ],
+      ["Purchase order", text(receiving?.purchaseOrder?.poCode || "Standalone")],
       ["Receiving date", dateText(receiving?.receivingDate)],
       ["Delivery no.", text(receiving?.supplierDeliveryNo)],
       ["Invoice no.", text(receiving?.supplierInvoiceNo)],
@@ -757,12 +896,10 @@ export function inventoryDocument(items, context = {}) {
     branch: branchText(context.branch),
     generatedBy: generatedByText(context.generatedBy),
     filename: `Inventory_${cleanFilename(
-      branchText(context.branch),
+      branchText(context.branch)
     )}_${new Date().toISOString().slice(0, 10)}`,
     orientation: "landscape",
-    meta: Array.isArray(context.filters)
-      ? context.filters
-      : [],
+    meta: Array.isArray(context.filters) ? context.filters : [],
     columns: [
       "Item Code",
       "Product Name",
@@ -789,8 +926,8 @@ export function inventoryDocument(items, context = {}) {
       number(item.quantityAvailable) <= 0
         ? "Out of stock"
         : item.isLowStock
-          ? "Low stock"
-          : "Stock is okay",
+        ? "Low stock"
+        : "Healthy",
       text(item.branch?.code || item.branch?.name),
     ]),
     totals: [
@@ -799,10 +936,9 @@ export function inventoryDocument(items, context = {}) {
         "Total available units",
         quantity(
           records.reduce(
-            (sum, item) =>
-              sum + number(item.quantityAvailable),
-            0,
-          ),
+            (sum, item) => sum + number(item.quantityAvailable),
+            0
+          )
         ),
       ],
     ],
@@ -823,36 +959,33 @@ export function reportDocument({
   const safeRecords = Array.isArray(records) ? records : []
 
   return {
-    title: label || "Business Report",
+    title: sanitizeForPdf(label || "Business Report"),
     branch: branchText(branch),
     generatedBy: generatedByText(generatedBy),
-    filename:
+    filename: cleanFilename(
       filename ||
       `${cleanFilename(label || "Report")}_${new Date()
         .toISOString()
-        .slice(0, 10)}`,
-    orientation:
-      safeColumns.length >= 7 ? "landscape" : "portrait",
-    meta: filters,
-    totals: Array.isArray(totals) ? totals : [],
-    columns: safeColumns.map(([columnLabel]) =>
-      text(columnLabel),
+        .slice(0, 10)}`
     ),
+    orientation: safeColumns.length >= 7 ? "landscape" : "portrait",
+    meta: filters.map(([k, v]) => [sanitizeForPdf(k), sanitizeForPdf(v)]),
+    totals: totals.map(([k, v]) => [sanitizeForPdf(k), sanitizeForPdf(v)]),
+    columns: safeColumns.map(([columnLabel]) => sanitizeForPdf(columnLabel)),
     rows: safeRecords.map((record) =>
       safeColumns.map(([, accessor]) => {
         try {
-          return text(accessor(record))
+          return sanitizeForPdf(accessor(record))
         } catch {
           return "-"
         }
-      }),
+      })
     ),
   }
 }
 
 export function exportWarrantyReceiptPdf(sale, options = {}) {
   const context = options.context || {}
-  // Strict A4 portrait format: 210mm x 297mm
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -862,7 +995,7 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   const margin = 12
   const pageWidth = 210
-  const contentWidth = pageWidth - margin * 2 // 186mm
+  const contentWidth = pageWidth - margin * 2
 
   const branch = sale?.branch || context?.branch || {}
   const customer = sale?.customer || {}
@@ -874,28 +1007,37 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     context?.technician ||
     ""
 
-  if (!technician || technician === "—") {
-    const serviceItemWithDoneBy = (sale?.items || []).find((item) =>
-      typeof item.description === "string" && item.description.includes("[Done by:")
+  if (!technician || technician === "-" || technician === "—") {
+    const serviceItemWithDoneBy = (sale?.items || []).find(
+      (item) =>
+        typeof item.description === "string" &&
+        item.description.includes("[Done by:")
     )
     if (serviceItemWithDoneBy) {
-      const match = serviceItemWithDoneBy.description.match(/\[Done by:\s*([^\]]+)\]/)
+      const match = serviceItemWithDoneBy.description.match(
+        /\[Done by:\s*([^\]]+)\]/
+      )
       if (match && match[1]) {
         technician = match[1].trim()
       }
     }
   }
 
-  if (!technician) {
-    technician = "—"
-  }
+  technician = sanitizeForPdf(technician || "-")
 
   let paymentType = "CASH"
   if (sale?.creditAccount) {
-    const provider = String(sale.creditAccount.provider || sale.paymentMethod || "").replaceAll("_", " ")
+    const provider = sanitizeForPdf(
+      String(sale.creditAccount.provider || sale.paymentMethod || "").replaceAll(
+        "_",
+        " "
+      )
+    )
     if ((sale?.payments || []).length > 0) {
       const dp = sale.payments
-        .map((p) => String(p.paymentMethod || "").replaceAll("_", " "))
+        .map((p) =>
+          sanitizeForPdf(String(p.paymentMethod || "").replaceAll("_", " "))
+        )
         .join(", ")
       paymentType = `${provider} (DP: ${dp})`
     } else {
@@ -903,27 +1045,27 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     }
   } else if ((sale?.payments || []).length > 0) {
     paymentType = sale.payments
-      .map((p) => String(p.paymentMethod || "").replaceAll("_", " "))
+      .map((p) =>
+        sanitizeForPdf(String(p.paymentMethod || "").replaceAll("_", " "))
+      )
       .join(", ")
   }
 
-  const terms =
+  const terms = sanitizeForPdf(
     sale?.creditAccount?.term || sale?.receivable?.term || sale?.creditTerm
-      ? `${String(sale?.creditAccount?.term || sale?.receivable?.term || sale?.creditTerm).replaceAll("_", " ")}`
+      ? `${String(
+          sale?.creditAccount?.term || sale?.receivable?.term || sale?.creditTerm
+        ).replaceAll("_", " ")}`
       : "FULL / OUTRIGHT"
+  )
 
-  // -----------------------------------------------------------------
-  // 1. HEADER SECTION (Store Details on Left, Meta on Right)
-  // Left column: 0 to 96mm. Right column: starts at 102mm.
-  // Guaranteed 6mm clear gap between columns to eliminate collision.
-  // -----------------------------------------------------------------
   const leftColX = margin
   const leftColWidth = 96
 
   const rightColX = margin + 102
   const rightLabelWidth = 26
   const rightValX = rightColX + rightLabelWidth
-  const rightValWidth = contentWidth - 102 - rightLabelWidth // 58mm
+  const rightValWidth = contentWidth - 102 - rightLabelWidth
 
   // Left side: Company Name & Address
   doc.setFont("helvetica", "bold")
@@ -939,33 +1081,47 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.setTextColor(50, 50, 50)
-  const branchAddress =
+  const branchAddress = sanitizeForPdf(
     branch.address ||
-    "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+      "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+  )
   const addressLines = doc.splitTextToSize(branchAddress, leftColWidth)
   doc.text(addressLines, leftColX, leftY)
 
   leftY += addressLines.length * 3.4 + 1
-  const branchContact = branch.contactNo || "0961-873-5798 / 045-404-0673"
+  const branchContact = sanitizeForPdf(
+    branch.contactNo || "0961-873-5798 / 045-404-0673"
+  )
   doc.text(branchContact, leftColX, leftY)
   leftY += 4
 
   // Right side: Transaction Metadata
   let rightY = 14
   const saleDateFormatted = sale?.saleDate
-    ? new Date(sale.saleDate).toLocaleDateString("en-PH", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }).toUpperCase()
-    : "—"
+    ? new Date(sale.saleDate)
+        .toLocaleDateString("en-PH", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+        .toUpperCase()
+    : "-"
 
   const metaRows = [
     ["Date:", saleDateFormatted],
-    ["Customer Name:", (customer.fullName || "Walk-in customer").toUpperCase()],
-    ["Address:", customer.address || "—"],
-    ["Contact No.:", customer.mobileNumber || customer.email || "—"],
-    ["Salesman:", (cashier.fullName || cashier.username || "—").toUpperCase()],
+    [
+      "Customer Name:",
+      sanitizeForPdf(customer.fullName || "Walk-in customer").toUpperCase(),
+    ],
+    ["Address:", sanitizeForPdf(customer.address || "-")],
+    [
+      "Contact No.:",
+      sanitizeForPdf(customer.mobileNumber || customer.email || "-"),
+    ],
+    [
+      "Salesman:",
+      sanitizeForPdf(cashier.fullName || cashier.username || "-").toUpperCase(),
+    ],
     ["Payment Type:", paymentType],
     ["TERMS:", terms],
     ["TECHNICIAN:", technician.toUpperCase()],
@@ -979,22 +1135,24 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
     doc.setFont("helvetica", "normal")
     doc.setTextColor(0, 0, 0)
-    const valLines = doc.splitTextToSize(String(val || "—"), rightValWidth)
+    const valLines = doc.splitTextToSize(String(val || "-"), rightValWidth)
     doc.text(valLines, rightValX, rightY)
 
     rightY += Math.max(3.4, valLines.length * 3.1 + 0.3)
   }
 
-  // -----------------------------------------------------------------
-  // 2. BANNER: EXACT ORIGINAL "WARRANTY RECEIPT" (Navy Blue Bold Italic)
-  // -----------------------------------------------------------------
   const bannerY = Math.max(leftY, rightY) + 5
 
-  // Centered Title Banner exactly like Excel: Bold Italic, Color #002060
+  // Centered Title Banner
   doc.setFont("helvetica", "bolditalic")
   doc.setFontSize(11)
-  doc.setTextColor(0, 32, 96) // #002060 Navy Blue
-  doc.text("WARRANTY RECEIPT", margin + contentWidth / 2 - 8, bannerY, { align: "center" })
+  doc.setTextColor(0, 32, 96)
+  doc.text(
+    "WARRANTY RECEIPT",
+    margin + contentWidth / 2 - 8,
+    bannerY,
+    { align: "center" }
+  )
 
   // Receipt Number on Right
   doc.setFont("helvetica", "bolditalic")
@@ -1005,39 +1163,58 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   doc.setFont("helvetica", "bold")
   doc.setFontSize(10)
   doc.setTextColor(0, 32, 96)
-  doc.text(sale?.receiptCode || "—", margin + contentWidth, bannerY, { align: "right" })
+  const safeReceiptCode = sanitizeForPdf(sale?.receiptCode || "-")
+  doc.text(safeReceiptCode, margin + contentWidth, bannerY, { align: "right" })
 
-  // Underline for receipt number like in Excel border
-  const codeWidth = doc.getTextWidth(sale?.receiptCode || "—")
+  const codeWidth = doc.getTextWidth(safeReceiptCode)
   doc.setLineWidth(0.3)
   doc.setDrawColor(0, 32, 96)
-  doc.line(margin + contentWidth - codeWidth - 1, bannerY + 1.2, margin + contentWidth, bannerY + 1.2)
+  doc.line(
+    margin + contentWidth - codeWidth - 1,
+    bannerY + 1.2,
+    margin + contentWidth,
+    bannerY + 1.2
+  )
 
-  // -----------------------------------------------------------------
-  // 3. ITEMS TABLE
-  // -----------------------------------------------------------------
   const tableStartY = bannerY + 6
 
   const isCredit = Boolean(sale?.creditAccount || options?.isCredit)
-  const termBasis = Number(sale?.creditAccount?.termBasis || (isCredit && options?.installmentCalculation?.termBasis) || 1)
+  const termBasis = Number(
+    sale?.creditAccount?.termBasis ||
+      (isCredit && options?.installmentCalculation?.termBasis) ||
+      1
+  )
 
-  const tableHead = [["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "UNIT PRICE", "AMOUNT"]]
+  const tableHead = [
+    ["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "UNIT PRICE", "AMOUNT"],
+  ]
   const tableBody = (sale?.items || []).map((item) => {
-    const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
+    const itemCode = sanitizeForPdf(
+      item.itemCodeSnapshot || item.item?.itemCode || "-"
+    )
     const isSerialized = item.serial?.serialNumber || item.serialNumber
-    const serialText = isSerialized ? ` | S/N: ${isSerialized}` : ""
-    const warrantyBadge = (item.warrantyDuration || (item.item?.hasWarranty ? "1 YEAR WARRANTY" : "")).trim()
+    const serialText = isSerialized ? ` | S/N: ${sanitizeForPdf(isSerialized)}` : ""
+    const warrantyBadge = sanitizeForPdf(
+      (item.warrantyDuration || (item.item?.hasWarranty ? "1 YEAR WARRANTY" : "")).trim()
+    )
     const warrantyText = warrantyBadge ? ` | ${warrantyBadge}` : ""
-    const fullDescription = `${item.description || item.item?.itemName || "Item"}${warrantyText}${serialText}`
+    const fullDescription = sanitizeForPdf(
+      `${item.description || item.item?.itemName || "Item"}${warrantyText}${serialText}`
+    )
 
     const qty = String(Number(item.quantity || 1))
-    const baseSnapshot = item.baseUnitPriceSnapshot != null ? Number(item.baseUnitPriceSnapshot) : null
-    const rawUnitPrice = baseSnapshot != null && termBasis < 1
-      ? Math.round((baseSnapshot / termBasis) * 100) / 100
-      : Number(item.unitPrice || 0)
-    const rawLineTotal = baseSnapshot != null && termBasis < 1
-      ? Math.round((Number(item.quantity || 1) * rawUnitPrice) * 100) / 100
-      : Number(item.lineTotal || (Number(item.quantity || 1) * rawUnitPrice))
+    const baseSnapshot =
+      item.baseUnitPriceSnapshot != null
+        ? Number(item.baseUnitPriceSnapshot)
+        : null
+    const rawUnitPrice =
+      baseSnapshot != null && termBasis < 1
+        ? Math.round((baseSnapshot / termBasis) * 100) / 100
+        : Number(item.unitPrice || 0)
+    const rawLineTotal =
+      baseSnapshot != null && termBasis < 1
+        ? Math.round((Number(item.quantity || 1) * rawUnitPrice) * 100) / 100
+        : Number(item.lineTotal || Number(item.quantity || 1) * rawUnitPrice)
 
     const unitPrice = rawUnitPrice.toLocaleString("en-PH", {
       minimumFractionDigits: 2,
@@ -1084,7 +1261,6 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   let finalY = doc.lastAutoTable?.finalY || tableStartY + 20
 
-  // Double bottom line after items
   doc.setLineWidth(0.6)
   doc.setDrawColor(0, 0, 0)
   doc.line(margin, finalY + 1, margin + contentWidth, finalY + 1)
@@ -1092,26 +1268,39 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   finalY += 4
 
-  // -----------------------------------------------------------------
-  // 4. TOTALS & FINANCIAL SUMMARY
-  // -----------------------------------------------------------------
-  // Left: Non-BIR disclaimer
+  // Financial Summary
   doc.setFont("helvetica", "italic")
   doc.setFontSize(8)
   doc.setTextColor(60, 60, 60)
   doc.text("This receipt is not valid for input tax.", margin, finalY + 4)
 
-  // Right: Financials
   const totalsLabelX = margin + contentWidth - 65
   const totalsValueX = margin + contentWidth
 
-  const totalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount)
-    ? Number(sale.creditAccount.regularPriceTotalAmount || sale.creditAccount.principalAmount)
-    : Number(sale?.grandTotal || sale?.subtotal || 0)
-  const paidAmount = Number(sale?.amountPaid ?? sale?.creditAccount?.downpaymentAmount ?? sale?.creditAccount?.initialPaymentAmount ?? 0)
-  const balanceToPay = isCredit && (sale?.creditAccount?.balanceAmount != null || sale?.creditAccount?.financedBalance != null)
-    ? Number(sale.creditAccount.balanceAmount ?? sale.creditAccount.financedBalance)
-    : Math.max(0, totalAmount - paidAmount)
+  const totalAmount =
+    isCredit &&
+    (sale?.creditAccount?.regularPriceTotalAmount ||
+      sale?.creditAccount?.principalAmount)
+      ? Number(
+          sale.creditAccount.regularPriceTotalAmount ||
+            sale.creditAccount.principalAmount
+        )
+      : Number(sale?.grandTotal || sale?.subtotal || 0)
+  const paidAmount = Number(
+    sale?.amountPaid ??
+      sale?.creditAccount?.downpaymentAmount ??
+      sale?.creditAccount?.initialPaymentAmount ??
+      0
+  )
+  const balanceToPay =
+    isCredit &&
+    (sale?.creditAccount?.balanceAmount != null ||
+      sale?.creditAccount?.financedBalance != null)
+      ? Number(
+          sale.creditAccount.balanceAmount ??
+            sale.creditAccount.financedBalance
+        )
+      : Math.max(0, totalAmount - paidAmount)
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
@@ -1119,16 +1308,26 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   doc.text("TOTAL AMOUNT", totalsLabelX, finalY + 4)
   doc.text(
-    totalAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    totalAmount.toLocaleString("en-PH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }),
     totalsValueX,
     finalY + 4,
     { align: "right" }
   )
 
   if (isCredit || paidAmount > 0) {
-    doc.text(isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID", totalsLabelX, finalY + 8)
     doc.text(
-      paidAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID",
+      totalsLabelX,
+      finalY + 8
+    )
+    doc.text(
+      paidAmount.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
       totalsValueX,
       finalY + 8,
       { align: "right" }
@@ -1137,20 +1336,33 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   doc.text("BALANCE TO PAY", totalsLabelX, finalY + 12)
   doc.text(
-    balanceToPay.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    balanceToPay.toLocaleString("en-PH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }),
     totalsValueX,
     finalY + 12,
     { align: "right" }
   )
 
   if (isCredit && sale?.creditAccount?.monthlyDueAmount) {
-    const months = sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS?.[sale.creditAccount.term] || "")
+    const months =
+      sale.creditAccount.months ||
+      INSTALLMENT_TERM_MONTHS?.[sale.creditAccount.term] ||
+      ""
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7.5)
     doc.setTextColor(0, 32, 96)
-    doc.text(`MONTHLY (${months ? `${months} MOS` : "AMORTIZATION"}):`, totalsLabelX, finalY + 16)
     doc.text(
-      `${Number(sale.creditAccount.monthlyDueAmount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
+      `MONTHLY (${months ? `${months} MOS` : "AMORTIZATION"}):`,
+      totalsLabelX,
+      finalY + 16
+    )
+    doc.text(
+      `${Number(sale.creditAccount.monthlyDueAmount).toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}/mo`,
       totalsValueX,
       finalY + 16,
       { align: "right" }
@@ -1159,9 +1371,7 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   finalY += isCredit && sale?.creditAccount?.monthlyDueAmount ? 23 : 19
 
-  // -----------------------------------------------------------------
-  // 5. WARRANTY DISCLAIMERS (Centered)
-  // -----------------------------------------------------------------
+  // Warranty Disclaimers
   doc.setFont("helvetica", "bold")
   doc.setFontSize(7.5)
   doc.setTextColor(0, 0, 0)
@@ -1174,7 +1384,7 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   doc.setFontSize(7)
   doc.text(
-    "Pls. read all WARRANTY GUIDELINES & PROCEDURES at the back of this page. (BRING –IN WARRANTY)",
+    "Pls. read all WARRANTY GUIDELINES & PROCEDURES at the back of this page. (BRING - IN WARRANTY)",
     margin + contentWidth / 2,
     finalY + 3.6,
     { align: "center" }
@@ -1182,12 +1392,9 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   finalY += 9
 
-  // -----------------------------------------------------------------
-  // 6. SIGNATURES SECTION
-  // -----------------------------------------------------------------
+  // Signatures Section
   const sigColWidth = contentWidth / 4
 
-  // Received notice placed on its own line above the 4th column
   doc.setFont("helvetica", "italic")
   doc.setFontSize(7.5)
   doc.setTextColor(50, 50, 50)
@@ -1209,7 +1416,13 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   const sigLineW = sigColWidth - 4
 
   const sigRows = [
-    { label: "Prepared by:", name: (cashier.fullName || cashier.username || "Staff").toUpperCase(), sub: "" },
+    {
+      label: "Prepared by:",
+      name: sanitizeForPdf(
+        cashier.fullName || cashier.username || "Staff"
+      ).toUpperCase(),
+      sub: "",
+    },
     { label: "Warehouse:", name: "", sub: "Staff" },
     { label: "Releasing:", name: "", sub: "Staff" },
     { label: "Received by:", name: "", sub: "Signature over Printed Name" },
@@ -1248,7 +1461,7 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     const blobUrl = doc.output("bloburl")
     window.open(blobUrl, "_blank")
   } else {
-    const filename = `Warranty-Receipt-${sale?.receiptCode || "receipt"}.pdf`
+    const filename = `Warranty-Receipt-${safeReceiptCode || "receipt"}.pdf`
     doc.save(filename)
   }
 }
@@ -1271,17 +1484,15 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
   const branch = quotation?.branch || {}
   const customer = quotation?.customer || {}
-  const salesman =
+  const salesman = sanitizeForPdf(
     quotation?.preparedBy?.fullName ||
-    quotation?.preparedBy?.username ||
-    quotation?.cashier?.fullName ||
-    quotation?.cashier?.username ||
-    quotation?.salesman ||
-    "—"
+      quotation?.preparedBy?.username ||
+      quotation?.cashier?.fullName ||
+      quotation?.cashier?.username ||
+      quotation?.salesman ||
+      "-"
+  )
 
-  // -----------------------------------------------------------------
-  // 1. HEADER SECTION (Store Details on Left, Meta on Right)
-  // -----------------------------------------------------------------
   const leftColX = margin
   const leftColWidth = 96
 
@@ -1303,31 +1514,42 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.setTextColor(50, 50, 50)
-  const branchAddress =
+  const branchAddress = sanitizeForPdf(
     branch.address ||
-    "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+      "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+  )
   const addressLines = doc.splitTextToSize(branchAddress, leftColWidth)
   doc.text(addressLines, leftColX, leftY)
 
   leftY += addressLines.length * 3.4 + 1
-  const branchContact = branch.contactNo || "0961-873-5798 / 045-404-0673"
+  const branchContact = sanitizeForPdf(
+    branch.contactNo || "0961-873-5798 / 045-404-0673"
+  )
   doc.text(branchContact, leftColX, leftY)
   leftY += 4
 
-  // Right side: Customer & Meta Details
   let rightY = 14
-  const quoteDate = quotation?.createdAt || quotation?.quotationDate || new Date()
-  const formattedDate = new Date(quoteDate).toLocaleDateString("en-PH", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).toUpperCase()
+  const quoteDate =
+    quotation?.createdAt || quotation?.quotationDate || new Date()
+  const formattedDate = new Date(quoteDate)
+    .toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+    .toUpperCase()
 
   const metaRows = [
     ["Date:", formattedDate],
-    ["Customer Name:", (customer.fullName || "Walk-in customer").toUpperCase()],
-    ["Address:", customer.address || "—"],
-    ["Contact No.:", customer.mobileNumber || customer.email || "—"],
+    [
+      "Customer Name:",
+      sanitizeForPdf(customer.fullName || "Walk-in customer").toUpperCase(),
+    ],
+    ["Address:", sanitizeForPdf(customer.address || "-")],
+    [
+      "Contact No.:",
+      sanitizeForPdf(customer.mobileNumber || customer.email || "-"),
+    ],
     ["Salesman:", String(salesman).toUpperCase()],
   ]
 
@@ -1339,25 +1561,28 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
     doc.setFont("helvetica", "normal")
     doc.setTextColor(0, 0, 0)
-    const valLines = doc.splitTextToSize(String(val || "—"), rightValWidth)
+    const valLines = doc.splitTextToSize(String(val || "-"), rightValWidth)
     doc.text(valLines, rightValX, rightY)
 
     rightY += Math.max(3.4, valLines.length * 3.1 + 0.3)
   }
 
-  // -----------------------------------------------------------------
-  // 2. BANNER: QUOTATION & Pure Numeric Code
-  // -----------------------------------------------------------------
   const bannerY = Math.max(leftY, rightY) + 5
 
   doc.setFont("helvetica", "bolditalic")
   doc.setFontSize(11)
-  doc.setTextColor(0, 32, 96) // Navy Blue
-  doc.text("QUOTATION", margin + contentWidth / 2 - 8, bannerY, { align: "center" })
+  doc.setTextColor(0, 32, 96)
+  doc.text("QUOTATION", margin + contentWidth / 2 - 8, bannerY, {
+    align: "center",
+  })
 
-  const rawCode = String(quotation?.quotationCode || quotation?.code || "—").trim()
+  const rawCode = sanitizeForPdf(
+    quotation?.quotationCode || quotation?.code || "-"
+  )
   const numericCodeMatch = rawCode.match(/\d+$/)
-  const displayCode = numericCodeMatch ? numericCodeMatch[0].padStart(5, "0") : rawCode
+  const displayCode = numericCodeMatch
+    ? numericCodeMatch[0].padStart(5, "0")
+    : rawCode
 
   doc.setFont("helvetica", "bolditalic")
   doc.setFontSize(9)
@@ -1372,22 +1597,40 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   const codeWidth = doc.getTextWidth(displayCode)
   doc.setLineWidth(0.3)
   doc.setDrawColor(0, 32, 96)
-  doc.line(margin + contentWidth - codeWidth - 1, bannerY + 1.2, margin + contentWidth, bannerY + 1.2)
+  doc.line(
+    margin + contentWidth - codeWidth - 1,
+    bannerY + 1.2,
+    margin + contentWidth,
+    bannerY + 1.2
+  )
 
-  // -----------------------------------------------------------------
-  // 3. ITEMS TABLE (Dual Pricing: Regular Price/Amount vs Cash Promo/Amount)
-  // -----------------------------------------------------------------
   const tableStartY = bannerY + 6
-  const tableHead = [["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "REGULAR PRICE", "REGULAR AMOUNT", "CASH PROMO", "CASH AMOUNT"]]
+  const tableHead = [
+    [
+      "ITEM CODE",
+      "ITEM DESCRIPTION",
+      "QTY.",
+      "REGULAR PRICE",
+      "REGULAR AMOUNT",
+      "CASH PROMO",
+      "CASH AMOUNT",
+    ],
+  ]
 
   const termRate = Number(options.installmentCalculation?.termBasis || 0.96)
   const items = quotation?.items || []
   const tableBody = items.map((item) => {
-    const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
-    const desc = item.description || item.item?.itemName || "Item"
+    const itemCode = sanitizeForPdf(
+      item.itemCodeSnapshot || item.item?.itemCode || "-"
+    )
+    const desc = sanitizeForPdf(
+      item.description || item.item?.itemName || "Item"
+    )
     const qty = Number(item.quantity || 0)
     const cashUnit = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
-    const cashTotal = Number(item.lineTotal ?? (qty * cashUnit - (Number(item.discountAmount) || 0)))
+    const cashTotal = Number(
+      item.lineTotal ?? qty * cashUnit - (Number(item.discountAmount) || 0)
+    )
     const regUnit = Math.round((cashUnit / termRate) * 100) / 100
     const regTotal = Math.round((cashTotal / termRate) * 100) / 100
 
@@ -1395,10 +1638,22 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
       itemCode,
       desc,
       String(qty),
-      regUnit.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      regTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      cashUnit.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      cashTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      regUnit.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      regTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      cashUnit.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      cashTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
     ]
   })
 
@@ -1428,19 +1683,35 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
       0: { cellWidth: 18, fontStyle: "bold" },
       1: { cellWidth: "auto" },
       2: { cellWidth: 10, halign: "center" },
-      3: { cellWidth: 23, halign: "right", textColor: options.installmentCalculation ? [0, 0, 0] : [130, 130, 130] },
+      3: {
+        cellWidth: 23,
+        halign: "right",
+        textColor: options.installmentCalculation
+          ? [0, 0, 0]
+          : [130, 130, 130],
+      },
       4: {
         cellWidth: 23,
         halign: "right",
         fontStyle: options.installmentCalculation ? "bold" : "normal",
-        textColor: options.installmentCalculation ? [0, 32, 96] : [130, 130, 130],
+        textColor: options.installmentCalculation
+          ? [0, 32, 96]
+          : [130, 130, 130],
       },
-      5: { cellWidth: 23, halign: "right", textColor: !options.installmentCalculation ? [0, 0, 0] : [130, 130, 130] },
+      5: {
+        cellWidth: 23,
+        halign: "right",
+        textColor: !options.installmentCalculation
+          ? [0, 0, 0]
+          : [130, 130, 130],
+      },
       6: {
         cellWidth: 24,
         halign: "right",
         fontStyle: !options.installmentCalculation ? "bold" : "normal",
-        textColor: !options.installmentCalculation ? [0, 0, 0] : [130, 130, 130],
+        textColor: !options.installmentCalculation
+          ? [0, 0, 0]
+          : [130, 130, 130],
       },
     },
   })
@@ -1454,15 +1725,12 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
   finalY += 4
 
-  // -----------------------------------------------------------------
-  // 4. TOTALS & PRICING SUMMARY (Dual Total: Regular & Cash Promo)
-  // -----------------------------------------------------------------
-  const cashPromoTotal = Number(quotation?.grandTotal || quotation?.subtotal || 0)
-  const srpTotal = Math.round((cashPromoTotal / 0.96) * 100) / 100
+  const cashPromoTotal = Number(
+    quotation?.grandTotal || quotation?.subtotal || 0
+  )
   const regularTotal = Math.round((cashPromoTotal / termRate) * 100) / 100
   const isAR = Boolean(options.installmentCalculation)
 
-  // Left: Warranty & PC Build Disclaimers (Exactly matching Excel Rows 22-23, 50-52)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(7.5)
   doc.setTextColor(0, 0, 0)
@@ -1470,7 +1738,11 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   let noteY = finalY + 3
   const isPcBuild = quotation?.isPcBuild || options?.isPcBuild
   if (isPcBuild) {
-    doc.text("(FREE PC BUILD, CABLE MANAGEMENT & ESSENTIAL APP INSTALLATION)", margin, noteY)
+    doc.text(
+      "(FREE PC BUILD, CABLE MANAGEMENT & ESSENTIAL APP INSTALLATION)",
+      margin,
+      noteY
+    )
     noteY += 3.4
     doc.setFont("helvetica", "normal")
     doc.setFontSize(6.5)
@@ -1484,7 +1756,11 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     doc.setFontSize(7.5)
   }
 
-  doc.text("ONE (1) YEAR WARRANTY ON MAJOR PARTS & ONE (1) MONTH ON ACCESSORIES", margin, noteY)
+  doc.text(
+    "ONE (1) YEAR WARRANTY ON MAJOR PARTS & ONE (1) MONTH ON ACCESSORIES",
+    margin,
+    noteY
+  )
   noteY += 3.4
   doc.setFont("helvetica", "normal")
   doc.setFontSize(6.5)
@@ -1503,7 +1779,6 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     noteY
   )
 
-  // Right: Price breakdown
   const totalsLabelX = margin + contentWidth - 75
   const totalsValueX = margin + contentWidth
 
@@ -1514,7 +1789,10 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     doc.setTextColor(120, 120, 120)
     doc.text("TOTAL CASH PROMO", totalsLabelX, finalY + 4)
     doc.text(
-      cashPromoTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      cashPromoTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
       totalsValueX,
       finalY + 4,
       { align: "right" }
@@ -1522,18 +1800,32 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
     const calc = options.installmentCalculation
     doc.setTextColor(0, 32, 96)
-    doc.text(`REGULAR PRICE (${calc?.months || 1} MOS)`, totalsLabelX, finalY + 8.5)
     doc.text(
-      regularTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      `REGULAR PRICE (${calc?.months || 1} MOS)`,
+      totalsLabelX,
+      finalY + 8.5
+    )
+    doc.text(
+      regularTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
       totalsValueX,
       finalY + 8.5,
       { align: "right" }
     )
 
     doc.setFontSize(7.5)
-    doc.text(`SELECTED AR (${calc?.months || 1} MOS):`, totalsLabelX, finalY + 13)
     doc.text(
-      `${Number(calc?.monthlyDueAmount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
+      `SELECTED AR (${calc?.months || 1} MOS):`,
+      totalsLabelX,
+      finalY + 13
+    )
+    doc.text(
+      `${Number(calc?.monthlyDueAmount || 0).toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}/mo`,
       totalsValueX,
       finalY + 13,
       { align: "right" }
@@ -1542,7 +1834,10 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     doc.setTextColor(0, 0, 0)
     doc.text("TOTAL CASH PROMO", totalsLabelX, finalY + 4)
     doc.text(
-      cashPromoTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      cashPromoTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
       totalsValueX,
       finalY + 4,
       { align: "right" }
@@ -1551,7 +1846,10 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     doc.setTextColor(120, 120, 120)
     doc.text("REGULAR PRICE (3 MOS)", totalsLabelX, finalY + 8.5)
     doc.text(
-      regularTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      regularTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
       totalsValueX,
       finalY + 8.5,
       { align: "right" }
@@ -1560,9 +1858,6 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
   finalY = Math.max(noteY + 8, finalY + (isAR ? 23 : 18))
 
-  // -----------------------------------------------------------------
-  // 5. SIGNATURES SECTION (Prepared by & Conforme matching Excel Rows 56-59)
-  // -----------------------------------------------------------------
   const leftSigX = margin
   const rightSigX = margin + contentWidth - 75
 
@@ -1579,8 +1874,18 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7)
   doc.setTextColor(60, 60, 60)
-  doc.text(String(salesman).toUpperCase(), leftSigX + 32.5, finalY + 15.5, { align: "center" })
-  doc.text("Signature over Printed Name/ Date", rightSigX + 37.5, finalY + 15.5, { align: "center" })
+  doc.text(
+    String(salesman).toUpperCase(),
+    leftSigX + 32.5,
+    finalY + 15.5,
+    { align: "center" }
+  )
+  doc.text(
+    "Signature over Printed Name/ Date",
+    rightSigX + 37.5,
+    finalY + 15.5,
+    { align: "center" }
+  )
 
   if (options.autoPrint) {
     doc.autoPrint()
@@ -1609,9 +1914,7 @@ export function exportPurchaseOrderPdf(order, context) {
 }
 
 export function printPurchaseOrder(order, context) {
-  printBusinessDocument(
-    purchaseOrderDocument(order, context),
-  )
+  printBusinessDocument(purchaseOrderDocument(order, context))
 }
 
 export function exportReceivingPdf(receiving, context) {
@@ -1619,9 +1922,7 @@ export function exportReceivingPdf(receiving, context) {
 }
 
 export function printReceiving(receiving, context) {
-  printBusinessDocument(
-    receivingDocument(receiving, context),
-  )
+  printBusinessDocument(receivingDocument(receiving, context))
 }
 
 export function exportInventoryPdf(items, context) {
@@ -1636,6 +1937,58 @@ export function printReport(options) {
   printBusinessDocument(reportDocument(options))
 }
 
+/**
+ * Parses raw cell value for Excel, transforming currency strings into native numbers
+ * so formulas (SUM, AVERAGE), sorting, and numerical filters work seamlessly in Microsoft Excel.
+ */
+function parseExcelValue(val, colLabel = "") {
+  if (val === null || val === undefined || val === "") return ""
+  if (typeof val === "number") return val
+
+  const str = String(val).trim()
+
+  // Pure integer / float string e.g. "1234.50" or "-500"
+  if (/^-?[0-9]+(\.[0-9]+)?$/.test(str)) {
+    const num = Number(str)
+    if (!Number.isNaN(num)) return num
+  }
+
+  // Peso or currency formatted string e.g. "₱1,234.50", "PHP 1,234.50", "-₱500.00", "(₱500.00)"
+  const cleanStr = str.replace(/[₱PHP\s]/gi, "").trim()
+  if (/^-?\(?[0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\)?$/.test(cleanStr)) {
+    const isNegative = str.startsWith("-") || str.startsWith("(")
+    const num = parseFloat(cleanStr.replace(/[,()]/g, ""))
+    if (!Number.isNaN(num)) {
+      return isNegative ? -num : num
+    }
+  }
+
+  // Formatted integer counts e.g. "1,250"
+  if (/^[0-9]{1,3}(,[0-9]{3})+$/.test(str)) {
+    const intVal = parseInt(str.replace(/,/g, ""), 10)
+    if (!Number.isNaN(intVal)) return intVal
+  }
+
+  // If column label strongly indicates currency / numeric amount
+  if (
+    /(amount|charge|price|cost|revenue|margin|total|discount|balance|value|loss|incentive)/i.test(
+      colLabel
+    )
+  ) {
+    const digitsOnly = str.replace(/[^0-9.-]/g, "")
+    if (digitsOnly && /^-?[0-9]+(\.[0-9]+)?$/.test(digitsOnly)) {
+      const num = Number(digitsOnly)
+      if (!Number.isNaN(num)) return num
+    }
+  }
+
+  return sanitizeExcelText(str)
+}
+
+/**
+ * Enterprise Excel (XLSX) Exporter
+ * Generates beautifully structured, mathematical workbooks with native Excel numeric formats.
+ */
 export function exportReportExcel({
   filename = "report",
   label = "Report",
@@ -1646,66 +1999,106 @@ export function exportReportExcel({
   generatedBy = null,
   filters = [],
 }) {
-  const rows = []
+  const cleanLabel = sanitizeExcelText(label || "Report")
+  const cleanBranch = branch ? sanitizeExcelText(branchText(branch)) : "All Branches / Consolidated"
+  const cleanUser = generatedBy ? sanitizeExcelText(generatedByText(generatedBy)) : "Arunafeltz Computer User"
+  const genDateStr = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" })
 
-  rows.push(["ARUNAFELTZ COMPUTER PARTS & ACCESSORIES"])
-  rows.push([label.toUpperCase()])
-  rows.push([`Generated: ${new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" })}`])
-  if (branch?.name) rows.push([`Branch: ${branch.code || ""} - ${branch.name}`])
-  if (generatedBy?.fullName) rows.push([`Generated By: ${generatedBy.fullName}`])
-  rows.push([])
+  const aoa = []
 
+  // 1. Corporate Header Block
+  aoa.push(["ARUNAFELTZ COMPUTER PARTS & ACCESSORIES SHOP"])
+  aoa.push([`${cleanLabel.toUpperCase()} REPORT`])
+  aoa.push([`Branch: ${cleanBranch}`, `Generated: ${genDateStr}`, `Generated By: ${cleanUser}`])
+  aoa.push([])
+
+  // 2. Filter Parameters Block (if any)
   if (filters.length > 0) {
-    rows.push(["APPLIED FILTERS"])
+    aoa.push(["APPLIED FILTERS", ""])
     filters.forEach(([key, val]) => {
-      rows.push([key, String(val)])
+      aoa.push([sanitizeExcelText(key), sanitizeExcelText(val)])
     })
-    rows.push([])
+    aoa.push([])
   }
 
+  // 3. Summary Metrics & KPIs Block (if any)
   if (totals.length > 0) {
-    rows.push(["SUMMARY METRICS"])
+    aoa.push(["SUMMARY METRICS & TOTALS", ""])
     totals.forEach(([key, val]) => {
-      rows.push([key, String(val)])
+      const parsedVal = parseExcelValue(val, key)
+      aoa.push([sanitizeExcelText(key), parsedVal])
     })
-    rows.push([])
+    aoa.push([])
   }
 
-  const headers = columns.map(([colLabel]) => colLabel)
-  rows.push(headers)
+  // 4. Data Table Header Row
+  const headers = columns.map(([colLabel]) => sanitizeExcelText(colLabel))
+  aoa.push(headers)
 
+  // 5. Data Rows with Typed Values
   records.forEach((record) => {
-    const row = columns.map(([, render]) => {
-      const val = render(record)
-      return val !== null && val !== undefined ? String(val) : ""
+    const row = columns.map(([colLabel, render]) => {
+      try {
+        const val = render(record)
+        return parseExcelValue(val, colLabel)
+      } catch {
+        return "-"
+      }
     })
-    rows.push(row)
+    aoa.push(row)
   })
 
   try {
-    const worksheet = XLSX.utils.aoa_to_sheet(rows)
-    const maxCols = rows.reduce((max, r) => Math.max(max, r.length), 0)
-    worksheet["!cols"] = Array.from({ length: maxCols }, (_, i) => ({
-      wch: Math.max(
-        15,
-        ...rows.map((r) => (r[i] ? String(r[i]).length + 4 : 10))
-      ),
-    }))
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa)
+
+    // Apply native numeric number formatting to all number cells
+    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:A1")
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
+        const cell = worksheet[cellAddress]
+        if (cell && cell.t === "n") {
+          if (Number.isInteger(cell.v)) {
+            cell.z = "#,##0"
+          } else {
+            cell.z = "#,##0.00"
+          }
+        }
+      }
+    }
+
+    // Auto-compute generous column widths with minimum 15 and max 60
+    const maxCols = aoa.reduce((max, r) => Math.max(max, r.length), 0)
+    worksheet["!cols"] = Array.from({ length: maxCols }, (_, colIdx) => {
+      let maxLen = 14
+      aoa.forEach((row) => {
+        const cellVal = row[colIdx]
+        if (cellVal !== undefined && cellVal !== null) {
+          const str =
+            typeof cellVal === "number"
+              ? cellVal.toLocaleString("en-PH", { minimumFractionDigits: 2 })
+              : String(cellVal)
+          maxLen = Math.max(maxLen, str.length)
+        }
+      })
+      return { wch: Math.min(60, maxLen + 4) }
+    })
 
     const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Report Data")
+    const sheetName = cleanLabel.slice(0, 31).replace(/[\\/?*[\]]/g, "")
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName || "Report Data")
 
-    const cleanName = filename.replace(/\.(csv|xlsx|pdf)$/i, "")
+    const cleanName = cleanFilename(filename || `${cleanLabel}-report`)
     XLSX.writeFile(workbook, `${cleanName}.xlsx`)
   } catch (error) {
-    console.error("XLSX export fallback:", error)
+    console.error("XLSX export fallback to CSV:", error)
     const csvContent =
       "\uFEFF" +
-      rows
+      aoa
         .map((r) =>
           r
             .map((cell) => {
-              const escaped = String(cell).replace(/"/g, '""')
+              const escaped = String(cell ?? "").replace(/"/g, '""')
               return `"${escaped}"`
             })
             .join(",")
@@ -1716,7 +2109,7 @@ export function exportReportExcel({
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.setAttribute("href", url)
-    const cleanName = filename.replace(/\.(csv|xlsx|pdf)$/i, "")
+    const cleanName = cleanFilename(filename || `${cleanLabel}-report`)
     link.setAttribute("download", `${cleanName}.csv`)
     document.body.appendChild(link)
     link.click()
@@ -1724,5 +2117,3 @@ export function exportReportExcel({
     URL.revokeObjectURL(url)
   }
 }
-
-
