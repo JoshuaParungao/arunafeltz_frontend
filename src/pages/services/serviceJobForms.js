@@ -86,7 +86,9 @@ export function extractIntakeRecord(job) {
   const idx = notes.indexOf(INTAKE_RECORD_HEADER)
   if (idx !== -1) {
     try {
-      const jsonStr = notes.slice(idx + INTAKE_RECORD_HEADER.length).trim()
+      const rest = notes.slice(idx + INTAKE_RECORD_HEADER.length)
+      const nextHeaderIdx = rest.search(/\[(SERVICE_TASKS_V1|SERVICE_PARTS_V1)\]:/)
+      const jsonStr = nextHeaderIdx !== -1 ? rest.slice(0, nextHeaderIdx).trim() : rest.split("\n\n")[0].trim()
       return JSON.parse(jsonStr)
     } catch {
       // ignore parse error
@@ -125,6 +127,92 @@ export function extractIntakeRecord(job) {
   }
 }
 
+export const SERVICE_TASKS_HEADER = "[SERVICE_TASKS_V1]:"
+export const SERVICE_PARTS_HEADER = "[SERVICE_PARTS_V1]:"
+
+export function extractServiceTasks(job) {
+  if (!job) return []
+  const notes = job.serviceNotes || ""
+  const idx = notes.indexOf(SERVICE_TASKS_HEADER)
+  if (idx !== -1) {
+    try {
+      const rest = notes.slice(idx + SERVICE_TASKS_HEADER.length)
+      const nextHeaderIdx = rest.search(/\[(INTAKE_RECORD_V1|SERVICE_PARTS_V1)\]:/)
+      const jsonStr = nextHeaderIdx !== -1 ? rest.slice(0, nextHeaderIdx).trim() : rest.split("\n\n")[0].trim()
+      const parsed = JSON.parse(jsonStr)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    } catch {
+      // ignore parse error
+    }
+  }
+
+  // Fallback: If no explicit task list is stored yet, synthesize from single job line
+  const tech = job.serviceDoneBy || job.assignedTechnician
+  const amount = Number(job.baseServiceCharge ?? job.finalServiceCharge ?? job.estimatedServiceCharge ?? 0)
+  if (job.jobTitle || amount > 0) {
+    return [
+      {
+        id: `task-primary-${job.id || "1"}`,
+        title: job.jobTitle || "General Service",
+        amount: amount,
+        technicianId: tech?.id || "",
+        technicianName: tech?.fullName || "Assigned Technician",
+        warrantyDuration: "30 DAYS SERVICE WARRANTY",
+      },
+    ]
+  }
+  return []
+}
+
+export function extractServiceParts(job) {
+  if (!job) return []
+  const notes = job.serviceNotes || ""
+  const idx = notes.indexOf(SERVICE_PARTS_HEADER)
+  if (idx !== -1) {
+    try {
+      const rest = notes.slice(idx + SERVICE_PARTS_HEADER.length)
+      const nextHeaderIdx = rest.search(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1)\]:/)
+      const jsonStr = nextHeaderIdx !== -1 ? rest.slice(0, nextHeaderIdx).trim() : rest.split("\n\n")[0].trim()
+      const parsed = JSON.parse(jsonStr)
+      if (Array.isArray(parsed)) return parsed
+    } catch {
+      // ignore parse error
+    }
+  }
+  return []
+}
+
+export function serializeStructuredNotes({
+  intakeRecord = null,
+  tasks = [],
+  parts = [],
+  freeNotes = "",
+}) {
+  const partsList = []
+  if (intakeRecord) {
+    partsList.push(`${INTAKE_RECORD_HEADER}${JSON.stringify(intakeRecord)}`)
+  }
+  if (Array.isArray(tasks) && tasks.length > 0) {
+    partsList.push(`${SERVICE_TASKS_HEADER}${JSON.stringify(tasks)}`)
+  }
+  if (Array.isArray(parts) && parts.length > 0) {
+    partsList.push(`${SERVICE_PARTS_HEADER}${JSON.stringify(parts)}`)
+  }
+  const cleanFree = (freeNotes || "").trim()
+  if (cleanFree) {
+    // strip out existing header blocks from free notes if present
+    const stripped = cleanFree
+      .replace(/\[INTAKE_RECORD_V1\]:.*?(\n\n|$)/gs, "")
+      .replace(/\[SERVICE_TASKS_V1\]:.*?(\n\n|$)/gs, "")
+      .replace(/\[SERVICE_PARTS_V1\]:.*?(\n\n|$)/gs, "")
+      .trim()
+    if (stripped) {
+      partsList.push(stripped)
+    }
+  }
+  return partsList.join("\n\n")
+}
+
 function detectUnitType(deviceDesc = "") {
   const d = deviceDesc.toLowerCase()
   if (d.includes("laptop") || d.includes("notebook")) return "Laptop"
@@ -146,3 +234,4 @@ function extractOtherText(text = "") {
   if (!text) return ""
   return text
 }
+

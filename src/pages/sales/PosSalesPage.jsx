@@ -41,7 +41,8 @@ import {
   getQuotationServiceStaff,
   updateQuotationStatus,
 } from "../../features/quotations/quotations.api"
-import { getServiceJobs } from "../../features/service-jobs/serviceJobs.api"
+import { getServiceJobs, releaseServiceJob } from "../../features/service-jobs/serviceJobs.api"
+import { extractServiceTasks, extractServiceParts } from "../services/serviceJobForms"
 import { generateUUID } from "../../utils/uuid"
 import {
   cancelSale,
@@ -464,6 +465,18 @@ function SaleDetailDialog({
       sale?.installmentCalculation?.downpayment ??
       0
   )
+  const isCreditCardWithDp =
+    (sale?.creditAccount?.provider === "CREDIT_CARD" ||
+      sale?.installmentCalculation?.isCreditCardWithDp ||
+      sale?.paymentMethod === "CREDIT_CARD") &&
+    paidAmount > 0
+  const cashPromoTotal = Number(
+    sale?.creditAccount?.cashPromoTotalAmount ??
+      sale?.creditAccount?.sourceTotalAmountSnapshot ??
+      sale?.installmentCalculation?.cashPromoTotal ??
+      sale?.subtotal ??
+      0
+  )
   const totalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
     ? Number(sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
     : Number(sale?.grandTotal || sale?.subtotal || 0)
@@ -827,28 +840,61 @@ function SaleDetailDialog({
                   </div>
 
                   <div className="sm:col-span-6 space-y-1.5 text-xs text-right">
-                    <div className="flex justify-between font-bold text-slate-900 text-sm">
-                      <span>TOTAL AMOUNT</span>
-                      <span>{formatMoney(totalAmount)}</span>
-                    </div>
-                    {isCredit || paidAmount > 0 ? (
-                      <div className="flex justify-between text-slate-700">
-                        <span>{isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID"}</span>
-                        <span>{formatMoney(paidAmount)}</span>
-                      </div>
-                    ) : null}
-                    <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
-                      <span>BALANCE TO PAY</span>
-                      <span>{formatMoney(balanceToPay)}</span>
-                    </div>
-                    {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
-                      <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
-                        <span>
-                          MONTHLY ({sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS[sale.creditAccount.term] || "")} MOS)
-                        </span>
-                        <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
-                      </div>
-                    ) : null}
+                    {isCreditCardWithDp ? (
+                      <>
+                        {cashPromoTotal > 0 && cashPromoTotal !== totalAmount ? (
+                          <div className="flex justify-between text-slate-600">
+                            <span>ORIGINAL CASH PRICE</span>
+                            <span>{formatMoney(cashPromoTotal)}</span>
+                          </div>
+                        ) : null}
+                        <div className="flex justify-between text-slate-700">
+                          <span>CASH DOWNPAYMENT</span>
+                          <span>{formatMoney(paidAmount)}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
+                          <span>CREDIT CARD SWIPE</span>
+                          <span>{formatMoney(balanceToPay)}</span>
+                        </div>
+                        {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
+                          <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
+                            <span>
+                              MONTHLY ({sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS[sale.creditAccount.term] || "")} MOS)
+                            </span>
+                            <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
+                          </div>
+                        ) : null}
+                        <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5 text-sm">
+                          <span>TOTAL CUSTOMER PAYMENT / FINANCED AMOUNT</span>
+                          <span>{formatMoney(totalAmount)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between font-bold text-slate-900 text-sm">
+                          <span>TOTAL AMOUNT</span>
+                          <span>{formatMoney(totalAmount)}</span>
+                        </div>
+                        {isCredit || paidAmount > 0 ? (
+                          <div className="flex justify-between text-slate-700">
+                            <span>{isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID"}</span>
+                            <span>{formatMoney(paidAmount)}</span>
+                          </div>
+                        ) : null}
+                        <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
+                          <span>BALANCE TO PAY</span>
+                          <span>{formatMoney(balanceToPay)}</span>
+                        </div>
+                        {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
+                          <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
+                            <span>
+                              MONTHLY ({sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS[sale.creditAccount.term] || "")} MOS)
+                            </span>
+                            <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
+                          </div>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1661,14 +1707,32 @@ function PosSalesPage({ selectedBranch, user }) {
     const months = INSTALLMENT_TERM_MONTHS[creditTerm] || 1
     const cashPromoTotal = totals.grandTotal
     const downpayment = Number(paymentAmount || 0)
+    const isCreditCard = paymentMethod === "CREDIT_CARD"
 
-    const regularPriceTotalAmount =
-      Math.round((cashPromoTotal / termBasis) * 100) / 100
-    const interestAmount = Math.max(regularPriceTotalAmount - cashPromoTotal, 0)
-    const financedBalance = Math.max(
-      Math.round((regularPriceTotalAmount - downpayment) * 100) / 100,
-      0,
-    )
+    let regularPriceTotalAmount
+    let financedBalance
+    let swipeAmount = null
+    let termAdjustment = 0
+
+    if (isCreditCard && downpayment > 0) {
+      const remainingCash = Math.max(cashPromoTotal - downpayment, 0)
+      swipeAmount = Math.round((remainingCash / termBasis) * 100) / 100
+      regularPriceTotalAmount = Math.round((downpayment + swipeAmount) * 100) / 100
+      financedBalance = swipeAmount
+      termAdjustment = Math.max(swipeAmount - remainingCash, 0)
+    } else {
+      regularPriceTotalAmount =
+        Math.round((cashPromoTotal / termBasis) * 100) / 100
+      termAdjustment = Math.max(regularPriceTotalAmount - cashPromoTotal, 0)
+      financedBalance = Math.max(
+        Math.round((regularPriceTotalAmount - downpayment) * 100) / 100,
+        0,
+      )
+      if (isCreditCard) {
+        swipeAmount = financedBalance
+      }
+    }
+
     const monthlyDueAmount = Math.round((financedBalance / months) * 100) / 100
 
     return {
@@ -1676,12 +1740,16 @@ function PosSalesPage({ selectedBranch, user }) {
       months,
       cashPromoTotal,
       downpayment,
+      remainingCash: Math.max(cashPromoTotal - downpayment, 0),
       regularPriceTotalAmount,
-      interestAmount,
+      interestAmount: termAdjustment,
+      termAdjustment,
+      swipeAmount,
       financedBalance,
       monthlyDueAmount,
+      isCreditCardWithDp: isCreditCard && downpayment > 0,
     }
-  }, [isReceivableCheckout, installmentRates, creditTerm, totals.grandTotal, paymentAmount])
+  }, [isReceivableCheckout, installmentRates, creditTerm, totals.grandTotal, paymentAmount, paymentMethod])
 
   const amountPaidNumber = Number(effectivePaymentAmount || 0)
   const expectedBalance = isReceivableCheckout
@@ -2113,17 +2181,41 @@ function PosSalesPage({ selectedBranch, user }) {
       setCustomerAddress(job.customerAddressSnapshot || "")
     }
 
-    const jobAmount = String(
-      job.finalServiceCharge ??
-      job.baseServiceCharge ??
-      job.estimatedServiceCharge ??
-      0
-    )
+    const tasks = extractServiceTasks(job)
+    const parts = extractServiceParts(job)
     const assignedStaff = job.serviceDoneBy || job.assignedTechnician
 
-    setCart((current) => [
-      ...current,
-      {
+    const newLines = []
+    if (tasks.length > 0) {
+      tasks.forEach((task, idx) => {
+        const staffName = task.technicianName || assignedStaff?.fullName || null
+        const staffId = task.technicianId || assignedStaff?.id || null
+        newLines.push({
+          localId: `jo-${job.id}-task-${task.id || idx}-${Date.now()}-${idx}`,
+          type: "SERVICE",
+          isJobOrder: true,
+          jobOrderId: job.id,
+          jobOrderCode: job.jobCode,
+          description: `[JO #${job.jobCode}] ${task.title || "Service"} - ${job.deviceDescription || job.unitType || "Unit"}${job.serialNumber ? ` (S/N: ${job.serialNumber})` : ""}${staffName ? ` [Done by: ${staffName}]` : ""}`,
+          quantity: "1",
+          baseUnitPrice: String(task.amount || 0),
+          markupPercent: "0",
+          unitPrice: String(task.amount || 0),
+          discountAmount: "0",
+          serviceStaffId: staffId,
+          serviceStaffName: staffName,
+          serviceStaffRole: null,
+          warrantyDuration: task.warrantyDuration || "30 DAYS SERVICE WARRANTY",
+        })
+      })
+    } else {
+      const jobAmount = String(
+        job.finalServiceCharge ??
+        job.baseServiceCharge ??
+        job.estimatedServiceCharge ??
+        0
+      )
+      newLines.push({
         localId: `jo-${job.id}-${Date.now()}`,
         type: "SERVICE",
         isJobOrder: true,
@@ -2139,11 +2231,35 @@ function PosSalesPage({ selectedBranch, user }) {
         serviceStaffName: assignedStaff?.fullName || null,
         serviceStaffRole: assignedStaff ? getRoleLabel(assignedStaff.role) : null,
         warrantyDuration: "30 DAYS SERVICE WARRANTY",
-      },
-    ])
+      })
+    }
+
+    if (parts.length > 0) {
+      parts.forEach((part, pIdx) => {
+        newLines.push({
+          localId: `jo-${job.id}-part-${part.id || pIdx}-${Date.now()}-${pIdx}`,
+          type: "SERVICE",
+          isJobOrder: true,
+          jobOrderId: job.id,
+          jobOrderCode: job.jobCode,
+          description: `[JO #${job.jobCode} Part] ${part.partName || "Replacement Part"} (x${part.quantity || 1})`,
+          quantity: String(part.quantity || 1),
+          baseUnitPrice: String(part.unitPrice || 0),
+          markupPercent: "0",
+          unitPrice: String(part.unitPrice || 0),
+          discountAmount: "0",
+          serviceStaffId: null,
+          serviceStaffName: null,
+          serviceStaffRole: null,
+          warrantyDuration: "REPLACEMENT PART",
+        })
+      })
+    }
+
+    setCart((current) => [...current, ...newLines])
 
     setShowJobOrderLookup(false)
-    setNoticeMessage(`Loaded Job Order ${job.jobCode} into cart. You can change the final price directly in the cart before paying.`)
+    setNoticeMessage(`Loaded Job Order ${job.jobCode} (${newLines.length} item${newLines.length === 1 ? "" : "s"}) into cart.`)
   }
 
   const updateCartLine = (localId, patch) => {
@@ -2783,6 +2899,22 @@ function PosSalesPage({ selectedBranch, user }) {
 
       setSaleCheckoutPreview(null)
       setCompletedSale(receiptSale)
+
+      // If sale included Job Order lines, auto-complete and release the Job Orders
+      const joIds = [...new Set(cart.filter((l) => l.isJobOrder && l.jobOrderId).map((l) => l.jobOrderId))]
+      if (joIds.length > 0) {
+        for (const joId of joIds) {
+          try {
+            await releaseServiceJob(joId, {
+              releaseOutcome: "SERVICE_COMPLETED",
+              releaseNotes: `Settled and released via POS invoice ${sale.receiptCode}`,
+            })
+          } catch (releaseErr) {
+            console.warn(`Could not auto-release Job Order ${joId}:`, releaseErr)
+          }
+        }
+      }
+
       setNoticeMessage(
         `Sale ${sale.receiptCode} completed successfully${sale.creditAccount ? ` with receivable ${sale.creditAccount.creditCode}` : ""}.`,
       )
@@ -4058,12 +4190,18 @@ function PosSalesPage({ selectedBranch, user }) {
                         <span className="font-mono font-bold text-slate-900">{formatMoney(totals.grandTotal)}</span>
                       </div>
                       <div className="rounded-lg bg-white border border-blue-100 p-1.5">
-                        <span className="text-[10px] text-blue-700 block">Interest Adj</span>
-                        <span className="font-mono font-bold text-blue-900">+{formatMoney(installmentCalculation?.interestAmount || 0)}</span>
+                        <span className="text-[10px] text-blue-700 block">
+                          {installmentCalculation?.isCreditCardWithDp ? "CC Term Adj" : "Term Adj"}
+                        </span>
+                        <span className="font-mono font-bold text-blue-900">+{formatMoney(installmentCalculation?.termAdjustment || installmentCalculation?.interestAmount || 0)}</span>
                       </div>
                       <div className="rounded-lg bg-white border border-blue-100 p-1.5">
-                        <span className="text-[10px] text-[var(--color-maroon)] block">Financed Total</span>
-                        <span className="font-mono font-bold text-[var(--color-maroon)]">{formatMoney(installmentCalculation?.regularPriceTotalAmount || totals.grandTotal)}</span>
+                        <span className="text-[10px] text-[var(--color-maroon)] block">
+                          {installmentCalculation?.isCreditCardWithDp ? "CC Swipe Amount" : "Financed Total"}
+                        </span>
+                        <span className="font-mono font-bold text-[var(--color-maroon)]">
+                          {formatMoney(installmentCalculation?.isCreditCardWithDp ? (installmentCalculation?.swipeAmount ?? installmentCalculation?.financedBalance) : (installmentCalculation?.regularPriceTotalAmount || totals.grandTotal))}
+                        </span>
                       </div>
                       <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-1.5">
                         <span className="text-[10px] text-emerald-800 block">
@@ -4074,6 +4212,35 @@ function PosSalesPage({ selectedBranch, user }) {
                         </span>
                       </div>
                     </div>
+
+                    {installmentCalculation?.isCreditCardWithDp ? (
+                      <div className="rounded-lg bg-blue-100/50 border border-blue-200 p-2 text-xs space-y-1">
+                        <div className="flex justify-between text-slate-700">
+                          <span>Original Cash Price:</span>
+                          <span className="font-mono font-bold text-slate-900">{formatMoney(installmentCalculation.cashPromoTotal)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-700">
+                          <span>Cash Downpayment (DP):</span>
+                          <span className="font-mono font-bold text-emerald-700">−{formatMoney(installmentCalculation.downpayment)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-700">
+                          <span>Remaining Cash Balance:</span>
+                          <span className="font-mono font-bold text-slate-800">{formatMoney(installmentCalculation.remainingCash)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-700">
+                          <span>CC Term Basis / Factor:</span>
+                          <span className="font-mono font-bold text-blue-900">{installmentCalculation.termBasis}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-900 font-bold border-t border-blue-200 pt-1">
+                          <span>Credit Card Swipe:</span>
+                          <span className="font-mono text-blue-900">{formatMoney(installmentCalculation.financedBalance)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-900 font-bold border-t border-blue-200 pt-1">
+                          <span>Total Customer Payment / Financed Amount:</span>
+                          <span className="font-mono text-[var(--color-maroon)]">{formatMoney(installmentCalculation.regularPriceTotalAmount)}</span>
+                        </div>
+                      </div>
+                    ) : null}
 
                     <div className="grid gap-1.5 sm:grid-cols-3">
                       <label className="block">

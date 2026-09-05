@@ -86,6 +86,7 @@ function App() {
   const [hasAssignedCashBoxAccess, setHasAssignedCashBoxAccess] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [omniPreviewQuotation, setOmniPreviewQuotation] = useState(null)
+  const [pageContext, setPageContext] = useState(null)
 
   // Global Ctrl + K / Cmd + K shortcut listener
   useEffect(() => {
@@ -115,15 +116,15 @@ function App() {
 
   const allowedModules = user
     ? APP_MODULES.filter(
-        (item) =>
-          canRoleAccessModule(user.role, item.key) ||
-          (item.key === "cash-box" && canAccessCashBox),
-      )
+      (item) =>
+        canRoleAccessModule(user.role, item.key) ||
+        (item.key === "cash-box" && canAccessCashBox),
+    )
     : []
 
   const page = APP_MODULES.find((item) => item.key === activePage)
 
-  const setSafeActivePage = (pageKey, currentUser = user) => {
+  const setSafeActivePage = (pageKey, currentUser = user, context = null) => {
     if (!currentUser) return
 
     const canAccessRequestedPage =
@@ -132,12 +133,14 @@ function App() {
 
     if (canAccessRequestedPage) {
       setActivePage(pageKey)
+      setPageContext(context)
       saveActivePage(currentUser.id, pageKey)
       return
     }
 
     const defaultPage = getDefaultModuleForRole(currentUser.role)
     setActivePage(defaultPage)
+    setPageContext(null)
     saveActivePage(currentUser.id, defaultPage)
   }
 
@@ -317,7 +320,13 @@ function App() {
     }
 
     if (activePage === "inventory") {
-      return <InventoryPage selectedBranch={selectedBranch} user={user} />
+      return (
+        <InventoryPage
+          initialContext={pageContext}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
     }
 
     if (activePage === "pos") {
@@ -333,11 +342,23 @@ function App() {
     }
 
     if (activePage === "warranty") {
-      return <WarrantyPage selectedBranch={selectedBranch} user={user} />
+      return (
+        <WarrantyPage
+          initialContext={pageContext}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
     }
 
     if (activePage === "stock-transfers") {
-      return <StockTransfersPage selectedBranch={selectedBranch} user={user} />
+      return (
+        <StockTransfersPage
+          initialContext={pageContext}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
     }
 
     if (activePage === "quotations") {
@@ -359,7 +380,7 @@ function App() {
     if (activePage === "alerts") {
       return (
         <AlertsPage
-          onNavigate={setSafeActivePage}
+          onNavigate={(pageKey, ctx) => setSafeActivePage(pageKey, user, ctx)}
           selectedBranch={selectedBranch}
           user={user}
         />
@@ -382,6 +403,7 @@ function App() {
       return (
         <CashBoxesPage
           hasCashBoxAccess={canAccessCashBox}
+          initialContext={pageContext}
           selectedBranch={selectedBranch}
           user={user}
         />
@@ -389,7 +411,13 @@ function App() {
     }
 
     if (activePage === "credits") {
-      return <CreditsPage selectedBranch={selectedBranch} user={user} />
+      return (
+        <CreditsPage
+          initialContext={pageContext}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
     }
 
     if (activePage === "incentives") {
@@ -409,6 +437,7 @@ function App() {
     if (activePage === "purchase-orders") {
       return (
         <PurchaseOrdersPage
+          initialContext={pageContext}
           onNavigate={setSafeActivePage}
           selectedBranch={selectedBranch}
           user={user}
@@ -417,7 +446,13 @@ function App() {
     }
 
     if (activePage === "receivings") {
-      return <PurchaseReceivingsPage selectedBranch={selectedBranch} user={user} />
+      return (
+        <PurchaseReceivingsPage
+          initialContext={pageContext}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
     }
 
     if (activePage === "settings") return <SettingsPage user={user} />
@@ -463,7 +498,7 @@ function App() {
         activePage={activePage}
         canSwitchBranch={user?.role === USER_ROLES.SUPER_OWNER}
         modules={allowedModules}
-        onChangePage={(pageKey) => setSafeActivePage(pageKey)}
+        onChangePage={(pageKey, ctx) => setSafeActivePage(pageKey, user, ctx)}
         onLogout={handleLogout}
         onOpenSearch={() => setIsCommandPaletteOpen(true)}
         onSwitchBranch={handleSwitchBranch}

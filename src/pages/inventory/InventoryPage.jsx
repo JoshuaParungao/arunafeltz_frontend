@@ -134,15 +134,22 @@ function InventoryMobileCard({ item, canAdjust, onView, onAdjust }) {
   )
 }
 
-export default function InventoryPage({ selectedBranch, user }) {
+export default function InventoryPage({ initialContext, selectedBranch, user }) {
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
-  const [searchText, setSearchText] = useState("")
+  const [searchText, setSearchText] = useState(initialContext?.search || "")
   const [statusFilter, setStatusFilter] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState("")
   const [branchOptions, setBranchOptions] = useState([])
   const [viewingBranchId, setViewingBranchId] = useState(selectedBranch?.id || "")
   const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    if (initialContext?.search) {
+      setSearchText(initialContext.search)
+      setPage(1)
+    }
+  }, [initialContext])
   const [isBulkRequestOpen, setIsBulkRequestOpen] = useState(false)
   const [bulkSearchText, setBulkSearchText] = useState("")
   const [bulkRequestItems, setBulkRequestItems] = useState([])

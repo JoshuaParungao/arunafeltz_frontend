@@ -174,7 +174,7 @@ function ActionButtons({ transfer, user, busy, onAction, onView, onReceive }) {
   )
 }
 
-export default function StockTransfersPage({ selectedBranch, user: userProp }) {
+export default function StockTransfersPage({ initialContext, selectedBranch, user: userProp }) {
   const user = userProp || getUser()
   const branchId = selectedBranch?.id || (user?.role === "SUPER_OWNER" ? "" : user?.branchId || "")
   const effectiveBranchId = branchId || user?.branchId || ""
@@ -182,7 +182,7 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
   const [pagination, setPagination] = useState(null)
   const [statusFilter, setStatusFilter] = useState("")
   const [directionFilter, setDirectionFilter] = useState("ALL") // "ALL" | "OUT" | "IN"
-  const [searchText, setSearchText] = useState("")
+  const [searchText, setSearchText] = useState(initialContext?.search || "")
   const [page, setPage] = useState(1)
   const [selectedTransfer, setSelectedTransfer] = useState(null)
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
@@ -257,6 +257,17 @@ export default function StockTransfersPage({ selectedBranch, user: userProp }) {
       setIsLoadingDetail(false)
     }
   }
+
+  useEffect(() => {
+    if (!initialContext) return
+    if (initialContext.search) {
+      setSearchText(initialContext.search)
+      setPage(1)
+    }
+    if (initialContext.transferId) {
+      openTransfer({ id: initialContext.transferId })
+    }
+  }, [initialContext])
 
   const saveTransferPricing = async () => {
     if (!selectedTransfer) return

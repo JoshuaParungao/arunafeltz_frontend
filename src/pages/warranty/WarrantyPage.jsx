@@ -165,7 +165,7 @@ const EMPTY_CREATE = {
   remarks: "",
 }
 
-export default function WarrantyPage({ selectedBranch, user }) {
+export default function WarrantyPage({ initialContext, selectedBranch, user }) {
   const branchName = selectedBranch?.name || user?.branch?.name || "Selected Branch"
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const canCreate = CREATE_ROLES.has(user?.role)
@@ -182,7 +182,7 @@ export default function WarrantyPage({ selectedBranch, user }) {
   const [saleSearchText, setSaleSearchText] = useState("")
   const [isSaleDropdownOpen, setIsSaleDropdownOpen] = useState(false)
   const [selectedClaim, setSelectedClaim] = useState(null)
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState(initialContext?.search || "")
   const [statusFilter, setStatusFilter] = useState("")
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)

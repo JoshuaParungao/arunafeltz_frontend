@@ -54,6 +54,10 @@ import {
   REQUESTED_MAINTENANCE_SERVICES,
   SPECIAL_ATTENTION_ITEMS,
   UNIT_TYPES,
+  extractIntakeRecord,
+  extractServiceTasks,
+  extractServiceParts,
+  serializeStructuredNotes,
 } from "./serviceJobForms"
 
 const CREATE_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "TECHNICIAN", "CASHIER"])
@@ -622,7 +626,13 @@ function StaffCombobox({
   )
 }
 
-function ServicePricingFields({ baseServiceCharge, markupPercent, onBaseChange, onMarkupChange }) {
+function ServicePricingFields({
+  baseServiceCharge,
+  markupPercent,
+  onBaseChange,
+  onMarkupChange,
+  isOptional = false,
+}) {
   const baseIsValid = isValidBaseServiceCharge(baseServiceCharge)
   const markupIsValid = isValidMarkup(markupPercent)
   const finalServiceCharge =
@@ -630,16 +640,18 @@ function ServicePricingFields({ baseServiceCharge, markupPercent, onBaseChange, 
       ? getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
       : 0
   const numericBase = baseIsValid ? Number(baseServiceCharge || 0) : 0
+  const isUndetermined = numericBase === 0
 
   return (
     <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Base service charge *">
+        <Field label={isOptional ? "Base service charge (leave ₱0.00 for diagnosis / undetermined)" : "Base service charge *"}>
           <input
             className={FIELD_CLASS}
             min="0"
             onChange={(event) => onBaseChange(event.target.value)}
-            required
+            placeholder="0.00 (Undetermined / For Diagnosis)"
+            required={!isOptional}
             step="0.01"
             type="number"
             value={baseServiceCharge}
@@ -663,7 +675,12 @@ function ServicePricingFields({ baseServiceCharge, markupPercent, onBaseChange, 
       <div className="grid gap-2 text-xs sm:grid-cols-3">
         <div><p className="font-bold text-[var(--color-muted)]">Base</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(numericBase)}</p></div>
         <div><p className="font-bold text-[var(--color-muted)]">Markup amount</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(Math.max(finalServiceCharge - numericBase, 0))}</p></div>
-        <div><p className="font-bold text-[var(--color-muted)]">Final customer price</p><p className="mt-1 font-black text-[var(--color-maroon)]">{money(finalServiceCharge)}</p></div>
+        <div>
+          <p className="font-bold text-[var(--color-muted)]">Final customer price</p>
+          <p className="mt-1 font-black text-[var(--color-maroon)]">
+            {isUndetermined ? "₱0.00 (For Diagnosis / Undetermined)" : money(finalServiceCharge)}
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -765,6 +782,401 @@ function JobOrderPrintPreview({ defaultDoc = "RECEIPT", isBlank = false, job = {
       </div>
     </div>,
     document.body,
+  )
+}
+
+function WorkshopTasksManager({
+  job,
+  technicians = [],
+  isSaving = false,
+  onSaveTasks,
+  onStatusChange,
+  onOpenRelease,
+  canManage = false,
+}) {
+  const initialTasks = useMemo(() => extractServiceTasks(job), [job])
+  const initialParts = useMemo(() => extractServiceParts(job), [job])
+
+  const [tasks, setTasks] = useState(initialTasks)
+  const [parts, setParts] = useState(initialParts)
+  const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    setTasks(extractServiceTasks(job))
+    setParts(extractServiceParts(job))
+    setIsDirty(false)
+  }, [job])
+
+  const handleAddTask = () => {
+    const defaultTech =
+      job.assignedTechnician ||
+      job.serviceDoneBy ||
+      (technicians.length > 0 ? technicians[0] : null)
+
+    const newTask = {
+      id: `task-${Date.now()}`,
+      title: "",
+      amount: 0,
+      technicianId: defaultTech?.id || "",
+      technicianName: defaultTech?.fullName || "",
+      warrantyDuration: "30 DAYS SERVICE WARRANTY",
+    }
+    setTasks((prev) => [...prev, newTask])
+    setIsDirty(true)
+  }
+
+  const handleUpdateTask = (idx, patch) => {
+    setTasks((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], ...patch }
+      if (patch.technicianId !== undefined) {
+        const found = technicians.find((t) => t.id === patch.technicianId)
+        next[idx].technicianName = found ? (found.fullName || found.username) : ""
+      }
+      return next
+    })
+    setIsDirty(true)
+  }
+
+  const handleRemoveTask = (idx) => {
+    setTasks((prev) => prev.filter((_, i) => i !== idx))
+    setIsDirty(true)
+  }
+
+  const handleAddPart = () => {
+    const newPart = {
+      id: `part-${Date.now()}`,
+      partName: "",
+      quantity: 1,
+      unitPrice: 0,
+    }
+    setParts((prev) => [...prev, newPart])
+    setIsDirty(true)
+  }
+
+  const handleUpdatePart = (idx, patch) => {
+    setParts((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], ...patch }
+      return next
+    })
+    setIsDirty(true)
+  }
+
+  const handleRemovePart = (idx) => {
+    setParts((prev) => prev.filter((_, i) => i !== idx))
+    setIsDirty(true)
+  }
+
+  const laborTotal = useMemo(
+    () => tasks.reduce((sum, t) => sum + Number(t.amount || 0), 0),
+    [tasks]
+  )
+  const partsTotal = useMemo(
+    () =>
+      parts.reduce(
+        (sum, p) => sum + Number(p.quantity || 1) * Number(p.unitPrice || 0),
+        0
+      ),
+    [parts]
+  )
+  const overallTotal = laborTotal + partsTotal
+
+  const handleSave = () => {
+    onSaveTasks(tasks, parts, laborTotal)
+    setIsDirty(false)
+  }
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
+      {/* 1. Approval Gateway Banner */}
+      {job.status === "PENDING" && (
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50/80 p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <CircleAlert className="text-amber-700 shrink-0 mt-0.5" size={18} />
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
+                  Stage 3 Gateway: Waiting for Customer Approval
+                </h4>
+                <p className="mt-1 text-xs text-amber-800 leading-relaxed">
+                  Unit is under diagnosis in the workshop. Formulate the required repair/service tasks below, then contact the customer with the quote.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {canManage && (
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/80">
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2 text-xs font-black shadow-xs transition"
+                disabled={isSaving}
+                onClick={() => onStatusChange("IN_PROGRESS")}
+                type="button"
+              >
+                <Check size={14} /> Customer Approved (Start Work)
+              </button>
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 px-3 py-2 text-xs font-black shadow-xs transition"
+                disabled={isSaving}
+                onClick={onOpenRelease}
+                type="button"
+              >
+                <X size={14} /> Customer Declined (Pull-Out)
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {job.status === "IN_PROGRESS" && (
+        <div className="rounded-xl border border-sky-300 bg-sky-50/80 p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Wrench className="text-sky-700 shrink-0" size={18} />
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-sky-900">
+                Stage 3: Work In Progress in Workshop
+              </h4>
+              <p className="text-xs text-sky-800">
+                Tasks are actively being performed. When all work is completed and verified, mark ready for cashier release.
+              </p>
+            </div>
+          </div>
+          {canManage && (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:opacity-90 text-white px-3.5 py-2 text-xs font-black shadow-xs transition"
+              disabled={isSaving}
+              onClick={() => onStatusChange("READY_FOR_RELEASE")}
+              type="button"
+            >
+              <CheckCircle2 size={14} /> Mark Ready for Cashier
+            </button>
+          )}
+        </div>
+      )}
+
+      {job.status === "READY_FOR_RELEASE" && (
+        <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-4">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="text-purple-700 shrink-0" size={18} />
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-purple-900">
+                Stage 4: Service Done &amp; Ready for Cashier
+              </h4>
+              <p className="text-xs text-purple-800">
+                The unit is ready for release! Cashier can load J.O. #{job.jobCode} in the POS counter to collect payment and release the unit with the official Delivery / Warranty Receipt.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Workshop Multi-Tasks Section */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers size={16} className="text-[var(--color-maroon)]" />
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+              Workshop Service &amp; Labor Tasks ({tasks.length})
+            </h4>
+          </div>
+          {canManage && (
+            <button
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+              onClick={handleAddTask}
+              type="button"
+            >
+              <Plus size={13} /> Add Task
+            </button>
+          )}
+        </div>
+
+        {tasks.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
+            No specific workshop tasks formulated yet. Click "+ Add Task" to add tasks (e.g. Board Repair, Cleaning, Reformat).
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tasks.map((task, idx) => (
+              <div
+                className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/60 p-2.5 text-xs transition hover:border-slate-300"
+                key={task.id || idx}
+              >
+                <div className="flex-1 min-w-[200px]">
+                  <input
+                    className={FIELD_CLASS}
+                    disabled={!canManage}
+                    onChange={(e) => handleUpdateTask(idx, { title: e.target.value })}
+                    placeholder="e.g. Board Level Repair - Power IC, Deep Cleaning & Repaste"
+                    value={task.title}
+                  />
+                </div>
+
+                <div className="w-28 shrink-0">
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₱</span>
+                    <input
+                      className={`${FIELD_CLASS} pl-6 font-mono font-bold text-right`}
+                      disabled={!canManage}
+                      min="0"
+                      onChange={(e) => handleUpdateTask(idx, { amount: Number(e.target.value || 0) })}
+                      placeholder="0.00"
+                      step="0.01"
+                      type="number"
+                      value={task.amount}
+                    />
+                  </div>
+                </div>
+
+                <div className="w-44 shrink-0">
+                  <select
+                    className={FIELD_CLASS}
+                    disabled={!canManage}
+                    onChange={(e) => handleUpdateTask(idx, { technicianId: e.target.value })}
+                    value={task.technicianId || ""}
+                  >
+                    <option value="">— Unassigned Tech —</option>
+                    {technicians.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.fullName || t.username} ({friendly(t.role)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {canManage && (
+                  <button
+                    className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition shrink-0"
+                    onClick={() => handleRemoveTask(idx)}
+                    title="Remove task"
+                    type="button"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Attached Parts / Materials Section */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wrench size={15} className="text-slate-500" />
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+              Attached Parts &amp; Consumables ({parts.length})
+            </h4>
+          </div>
+          {canManage && (
+            <button
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+              onClick={handleAddPart}
+              type="button"
+            >
+              <Plus size={13} /> Add Part
+            </button>
+          )}
+        </div>
+
+        {parts.length > 0 && (
+          <div className="space-y-2">
+            {parts.map((part, idx) => (
+              <div
+                className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/60 p-2.5 text-xs"
+                key={part.id || idx}
+              >
+                <div className="flex-1 min-w-[180px]">
+                  <input
+                    className={FIELD_CLASS}
+                    disabled={!canManage}
+                    onChange={(e) => handleUpdatePart(idx, { partName: e.target.value })}
+                    placeholder="Part description / name (e.g. Thermal Grizzly Paste, 512GB NVMe SSD)"
+                    value={part.partName}
+                  />
+                </div>
+
+                <div className="w-20 shrink-0">
+                  <input
+                    className={`${FIELD_CLASS} text-center font-mono`}
+                    disabled={!canManage}
+                    min="1"
+                    onChange={(e) => handleUpdatePart(idx, { quantity: Number(e.target.value || 1) })}
+                    placeholder="Qty"
+                    type="number"
+                    value={part.quantity}
+                  />
+                </div>
+
+                <div className="w-28 shrink-0">
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₱</span>
+                    <input
+                      className={`${FIELD_CLASS} pl-6 font-mono font-bold text-right`}
+                      disabled={!canManage}
+                      min="0"
+                      onChange={(e) => handleUpdatePart(idx, { unitPrice: Number(e.target.value || 0) })}
+                      placeholder="0.00"
+                      step="0.01"
+                      type="number"
+                      value={part.unitPrice}
+                    />
+                  </div>
+                </div>
+
+                <div className="w-24 text-right font-mono font-black text-slate-700 shrink-0">
+                  ₱{money(Number(part.quantity || 1) * Number(part.unitPrice || 0))}
+                </div>
+
+                {canManage && (
+                  <button
+                    className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition shrink-0"
+                    onClick={() => handleRemovePart(idx)}
+                    title="Remove part"
+                    type="button"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 4. Subtotal & Save Button */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <span className="text-slate-500">
+            Labor ({tasks.length}): <strong className="font-mono text-slate-800">₱{money(laborTotal)}</strong>
+          </span>
+          {partsTotal > 0 && (
+            <span className="text-slate-500">
+              Parts ({parts.length}): <strong className="font-mono text-slate-800">₱{money(partsTotal)}</strong>
+            </span>
+          )}
+          <span className="font-bold text-slate-700">
+            Workshop Quote: <strong className="font-mono text-base font-black text-[var(--color-maroon)]">₱{money(overallTotal)}</strong>
+          </span>
+        </div>
+
+        {canManage && (
+          <button
+            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black shadow-xs transition ${
+              isDirty
+                ? "bg-[var(--color-maroon)] text-white hover:opacity-90 ring-2 ring-[var(--color-maroon)]/30"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+            disabled={isSaving}
+            onClick={handleSave}
+            type="button"
+          >
+            💾 {isDirty ? "Save Tasks & Update Charge *" : "Save Workshop Tasks"}
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -1110,6 +1522,76 @@ export default function ServicesPage({ selectedBranch, user }) {
     }
   }
 
+  const handleSaveWorkshopTasks = async (updatedTasks, updatedParts, laborTotal) => {
+    if (!selectedJob || isSaving) return
+    setIsSaving(true)
+    setErrorMessage("")
+    try {
+      const intakeRecord = extractIntakeRecord(selectedJob)
+      const cleanFreeNotes = (selectedJob.serviceNotes || "")
+        .replace(/\[INTAKE_RECORD_V1\]:[\s\S]*?(\n\n|$)/g, "")
+        .replace(/\[SERVICE_TASKS_V1\]:[\s\S]*?(\n\n|$)/g, "")
+        .replace(/\[SERVICE_PARTS_V1\]:[\s\S]*?(\n\n|$)/g, "")
+        .trim()
+
+      const newServiceNotes = serializeStructuredNotes({
+        intakeRecord,
+        tasks: updatedTasks,
+        parts: updatedParts,
+        freeNotes: cleanFreeNotes,
+      })
+
+      const primaryTechId = updatedTasks.find((t) => t.technicianId)?.technicianId
+
+      await updateServiceJobStatus(selectedJob.id, {
+        baseServiceCharge: laborTotal,
+        finalServiceCharge: laborTotal,
+        serviceNotes: newServiceNotes,
+        ...(primaryTechId ? { serviceDoneById: primaryTechId } : {}),
+      })
+
+      setNotice(`Workshop tasks and pricing saved for ${selectedJob.jobCode}. Total: ${money(laborTotal)}`)
+      await Promise.all([reloadSelected(selectedJob.id), loadJobs()])
+    } catch (error) {
+      setErrorMessage(apiError(error, "Could not save workshop tasks."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleWorkshopStatusChange = async (nextStatus) => {
+    if (!selectedJob || isSaving) return
+    setIsSaving(true)
+    setErrorMessage("")
+    try {
+      const currentTasks = extractServiceTasks(selectedJob)
+      const primaryTechId = currentTasks.find((t) => t.technicianId)?.technicianId
+
+      const defaultDoneBy =
+        selectedJob.serviceDoneById ||
+        primaryTechId ||
+        selectedJob.assignedTechnicianId ||
+        user?.id
+
+      await updateServiceJobStatus(selectedJob.id, {
+        status: nextStatus,
+        repairType: selectedJob.repairType || "ORDINARY_REPAIR",
+        ...(nextStatus === "READY_FOR_RELEASE" ? { serviceDoneById: defaultDoneBy } : {}),
+      })
+
+      const statusMessages = {
+        IN_PROGRESS: `Job Order ${selectedJob.jobCode} approved by customer. Work is now in progress!`,
+        READY_FOR_RELEASE: `Job Order ${selectedJob.jobCode} marked ready for Cashier release at POS!`,
+      }
+      setNotice(statusMessages[nextStatus] || `Job Order ${selectedJob.jobCode} updated to ${friendly(nextStatus)}.`)
+      await Promise.all([reloadSelected(selectedJob.id), loadJobs()])
+    } catch (error) {
+      setErrorMessage(apiError(error, `Could not change status to ${friendly(nextStatus)}.`))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const beginLifecycleAction = (status) => {
     const existingPerformerId =
       selectedJob?.serviceDoneById || selectedJob?.serviceDoneBy?.id || ""
@@ -1376,7 +1858,7 @@ export default function ServicesPage({ selectedBranch, user }) {
               provider: paymentForm.arrangement,
               providerReferenceNo:
                 paymentForm.providerReferenceNo.trim() || undefined,
-              ...(paymentForm.arrangement === "IN_HOUSE_INSTALLMENT"
+              ...(["IN_HOUSE_INSTALLMENT", "CREDIT_CARD"].includes(paymentForm.arrangement)
                 ? {
                     term: paymentForm.term,
                     dueDay:
@@ -2229,6 +2711,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                 <p className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Pricing & Charges</p>
                 <ServicePricingFields
                   baseServiceCharge={createForm.baseServiceCharge}
+                  isOptional={true}
                   markupPercent={createForm.markupPercent}
                   onBaseChange={(value) => setCreateForm((form) => ({ ...form, baseServiceCharge: value }))}
                   onMarkupChange={(value) => setCreateForm((form) => ({ ...form, markupPercent: value }))}
@@ -2441,6 +2924,17 @@ export default function ServicesPage({ selectedBranch, user }) {
                   </div>
                 </div>
 
+                {/* Stage 3: Workshop Multi-Tasks Manager & Approval Gateway */}
+                <WorkshopTasksManager
+                  canManage={canUpdateLifecycle}
+                  isSaving={isSaving}
+                  job={selectedJob}
+                  onOpenRelease={openRelease}
+                  onSaveTasks={handleSaveWorkshopTasks}
+                  onStatusChange={handleWorkshopStatusChange}
+                  technicians={technicians}
+                />
+
                 {/* Service Notes & Release Notes (if present) */}
                 {selectedJob.serviceNotes || selectedJob.releaseNotes ? (
                   <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-2">
@@ -2448,7 +2942,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                       Work Performed &amp; Notes
                     </p>
                     <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
-                      {(selectedJob.serviceNotes || "").replace(/\[INTAKE_RECORD_V1\]:[\s\S]*?(\n\n|$)/, "").trim() || "—"}
+                      {(selectedJob.serviceNotes || "").replace(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1|SERVICE_PARTS_V1)\]:[\s\S]*?(\n\n|$)/g, "").trim() || "—"}
                     </p>
                     {selectedJob.releaseNotes ? (
                       <p className="text-xs text-slate-600 italic pt-2 border-t border-slate-100">
@@ -2729,7 +3223,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                 <Field label="Settlement arrangement *"><select className={FIELD_CLASS} onChange={(event) => { const arrangement = event.target.value; setPaymentForm((form) => ({ ...form, arrangement, amount: RECEIVABLE_PROVIDER_VALUES.has(arrangement) ? "0" : String(selectedJob?.remainingBalance || "") })) }} value={paymentForm.arrangement}><optgroup label="Immediate settlement">{IMMEDIATE_PAYMENT_METHODS.map((method) => <option key={method} value={method}>{friendly(method)}</option>)}</optgroup><optgroup label="Accounts receivable">{RECEIVABLE_PROVIDERS.map((provider) => <option key={provider} value={provider}>{friendly(provider)}</option>)}</optgroup></select></Field>
                 <Field label={RECEIVABLE_PROVIDER_VALUES.has(paymentForm.arrangement) ? "Immediate settlement / downpayment" : "Payment amount *"}><input className={FIELD_CLASS} max={Number(selectedJob?.remainingBalance || 0)} min="0" onChange={(event) => setPaymentForm((form) => ({ ...form, amount: event.target.value }))} required step="0.01" type="number" value={paymentForm.amount} /></Field>
               </div>
-              {RECEIVABLE_PROVIDER_VALUES.has(paymentForm.arrangement) ? <div className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50 p-4"><p className="text-sm font-black text-blue-900">Open AR · {friendly(paymentForm.arrangement)}</p><div className="grid gap-4 sm:grid-cols-2"><Field label="Immediate settlement method"><select className={FIELD_CLASS} onChange={(event) => setPaymentForm((form) => ({ ...form, settlementMethod: event.target.value }))} value={paymentForm.settlementMethod}>{IMMEDIATE_PAYMENT_METHODS.map((method) => <option key={method} value={method}>{friendly(method)}</option>)}</select></Field><Field label="Provider reference"><input className={FIELD_CLASS} maxLength="180" onChange={(event) => setPaymentForm((form) => ({ ...form, providerReferenceNo: event.target.value }))} value={paymentForm.providerReferenceNo} /></Field></div>{paymentForm.arrangement === "IN_HOUSE_INSTALLMENT" ? <div className="grid gap-4 sm:grid-cols-3"><Field label="Term *"><select className={FIELD_CLASS} onChange={(event) => setPaymentForm((form) => ({ ...form, term: event.target.value }))} value={paymentForm.term}>{INSTALLMENT_TERMS.map((term) => <option key={term} value={term}>{friendly(term)}</option>)}</select></Field><Field label="Due day"><input className={FIELD_CLASS} max="31" min="1" onChange={(event) => setPaymentForm((form) => ({ ...form, dueDay: event.target.value }))} step="1" type="number" value={paymentForm.dueDay} /></Field><Field label="First due date"><input className={FIELD_CLASS} onChange={(event) => setPaymentForm((form) => ({ ...form, firstDueDate: event.target.value }))} type="date" value={paymentForm.firstDueDate} /></Field></div> : null}<Field label="AR remarks"><textarea className={FIELD_CLASS} maxLength="1000" onChange={(event) => setPaymentForm((form) => ({ ...form, receivableRemarks: event.target.value }))} rows="2" value={paymentForm.receivableRemarks} /></Field><p className="text-xs text-blue-800">Only in-house installment requires a named customer and uses saved installment settings. Other providers keep a principal AR balance without invented installment math.</p></div> : null}
+              {RECEIVABLE_PROVIDER_VALUES.has(paymentForm.arrangement) ? <div className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50 p-4"><p className="text-sm font-black text-blue-900">Open AR · {friendly(paymentForm.arrangement)}</p><div className="grid gap-4 sm:grid-cols-2"><Field label="Immediate settlement method"><select className={FIELD_CLASS} onChange={(event) => setPaymentForm((form) => ({ ...form, settlementMethod: event.target.value }))} value={paymentForm.settlementMethod}>{IMMEDIATE_PAYMENT_METHODS.map((method) => <option key={method} value={method}>{friendly(method)}</option>)}</select></Field><Field label="Provider reference"><input className={FIELD_CLASS} maxLength="180" onChange={(event) => setPaymentForm((form) => ({ ...form, providerReferenceNo: event.target.value }))} value={paymentForm.providerReferenceNo} /></Field></div>{["IN_HOUSE_INSTALLMENT", "CREDIT_CARD"].includes(paymentForm.arrangement) ? <div className="grid gap-4 sm:grid-cols-3"><Field label="Term *"><select className={FIELD_CLASS} onChange={(event) => setPaymentForm((form) => ({ ...form, term: event.target.value }))} value={paymentForm.term}>{INSTALLMENT_TERMS.map((term) => <option key={term} value={term}>{friendly(term)}</option>)}</select></Field><Field label="Due day"><input className={FIELD_CLASS} max="31" min="1" onChange={(event) => setPaymentForm((form) => ({ ...form, dueDay: event.target.value }))} step="1" type="number" value={paymentForm.dueDay} /></Field><Field label="First due date"><input className={FIELD_CLASS} onChange={(event) => setPaymentForm((form) => ({ ...form, firstDueDate: event.target.value }))} type="date" value={paymentForm.firstDueDate} /></Field></div> : null}<Field label="AR remarks"><textarea className={FIELD_CLASS} maxLength="1000" onChange={(event) => setPaymentForm((form) => ({ ...form, receivableRemarks: event.target.value }))} rows="2" value={paymentForm.receivableRemarks} /></Field><p className="text-xs text-blue-800">In-house installment and Credit Card installment use configured term basis calculations. Other financing providers keep principal AR balance.</p></div> : null}
               <Field label="Reference number"><input className={FIELD_CLASS} maxLength="180" onChange={(event) => setPaymentForm((form) => ({ ...form, referenceNo: event.target.value }))} value={paymentForm.referenceNo} /></Field>
               <Field label="Remarks"><textarea className={FIELD_CLASS} maxLength="1000" onChange={(event) => setPaymentForm((form) => ({ ...form, remarks: event.target.value }))} rows="2" value={paymentForm.remarks} /></Field>
               <p className="text-xs text-[var(--color-muted)]">Partial immediate payments are supported. A receivable covers the remaining source amount atomically; subsequent payments are posted from Accounts Receivable.</p>
