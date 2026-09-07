@@ -482,11 +482,15 @@ function SaleDetailDialog({
       sale?.subtotal ??
       0
   )
-  const termBasis = Number(
+  const rawTermBasis = Number(
     sale?.creditAccount?.termBasis ||
       sale?.installmentCalculation?.termBasis ||
-      1
+      0
   )
+  const termKey = sale?.creditAccount?.term || sale?.creditTerm
+  const termBasis = rawTermBasis > 0 && rawTermBasis < 1
+    ? rawTermBasis
+    : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
   const rawTotalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
     ? Number(sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
     : Number(sale?.grandTotal || sale?.subtotal || 0)

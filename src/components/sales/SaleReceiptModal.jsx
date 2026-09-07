@@ -47,6 +47,15 @@ const INSTALLMENT_TERM_MONTHS = {
   MONTH_24: 24,
 }
 
+const DEFAULT_TERM_RATES = {
+  MONTH_3: 0.95,
+  MONTH_6: 0.92,
+  MONTH_9: 0.9,
+  MONTH_12: 0.875,
+  MONTH_18: 0.82,
+  MONTH_24: 0.78,
+}
+
 export default function SaleReceiptModal({ sale: initialSale, saleId, onClose }) {
   const [sale, setSale] = useState(initialSale || null)
   const [isLoading, setIsLoading] = useState(!initialSale && Boolean(saleId))
@@ -181,11 +190,17 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
   }, [sale])
 
   const termBasis = useMemo(() => {
-    return Number(
+    const rawBasis = Number(
       sale?.creditAccount?.termBasis ||
         sale?.installmentCalculation?.termBasis ||
-        1
+        0
     )
+    if (rawBasis > 0 && rawBasis < 1) return rawBasis
+    const termKey = sale?.creditAccount?.term || sale?.receivable?.term || sale?.creditTerm
+    if (termKey && DEFAULT_TERM_RATES[termKey]) {
+      return DEFAULT_TERM_RATES[termKey]
+    }
+    return 1
   }, [sale])
 
   const ccSwipeAmount = useMemo(() => {

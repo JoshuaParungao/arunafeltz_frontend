@@ -18,6 +18,15 @@ const INSTALLMENT_TERM_MONTHS = {
   MONTH_24: 24,
 }
 
+const DEFAULT_TERM_RATES = {
+  MONTH_3: 0.95,
+  MONTH_6: 0.92,
+  MONTH_9: 0.9,
+  MONTH_12: 0.875,
+  MONTH_18: 0.82,
+  MONTH_24: 0.78,
+}
+
 /**
  * Universal Sanitizer for PDF Text Rendering.
  * Strips/normalizes Unicode glyphs that break jsPDF WinAnsiEncoding into '+++' or corrupted characters.
@@ -1200,11 +1209,15 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   )
 
   const isCredit = Boolean(sale?.creditAccount || options?.isCredit)
-  const termBasis = Number(
+  const rawTermBasis = Number(
     sale?.creditAccount?.termBasis ||
       (isCredit && options?.installmentCalculation?.termBasis) ||
-      1
+      0
   )
+  const termKey = sale?.creditAccount?.term || options?.installmentCalculation?.term || options?.creditTerm || sale?.creditTerm
+  const termBasis = rawTermBasis > 0 && rawTermBasis < 1
+    ? rawTermBasis
+    : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
 
   const tableHead = [
     ["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "UNIT PRICE", "AMOUNT"],
