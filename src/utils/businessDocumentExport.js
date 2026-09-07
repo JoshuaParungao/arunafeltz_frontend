@@ -1371,8 +1371,6 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     curY += 4
 
     const monthlyDue =
-      sale?.creditAccount?.monthlyDueAmount ||
-      options?.installmentCalculation?.monthlyDueAmount ||
       Math.round((balanceToPay / Number(sale?.creditAccount?.months || options?.installmentCalculation?.months || 12)) * 100) / 100
     const months =
       sale?.creditAccount?.months ||

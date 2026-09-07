@@ -445,16 +445,14 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                         <span>AMOUNT FINANCED (CC SWIPE)</span>
                         <span>{formatMoney(balanceToPay)}</span>
                       </div>
-                      {isCredit && (sale?.creditAccount?.monthlyDueAmount || sale?.installmentCalculation?.monthlyDueAmount || balanceToPay) ? (
+                      {isCredit && (balanceToPay > 0 || sale?.creditAccount?.monthlyDueAmount) ? (
                         <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
                           <span>
                             MONTHLY ({sale?.creditAccount?.months || (INSTALLMENT_TERM_MONTHS[sale?.creditAccount?.term] || sale?.installmentCalculation?.months || "")} MOS)
                           </span>
                           <span>
                             {formatMoney(
-                              sale?.creditAccount?.monthlyDueAmount ||
-                                sale?.installmentCalculation?.monthlyDueAmount ||
-                                Math.round((balanceToPay / Number(sale?.creditAccount?.months || sale?.installmentCalculation?.months || 12)) * 100) / 100
+                              Math.round((balanceToPay / Number(sale?.creditAccount?.months || sale?.installmentCalculation?.months || 12)) * 100) / 100
                             )}/mo
                           </span>
                         </div>
