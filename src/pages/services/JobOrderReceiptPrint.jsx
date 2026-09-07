@@ -33,6 +33,8 @@ export default function JobOrderReceiptPrint({ isBlank = false, job = {} }) {
   const technicianName = isBlank ? "" : (job.assignedTechnician?.fullName || job.serviceDoneBy?.fullName || job.receivedBy?.fullName || "")
   const jobCode = isBlank ? "" : (job.jobCode || "")
   const dateStr = isBlank ? "" : formatDate(job.receivedAt || job.createdAt)
+  const releasedByName = isBlank ? "" : (job.releasedBy?.fullName || job.releasedByStaffSnapshot || "")
+  const releasedDateStr = isBlank ? "" : (job.releasedAt ? formatDate(job.releasedAt) : "")
 
   // Unit details & type resolution
   const unitTypeFromIntake = (intake?.unitType || "").toLowerCase()
@@ -85,13 +87,20 @@ export default function JobOrderReceiptPrint({ isBlank = false, job = {} }) {
   // Problem description
   const problemText = isBlank ? "" : (job.problemDescription || intake?.problemDescription || "")
 
-  // Current Status
+  // Current Status & Stage detection
   const status = isBlank ? "" : (job.status || "PENDING")
+  const hasFormulatedTasks = !isBlank && (
+    Number(job.finalServiceCharge || job.baseServiceCharge || 0) > 0 ||
+    Boolean(job.serviceNotes && job.serviceNotes.includes("[SERVICE_TASKS_V1]:"))
+  )
   const isReceived = !isBlank && (status === "PENDING" || status === "IN_PROGRESS" || status === "READY_FOR_RELEASE" || status === "COMPLETED")
-  const isUnderDiagnosis = !isBlank && (status === "PENDING" || status === "IN_PROGRESS") && isDiagnostic
-  const isWaitingApproval = false
+  const isUnderDiagnosis = !isBlank && status === "PENDING" && !hasFormulatedTasks
+  const isWaitingApproval = !isBlank && status === "PENDING" && hasFormulatedTasks
   const isRepairInProgress = !isBlank && status === "IN_PROGRESS"
-  const isTesting = false
+  const isTesting = !isBlank && status === "IN_PROGRESS" && (
+    (job.serviceNotes || "").toLowerCase().includes("test") ||
+    (job.diagnosis || "").toLowerCase().includes("test")
+  )
   const isReadyPickup = !isBlank && (status === "READY_FOR_RELEASE" || status === "COMPLETED")
 
   return (
@@ -345,18 +354,18 @@ export default function JobOrderReceiptPrint({ isBlank = false, job = {} }) {
           <div className="jo-official-field-row">
             <div className="jo-official-flex-field" style={{ flex: 1.2 }}>
               <span className="jo-official-field-label">Released By:</span>
-              <span className="jo-official-underline-val" />
+              <span className="jo-official-underline-val jo-bold">{releasedByName}</span>
             </div>
             <div className="jo-official-flex-field" style={{ flex: 1 }}>
               <span className="jo-official-field-label">Date Released:</span>
-              <span className="jo-official-underline-val" />
+              <span className="jo-official-underline-val">{releasedDateStr}</span>
             </div>
           </div>
 
           <div className="jo-official-field-row" style={{ marginTop: "2mm" }}>
             <div className="jo-official-flex-field" style={{ flex: 1 }}>
               <span className="jo-official-field-label">Received By (Customer):</span>
-              <span className="jo-official-underline-val" />
+              <span className="jo-official-underline-val jo-bold">{job.status === "COMPLETED" ? customerName : ""}</span>
             </div>
           </div>
 

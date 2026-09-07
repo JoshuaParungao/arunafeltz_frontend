@@ -509,22 +509,22 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center text-xs">
                   <div className="space-y-6">
                     <p className="text-left font-bold text-slate-600 text-[11px]">Prepared by:</p>
-                    <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] uppercase">
-                      {sale.cashier?.fullName || sale.cashier?.username || "Staff"}
+                    <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] uppercase min-h-[1.5rem]">
+                      {sale.cashier?.fullName || sale.cashier?.username || "\u00A0"}
                     </div>
                   </div>
 
                   <div className="space-y-6">
                     <p className="text-left font-bold text-slate-600 text-[11px]">Warehouse:</p>
-                    <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400">
-                      Staff
+                    <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400 min-h-[1.5rem]">
+                      &nbsp;
                     </div>
                   </div>
 
                   <div className="space-y-6">
                     <p className="text-left font-bold text-slate-600 text-[11px]">Releasing:</p>
-                    <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400">
-                      Staff
+                    <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400 min-h-[1.5rem]">
+                      &nbsp;
                     </div>
                   </div>
 

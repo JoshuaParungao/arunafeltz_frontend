@@ -41,7 +41,12 @@ import {
   getQuotationServiceStaff,
   updateQuotationStatus,
 } from "../../features/quotations/quotations.api"
-import { getServiceJobs, releaseServiceJob } from "../../features/service-jobs/serviceJobs.api"
+import {
+  getServiceJobs,
+  getServiceJobById,
+  updateServiceJobStatus,
+  releaseServiceJob,
+} from "../../features/service-jobs/serviceJobs.api"
 import { extractServiceTasks, extractServiceParts } from "../services/serviceJobForms"
 import { generateUUID } from "../../utils/uuid"
 import {
@@ -935,22 +940,22 @@ function SaleDetailDialog({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center text-xs">
                     <div className="space-y-6">
                       <p className="text-left font-bold text-slate-600 text-[11px]">Prepared by:</p>
-                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] uppercase">
-                        {sale.cashier?.fullName || sale.cashier?.username || "Staff"}
+                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] uppercase min-h-[1.5rem]">
+                        {sale.cashier?.fullName || sale.cashier?.username || "\u00A0"}
                       </div>
                     </div>
 
                     <div className="space-y-6">
                       <p className="text-left font-bold text-slate-600 text-[11px]">Warehouse:</p>
-                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400">
-                        Staff
+                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400 min-h-[1.5rem]">
+                        &nbsp;
                       </div>
                     </div>
 
                     <div className="space-y-6">
                       <p className="text-left font-bold text-slate-600 text-[11px]">Releasing:</p>
-                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400">
-                        Staff
+                      <div className="border-b border-slate-400 pt-2 font-semibold text-[11px] text-slate-400 min-h-[1.5rem]">
+                        &nbsp;
                       </div>
                     </div>
 
@@ -1256,7 +1261,7 @@ function ReturnSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
   )
 }
 
-function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
+function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob }) {
   const [searchText, setSearchText] = useState("")
   const [statusFilter, setStatusFilter] = useState("ACTIVE")
   const [jobs, setJobs] = useState([])
@@ -1274,7 +1279,10 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
         status: statusFilter === "ALL" ? undefined : statusFilter === "READY_FOR_RELEASE" ? "READY_FOR_RELEASE" : undefined,
         limit: 30,
       })
-      const rows = Array.isArray(response?.data) ? response.data : []
+      let rows = Array.isArray(response?.data) ? response.data : []
+      if (statusFilter === "ACTIVE") {
+        rows = rows.filter((j) => j.status !== "COMPLETED" && j.status !== "CANCELLED")
+      }
       setJobs(rows)
     } catch (err) {
       setErrorMessage(err?.response?.data?.message || "Failed to load Job Orders.")
@@ -1426,14 +1434,29 @@ function JobOrderLookupDialog({ branchId, onClose, onSelectJob }) {
                         {formatMoney(finalPrice)}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onSelectJob(job)}
-                      className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
-                    >
-                      <Plus size={14} />
-                      Load to Cart
-                    </button>
+                    {cart.some((l) => l.isJobOrder && l.jobOrderId === job.id) ? (
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 text-xs font-bold">
+                        <CheckCircle2 size={13} />
+                        In Cart
+                      </span>
+                    ) : job.status === "COMPLETED" ? (
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 px-3 py-1.5 text-xs font-bold">
+                        Already Released
+                      </span>
+                    ) : job.status === "CANCELLED" ? (
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-500 px-3 py-1.5 text-xs font-bold">
+                        Cancelled
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onSelectJob(job)}
+                        className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
+                      >
+                        <Plus size={14} />
+                        Load to Cart
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -1819,7 +1842,9 @@ function PosSalesPage({ selectedBranch, user }) {
       const rows = getCatalogRows(itemResponse)
       setItemResults(rows)
 
-      const joRows = Array.isArray(joResponse?.data) ? joResponse.data : []
+      const joRows = (Array.isArray(joResponse?.data) ? joResponse.data : []).filter(
+        (job) => job.status !== "COMPLETED" && job.status !== "CANCELLED",
+      )
       setJobOrderResults(joRows)
 
       if (rows.length === 0 && joRows.length === 0 && trimmedSearch) {
@@ -2135,7 +2160,9 @@ function PosSalesPage({ selectedBranch, user }) {
     // 3. Check via live search for Job Orders
     try {
       const joRes = await getServiceJobs({ search: query, branchId, limit: 5 })
-      const joList = Array.isArray(joRes?.data) ? joRes.data : []
+      const joList = (Array.isArray(joRes?.data) ? joRes.data : []).filter(
+        (job) => job.status !== "COMPLETED" && job.status !== "CANCELLED",
+      )
       const matchedJo = joList.find((job) => {
         const codeNorm = job.jobCode?.toLowerCase() || ""
         const codeDigits = job.jobCode?.replace(/\D/g, "") || ""
@@ -2182,6 +2209,18 @@ function PosSalesPage({ selectedBranch, user }) {
 
   const handleSelectJobOrder = (job) => {
     if (!job) return
+
+    if (job.status === "COMPLETED" || job.status === "CANCELLED") {
+      setCartMessage(`Job Order ${job.jobCode} is already ${job.status.toLowerCase().replace(/_/g, " ")} and cannot be loaded.`)
+      setShowJobOrderLookup(false)
+      return
+    }
+
+    if (cart.some((line) => line.isJobOrder && line.jobOrderId === job.id)) {
+      setCartMessage(`Job Order ${job.jobCode} is already loaded in the cart.`)
+      setShowJobOrderLookup(false)
+      return
+    }
 
     // Auto-fill customer info if present
     if (job.customerId) {
@@ -2924,8 +2963,38 @@ function PosSalesPage({ selectedBranch, user }) {
       if (joIds.length > 0) {
         for (const joId of joIds) {
           try {
+            const cartLine = cart.find((l) => l.jobOrderId === joId)
+            const staffId = cartLine?.serviceStaffId || undefined
+
+            const jobRes = await getServiceJobById(joId).catch(() => null)
+            const currentJob = jobRes?.data || jobRes
+            const effectiveDoneBy =
+              staffId ||
+              currentJob?.serviceDoneById ||
+              currentJob?.assignedTechnicianId ||
+              selectedServiceStaffId ||
+              user?.id ||
+              undefined
+
+            if (currentJob && currentJob.status === "PENDING") {
+              await updateServiceJobStatus(joId, {
+                status: "IN_PROGRESS",
+                ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
+              }).catch(() => null)
+              await updateServiceJobStatus(joId, {
+                status: "READY_FOR_RELEASE",
+                ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
+              }).catch(() => null)
+            } else if (currentJob && currentJob.status === "IN_PROGRESS") {
+              await updateServiceJobStatus(joId, {
+                status: "READY_FOR_RELEASE",
+                ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
+              }).catch(() => null)
+            }
+
             await releaseServiceJob(joId, {
               releaseOutcome: "SERVICE_COMPLETED",
+              ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
               releaseNotes: `Settled and released via POS invoice ${sale.receiptCode}`,
             })
           } catch (releaseErr) {
@@ -5001,6 +5070,7 @@ function PosSalesPage({ selectedBranch, user }) {
       {showJobOrderLookup ? (
         <JobOrderLookupDialog
           branchId={branchId}
+          cart={cart}
           onClose={() => setShowJobOrderLookup(false)}
           onSelectJob={handleSelectJobOrder}
         />

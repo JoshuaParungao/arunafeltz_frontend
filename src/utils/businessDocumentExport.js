@@ -1527,12 +1527,12 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     {
       label: "Prepared by:",
       name: sanitizeForPdf(
-        cashier.fullName || cashier.username || "Staff"
+        cashier.fullName || cashier.username || ""
       ).toUpperCase(),
       sub: "",
     },
-    { label: "Warehouse:", name: "", sub: "Staff" },
-    { label: "Releasing:", name: "", sub: "Staff" },
+    { label: "Warehouse:", name: "", sub: "" },
+    { label: "Releasing:", name: "", sub: "" },
     { label: "Received by:", name: "", sub: "Signature over Printed Name" },
   ]
 
