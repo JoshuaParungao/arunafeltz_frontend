@@ -151,7 +151,57 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
     return name || "—"
   }, [sale])
 
+  const paidAmount = useMemo(() => {
+    return Number(
+      sale?.amountPaid ??
+        sale?.creditAccount?.downpaymentAmount ??
+        sale?.creditAccount?.initialPaymentAmount ??
+        sale?.installmentCalculation?.downpayment ??
+        0
+    )
+  }, [sale])
+
+  const isCreditCardWithDp = useMemo(() => {
+    return (
+      (sale?.creditAccount?.provider === "CREDIT_CARD" ||
+        sale?.installmentCalculation?.isCreditCardWithDp ||
+        sale?.paymentMethod === "CREDIT_CARD") &&
+      paidAmount > 0
+    )
+  }, [sale, paidAmount])
+
+  const cashPromoTotal = useMemo(() => {
+    return Number(
+      sale?.creditAccount?.cashPromoTotalAmount ??
+        sale?.creditAccount?.sourceTotalAmountSnapshot ??
+        sale?.installmentCalculation?.cashPromoTotal ??
+        sale?.subtotal ??
+        0
+    )
+  }, [sale])
+
+  const termBasis = useMemo(() => {
+    return Number(
+      sale?.creditAccount?.termBasis ||
+        sale?.installmentCalculation?.termBasis ||
+        1
+    )
+  }, [sale])
+
+  const ccSwipeAmount = useMemo(() => {
+    if (isCreditCardWithDp && termBasis < 1 && cashPromoTotal > 0) {
+      return (
+        Math.round((Math.max(cashPromoTotal - paidAmount, 0) / termBasis) * 100) /
+        100
+      )
+    }
+    return null
+  }, [isCreditCardWithDp, termBasis, cashPromoTotal, paidAmount])
+
   const totalAmount = useMemo(() => {
+    if (ccSwipeAmount != null) {
+      return Math.round((paidAmount + ccSwipeAmount) * 100) / 100
+    }
     if (
       isCredit &&
       (sale?.creditAccount?.regularPriceTotalAmount ||
@@ -165,21 +215,14 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
       )
     }
     return Number(sale?.grandTotal || sale?.subtotal || 0)
-  }, [isCredit, sale])
-
-  const paidAmount = useMemo(() => {
-    return Number(
-      sale?.amountPaid ??
-        sale?.creditAccount?.downpaymentAmount ??
-        sale?.creditAccount?.initialPaymentAmount ??
-        sale?.installmentCalculation?.downpayment ??
-        0
-    )
-  }, [sale])
+  }, [ccSwipeAmount, paidAmount, isCredit, sale])
 
   const balanceToPay = useMemo(() => {
+    if (ccSwipeAmount != null) {
+      return ccSwipeAmount
+    }
     return Math.max(0, totalAmount - paidAmount)
-  }, [paidAmount, totalAmount])
+  }, [ccSwipeAmount, totalAmount, paidAmount])
 
   return createPortal(
     <div
@@ -333,11 +376,12 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
 
                       const termBasis = Number(sale?.creditAccount?.termBasis || (isCredit && sale?.installmentCalculation?.termBasis) || 1)
                       const baseSnapshot = item.baseUnitPriceSnapshot != null ? Number(item.baseUnitPriceSnapshot) : null
-                      const unitPrice = baseSnapshot != null && termBasis < 1
+                      const shouldScaleItem = !isCreditCardWithDp && baseSnapshot != null && termBasis < 1
+                      const unitPrice = shouldScaleItem
                         ? Math.round((baseSnapshot / termBasis) * 100) / 100
-                        : Number(item.unitPrice || 0)
+                        : Number(baseSnapshot != null ? baseSnapshot : (item.unitPrice || 0))
                       const qty = Number(item.quantity || 1)
-                      const lineTotal = baseSnapshot != null && termBasis < 1
+                      const lineTotal = shouldScaleItem
                         ? Math.round((qty * unitPrice) * 100) / 100
                         : Number(item.lineTotal || (qty * unitPrice))
 
@@ -385,28 +429,67 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                 </div>
 
                 <div className="sm:col-span-6 space-y-1.5 text-xs text-right">
-                  <div className="flex justify-between font-bold text-slate-900 text-sm">
-                    <span>TOTAL AMOUNT</span>
-                    <span>{formatMoney(totalAmount)}</span>
-                  </div>
-                  {isCredit || paidAmount > 0 ? (
-                    <div className="flex justify-between text-slate-700">
-                      <span>{isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID"}</span>
-                      <span>{formatMoney(paidAmount)}</span>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
-                    <span>BALANCE TO PAY</span>
-                    <span>{formatMoney(balanceToPay)}</span>
-                  </div>
-                  {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
-                    <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
-                      <span>
-                        MONTHLY ({sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS[sale.creditAccount.term] || "")} MOS)
-                      </span>
-                      <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
-                    </div>
-                  ) : null}
+                  {isCreditCardWithDp ? (
+                    <>
+                      {cashPromoTotal > 0 ? (
+                        <div className="flex justify-between text-slate-600">
+                          <span>ORIGINAL CASH PRICE</span>
+                          <span>{formatMoney(cashPromoTotal)}</span>
+                        </div>
+                      ) : null}
+                      <div className="flex justify-between text-slate-700">
+                        <span>CASH DOWNPAYMENT</span>
+                        <span>{formatMoney(paidAmount)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
+                        <span>AMOUNT FINANCED (CC SWIPE)</span>
+                        <span>{formatMoney(balanceToPay)}</span>
+                      </div>
+                      {isCredit && (sale?.creditAccount?.monthlyDueAmount || sale?.installmentCalculation?.monthlyDueAmount || balanceToPay) ? (
+                        <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
+                          <span>
+                            MONTHLY ({sale?.creditAccount?.months || (INSTALLMENT_TERM_MONTHS[sale?.creditAccount?.term] || sale?.installmentCalculation?.months || "")} MOS)
+                          </span>
+                          <span>
+                            {formatMoney(
+                              sale?.creditAccount?.monthlyDueAmount ||
+                                sale?.installmentCalculation?.monthlyDueAmount ||
+                                Math.round((balanceToPay / Number(sale?.creditAccount?.months || sale?.installmentCalculation?.months || 12)) * 100) / 100
+                            )}/mo
+                          </span>
+                        </div>
+                      ) : null}
+                      <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5 text-sm">
+                        <span>TOTAL CUSTOMER PAYMENT</span>
+                        <span>{formatMoney(totalAmount)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between font-bold text-slate-900 text-sm">
+                        <span>TOTAL AMOUNT</span>
+                        <span>{formatMoney(totalAmount)}</span>
+                      </div>
+                      {isCredit || paidAmount > 0 ? (
+                        <div className="flex justify-between text-slate-700">
+                          <span>{isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID"}</span>
+                          <span>{formatMoney(paidAmount)}</span>
+                        </div>
+                      ) : null}
+                      <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
+                        <span>BALANCE TO PAY</span>
+                        <span>{formatMoney(balanceToPay)}</span>
+                      </div>
+                      {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
+                        <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
+                          <span>
+                            MONTHLY ({sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS[sale.creditAccount.term] || "")} MOS)
+                          </span>
+                          <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               </div>
 

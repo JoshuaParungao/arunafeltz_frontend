@@ -477,10 +477,24 @@ function SaleDetailDialog({
       sale?.subtotal ??
       0
   )
-  const totalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
+  const termBasis = Number(
+    sale?.creditAccount?.termBasis ||
+      sale?.installmentCalculation?.termBasis ||
+      1
+  )
+  const rawTotalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
     ? Number(sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
     : Number(sale?.grandTotal || sale?.subtotal || 0)
-  const balanceToPay = Math.max(0, totalAmount - paidAmount)
+
+  const ccSwipeAmount = isCreditCardWithDp && termBasis < 1 && cashPromoTotal > 0
+    ? Math.round((Math.max(cashPromoTotal - paidAmount, 0) / termBasis) * 100) / 100
+    : null
+  const totalAmount = ccSwipeAmount != null
+    ? Math.round((paidAmount + ccSwipeAmount) * 100) / 100
+    : rawTotalAmount
+  const balanceToPay = ccSwipeAmount != null
+    ? ccSwipeAmount
+    : Math.max(0, totalAmount - paidAmount)
 
   const handleConfirmCheckout = () => {
     setCheckoutError("")
@@ -783,11 +797,12 @@ function SaleDetailDialog({
 
                         const termBasis = Number(sale?.creditAccount?.termBasis || (isCredit && sale?.installmentCalculation?.termBasis) || 1)
                         const baseSnapshot = item.baseUnitPriceSnapshot != null ? Number(item.baseUnitPriceSnapshot) : null
-                        const unitPrice = baseSnapshot != null && termBasis < 1
+                        const shouldScaleItem = !isCreditCardWithDp && baseSnapshot != null && termBasis < 1
+                        const unitPrice = shouldScaleItem
                           ? Math.round((baseSnapshot / termBasis) * 100) / 100
-                          : Number(item.unitPrice || 0)
+                          : Number(baseSnapshot != null ? baseSnapshot : (item.unitPrice || 0))
                         const qty = Number(item.quantity || 1)
-                        const lineTotal = baseSnapshot != null && termBasis < 1
+                        const lineTotal = shouldScaleItem
                           ? Math.round((qty * unitPrice) * 100) / 100
                           : Number(item.lineTotal || (qty * unitPrice))
 
@@ -842,7 +857,7 @@ function SaleDetailDialog({
                   <div className="sm:col-span-6 space-y-1.5 text-xs text-right">
                     {isCreditCardWithDp ? (
                       <>
-                        {cashPromoTotal > 0 && cashPromoTotal !== totalAmount ? (
+                        {cashPromoTotal > 0 ? (
                           <div className="flex justify-between text-slate-600">
                             <span>ORIGINAL CASH PRICE</span>
                             <span>{formatMoney(cashPromoTotal)}</span>
@@ -853,19 +868,25 @@ function SaleDetailDialog({
                           <span>{formatMoney(paidAmount)}</span>
                         </div>
                         <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
-                          <span>CREDIT CARD SWIPE</span>
+                          <span>AMOUNT FINANCED (CC SWIPE)</span>
                           <span>{formatMoney(balanceToPay)}</span>
                         </div>
-                        {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
+                        {isCredit && (sale?.creditAccount?.monthlyDueAmount || sale?.installmentCalculation?.monthlyDueAmount || balanceToPay) ? (
                           <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
                             <span>
-                              MONTHLY ({sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS[sale.creditAccount.term] || "")} MOS)
+                              MONTHLY ({sale?.creditAccount?.months || (INSTALLMENT_TERM_MONTHS[sale?.creditAccount?.term] || sale?.installmentCalculation?.months || "")} MOS)
                             </span>
-                            <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
+                            <span>
+                              {formatMoney(
+                                sale?.creditAccount?.monthlyDueAmount ||
+                                  sale?.installmentCalculation?.monthlyDueAmount ||
+                                  Math.round((balanceToPay / Number(sale?.creditAccount?.months || sale?.installmentCalculation?.months || 12)) * 100) / 100
+                              )}/mo
+                            </span>
                           </div>
                         ) : null}
                         <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5 text-sm">
-                          <span>TOTAL CUSTOMER PAYMENT / FINANCED AMOUNT</span>
+                          <span>TOTAL CUSTOMER PAYMENT</span>
                           <span>{formatMoney(totalAmount)}</span>
                         </div>
                       </>
@@ -1712,7 +1733,7 @@ function PosSalesPage({ selectedBranch, user }) {
     let regularPriceTotalAmount
     let financedBalance
     let swipeAmount = null
-    let termAdjustment = 0
+    let termAdjustment
 
     if (isCreditCard && downpayment > 0) {
       const remainingCash = Math.max(cashPromoTotal - downpayment, 0)

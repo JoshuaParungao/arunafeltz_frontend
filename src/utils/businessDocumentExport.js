@@ -1178,6 +1178,27 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   const tableStartY = bannerY + 6
 
+  const paidAmount = Number(
+    sale?.amountPaid ??
+      sale?.creditAccount?.downpaymentAmount ??
+      sale?.creditAccount?.initialPaymentAmount ??
+      options?.installmentCalculation?.downpayment ??
+      0
+  )
+  const isCreditCardWithDp =
+    (sale?.creditAccount?.provider === "CREDIT_CARD" ||
+      options?.installmentCalculation?.isCreditCardWithDp ||
+      options?.paymentMethod === "CREDIT_CARD" ||
+      sale?.paymentMethod === "CREDIT_CARD") &&
+    paidAmount > 0
+  const cashPromoTotal = Number(
+    sale?.creditAccount?.cashPromoTotalAmount ??
+      sale?.creditAccount?.sourceTotalAmountSnapshot ??
+      options?.installmentCalculation?.cashPromoTotal ??
+      sale?.subtotal ??
+      0
+  )
+
   const isCredit = Boolean(sale?.creditAccount || options?.isCredit)
   const termBasis = Number(
     sale?.creditAccount?.termBasis ||
@@ -1207,12 +1228,13 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
       item.baseUnitPriceSnapshot != null
         ? Number(item.baseUnitPriceSnapshot)
         : null
+    const shouldScaleItem = !isCreditCardWithDp && baseSnapshot != null && termBasis < 1
     const rawUnitPrice =
-      baseSnapshot != null && termBasis < 1
+      shouldScaleItem
         ? Math.round((baseSnapshot / termBasis) * 100) / 100
-        : Number(item.unitPrice || 0)
+        : Number(baseSnapshot != null ? baseSnapshot : (item.unitPrice || 0))
     const rawLineTotal =
-      baseSnapshot != null && termBasis < 1
+      shouldScaleItem
         ? Math.round((Number(item.quantity || 1) * rawUnitPrice) * 100) / 100
         : Number(item.lineTotal || Number(item.quantity || 1) * rawUnitPrice)
 
@@ -1277,7 +1299,7 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   const totalsLabelX = margin + contentWidth - 65
   const totalsValueX = margin + contentWidth
 
-  const totalAmount =
+  const rawTotalAmount =
     isCredit &&
     (sale?.creditAccount?.regularPriceTotalAmount ||
       sale?.creditAccount?.principalAmount ||
@@ -1288,83 +1310,176 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
             options?.installmentCalculation?.regularPriceTotalAmount
         )
       : Number(sale?.grandTotal || sale?.subtotal || 0)
-  const paidAmount = Number(
-    sale?.amountPaid ??
-      sale?.creditAccount?.downpaymentAmount ??
-      sale?.creditAccount?.initialPaymentAmount ??
-      options?.installmentCalculation?.downpayment ??
-      0
-  )
-  const balanceToPay = Math.max(0, totalAmount - paidAmount)
 
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(8)
-  doc.setTextColor(0, 0, 0)
+  const ccSwipeAmount = isCreditCardWithDp && termBasis < 1 && cashPromoTotal > 0
+    ? Math.round((Math.max(cashPromoTotal - paidAmount, 0) / termBasis) * 100) / 100
+    : null
+  const totalAmount = ccSwipeAmount != null
+    ? Math.round((paidAmount + ccSwipeAmount) * 100) / 100
+    : rawTotalAmount
+  const balanceToPay = ccSwipeAmount != null
+    ? ccSwipeAmount
+    : Math.max(0, totalAmount - paidAmount)
 
-  doc.text("TOTAL AMOUNT", totalsLabelX, finalY + 4)
-  doc.text(
-    totalAmount.toLocaleString("en-PH", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }),
-    totalsValueX,
-    finalY + 4,
-    { align: "right" }
-  )
+  if (isCreditCardWithDp) {
+    let curY = finalY + 4
+    if (cashPromoTotal > 0) {
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(7.5)
+      doc.setTextColor(60, 60, 60)
+      doc.text("ORIGINAL CASH PRICE", totalsLabelX, curY)
+      doc.text(
+        cashPromoTotal.toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        totalsValueX,
+        curY,
+        { align: "right" }
+      )
+      curY += 4
+    }
 
-  if (isCredit || paidAmount > 0) {
-    doc.text(
-      isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID",
-      totalsLabelX,
-      finalY + 8
-    )
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7.5)
+    doc.setTextColor(0, 0, 0)
+    doc.text("CASH DOWNPAYMENT", totalsLabelX, curY)
     doc.text(
       paidAmount.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
       totalsValueX,
-      finalY + 8,
+      curY,
       { align: "right" }
     )
-  }
+    curY += 4
 
-  doc.text("BALANCE TO PAY", totalsLabelX, finalY + 12)
-  doc.text(
-    balanceToPay.toLocaleString("en-PH", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }),
-    totalsValueX,
-    finalY + 12,
-    { align: "right" }
-  )
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8)
+    doc.setTextColor(0, 0, 0)
+    doc.text("AMOUNT FINANCED (CC SWIPE)", totalsLabelX, curY)
+    doc.text(
+      balanceToPay.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      curY,
+      { align: "right" }
+    )
+    curY += 4
 
-  if (isCredit && sale?.creditAccount?.monthlyDueAmount) {
+    const monthlyDue =
+      sale?.creditAccount?.monthlyDueAmount ||
+      options?.installmentCalculation?.monthlyDueAmount ||
+      Math.round((balanceToPay / Number(sale?.creditAccount?.months || options?.installmentCalculation?.months || 12)) * 100) / 100
     const months =
-      sale.creditAccount.months ||
-      INSTALLMENT_TERM_MONTHS?.[sale.creditAccount.term] ||
-      ""
+      sale?.creditAccount?.months ||
+      INSTALLMENT_TERM_MONTHS?.[sale?.creditAccount?.term] ||
+      options?.installmentCalculation?.months ||
+      "12"
+
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7.5)
     doc.setTextColor(0, 32, 96)
+    doc.text(`MONTHLY (${months} MOS):`, totalsLabelX, curY)
     doc.text(
-      `MONTHLY (${months ? `${months} MOS` : "AMORTIZATION"}):`,
-      totalsLabelX,
-      finalY + 16
-    )
-    doc.text(
-      `${Number(sale.creditAccount.monthlyDueAmount).toLocaleString("en-PH", {
+      `${Number(monthlyDue).toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}/mo`,
       totalsValueX,
-      finalY + 16,
+      curY,
       { align: "right" }
     )
-  }
+    curY += 4.5
 
-  finalY += isCredit && sale?.creditAccount?.monthlyDueAmount ? 23 : 19
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8.5)
+    doc.setTextColor(0, 0, 0)
+    doc.text("TOTAL CUSTOMER PAYMENT", totalsLabelX, curY)
+    doc.text(
+      totalAmount.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      curY,
+      { align: "right" }
+    )
+
+    finalY = curY + 6
+  } else {
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8)
+    doc.setTextColor(0, 0, 0)
+
+    doc.text("TOTAL AMOUNT", totalsLabelX, finalY + 4)
+    doc.text(
+      totalAmount.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      finalY + 4,
+      { align: "right" }
+    )
+
+    if (isCredit || paidAmount > 0) {
+      doc.text(
+        isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID",
+        totalsLabelX,
+        finalY + 8
+      )
+      doc.text(
+        paidAmount.toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        totalsValueX,
+        finalY + 8,
+        { align: "right" }
+      )
+    }
+
+    doc.text("BALANCE TO PAY", totalsLabelX, finalY + 12)
+    doc.text(
+      balanceToPay.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      finalY + 12,
+      { align: "right" }
+    )
+
+    if (isCredit && sale?.creditAccount?.monthlyDueAmount) {
+      const months =
+        sale.creditAccount.months ||
+        INSTALLMENT_TERM_MONTHS?.[sale.creditAccount.term] ||
+        ""
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(7.5)
+      doc.setTextColor(0, 32, 96)
+      doc.text(
+        `MONTHLY (${months ? `${months} MOS` : "AMORTIZATION"}):`,
+        totalsLabelX,
+        finalY + 16
+      )
+      doc.text(
+        `${Number(sale.creditAccount.monthlyDueAmount).toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}/mo`,
+        totalsValueX,
+        finalY + 16,
+        { align: "right" }
+      )
+    }
+
+    finalY += isCredit && sale?.creditAccount?.monthlyDueAmount ? 23 : 19
+  }
 
   // Warranty Disclaimers
   doc.setFont("helvetica", "bold")
