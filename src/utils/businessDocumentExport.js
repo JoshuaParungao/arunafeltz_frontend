@@ -1334,24 +1334,26 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     ? ccSwipeAmount
     : Math.max(0, totalAmount - paidAmount)
 
-  if (isCreditCardWithDp) {
+  const isFinance = Boolean(isCreditCardWithDp || isCredit || sale?.creditAccount)
+
+  if (isFinance) {
     let curY = finalY + 4
-    if (cashPromoTotal > 0) {
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(7.5)
-      doc.setTextColor(60, 60, 60)
-      doc.text("ORIGINAL CASH PRICE", totalsLabelX, curY)
-      doc.text(
-        cashPromoTotal.toLocaleString("en-PH", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
-        totalsValueX,
-        curY,
-        { align: "right" }
-      )
-      curY += 4
-    }
+    const cashPrice = cashPromoTotal > 0 ? cashPromoTotal : totalAmount
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7.5)
+    doc.setTextColor(60, 60, 60)
+    doc.text("ORIGINAL CASH PRICE", totalsLabelX, curY)
+    doc.text(
+      cashPrice.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      curY,
+      { align: "right" }
+    )
+    curY += 4
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7.5)
@@ -1371,47 +1373,9 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
     doc.setTextColor(0, 0, 0)
-    doc.text("AMOUNT FINANCED (CC SWIPE)", totalsLabelX, curY)
+    doc.text("Balance to pay", totalsLabelX, curY)
     doc.text(
       balanceToPay.toLocaleString("en-PH", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
-      totalsValueX,
-      curY,
-      { align: "right" }
-    )
-    curY += 4
-
-    const monthlyDue =
-      Math.round((balanceToPay / Number(sale?.creditAccount?.months || options?.installmentCalculation?.months || 12)) * 100) / 100
-    const months =
-      sale?.creditAccount?.months ||
-      INSTALLMENT_TERM_MONTHS?.[sale?.creditAccount?.term] ||
-      options?.installmentCalculation?.months ||
-      "12"
-
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(7.5)
-    doc.setTextColor(0, 32, 96)
-    doc.text(`MONTHLY (${months} MOS):`, totalsLabelX, curY)
-    doc.text(
-      `${Number(monthlyDue).toLocaleString("en-PH", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}/mo`,
-      totalsValueX,
-      curY,
-      { align: "right" }
-    )
-    curY += 4.5
-
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(8.5)
-    doc.setTextColor(0, 0, 0)
-    doc.text("TOTAL CUSTOMER PAYMENT", totalsLabelX, curY)
-    doc.text(
-      totalAmount.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
@@ -1437,12 +1401,8 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
       { align: "right" }
     )
 
-    if (isCredit || paidAmount > 0) {
-      doc.text(
-        isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID",
-        totalsLabelX,
-        finalY + 8
-      )
+    if (paidAmount > 0) {
+      doc.text("AMOUNT PAID", totalsLabelX, finalY + 8)
       doc.text(
         paidAmount.toLocaleString("en-PH", {
           minimumFractionDigits: 2,
@@ -1465,31 +1425,7 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
       { align: "right" }
     )
 
-    if (isCredit && sale?.creditAccount?.monthlyDueAmount) {
-      const months =
-        sale.creditAccount.months ||
-        INSTALLMENT_TERM_MONTHS?.[sale.creditAccount.term] ||
-        ""
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(7.5)
-      doc.setTextColor(0, 32, 96)
-      doc.text(
-        `MONTHLY (${months ? `${months} MOS` : "AMORTIZATION"}):`,
-        totalsLabelX,
-        finalY + 16
-      )
-      doc.text(
-        `${Number(sale.creditAccount.monthlyDueAmount).toLocaleString("en-PH", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}/mo`,
-        totalsValueX,
-        finalY + 16,
-        { align: "right" }
-      )
-    }
-
-    finalY += isCredit && sale?.creditAccount?.monthlyDueAmount ? 23 : 19
+    finalY += 16
   }
 
   // Warranty Disclaimers

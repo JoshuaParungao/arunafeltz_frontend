@@ -444,37 +444,19 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                 </div>
 
                 <div className="sm:col-span-6 space-y-1.5 text-xs text-right">
-                  {isCreditCardWithDp ? (
+                  {isCredit || isCreditCardWithDp || Boolean(sale?.creditAccount) ? (
                     <>
-                      {cashPromoTotal > 0 ? (
-                        <div className="flex justify-between text-slate-600">
-                          <span>ORIGINAL CASH PRICE</span>
-                          <span>{formatMoney(cashPromoTotal)}</span>
-                        </div>
-                      ) : null}
+                      <div className="flex justify-between text-slate-600">
+                        <span>ORIGINAL CASH PRICE</span>
+                        <span>{formatMoney(cashPromoTotal > 0 ? cashPromoTotal : totalAmount)}</span>
+                      </div>
                       <div className="flex justify-between text-slate-700">
                         <span>CASH DOWNPAYMENT</span>
                         <span>{formatMoney(paidAmount)}</span>
                       </div>
                       <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
-                        <span>AMOUNT FINANCED (CC SWIPE)</span>
+                        <span>Balance to pay</span>
                         <span>{formatMoney(balanceToPay)}</span>
-                      </div>
-                      {isCredit && (balanceToPay > 0 || sale?.creditAccount?.monthlyDueAmount) ? (
-                        <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
-                          <span>
-                            MONTHLY ({sale?.creditAccount?.months || (INSTALLMENT_TERM_MONTHS[sale?.creditAccount?.term] || sale?.installmentCalculation?.months || "")} MOS)
-                          </span>
-                          <span>
-                            {formatMoney(
-                              Math.round((balanceToPay / Number(sale?.creditAccount?.months || sale?.installmentCalculation?.months || 12)) * 100) / 100
-                            )}/mo
-                          </span>
-                        </div>
-                      ) : null}
-                      <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5 text-sm">
-                        <span>TOTAL CUSTOMER PAYMENT</span>
-                        <span>{formatMoney(totalAmount)}</span>
                       </div>
                     </>
                   ) : (
@@ -483,9 +465,9 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                         <span>TOTAL AMOUNT</span>
                         <span>{formatMoney(totalAmount)}</span>
                       </div>
-                      {isCredit || paidAmount > 0 ? (
+                      {paidAmount > 0 ? (
                         <div className="flex justify-between text-slate-700">
-                          <span>{isCredit ? "CASH DOWNPAYMENT / PAID" : "AMOUNT PAID"}</span>
+                          <span>AMOUNT PAID</span>
                           <span>{formatMoney(paidAmount)}</span>
                         </div>
                       ) : null}
@@ -493,14 +475,6 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                         <span>BALANCE TO PAY</span>
                         <span>{formatMoney(balanceToPay)}</span>
                       </div>
-                      {isCredit && sale?.creditAccount?.monthlyDueAmount ? (
-                        <div className="flex justify-between font-bold text-[#002060] text-[11px] pt-0.5">
-                          <span>
-                            MONTHLY ({sale.creditAccount.months || (INSTALLMENT_TERM_MONTHS[sale.creditAccount.term] || "")} MOS)
-                          </span>
-                          <span>{formatMoney(sale.creditAccount.monthlyDueAmount)}/mo</span>
-                        </div>
-                      ) : null}
                     </>
                   )}
                 </div>
