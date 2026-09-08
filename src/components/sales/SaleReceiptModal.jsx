@@ -427,6 +427,14 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                 </table>
               </div>
 
+              {/* Remarks / Notes */}
+              {sale.remarks ? (
+                <div className="mt-2 mb-1 px-1 text-xs text-slate-700">
+                  <span className="font-bold text-slate-900">Remarks: </span>
+                  <span className="font-medium text-slate-800">{sale.remarks}</span>
+                </div>
+              ) : null}
+
               {/* Double Border Separator */}
               <div className="border-t-2 border-b border-slate-900 my-1 pt-0.5" />
 

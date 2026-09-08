@@ -1356,6 +1356,21 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
 
   let finalY = doc.lastAutoTable?.finalY || tableStartY + 20
 
+  if (sale?.remarks) {
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7.5)
+    doc.setTextColor(0, 0, 0)
+    doc.text("Remarks: ", margin, finalY + 3.5)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(50, 50, 50)
+    const remarksLines = doc.splitTextToSize(
+      sanitizeForPdf(sale.remarks),
+      contentWidth - 16
+    )
+    doc.text(remarksLines, margin + 14, finalY + 3.5)
+    finalY += Math.max(remarksLines.length * 3.5, 4) + 1.5
+  }
+
   doc.setLineWidth(0.6)
   doc.setDrawColor(0, 0, 0)
   doc.line(margin, finalY + 1, margin + contentWidth, finalY + 1)

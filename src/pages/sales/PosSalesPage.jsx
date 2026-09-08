@@ -384,6 +384,7 @@ function SaleDetailDialog({
   )
   const [previewCustomerEmail, setPreviewCustomerEmail] = useState(sale?.customer?.email || "")
   const [previewCustomerCompany, setPreviewCustomerCompany] = useState(sale?.customer?.companyName || "")
+  const [previewRemarks, setPreviewRemarks] = useState(sale?.remarks || "")
   const [checkoutError, setCheckoutError] = useState("")
 
   useEffect(() => {
@@ -392,6 +393,7 @@ function SaleDetailDialog({
     setPreviewCustomerPhone(sale?.customer?.mobileNumber || sale?.customer?.phone || "")
     setPreviewCustomerEmail(sale?.customer?.email || "")
     setPreviewCustomerCompany(sale?.customer?.companyName || "")
+    setPreviewRemarks(sale?.remarks || "")
     setCheckoutError("")
   }, [sale])
 
@@ -539,6 +541,7 @@ function SaleDetailDialog({
         customerPhone: previewCustomerPhone.trim(),
         customerEmail: previewCustomerEmail.trim(),
         customerCompany: previewCustomerCompany.trim() || undefined,
+        remarks: previewRemarks.trim(),
       })
     }
   }
@@ -709,6 +712,18 @@ function SaleDetailDialog({
                     placeholder="e.g. Company / Business Name"
                   />
                 </label>
+
+                <label className="block md:col-span-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-1">
+                    Sale Remarks / Warranty Notes <span className="text-slate-500 font-normal">(Optional)</span>
+                  </span>
+                  <input
+                    className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
+                    value={previewRemarks}
+                    onChange={(e) => setPreviewRemarks(e.target.value)}
+                    placeholder="e.g. Warranty notes, special instructions, freebies..."
+                  />
+                </label>
               </div>
             </div>
           ) : null}
@@ -843,6 +858,16 @@ function SaleDetailDialog({
                     </tbody>
                   </table>
                 </div>
+
+                {/* Remarks / Notes */}
+                {(isCheckoutPreview ? previewRemarks : sale.remarks) ? (
+                  <div className="mt-2 mb-1 px-1 text-xs text-slate-700">
+                    <span className="font-bold text-slate-900">Remarks: </span>
+                    <span className="font-medium text-slate-800">
+                      {isCheckoutPreview ? previewRemarks : sale.remarks}
+                    </span>
+                  </div>
+                ) : null}
 
                 {/* Double Border Separator */}
                 <div className="border-t-2 border-b border-slate-900 my-1 pt-0.5" />
@@ -2756,15 +2781,20 @@ function PosSalesPage({ selectedBranch, user }) {
       setCustomerCompany(effectiveCompany)
       setCustomerEmail(effectiveEmail)
 
+      const effectiveRemarks = (
+        overrideCustomerDetails?.remarks ?? remarks
+      ).trim()
+      setRemarks(effectiveRemarks)
+
       const settlementAmount = Number(effectivePaymentAmount || 0)
       const builderStaff = serviceStaffList.find((s) => s.id === selectedBuilderId)
       const formattedRemarks = isPcBuild
         ? builderStaff?.fullName
-          ? `[PC BUILD] Assembled by: ${builderStaff.fullName}${remarks.trim() ? ` | ${remarks.trim()}` : ""}`
-          : remarks.trim()
-            ? `[PC BUILD] ${remarks.trim()}`
+          ? `[PC BUILD] Assembled by: ${builderStaff.fullName}${effectiveRemarks ? ` | ${effectiveRemarks}` : ""}`
+          : effectiveRemarks
+            ? `[PC BUILD] ${effectiveRemarks}`
             : "[PC BUILD]"
-        : remarks.trim() || undefined
+        : effectiveRemarks || undefined
       const salePayload = {
         branchId,
         customerId: effectiveCustomerId,
@@ -4142,7 +4172,7 @@ function PosSalesPage({ selectedBranch, user }) {
                 </label>
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Sale Remarks</span>
-                  <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setRemarks(event.target.value)} placeholder="Optional internal note" value={remarks} />
+                  <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setRemarks(event.target.value)} placeholder="e.g. Warranty notes, special instructions, freebies..." value={remarks} />
                 </label>
               </div>
 
