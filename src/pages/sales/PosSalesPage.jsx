@@ -4,6 +4,7 @@ import {
   AlertCircle,
   Barcode,
   Building2,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CreditCard,
