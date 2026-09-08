@@ -785,9 +785,164 @@ function JobOrderPrintPreview({ defaultDoc = "RECEIPT", isBlank = false, job = {
   )
 }
 
+function TaskTitleAutocomplete({
+  value,
+  onChange,
+  onSelectService,
+  serviceCatalog = [],
+  disabled = false,
+  placeholder = "e.g. Board Level Repair - Power IC, Deep Cleaning & Repaste",
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const containerRef = useRef(null)
+
+  const query = (value || "").trim().toLowerCase()
+  const matchingServices = useMemo(() => {
+    if (!query) return []
+    return (serviceCatalog || [])
+      .filter((service) => {
+        if (service.isActive === false) return false
+        const nameMatch = service.name?.toLowerCase().includes(query)
+        const deviceMatch = service.deviceType?.toLowerCase().includes(query)
+        const descMatch = service.description?.toLowerCase().includes(query)
+        return Boolean(nameMatch || deviceMatch || descMatch)
+      })
+      .slice(0, 10)
+  }, [serviceCatalog, query])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const handleSelect = (service) => {
+    const base = Number(service.basePrice || 0)
+    const markup = Number(service.markupPercent || 0)
+    const computedPrice =
+      service.finalPrice != null
+        ? Number(service.finalPrice)
+        : Math.round((base + base * (markup / 100)) * 100) / 100
+
+    onSelectService({
+      title: service.name,
+      amount: computedPrice,
+      serviceId: service.id,
+      repairType: service.repairType,
+    })
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="relative flex-1 min-w-[200px]" ref={containerRef}>
+      <input
+        className={FIELD_CLASS}
+        disabled={disabled}
+        onChange={(e) => {
+          onChange(e.target.value)
+          setIsOpen(true)
+          setHighlightedIndex(-1)
+        }}
+        onFocus={() => {
+          if (query.length > 0) setIsOpen(true)
+        }}
+        onKeyDown={(e) => {
+          if (!isOpen || matchingServices.length === 0) return
+          if (e.key === "ArrowDown") {
+            e.preventDefault()
+            setHighlightedIndex((prev) =>
+              prev < matchingServices.length - 1 ? prev + 1 : 0
+            )
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault()
+            setHighlightedIndex((prev) =>
+              prev > 0 ? prev - 1 : matchingServices.length - 1
+            )
+          } else if (e.key === "Enter" && highlightedIndex >= 0) {
+            e.preventDefault()
+            handleSelect(matchingServices[highlightedIndex])
+          } else if (e.key === "Escape") {
+            setIsOpen(false)
+          }
+        }}
+        placeholder={placeholder}
+        value={value}
+      />
+
+      {isOpen && matchingServices.length > 0 && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-purple-200 bg-white p-1.5 shadow-2xl">
+          <div className="flex items-center justify-between px-2 py-1 text-[10px] font-black uppercase tracking-wider text-purple-700 border-b border-purple-100 mb-1">
+            <span>Services &amp; Repair Rates ({matchingServices.length})</span>
+            <span className="text-[9px] text-slate-400 font-normal">Click to auto-fill rate</span>
+          </div>
+          {matchingServices.map((service, i) => {
+            const base = Number(service.basePrice || 0)
+            const markup = Number(service.markupPercent || 0)
+            const price =
+              service.finalPrice != null
+                ? Number(service.finalPrice)
+                : Math.round((base + base * (markup / 100)) * 100) / 100
+
+            const isBoard = service.repairType === "BOARD_LEVEL_REPAIR"
+
+            return (
+              <button
+                className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition ${
+                  highlightedIndex === i
+                    ? "bg-purple-100 text-purple-950 font-semibold"
+                    : "hover:bg-purple-50 text-slate-800"
+                }`}
+                key={service.id || i}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleSelect(service)
+                }}
+                type="button"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-slate-900 truncate">
+                      {service.name}
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${
+                        isBoard
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {isBoard ? "Board Level" : "Standard"}
+                    </span>
+                  </div>
+                  {service.deviceType ? (
+                    <span className="text-[10px] text-slate-400 font-medium block">
+                      {service.deviceType}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="font-mono font-bold text-emerald-700">
+                    ₱{price.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function WorkshopTasksManager({
   job,
   technicians = [],
+  serviceCatalog = [],
   isSaving = false,
   onSaveTasks,
   onStatusChange,
@@ -1002,15 +1157,18 @@ function WorkshopTasksManager({
                 className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/60 p-2.5 text-xs transition hover:border-slate-300"
                 key={task.id || idx}
               >
-                <div className="flex-1 min-w-[200px]">
-                  <input
-                    className={FIELD_CLASS}
-                    disabled={!canManage}
-                    onChange={(e) => handleUpdateTask(idx, { title: e.target.value })}
-                    placeholder="e.g. Board Level Repair - Power IC, Deep Cleaning & Repaste"
-                    value={task.title}
-                  />
-                </div>
+                <TaskTitleAutocomplete
+                  disabled={!canManage}
+                  onChange={(title) => handleUpdateTask(idx, { title })}
+                  onSelectService={(selected) => {
+                    handleUpdateTask(idx, {
+                      title: selected.title,
+                      amount: selected.amount,
+                    })
+                  }}
+                  serviceCatalog={serviceCatalog}
+                  value={task.title}
+                />
 
                 <div className="w-28 shrink-0">
                   <div className="relative">
@@ -2932,6 +3090,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                   onOpenRelease={openRelease}
                   onSaveTasks={handleSaveWorkshopTasks}
                   onStatusChange={handleWorkshopStatusChange}
+                  serviceCatalog={serviceCatalog}
                   technicians={technicians}
                 />
 
