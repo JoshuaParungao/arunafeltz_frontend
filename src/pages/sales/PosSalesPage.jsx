@@ -3168,6 +3168,12 @@ function PosSalesPage({ selectedBranch, user }) {
             }
           }
 
+          const serialText = line.isCustomSerial
+            ? line.customSerialNumber?.trim()
+            : line.serialId
+              ? line.serials?.find((s) => s.id === line.serialId)?.serialNumber
+              : null
+
           return {
             itemId: line.itemId,
             priceTier: Number(line.priceTier),
@@ -3181,6 +3187,7 @@ function PosSalesPage({ selectedBranch, user }) {
             discountAmount: Number(line.discountAmount || 0),
             isPcBuildPart: isPcBuild,
             warrantyDuration: line.warrantyDuration || undefined,
+            remarks: serialText || line.remarks || undefined,
           }
         }),
       }

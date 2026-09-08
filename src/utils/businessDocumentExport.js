@@ -1065,6 +1065,76 @@ export function groupReceiptItems(items = [], options = {}) {
   return groups
 }
 
+export function groupQuotationItems(items = [], options = {}) {
+  const { termRate = 0.96 } = options
+
+  const groups = []
+  const groupMap = new Map()
+  const safeItems = Array.isArray(items) ? items : []
+
+  safeItems.forEach((item, index) => {
+    if (!item || typeof item !== "object") return
+    const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
+    const description = item.description || item.item?.itemName || "Item"
+    const warrantyBadge = (
+      item.warrantyDuration ||
+      (item.item?.hasWarranty ? "1 YEAR WARRANTY" : "") ||
+      ""
+    ).trim()
+
+    const cashUnit = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
+    const qty = Number(item.quantity || 0)
+    const cashTotal = Number(
+      item.lineTotal ?? (qty * cashUnit - (Number(item.discountAmount) || 0))
+    )
+
+    const rate = termRate > 0 ? termRate : 0.96
+    const regUnit = Math.round((cashUnit / rate) * 100) / 100
+    const regTotal = Math.round((cashTotal / rate) * 100) / 100
+
+    const rawSerial = (
+      item.serialNumber ||
+      item.serial?.serialNumber ||
+      item.remarks ||
+      ""
+    ).trim()
+    const serial = rawSerial.replace(/^S\/N:\s*/i, "").trim()
+
+    const itemId = item.itemId || item.item?.id || itemCode
+    const groupKey = `${itemId}___${itemCode}___${description}___${warrantyBadge}___${cashUnit}`
+
+    if (groupMap.has(groupKey)) {
+      const existing = groupMap.get(groupKey)
+      existing.quantity += qty
+      existing.cashTotal =
+        Math.round((existing.cashTotal + cashTotal) * 100) / 100
+      existing.regTotal =
+        Math.round((existing.regTotal + regTotal) * 100) / 100
+      if (serial && !existing.serialNumbers.includes(serial)) {
+        existing.serialNumbers.push(serial)
+      }
+    } else {
+      const newGroup = {
+        id: item.id || `quote-group-${index}`,
+        itemCode,
+        description,
+        warrantyBadge,
+        quantity: qty,
+        cashUnit,
+        cashTotal,
+        regUnit,
+        regTotal,
+        serialNumbers: serial ? [serial] : [],
+        rawItem: item,
+      }
+      groupMap.set(groupKey, newGroup)
+      groups.push(newGroup)
+    }
+  })
+
+  return groups
+}
+
 export function exportWarrantyReceiptPdf(sale, options = {}) {
   const context = options.context || {}
   const doc = new jsPDF({
@@ -1752,39 +1822,37 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   ]
 
   const termRate = Number(options.installmentCalculation?.termBasis || 0.96)
-  const items = quotation?.items || []
-  const tableBody = items.map((item) => {
-    const itemCode = sanitizeForPdf(
-      item.itemCodeSnapshot || item.item?.itemCode || "-"
+  const groupedItems = groupQuotationItems(quotation?.items || [], { termRate })
+  const tableBody = groupedItems.map((group) => {
+    const itemCode = sanitizeForPdf(group.itemCode || "-")
+    const serialText =
+      group.serialNumbers.length > 0
+        ? `\nS/N: ${sanitizeForPdf(group.serialNumbers.join(", "))}`
+        : ""
+    const warrantyText = group.warrantyBadge
+      ? ` | ${sanitizeForPdf(group.warrantyBadge)}`
+      : ""
+    const fullDescription = sanitizeForPdf(
+      `${group.description}${warrantyText}${serialText}`
     )
-    const desc = sanitizeForPdf(
-      item.description || item.item?.itemName || "Item"
-    )
-    const qty = Number(item.quantity || 0)
-    const cashUnit = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
-    const cashTotal = Number(
-      item.lineTotal ?? qty * cashUnit - (Number(item.discountAmount) || 0)
-    )
-    const regUnit = Math.round((cashUnit / termRate) * 100) / 100
-    const regTotal = Math.round((cashTotal / termRate) * 100) / 100
 
     return [
       itemCode,
-      desc,
-      String(qty),
-      regUnit.toLocaleString("en-PH", {
+      fullDescription,
+      String(group.quantity),
+      group.regUnit.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
-      regTotal.toLocaleString("en-PH", {
+      group.regTotal.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
-      cashUnit.toLocaleString("en-PH", {
+      group.cashUnit.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
-      cashTotal.toLocaleString("en-PH", {
+      group.cashTotal.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),

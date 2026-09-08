@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { Download, FileText, Printer, X } from "lucide-react"
-import { exportCustomerQuotationPdf, printCustomerQuotation } from "../../utils/businessDocumentExport"
+import { exportCustomerQuotationPdf, groupQuotationItems, printCustomerQuotation } from "../../utils/businessDocumentExport"
 
 function formatMoney(value) {
   const amount = Number(value || 0)
@@ -66,6 +66,8 @@ export default function QuotationDetailDialog({
   }, [quotation])
 
   const defaultTermRate = Number(installmentCalculation?.termBasis || 0.96)
+  const termRate = Number(installmentCalculation?.termBasis || defaultTermRate)
+  const isAR = Boolean(installmentCalculation)
 
   const srpTotal = useMemo(() => {
     return Math.round((cashPromoTotal / 0.96) * 100) / 100
@@ -74,6 +76,10 @@ export default function QuotationDetailDialog({
   const regularTotal = useMemo(() => {
     return Math.round((cashPromoTotal / defaultTermRate) * 100) / 100
   }, [cashPromoTotal, defaultTermRate])
+
+  const groupedItems = useMemo(() => {
+    return groupQuotationItems(items, { termRate })
+  }, [items, termRate])
 
   const quoteDate = quotation?.createdAt || quotation?.quotationDate || new Date()
   const isPcBuild = quotation?.isPcBuild || false
@@ -235,47 +241,39 @@ export default function QuotationDetailDialog({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-sans">
-                    {items.map((item, index) => {
-                      const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
-                      const desc = item.description || item.item?.itemName || "Item"
-                      const qty = Number(item.quantity || 0)
-                      const cashUnit = Number(item.unitPrice ?? item.baseUnitPrice ?? 0)
-                      const cashTotal = Number(item.lineTotal ?? (qty * cashUnit - (Number(item.discountAmount) || 0)))
-
-                      const termRate = Number(installmentCalculation?.termBasis || defaultTermRate)
-                      const regUnit = Math.round((cashUnit / termRate) * 100) / 100
-                      const regTotal = Math.round((cashTotal / termRate) * 100) / 100
-                      const isAR = Boolean(installmentCalculation)
-
-                      return (
-                        <tr className="hover:bg-slate-50/50" key={item.id || item.lineNo || index}>
-                          <td className="py-2 px-2 font-mono font-semibold text-slate-700 align-top">
-                            {itemCode}
-                          </td>
-                          <td className="py-2 px-2 align-top space-y-0.5">
-                            <p className="font-medium text-slate-900">{desc}</p>
-                            {item.warrantyDuration ? (
-                              <p className="text-[10px] text-slate-500 font-semibold">{item.warrantyDuration}</p>
-                            ) : null}
-                          </td>
-                          <td className="py-2 px-1.5 text-center font-bold align-top">
-                            {qty}
-                          </td>
-                          <td className={`py-2 px-2 text-right align-top font-mono ${isAR ? "text-slate-800 font-semibold" : "text-slate-400"}`}>
-                            {formatMoney(regUnit)}
-                          </td>
-                          <td className={`py-2 px-2 text-right align-top font-mono ${isAR ? "text-[#002060] font-bold" : "text-slate-400"}`}>
-                            {formatMoney(regTotal)}
-                          </td>
-                          <td className={`py-2 px-2 text-right align-top font-mono ${!isAR ? "text-slate-800 font-semibold" : "text-slate-400"}`}>
-                            {formatMoney(cashUnit)}
-                          </td>
-                          <td className={`py-2 px-2 text-right align-top font-mono ${!isAR ? "text-slate-900 font-bold" : "text-slate-400"}`}>
-                            {formatMoney(cashTotal)}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {groupedItems.map((item) => (
+                      <tr className="hover:bg-slate-50/50" key={item.id}>
+                        <td className="py-2 px-2 font-mono font-semibold text-slate-700 align-top">
+                          {item.itemCode}
+                        </td>
+                        <td className="py-2 px-2 align-top space-y-0.5">
+                          <p className="font-medium text-slate-900">
+                            {item.description}
+                            {item.warrantyBadge ? ` | ${item.warrantyBadge}` : ""}
+                          </p>
+                          {item.serialNumbers?.length > 0 ? (
+                            <p className="text-[11px] font-mono text-slate-600">
+                              S/N: <strong className="text-slate-800">{item.serialNumbers.join(", ")}</strong>
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="py-2 px-1.5 text-center font-bold align-top">
+                          {item.quantity}
+                        </td>
+                        <td className={`py-2 px-2 text-right align-top font-mono ${isAR ? "text-slate-800 font-semibold" : "text-slate-400"}`}>
+                          {formatMoney(item.regUnit)}
+                        </td>
+                        <td className={`py-2 px-2 text-right align-top font-mono ${isAR ? "text-[#002060] font-bold" : "text-slate-400"}`}>
+                          {formatMoney(item.regTotal)}
+                        </td>
+                        <td className={`py-2 px-2 text-right align-top font-mono ${!isAR ? "text-slate-800 font-semibold" : "text-slate-400"}`}>
+                          {formatMoney(item.cashUnit)}
+                        </td>
+                        <td className={`py-2 px-2 text-right align-top font-mono ${!isAR ? "text-slate-900 font-bold" : "text-slate-400"}`}>
+                          {formatMoney(item.cashTotal)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
