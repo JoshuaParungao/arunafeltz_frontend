@@ -2064,9 +2064,10 @@ function PosSalesPage({ selectedBranch, user }) {
       const serials = item.isSerialized ? getInventoryRows(serialResponse) : []
 
       const localId = `product-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const initialSerialId = preselectedSerial?.id || serials[0]?.id || ""
+      const isCustomSerial = !preselectedSerial
+      const initialSerialId = preselectedSerial?.id || ""
       const initialBatchId = item.isSerialized
-        ? (preselectedSerial?.batch?.id || serials[0]?.batch?.id || "")
+        ? (preselectedSerial?.batch?.id || (!isCustomSerial ? serials[0]?.batch?.id : "") || "")
         : (batches[0]?.id || "")
 
       const activeCustomer = customers.find((c) => c.id === selectedCustomerId)
@@ -2100,7 +2101,7 @@ function PosSalesPage({ selectedBranch, user }) {
           batchId: initialBatchId,
           serialId: initialSerialId,
           customSerialNumber: preselectedSerial?.serialNumber || "",
-          isCustomSerial: !preselectedSerial,
+          isCustomSerial,
           warrantyType: item.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
           warrantyDuration: parseItemWarranty(item),
           batches,
@@ -2420,6 +2421,7 @@ function PosSalesPage({ selectedBranch, user }) {
     }
 
     const serialIds = new Set()
+    const customSerials = new Set()
     const batchQuantities = new Map()
 
     for (const line of cart) {
@@ -2454,7 +2456,14 @@ function PosSalesPage({ selectedBranch, user }) {
         if (quantity !== 1) return `${line.item.itemName} must be sold one serialized unit per line.`
         const serialVal = line.isCustomSerial ? line.customSerialNumber?.trim() : line.serialId
         if (!serialVal) return `Select or scan a serial number for ${line.item.itemName}.`
-        if (line.serialId) {
+
+        if (line.isCustomSerial) {
+          const customSn = line.customSerialNumber?.trim().toLowerCase()
+          if (customSn) {
+            if (customSerials.has(customSn)) return "The same serial cannot be used more than once in a sale."
+            customSerials.add(customSn)
+          }
+        } else if (line.serialId) {
           if (serialIds.has(line.serialId)) return "The same serial cannot be used more than once in a sale."
           serialIds.add(line.serialId)
         }
@@ -3288,7 +3297,13 @@ function PosSalesPage({ selectedBranch, user }) {
   }
 
   const selectedSerialIds = useMemo(
-    () => new Set(cart.map((line) => line.serialId).filter(Boolean)),
+    () =>
+      new Set(
+        cart
+          .filter((line) => !line.isCustomSerial)
+          .map((line) => line.serialId)
+          .filter(Boolean),
+      ),
     [cart],
   )
 
@@ -4065,7 +4080,7 @@ function PosSalesPage({ selectedBranch, user }) {
                                 <div>
                                   <input
                                     autoFocus
-                                    className="w-full rounded-lg border border-[var(--color-maroon)] bg-white px-2.5 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-[var(--color-maroon)]"
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
                                     placeholder="Scan barcode or type serial number…"
                                     value={line.customSerialNumber || ""}
                                     onChange={(event) =>
