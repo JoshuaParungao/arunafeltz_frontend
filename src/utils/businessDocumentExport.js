@@ -993,6 +993,76 @@ export function reportDocument({
   }
 }
 
+export function groupReceiptItems(items = [], options = {}) {
+  const { termBasis = 1, isCreditCardWithDp = false } = options
+
+  const groups = []
+  const groupMap = new Map()
+
+  items.forEach((item, index) => {
+    const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
+    const description = item.description || item.item?.itemName || "Item"
+    const warrantyBadge = (
+      item.warrantyDuration ||
+      (item.item?.hasWarranty ? "1 YEAR WARRANTY" : "") ||
+      ""
+    ).trim()
+
+    const baseSnapshot =
+      item.baseUnitPriceSnapshot != null
+        ? Number(item.baseUnitPriceSnapshot)
+        : null
+    const shouldScaleItem =
+      !isCreditCardWithDp && baseSnapshot != null && termBasis < 1
+    const unitPrice = shouldScaleItem
+      ? Math.round((baseSnapshot / termBasis) * 100) / 100
+      : Number(baseSnapshot != null ? baseSnapshot : (item.unitPrice || 0))
+
+    const serial = (
+      item.serialNumber ||
+      item.serial?.serialNumber ||
+      ""
+    ).trim()
+
+    const returnedQty = Number(item.returnedQuantity || 0)
+    const itemId = item.itemId || item.item?.id || itemCode
+    const groupKey = `${itemId}___${itemCode}___${description}___${warrantyBadge}___${unitPrice}`
+
+    const qty = Number(item.quantity || 1)
+    const lineTotal = shouldScaleItem
+      ? Math.round((qty * unitPrice) * 100) / 100
+      : Number(item.lineTotal != null ? item.lineTotal : (qty * unitPrice))
+
+    if (groupMap.has(groupKey)) {
+      const existing = groupMap.get(groupKey)
+      existing.quantity += qty
+      existing.lineTotal =
+        Math.round((existing.lineTotal + lineTotal) * 100) / 100
+      existing.returnedQuantity += returnedQty
+      if (serial && !existing.serialNumbers.includes(serial)) {
+        existing.serialNumbers.push(serial)
+      }
+    } else {
+      const newGroup = {
+        id: item.id || `group-${index}`,
+        itemCode,
+        description,
+        warrantyBadge,
+        unitPrice,
+        quantity: qty,
+        lineTotal,
+        returnedQuantity: returnedQty,
+        serialNumbers: serial ? [serial] : [],
+        rawItem: item,
+      }
+      groupMap.set(groupKey, newGroup)
+      groups.push(newGroup)
+    }
+  })
+
+  return groups
+}
+
 export function exportWarrantyReceiptPdf(sale, options = {}) {
   const context = options.context || {}
   const doc = new jsPDF({
@@ -1222,40 +1292,30 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   const tableHead = [
     ["ITEM CODE", "ITEM DESCRIPTION", "QTY.", "UNIT PRICE", "AMOUNT"],
   ]
-  const tableBody = (sale?.items || []).map((item) => {
-    const itemCode = sanitizeForPdf(
-      item.itemCodeSnapshot || item.item?.itemCode || "-"
-    )
-    const isSerialized = item.serial?.serialNumber || item.serialNumber
-    const serialText = isSerialized ? ` | S/N: ${sanitizeForPdf(isSerialized)}` : ""
-    const warrantyBadge = sanitizeForPdf(
-      (item.warrantyDuration || (item.item?.hasWarranty ? "1 YEAR WARRANTY" : "")).trim()
-    )
-    const warrantyText = warrantyBadge ? ` | ${warrantyBadge}` : ""
+  const groupedItems = groupReceiptItems(sale?.items || [], {
+    termBasis,
+    isCreditCardWithDp,
+  })
+
+  const tableBody = groupedItems.map((group) => {
+    const itemCode = sanitizeForPdf(group.itemCode || "-")
+    const serialText =
+      group.serialNumbers.length > 0
+        ? `\nS/N: ${sanitizeForPdf(group.serialNumbers.join(", "))}`
+        : ""
+    const warrantyText = group.warrantyBadge
+      ? ` | ${sanitizeForPdf(group.warrantyBadge)}`
+      : ""
     const fullDescription = sanitizeForPdf(
-      `${item.description || item.item?.itemName || "Item"}${warrantyText}${serialText}`
+      `${group.description}${warrantyText}${serialText}`
     )
 
-    const qty = String(Number(item.quantity || 1))
-    const baseSnapshot =
-      item.baseUnitPriceSnapshot != null
-        ? Number(item.baseUnitPriceSnapshot)
-        : null
-    const shouldScaleItem = !isCreditCardWithDp && baseSnapshot != null && termBasis < 1
-    const rawUnitPrice =
-      shouldScaleItem
-        ? Math.round((baseSnapshot / termBasis) * 100) / 100
-        : Number(baseSnapshot != null ? baseSnapshot : (item.unitPrice || 0))
-    const rawLineTotal =
-      shouldScaleItem
-        ? Math.round((Number(item.quantity || 1) * rawUnitPrice) * 100) / 100
-        : Number(item.lineTotal || Number(item.quantity || 1) * rawUnitPrice)
-
-    const unitPrice = rawUnitPrice.toLocaleString("en-PH", {
+    const qty = String(group.quantity)
+    const unitPrice = group.unitPrice.toLocaleString("en-PH", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
-    const lineTotal = rawLineTotal.toLocaleString("en-PH", {
+    const lineTotal = group.lineTotal.toLocaleString("en-PH", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })

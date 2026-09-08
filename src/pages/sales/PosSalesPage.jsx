@@ -60,6 +60,7 @@ import {
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
 import {
   exportWarrantyReceiptPdf,
+  groupReceiptItems,
   printWarrantyReceipt,
 } from "../../utils/businessDocumentExport"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
@@ -506,6 +507,13 @@ function SaleDetailDialog({
     ? ccSwipeAmount
     : Math.max(0, totalAmount - paidAmount)
 
+  const groupedItems = useMemo(() => {
+    return groupReceiptItems(sale?.items || [], {
+      termBasis,
+      isCreditCardWithDp,
+    })
+  }, [sale?.items, termBasis, isCreditCardWithDp])
+
   const handleConfirmCheckout = () => {
     setCheckoutError("")
 
@@ -800,55 +808,38 @@ function SaleDetailDialog({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-sans">
-                      {(sale.items || []).map((item) => {
-                        const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
-                        const isSerialized = item.serialNumber || item.serial?.serialNumber
-                        const warrantyBadge = item.warrantyDuration || (item.item?.hasWarranty ? "1 YEAR WARRANTY" : null)
-
-                        const termBasis = Number(sale?.creditAccount?.termBasis || (isCredit && sale?.installmentCalculation?.termBasis) || 1)
-                        const baseSnapshot = item.baseUnitPriceSnapshot != null ? Number(item.baseUnitPriceSnapshot) : null
-                        const shouldScaleItem = !isCreditCardWithDp && baseSnapshot != null && termBasis < 1
-                        const unitPrice = shouldScaleItem
-                          ? Math.round((baseSnapshot / termBasis) * 100) / 100
-                          : Number(baseSnapshot != null ? baseSnapshot : (item.unitPrice || 0))
-                        const qty = Number(item.quantity || 1)
-                        const lineTotal = shouldScaleItem
-                          ? Math.round((qty * unitPrice) * 100) / 100
-                          : Number(item.lineTotal || (qty * unitPrice))
-
-                        return (
-                          <tr className="hover:bg-slate-50/50" key={item.id || item.lineNo}>
-                            <td className="py-2 px-2 font-mono font-semibold text-slate-700 align-top">
-                              {itemCode}
-                            </td>
-                            <td className="py-2 px-2 align-top space-y-0.5">
-                              <p className="font-medium text-slate-900">
-                                {item.description || item.item?.itemName}
-                                {warrantyBadge ? ` | ${warrantyBadge}` : ""}
+                      {groupedItems.map((item) => (
+                        <tr className="hover:bg-slate-50/50" key={item.id}>
+                          <td className="py-2 px-2 font-mono font-semibold text-slate-700 align-top">
+                            {item.itemCode}
+                          </td>
+                          <td className="py-2 px-2 align-top space-y-0.5">
+                            <p className="font-medium text-slate-900">
+                              {item.description}
+                              {item.warrantyBadge ? ` | ${item.warrantyBadge}` : ""}
+                            </p>
+                            {item.serialNumbers?.length > 0 ? (
+                              <p className="text-[11px] font-mono text-slate-600">
+                                S/N: <strong className="text-slate-800">{item.serialNumbers.join(", ")}</strong>
                               </p>
-                              {isSerialized ? (
-                                <p className="text-[11px] font-mono text-slate-600">
-                                  S/N: <strong className="text-slate-800">{isSerialized}</strong>
-                                </p>
-                              ) : null}
-                              {Number(item.returnedQuantity || 0) > 0 ? (
-                                <p className="text-[10px] font-bold text-orange-700">
-                                  Returned: {Number(item.returnedQuantity)}
-                                </p>
-                              ) : null}
-                            </td>
-                            <td className="py-2 px-2 text-center font-bold align-top">
-                              {qty}
-                            </td>
-                            <td className="py-2 px-2 text-right align-top font-mono">
-                              {formatMoney(unitPrice)}
-                            </td>
-                            <td className="py-2 px-2 text-right font-bold align-top font-mono">
-                              {formatMoney(lineTotal)}
-                            </td>
-                          </tr>
-                        )
-                      })}
+                            ) : null}
+                            {Number(item.returnedQuantity || 0) > 0 ? (
+                              <p className="text-[10px] font-bold text-orange-700">
+                                Returned: {Number(item.returnedQuantity)}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="py-2 px-2 text-center font-bold align-top">
+                            {item.quantity}
+                          </td>
+                          <td className="py-2 px-2 text-right align-top font-mono">
+                            {formatMoney(item.unitPrice)}
+                          </td>
+                          <td className="py-2 px-2 text-right font-bold align-top font-mono">
+                            {formatMoney(item.lineTotal)}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
