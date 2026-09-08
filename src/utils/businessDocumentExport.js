@@ -998,8 +998,10 @@ export function groupReceiptItems(items = [], options = {}) {
 
   const groups = []
   const groupMap = new Map()
+  const safeItems = Array.isArray(items) ? items : []
 
-  items.forEach((item, index) => {
+  safeItems.forEach((item, index) => {
+    if (!item || typeof item !== "object") return
     const itemCode = item.itemCodeSnapshot || item.item?.itemCode || "—"
     const description = item.description || item.item?.itemName || "Item"
     const warrantyBadge = (

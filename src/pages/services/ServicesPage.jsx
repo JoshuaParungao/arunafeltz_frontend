@@ -800,9 +800,9 @@ function TaskTitleAutocomplete({
   const query = (value || "").trim().toLowerCase()
   const matchingServices = useMemo(() => {
     if (!query) return []
-    return (serviceCatalog || [])
+    return (Array.isArray(serviceCatalog) ? serviceCatalog : [])
       .filter((service) => {
-        if (service.isActive === false) return false
+        if (!service || typeof service !== "object" || service.isActive === false) return false
         const nameMatch = service.name?.toLowerCase().includes(query)
         const deviceMatch = service.deviceType?.toLowerCase().includes(query)
         const descMatch = service.description?.toLowerCase().includes(query)
@@ -822,6 +822,7 @@ function TaskTitleAutocomplete({
   }, [])
 
   const handleSelect = (service) => {
+    if (!service) return
     const base = Number(service.basePrice || 0)
     const markup = Number(service.markupPercent || 0)
     const computedPrice =
@@ -830,7 +831,7 @@ function TaskTitleAutocomplete({
         : Math.round((base + base * (markup / 100)) * 100) / 100
 
     onSelectService({
-      title: service.name,
+      title: service.name || "",
       amount: computedPrice,
       serviceId: service.id,
       repairType: service.repairType,
