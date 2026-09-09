@@ -3956,16 +3956,39 @@ function PosSalesPage({ selectedBranch, user }) {
   const handleConfirmAppendItems = async (payload) => {
     if (!saleToAppend?.id || isAppendingSale) return
 
+    const saleId = saleToAppend.id
+    const receiptCode = saleToAppend.receiptCode
+
     setIsAppendingSale(true)
     try {
-      const response = await appendSaleItems(saleToAppend.id, payload)
+      const response = await appendSaleItems(saleId, payload)
       const updated = response?.data || response
-      setNoticeMessage(`Successfully added items to receipt #${saleToAppend.receiptCode}.`)
+      setNoticeMessage(`Successfully added items to receipt #${receiptCode}.`)
       setSaleToAppend(null)
+      setIsDetailOpen(false)
+      setDetailSale(null)
+
+      // Fetch complete fresh sale with all updated items, payments, and credit details
+      let fullSale = updated
+      try {
+        const freshRes = await getSaleById(saleId)
+        if (freshRes?.success && freshRes?.data) {
+          fullSale = freshRes.data
+        }
+      } catch (fetchErr) {
+        console.warn("Could not fetch full sale after append:", fetchErr)
+      }
+
       await loadSales()
       await loadItems()
-      if (updated?.id) {
-        openSaleDetails(updated)
+
+      if (fullSale?.id) {
+        setCompletedSale(fullSale)
+        try {
+          printWarrantyReceipt(fullSale)
+        } catch (printErr) {
+          console.warn("Auto-print warranty receipt failed:", printErr)
+        }
       }
     } catch (error) {
       setNoticeMessage(getApiErrorMessage(error, "Unable to add items to this sale."))
@@ -5770,7 +5793,21 @@ function PosSalesPage({ selectedBranch, user }) {
       ) : null}
 
       {completedSale ? (
-        <SaleDetailDialog canCancel={false} canReturn={false} errorMessage="" isLoading={false} onCancelSale={() => {}} onClose={() => setCompletedSale(null)} onReturnItems={() => {}} sale={completedSale} title="Warranty Receipt · Customer Copy" />
+        <SaleDetailDialog
+          canCancel={false}
+          canReturn={false}
+          errorMessage=""
+          isLoading={false}
+          onAddItems={(sale) => {
+            setCompletedSale(null)
+            handleOpenAddItems(sale)
+          }}
+          onCancelSale={() => {}}
+          onClose={() => setCompletedSale(null)}
+          onReturnItems={() => {}}
+          sale={completedSale}
+          title="Warranty Receipt · Customer Copy"
+        />
       ) : null}
 
       {isDetailOpen ? (
