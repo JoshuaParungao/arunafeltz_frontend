@@ -16,7 +16,8 @@ import {
   getRequestableStock,
 } from "../../features/inventory/inventory.api"
 
-import { exportInventoryPdf } from "../../utils/businessDocumentExport"
+import { exportInventoryPdf, exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 function formatNumber(value) {
   const number = Number(value || 0)
   return number.toLocaleString("en-PH")
@@ -591,6 +592,85 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     }
   }
 
+  const handleExportInventoryExcel = async () => {
+    try {
+      const params = {}
+      if (viewingBranchId) {
+        params.branchId = viewingBranchId
+      }
+      if (searchText.trim()) {
+        params.search = searchText.trim()
+      }
+      if (statusFilter) {
+        params.status = statusFilter
+      }
+      if (lowStockOnly) {
+        params.lowStockOnly = lowStockOnly
+      }
+
+      const exportItems = []
+      let exportPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getInventoryOverview({
+          ...params,
+          page: exportPage,
+        })
+        const result = response?.data || {}
+        const pageItems = Array.isArray(result.data) ? result.data : []
+        exportItems.push(...pageItems)
+        totalPages = Math.max(1, Number(result.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages)
+
+      const exportColumns = [
+        ["Item Code", (row) => row.itemCode || "—"],
+        ["Item Name", (row) => row.itemName || "—"],
+        ["Category", (row) => row.category?.name || row.categoryName || "—"],
+        ["Brand", (row) => row.brand || "—"],
+        ["Serialized", (row) => row.isSerialized ? "Yes" : "No"],
+        ["Total Stock", (row) => Number(row.totalQuantity || 0)],
+        ["Available Stock", (row) => Number(row.quantityAvailable || 0)],
+        ["Reserved Stock", (row) => Number(row.quantityReserved || 0)],
+        ["Reorder Level", (row) => Number(row.reorderLevel || 0)],
+        ["Cost Price", (row) => Number(row.costPrice || 0)],
+        ["Price 1", (row) => Number(row.price1 || 0)],
+        ["Total Inventory Value", (row) => Number(row.quantityAvailable || 0) * Number(row.costPrice || 0)],
+        ["Status", (row) => {
+          const avail = Number(row.quantityAvailable || 0)
+          const reorder = Number(row.reorderLevel || 0)
+          return avail <= 0 ? "Out of Stock" : reorder > 0 && avail <= reorder ? "Low Stock" : "In Stock"
+        }],
+      ]
+
+      exportReportExcel({
+        label: "Branch Inventory Status",
+        filename: `Inventory-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportItems,
+        branch: viewingBranch || selectedBranch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", searchText.trim() || "All items"],
+          ["Status", statusFilter || "All statuses"],
+          ["Low stock only", lowStockOnly === "true" ? "Yes" : "No"],
+        ],
+        totals: [
+          ["Total Items Exported", exportItems.length],
+          ["Total Stock Units", exportItems.reduce((sum, it) => sum + Number(it.quantityAvailable || 0), 0)],
+          ["Total Inventory Valuation", exportItems.reduce((sum, it) => sum + (Number(it.quantityAvailable || 0) * Number(it.costPrice || 0)), 0)],
+        ],
+      })
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        "Could not export inventory Excel."
+      )
+    }
+  }
+
   const submitBulkStockRequest = async () => {
     if (!requestSourceBranchId || !selectedBranch?.id) {
       setRequestMessage("Choose source and destination branches first.")
@@ -810,6 +890,11 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
             </button>
           ) : null}
           <div className="flex flex-wrap gap-2">
+            <ExportExcelButton
+              filteredCount={pagination?.totalItems ?? items.length}
+              label="Export Excel (.xlsx)"
+              onExport={handleExportInventoryExcel}
+            />
             <button
               className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
               onClick={handleExportInventoryPdf}

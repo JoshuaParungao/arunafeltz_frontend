@@ -32,6 +32,8 @@ import { getItems } from "../../features/items/items.api"
 import { createCustomer, getCustomers } from "../../features/customers/customers.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
 import { serializeQuotationNotes } from "../../utils/quotationSettlement"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 import { parseItemWarranty } from "../items/ItemsPage"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 
@@ -424,6 +426,41 @@ export default function QuotationsPage({ selectedBranch, user }) {
       convertedCount,
     }
   }, [quotations])
+
+  const handleExportExcel = () => {
+    const exportColumns = [
+      ["Quotation No", (row) => row.quoteNumber || row.quotationCode || "—"],
+      ["Date", (row) => row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-PH") : "—"],
+      ["Customer Name", (row) => row.customer?.fullName || row.customerName || "Walk-in Customer"],
+      ["Contact No", (row) => row.customer?.mobileNumber || row.customerPhone || "—"],
+      ["Status", (row) => row.status || "QUOTED"],
+      ["Type", (row) => row.isPcBuild ? "PC Build" : "Standard"],
+      ["Items Count", (row) => (row.items || []).length],
+      ["Subtotal", (row) => Number(row.subtotal || 0)],
+      ["Total Discount", (row) => Number(row.totalDiscount || 0)],
+      ["Grand Total", (row) => Number(row.grandTotal || row.totalAmount || 0)],
+      ["Prepared By", (row) => row.preparedBy?.fullName || row.cashier?.fullName || row.preparedByName || "Staff"],
+      ["Service Done By", (row) => row.serviceDoneBy?.fullName || "—"],
+      ["Remarks", (row) => row.remarks || "—"],
+    ]
+
+    exportReportExcel({
+      label: "Customer Quotations",
+      filename: `Quotations-${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      records: filteredQuotations,
+      branch: selectedBranch || user?.branch || { name: branchName },
+      generatedBy: user,
+      filters: [
+        ["Search Query", searchQuery.trim() || "All"],
+        ["Status Filter", statusFilter || "ALL"],
+      ],
+      totals: [
+        ["Total Filtered Quotations", filteredQuotations.length],
+        ["Combined Quoted Value", filteredQuotations.reduce((sum, q) => sum + Number(q.grandTotal || q.totalAmount || 0), 0)],
+      ],
+    })
+  }
 
   // Quotation Cart Totals
   const totals = useMemo(() => {
@@ -1545,27 +1582,35 @@ export default function QuotationsPage({ selectedBranch, user }) {
           {/* Main Records Table Container */}
           <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">
             {/* Filters Header */}
-            <div className="grid gap-3 border-b border-[var(--color-border)] p-4 md:grid-cols-[1fr_auto]">
-              <label className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={16} />
-                <input
-                  className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] py-3 pl-10 pr-4 text-sm text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search quotation number, customer name, encoder..."
-                  value={searchQuery}
-                />
-              </label>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] p-4">
+              <div className="flex flex-1 flex-wrap items-center gap-3">
+                <label className="relative min-w-[240px] flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={16} />
+                  <input
+                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] py-3 pl-10 pr-4 text-sm text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search quotation number, customer name, encoder..."
+                    value={searchQuery}
+                  />
+                </label>
 
-              <select
-                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
-                onChange={(e) => setStatusFilter(e.target.value)}
-                value={statusFilter}
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="QUOTED">Quoted</option>
-                <option value="CONVERTED">Converted to Sale</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+                <select
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  value={statusFilter}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="QUOTED">Quoted</option>
+                  <option value="CONVERTED">Converted to Sale</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
+
+              <ExportExcelButton
+                filteredCount={filteredQuotations.length}
+                label="Export Quotations (.xlsx)"
+                onExport={handleExportExcel}
+              />
             </div>
 
             {message && quotations.length === 0 ? (

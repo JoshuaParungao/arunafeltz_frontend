@@ -31,6 +31,8 @@ import {
 } from "../../features/inventory/inventory.api"
 import { getItems } from "../../features/items/items.api"
 import apiClient from "../../lib/apiClient"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const SERIAL_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -1132,6 +1134,65 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
     setPage(1)
   }
 
+  const handleExportSerialsExcel = async () => {
+    try {
+      const params = {}
+      if (viewingBranchId) params.branchId = viewingBranchId
+      if (itemFilter) params.itemId = itemFilter
+      if (batchFilter) params.batchId = batchFilter
+      if (statusFilter) params.status = statusFilter
+      if (searchText.trim()) params.search = searchText.trim()
+
+      const exportSerials = []
+      let exportPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getInventorySerials({
+          ...params,
+          page: exportPage,
+          limit: 100,
+        })
+        const rows = getSerialRows(response)
+        exportSerials.push(...rows)
+        totalPages = Math.max(1, Number(response?.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages)
+
+      const exportColumns = [
+        ["Serial Number", (row) => row.serialNumber || "—"],
+        ["Item Code", (row) => row.item?.itemCode || "—"],
+        ["Item Name", (row) => row.item?.itemName || "—"],
+        ["Status", (row) => row.status || "—"],
+        ["Batch Number", (row) => row.batch?.batchNumber || "—"],
+        ["Cost Price", (row) => Number(row.batch?.costPrice || row.item?.costPrice || 0)],
+        ["Selling Price", (row) => Number(row.item?.price1 || 0)],
+        ["Branch Name", (row) => row.branch?.name || viewingBranch?.name || "—"],
+        ["Date Encoded", (row) => row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-PH") : "—"],
+      ]
+
+      exportReportExcel({
+        label: "Serialized Inventory Monitoring",
+        filename: `Serials-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportSerials,
+        branch: viewingBranch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", searchText.trim() || "All"],
+          ["Status", statusFilter || "All statuses"],
+          ["Selected Item", itemOptions.find((it) => it.id === itemFilter)?.itemName || "All serialized products"],
+          ["Branch", viewingBranch?.name || "All accessible branches"],
+        ],
+        totals: [
+          ["Total Serials Exported", exportSerials.length],
+        ],
+      })
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error, "Could not export serialized inventory to Excel."))
+    }
+  }
+
   const openSerialDetails = async (serial) => {
     setDetailSerial(serial)
     setMovements([])
@@ -1228,6 +1289,11 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
             {viewingBranch ? <p className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-200"><Building2 size={13} /><span className="truncate">{viewingBranch.code} · {viewingBranch.name}</span></p> : <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-200"><Building2 size={13} />All accessible branches</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <ExportExcelButton
+              filteredCount={totalItems}
+              label="Export Serials (.xlsx)"
+              onExport={handleExportSerialsExcel}
+            />
             {canManage ? (
               <button
                 className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition"

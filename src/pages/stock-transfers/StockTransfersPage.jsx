@@ -24,6 +24,8 @@ import {
 import { getInventorySerials } from "../../features/inventory/inventory.api"
 import { getUser } from "../../lib/sessionStorage"
 import SerialScannerModal from "../../components/common/SerialScannerModal"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 function formatDate(value) {
   if (!value) return "—"
@@ -559,6 +561,66 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     return () => window.clearTimeout(timer)
   }, [loadTransfers])
 
+  const handleExportTransfersExcel = async () => {
+    try {
+      const queryParams = {
+        status: statusFilter || undefined,
+        search: searchText.trim() || undefined,
+      }
+      if (effectiveBranchId) {
+        if (directionFilter === "OUT") queryParams.fromBranchId = effectiveBranchId
+        else if (directionFilter === "IN") queryParams.toBranchId = effectiveBranchId
+        else queryParams.branchId = effectiveBranchId
+      }
+
+      const exportTransfers = []
+      let exportPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getStockTransfers({ ...queryParams, page: exportPage, limit: 50 })
+        const result = response?.data || {}
+        const pageItems = Array.isArray(result.items) ? result.items : []
+        exportTransfers.push(...pageItems)
+        totalPages = Math.max(1, Number(result.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages)
+
+      const exportColumns = [
+        ["Transfer No", (row) => row.transferNumber || "—"],
+        ["Date Requested", (row) => row.createdAt ? formatDate(row.createdAt) : "—"],
+        ["Source Branch", (row) => row.fromBranch?.name || "—"],
+        ["Destination Branch", (row) => row.toBranch?.name || "—"],
+        ["Status", (row) => row.status || "—"],
+        ["Items Count", (row) => (row.items || []).length],
+        ["Total Units", (row) => (row.items || []).reduce((s, it) => s + Number(it.quantity || 0), 0)],
+        ["Total Value", (row) => (row.items || []).reduce((s, it) => s + (Number(it.quantity || 0) * Number(it.costPrice || 0)), 0)],
+        ["Requested By", (row) => row.requestedBy?.fullName || row.requestedBy?.username || "—"],
+        ["Received By", (row) => row.receivedBy?.fullName || row.receivedBy?.username || "—"],
+        ["Remarks", (row) => row.notes || row.remarks || "—"],
+      ]
+
+      exportReportExcel({
+        label: "Stock Transfers",
+        filename: `Stock-Transfers-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportTransfers,
+        branch: { name: user?.branch?.name || "All Branches" },
+        generatedBy: user,
+        filters: [
+          ["Search Query", searchText.trim() || "All"],
+          ["Status", statusFilter || "All statuses"],
+          ["Direction", directionFilter === "OUT" ? "Outbound" : directionFilter === "IN" ? "Inbound" : "All Transfers"],
+        ],
+        totals: [
+          ["Total Transfers Exported", exportTransfers.length],
+        ],
+      })
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.message || "Could not export stock transfers to Excel.")
+    }
+  }
+
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
@@ -568,9 +630,16 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             <h1 className="mt-1 text-2xl font-black text-slate-900">Stock Transfers</h1>
             <p className="mt-0.5 text-xs text-slate-500">Requests remain auditable. Approval reserves no stock; fulfillment posts both branch movements atomically.</p>
           </div>
-          <button className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={loadTransfers} type="button">
-            <RefreshCw size={14} /> Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportExcelButton
+              filteredCount={pagination?.totalItems ?? transfers.length}
+              label="Export Transfers (.xlsx)"
+              onExport={handleExportTransfersExcel}
+            />
+            <button className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={loadTransfers} type="button">
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </div>
         </div>
       </section>
 

@@ -41,6 +41,8 @@ import {
 
 import { getSales } from "../../features/sales/sales.api"
 import SaleReceiptModal from "../../components/sales/SaleReceiptModal"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const COMPONENT_CATEGORIES = [
   {
@@ -333,6 +335,94 @@ export default function PcBuildsPage({ selectedBranch, user }) {
     }
   }, [sales])
 
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportPcBuildsExcel = () => {
+    setIsExporting(true)
+    try {
+      const activeFilters = [
+        { label: "Builds View", value: filterMode === "all_builds" ? "Detected Multi-Part PC Builds" : "All Sales Transactions" },
+      ]
+      if (search.trim()) activeFilters.push({ label: "Search Keyword", value: search.trim() })
+      if (selectedBuilderFilter !== "ALL") activeFilters.push({ label: "Assembled / Encoded By", value: selectedBuilderFilter })
+
+      const headers = [
+        "Receipt Code",
+        "Sale Date",
+        "Customer Name",
+        "Contact",
+        "Assembled / Built By",
+        "Total Parts Count",
+        "Build Total (₱)",
+        "Component Name",
+        "Category",
+        "Serial Number",
+        "Component Price (₱)",
+        "Warranty Duration",
+      ]
+
+      const rows = []
+      filteredBuilds.forEach((sale) => {
+        const customerName = sale.customer?.fullName || "Walk-in Customer"
+        const contact = sale.customer?.mobileNumber || "-"
+        const builder = getBuilderName(sale) || "Standard Sales Staff"
+        const saleDate = sale.saleDate ? new Date(sale.saleDate).toLocaleDateString("en-PH") : "-"
+        const grandTotal = Number(sale.grandTotal || 0)
+        const items = Array.isArray(sale.items) ? sale.items : []
+
+        if (items.length === 0) {
+          rows.push([
+            sale.receiptCode || "-",
+            saleDate,
+            customerName,
+            contact,
+            builder,
+            0,
+            grandTotal,
+            "No component items recorded",
+            "-",
+            "-",
+            0,
+            "-",
+          ])
+        } else {
+          items.forEach((item, idx) => {
+            const cat = categorizeItem(item.description || item.itemNameSnapshot)
+            rows.push([
+              idx === 0 ? (sale.receiptCode || "-") : "",
+              idx === 0 ? saleDate : "",
+              idx === 0 ? customerName : "",
+              idx === 0 ? contact : "",
+              idx === 0 ? builder : "",
+              idx === 0 ? items.length : "",
+              idx === 0 ? grandTotal : "",
+              item.description || item.itemNameSnapshot || "-",
+              cat.label,
+              item.serial?.serialNumber || item.serialNumberSnapshot || "-",
+              Number(item.price || item.unitPriceSnapshot || 0),
+              item.warrantyDuration || "-",
+            ])
+          })
+        }
+      })
+
+      exportReportExcel({
+        title: "PC BUILDS & ASSEMBLED SYSTEMS DIRECTORY REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "pc_builds_directory",
+        headers,
+        rows,
+        activeFilters,
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to export PC builds: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Top Header */}
@@ -364,6 +454,11 @@ export default function PcBuildsPage({ selectedBranch, user }) {
             >
               <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} /> Refresh
             </button>
+            <ExportExcelButton
+              count={filteredBuilds.length}
+              isExporting={isExporting}
+              onClick={handleExportPcBuildsExcel}
+            />
           </div>
         </div>
       </section>

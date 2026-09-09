@@ -13,6 +13,8 @@ import {
 import { getIncentives } from "../../features/incentives/incentives.api"
 import { getUsers } from "../../features/users/users.api"
 import EnterpriseIncentiveMonitor from "../../features/incentives/EnterpriseIncentiveMonitor"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const OWNER_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN"])
 const TYPES = [
@@ -142,6 +144,88 @@ export default function IncentivesPage({ selectedBranch, user }) {
     }
   }, [branchId, isOwnerView])
 
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportIncentivesExcel = async () => {
+    setIsExporting(true)
+    try {
+      let allEntries = []
+      let currPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getIncentives({
+          ...(branchId ? { branchId } : {}),
+          ...(type ? { type } : {}),
+          ...(status ? { status } : {}),
+          ...(isOwnerView && staffId ? { staffId } : {}),
+          ...(dateFrom ? { dateFrom } : {}),
+          ...(dateTo ? { dateTo } : {}),
+          page: currPage,
+          limit: 100,
+        })
+        const result = response?.data || {}
+        const items = Array.isArray(result.entries) ? result.entries : []
+        allEntries = allEntries.concat(items)
+        totalPages = Number(result.meta?.totalPages || 1)
+        currPage += 1
+      } while (currPage <= totalPages && currPage <= 50)
+
+      const activeFilters = []
+      if (type) activeFilters.push({ label: "Incentive Type", value: typeLabel(type) })
+      if (status) activeFilters.push({ label: "Ledger Status", value: status })
+      if (staffId) {
+        const member = staff.find((s) => s.id === staffId)
+        activeFilters.push({ label: "Staff Member", value: member?.fullName || staffId })
+      }
+      if (dateFrom) activeFilters.push({ label: "Date From", value: dateFrom })
+      if (dateTo) activeFilters.push({ label: "Date To", value: dateTo })
+
+      const headers = [
+        "Source Code",
+        "Source Type",
+        "Staff Name",
+        "Role / Classification",
+        "Branch",
+        "Source Date",
+        "Status",
+        "Basis Amount (₱)",
+        "Rate (%)",
+        "Incentive Amount (₱)",
+        "Reversal Reason",
+      ]
+
+      const rows = allEntries.map((e) => [
+        e.sourceCode || e.sourceId || "-",
+        `${typeLabel(e.sourceType)} / ${e.attribution || "-"}`,
+        e.staff?.fullName || "Unassigned",
+        classificationLabel(e.classification),
+        e.branch?.code || e.branch?.name || "-",
+        dateOnly(e.sourceDate),
+        e.status || "-",
+        Number(e.basisAmount || 0),
+        Number(e.percent || 0),
+        Number(e.amount || 0),
+        e.reversalReason || "-",
+      ])
+
+      exportReportExcel({
+        title: "STAFF COMMISSIONS & INCENTIVES REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "staff_incentives",
+        headers,
+        rows,
+        activeFilters,
+      })
+    } catch (error) {
+      console.error(error)
+      setMessage("Failed to export incentives: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const totalPages = Math.max(1, Number(meta.totalPages || 1))
   const enabledSummary = useMemo(() => {
     const enabled = []
@@ -164,14 +248,21 @@ export default function IncentivesPage({ selectedBranch, user }) {
                 : "Review incentives credited to your own completed work."}
             </p>
           </div>
-          <button
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
-            disabled={isLoading}
-            onClick={loadIncentives}
-            type="button"
-          >
-            <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+              disabled={isLoading}
+              onClick={loadIncentives}
+              type="button"
+            >
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} /> Refresh
+            </button>
+            <ExportExcelButton
+              count={meta?.total || entries.length}
+              isExporting={isExporting}
+              onClick={handleExportIncentivesExcel}
+            />
+          </div>
         </div>
       </section>
 

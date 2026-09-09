@@ -55,7 +55,9 @@ import {
   printPurchaseOrder,
   exportReceivingPdf,
   printReceiving,
+  exportReportExcel,
 } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const EMPTY_FORM = {
   supplierCode: "",
@@ -1589,6 +1591,78 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
     return () => window.clearTimeout(timer)
   }, [load])
 
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportSuppliersExcel = async () => {
+    setIsExporting(true)
+    try {
+      let allSuppliers = []
+      let currPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getSuppliers({
+          ...(branchId ? { branchId } : {}),
+          ...(search.trim() ? { search: search.trim() } : {}),
+          ...(status ? { status } : {}),
+          page: currPage,
+          limit: 100,
+        })
+        const items = response?.data?.items || []
+        allSuppliers = allSuppliers.concat(items)
+        totalPages = Number(response?.data?.pagination?.totalPages || 1)
+        currPage += 1
+      } while (currPage <= totalPages && currPage <= 50)
+
+      const activeFilters = []
+      if (search.trim()) activeFilters.push({ label: "Search Keyword", value: search.trim() })
+      if (status) activeFilters.push({ label: "Status", value: status })
+
+      const headers = [
+        "Supplier Code",
+        "Company / Supplier Name",
+        "Contact Person",
+        "Contact Number",
+        "Email Address",
+        "Address",
+        "TIN",
+        "Status",
+        "Total POs",
+        "Total Receivings",
+        "Created Date",
+      ]
+
+      const rows = allSuppliers.map((s) => [
+        s.supplierCode || "-",
+        s.name || "-",
+        s.contactPerson || "-",
+        s.contactNo || "-",
+        s.email || "-",
+        s.address || "-",
+        s.tin || "-",
+        s.status || "ACTIVE",
+        Number(s._count?.purchaseOrders || s.purchaseOrderCount || 0),
+        Number(s._count?.purchaseReceivings || s.purchaseReceivingCount || 0),
+        s.createdAt ? new Date(s.createdAt).toLocaleDateString() : "-",
+      ])
+
+      exportReportExcel({
+        title: "SUPPLIERS DIRECTORY REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "suppliers_directory",
+        headers,
+        rows,
+        activeFilters,
+      })
+    } catch (error) {
+      console.error(error)
+      setMessage("Failed to export suppliers: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const openLedger = async (supplier) => {
     setSelectedSupplier(supplier)
     setHistoryData(null)
@@ -1676,13 +1750,28 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
               Complete supplier ledger with purchase orders, stock receivings, returns & RMA monitoring.
             </p>
           </div>
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]"
-            onClick={() => setEditing({})}
-            type="button"
-          >
-            <Plus size={15} /> New Supplier
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-50"
+              disabled={isLoading}
+              onClick={load}
+              type="button"
+            >
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} /> Refresh
+            </button>
+            <ExportExcelButton
+              count={pagination?.total || suppliers.length}
+              isExporting={isExporting}
+              onClick={handleExportSuppliersExcel}
+            />
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]"
+              onClick={() => setEditing({})}
+              type="button"
+            >
+              <Plus size={15} /> New Supplier
+            </button>
+          </div>
         </div>
       </section>
 

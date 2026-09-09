@@ -14,8 +14,10 @@ import { getSuppliers } from "../../features/suppliers/suppliers.api"
 
 import {
   exportReceivingPdf,
+  exportReportExcel,
   printReceiving,
 } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 const EMPTY_LINE = { itemId: "", purchaseOrderItemId: "", description: "", quantityReceived: "1", unitCost: "0", discountAmount: "0", batchCode: "", expiryDate: "", serialText: "" }
 
 function apiError(error, fallback) {
@@ -802,6 +804,61 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
     try { await updatePurchaseReceivingStatus(receiving.id, { status: nextStatus, ...(cancellationReason ? { cancellationReason: cancellationReason.trim() } : {}) }); setNotice(`${receiving.receivingCode} is now ${nextStatus.toLowerCase()}.`); await Promise.all([load(), loadReferenceData()]); if (detail?.id === receiving.id) await openDetail(receiving) } catch (error) { setMessage(apiError(error, `Could not ${nextStatus === "POSTED" ? "post" : "cancel"} receiving.`)) } finally { setIsSaving(false) }
   }
 
+  const handleExportReceivingsExcel = async () => {
+    try {
+      const queryParams = {
+        ...(branchId ? { branchId } : {}),
+        ...(search.trim() ? { search: search.trim() } : {}),
+        ...(status ? { status } : {}),
+      }
+
+      const exportReceivings = []
+      let exportPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getPurchaseReceivings({ ...queryParams, page: exportPage, limit: 50 })
+        const pageItems = Array.isArray(response?.data?.items) ? response.data.items : []
+        exportReceivings.push(...pageItems)
+        totalPages = Math.max(1, Number(response?.data?.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages)
+
+      const exportColumns = [
+        ["Receiving Code", (row) => row.receivingCode || "—"],
+        ["Date Received", (row) => row.receivingDate ? dateOnly(row.receivingDate) : dateOnly(row.createdAt)],
+        ["Supplier", (row) => row.supplier?.name || "—"],
+        ["Linked PO", (row) => row.purchaseOrder?.poNumber || "—"],
+        ["Invoice / DR No", (row) => row.supplierInvoiceNumber || "—"],
+        ["Status", (row) => formatStatus(row.status)],
+        ["Items Count", (row) => (row.items || []).length],
+        ["Total Units", (row) => (row.items || []).reduce((s, it) => s + Number(it.quantityReceived || 0), 0)],
+        ["Total Amount", (row) => Number(row.totalAmount || 0)],
+        ["Received By", (row) => row.receivedByUser?.fullName || row.receivedByUser?.username || "—"],
+        ["Notes", (row) => row.notes || "—"],
+      ]
+
+      exportReportExcel({
+        label: "Purchase Receivings & Deliveries",
+        filename: `Receivings-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportReceivings,
+        branch: selectedBranch || user?.branch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", search.trim() || "All"],
+          ["Status", status ? formatStatus(status) : "All statuses"],
+        ],
+        totals: [
+          ["Total Deliveries Exported", exportReceivings.length],
+          ["Combined Delivery Value", exportReceivings.reduce((s, r) => s + Number(r.totalAmount || 0), 0)],
+        ],
+      })
+    } catch (error) {
+      setMessage(apiError(error, "Could not export purchase receivings to Excel."))
+    }
+  }
+
   const totalPages = Math.max(1, pagination.totalPages || 1)
   return (
     <div className="space-y-5">
@@ -812,9 +869,16 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
             <h1 className="mt-1 text-2xl font-black text-slate-900">Receiving / Deliveries</h1>
             <p className="mt-0.5 text-xs text-slate-500">Draft, validate, and post supplier deliveries into the correct branch inventory.</p>
           </div>
-          <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
-            <Plus size={15} />New Receiving
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportExcelButton
+              filteredCount={pagination?.totalItems ?? receivings.length}
+              label="Export Deliveries (.xlsx)"
+              onExport={handleExportReceivingsExcel}
+            />
+            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
+              <Plus size={15} />New Receiving
+            </button>
+          </div>
         </div>
       </section>
 

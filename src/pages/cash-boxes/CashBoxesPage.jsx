@@ -38,6 +38,8 @@ import { getSales } from "../../features/sales/sales.api"
 import { getServiceJobs } from "../../features/service-jobs/serviceJobs.api"
 import { getUsers } from "../../features/users/users.api"
 import { getRoleLabel } from "../../constants/roles"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const OWNER_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN"])
 const CASH_IN_TYPES = new Set(["CASH_IN", "ADJUSTMENT_IN", "SALE_PAYMENT", "CREDIT_COLLECTION", "SERVICE_PAYMENT"])
@@ -258,6 +260,142 @@ export default function CashBoxesPage({
     }, 200)
     return () => window.clearTimeout(timer)
   }, [loadHandovers, loadTransactions, tab])
+
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportCashExcel = async () => {
+    setIsExporting(true)
+    try {
+      if (tab === "handovers") {
+        let allHandovers = []
+        let currPage = 1
+        let totalPages = 1
+        do {
+          const response = await getCashHandovers({
+            ...(branchId ? { branchId } : {}),
+            ...(selectedBoxId ? { cashBoxId: selectedBoxId } : {}),
+            ...(handoverStatus ? { status: handoverStatus } : {}),
+            page: currPage,
+            limit: 100,
+          })
+          const items = Array.isArray(response?.data) ? response.data : []
+          allHandovers = allHandovers.concat(items)
+          totalPages = Number(response?.meta?.totalPages || 1)
+          currPage += 1
+        } while (currPage <= totalPages && currPage <= 50)
+
+        const activeFilters = [
+          { label: "Active View", value: "Cash Handovers / Custody" },
+          { label: "Cash Box", value: selectedBox?.name || selectedBoxId || "All" },
+        ]
+        if (handoverStatus) activeFilters.push({ label: "Status", value: formatStatus(handoverStatus) })
+
+        const headers = [
+          "Handover Code",
+          "Date / Time",
+          "Cash Box",
+          "Transferor (From)",
+          "Recipient (To)",
+          "Amount (₱)",
+          "Status",
+          "Received Date",
+          "Remarks",
+        ]
+
+        const rows = allHandovers.map((h) => [
+          h.handoverCode || "-",
+          dateTime(h.createdAt),
+          h.cashBox?.name || selectedBox?.name || "-",
+          h.fromUser?.fullName || h.fromUser?.username || "-",
+          h.toUser?.fullName || h.toUser?.username || "Open to authorized staff",
+          Number(h.amount || 0),
+          formatStatus(h.status),
+          h.receivedAt ? dateTime(h.receivedAt) : "-",
+          h.remarks || "-",
+        ])
+
+        exportReportExcel({
+          title: "CASH HANDOVERS & SHIFT TURNOVER REPORT",
+          branchName: branchName || "All Branches",
+          generatedBy: user?.fullName || user?.username || "System",
+          filenamePrefix: "cash_handovers",
+          headers,
+          rows,
+          activeFilters,
+        })
+      } else {
+        let allTxns = []
+        let currPage = 1
+        let totalPages = 1
+        const effectiveType = tab === "expenses" ? "EXPENSE" : transactionType
+
+        do {
+          const response = await getCashTransactions(selectedBoxId, {
+            ...(transactionSearch.trim() ? { search: transactionSearch.trim() } : {}),
+            ...(effectiveType ? { type: effectiveType } : {}),
+            page: currPage,
+            limit: 100,
+          })
+          const result = response?.data || {}
+          const items = result.data || []
+          allTxns = allTxns.concat(items)
+          totalPages = Number(result.meta?.totalPages || 1)
+          currPage += 1
+        } while (currPage <= totalPages && currPage <= 50)
+
+        const activeFilters = [
+          { label: "Cash Box", value: selectedBox?.name || selectedBoxId || "All" },
+        ]
+        if (tab === "expenses") activeFilters.push({ label: "View Mode", value: "Store Expenses" })
+        if (transactionSearch.trim()) activeFilters.push({ label: "Search Keyword", value: transactionSearch.trim() })
+        if (effectiveType) activeFilters.push({ label: "Transaction Type", value: formatStatus(effectiveType) })
+
+        const headers = [
+          "Transaction Code",
+          "Date / Time",
+          "Type",
+          "Description / Category",
+          "Reference No",
+          "Inflow / Outflow",
+          "Amount (₱)",
+          "Balance After (₱)",
+          "Encoder / Staff",
+          "Status",
+        ]
+
+        const rows = allTxns.map((t) => {
+          const isCashIn = CASH_IN_TYPES.has(t.type)
+          return [
+            t.transactionCode || "-",
+            dateTime(t.createdAt),
+            formatStatus(t.type),
+            t.description || "-",
+            t.referenceNo || "-",
+            isCashIn ? "INFLOW (+)" : "OUTFLOW (-)",
+            Number(t.amount || 0),
+            Number(t.balanceAfter || 0),
+            t.performedBy?.fullName || t.performedBy?.username || "-",
+            formatStatus(t.status),
+          ]
+        })
+
+        exportReportExcel({
+          title: tab === "expenses" ? "STORE CASH EXPENSES REPORT" : "CASH REGISTER TRANSACTIONS REPORT",
+          branchName: branchName || "All Branches",
+          generatedBy: user?.fullName || user?.username || "System",
+          filenamePrefix: tab === "expenses" ? "cash_expenses" : "cash_transactions",
+          headers,
+          rows,
+          activeFilters,
+        })
+      }
+    } catch (error) {
+      console.error(error)
+      setMessage("Failed to export cash data: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   const reloadActive = async () => {
     await Promise.all([loadBoxes(), loadDigitalChannels()])
@@ -664,6 +802,12 @@ export default function CashBoxesPage({
               <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
               Refresh
             </button>
+
+            <ExportExcelButton
+              count={tab === "handovers" ? (handoverMeta?.total || handovers.length) : (transactionMeta?.total || transactions.length)}
+              isExporting={isExporting}
+              onClick={handleExportCashExcel}
+            />
 
             {canManage && (
               <>

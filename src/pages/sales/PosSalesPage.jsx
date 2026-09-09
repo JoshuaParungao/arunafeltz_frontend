@@ -60,10 +60,12 @@ import {
 } from "../../features/sales/sales.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
 import {
+  exportReportExcel,
   exportWarrantyReceiptPdf,
   groupReceiptItems,
   printWarrantyReceipt,
 } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
 import { serializeQuotationNotes } from "../../utils/quotationSettlement"
@@ -268,6 +270,14 @@ function getSaleListResult(response) {
     rows,
     meta: result.meta || innerData.pagination || result.pagination || null,
   }
+}
+
+const TIER_LABELS = {
+  1: "SRP / Retail",
+  2: "Wholesale / Dealer",
+  3: "VIP / Contractor",
+  4: "Corporate / Special",
+  5: "Promo / Clearance",
 }
 
 function availablePriceTiers(item) {
@@ -2360,6 +2370,7 @@ function PosSalesPage({ selectedBranch, user }) {
   const [salesSearch, setSalesSearch] = useState("")
   const [salesStatus, setSalesStatus] = useState("")
   const [paymentStatus, setPaymentStatus] = useState("")
+  const [priceTierFilter, setPriceTierFilter] = useState("")
   const [isLoadingSales, setIsLoadingSales] = useState(false)
   const [salesMessage, setSalesMessage] = useState("")
   const salesRequestIdRef = useRef(0)
@@ -2646,6 +2657,7 @@ function PosSalesPage({ selectedBranch, user }) {
         search: salesSearch.trim() || undefined,
         status: salesStatus || undefined,
         paymentStatus: paymentStatus || undefined,
+        priceTier: priceTierFilter ? Number(priceTierFilter) : undefined,
       })
       if (requestId !== salesRequestIdRef.current) return
 
@@ -2661,7 +2673,46 @@ function PosSalesPage({ selectedBranch, user }) {
     } finally {
       if (requestId === salesRequestIdRef.current) setIsLoadingSales(false)
     }
-  }, [branchId, paymentStatus, salesPage, salesSearch, salesStatus])
+  }, [branchId, paymentStatus, priceTierFilter, salesPage, salesSearch, salesStatus])
+
+  const filteredTierSummary = useMemo(() => {
+    let tierUnits = 0
+    let tierRevenue = 0
+    let matchingReceiptsCount = 0
+
+    sales.forEach((sale) => {
+      if (sale.status === "CANCELLED") return
+      let saleHasMatchingTier = false
+
+      ;(sale.items || []).forEach((item) => {
+        const itemTier = Number(item.priceTier || 1)
+        const qty = Number(item.quantity || 1)
+        const lineTot = Number(item.lineTotal || (Number(item.unitPrice || 0) * qty) || 0)
+
+        if (priceTierFilter) {
+          if (itemTier === Number(priceTierFilter)) {
+            tierUnits += qty
+            tierRevenue += lineTot
+            saleHasMatchingTier = true
+          }
+        } else {
+          tierUnits += qty
+          tierRevenue += lineTot
+          saleHasMatchingTier = true
+        }
+      })
+
+      if (saleHasMatchingTier) {
+        matchingReceiptsCount += 1
+      }
+    })
+
+    return {
+      tierUnits,
+      tierRevenue,
+      matchingReceiptsCount,
+    }
+  }, [sales, priceTierFilter])
 
   const loadQuotations = useCallback(async () => {
     if (!branchId) {
@@ -3997,6 +4048,142 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }
 
+  const handleExportSalesExcel = () => {
+    if (historyTab === "QUOTATIONS") {
+      const exportColumns = [
+        ["Quotation No", (row) => row.quoteNumber || "—"],
+        ["Date", (row) => row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-PH") : "—"],
+        ["Customer Name", (row) => row.customer?.fullName || "Walk-in Customer"],
+        ["Status", (row) => formatStatus(row.status)],
+        ["Items Count", (row) => (row.items || []).length],
+        ["Grand Total", (row) => Number(row.grandTotal || 0)],
+        ["Prepared By", (row) => row.preparedBy?.fullName || row.cashier?.fullName || row.preparedBy?.username || "—"],
+        ["Service Done By", (row) => row.serviceDoneBy?.fullName || "—"],
+        ["Remarks", (row) => row.remarks || "—"],
+      ]
+      exportReportExcel({
+        label: "Customer Quotations",
+        filename: `Quotations-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: quotations,
+        branch: activeBranch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", salesSearch.trim() || "All"],
+          ["Status", quotationStatusFilter || "All Quotation Statuses"],
+        ],
+        totals: [
+          ["Total Quotations Exported", quotations.length],
+          ["Combined Grand Total", quotations.reduce((sum, q) => sum + Number(q.grandTotal || 0), 0)],
+        ],
+      })
+    } else if (priceTierFilter) {
+      const tierName = TIER_LABELS[priceTierFilter] || `Tier ${priceTierFilter}`
+      const itemRows = []
+      let totalTierUnits = 0
+      let totalTierRevenue = 0
+
+      sales.forEach((sale) => {
+        ;(sale.items || []).forEach((item) => {
+          const itemTier = Number(item.priceTier || 1)
+          if (itemTier === Number(priceTierFilter)) {
+            const qty = Number(item.quantity || 1)
+            const lineTotal = Number(item.lineTotal || (Number(item.unitPrice || 0) * qty) || 0)
+            totalTierUnits += qty
+            totalTierRevenue += lineTotal
+            itemRows.push({
+              receiptCode: sale.receiptCode || "—",
+              saleDate: sale.saleDate || sale.createdAt,
+              customerName: sale.customer?.fullName || "Walk-in Customer",
+              itemCode: item.item?.itemCode || item.itemCodeSnapshot || "—",
+              description: item.description || item.itemNameSnapshot || "—",
+              priceTier: `Tier ${itemTier} (${tierName})`,
+              unitPrice: Number(item.unitPrice || 0),
+              quantity: qty,
+              lineTotal,
+              paymentMethod: sale.creditAccount ? formatStatus(sale.creditAccount.provider) : formatStatus(sale.paymentMethod || "CASH"),
+              cashierName: sale.cashier?.fullName || sale.cashier?.username || "—",
+              saleStatus: formatStatus(sale.status),
+            })
+          }
+        })
+      })
+
+      const exportColumns = [
+        ["Receipt Code", (row) => row.receiptCode],
+        ["Date & Time", (row) => row.saleDate ? new Date(row.saleDate).toLocaleString("en-PH") : "—"],
+        ["Customer Name", (row) => row.customerName],
+        ["Item Code", (row) => row.itemCode],
+        ["Product / Description", (row) => row.description],
+        ["Price Tier", (row) => row.priceTier],
+        ["Unit Price", (row) => row.unitPrice],
+        ["Quantity", (row) => row.quantity],
+        ["Line Total", (row) => row.lineTotal],
+        ["Payment Method", (row) => row.paymentMethod],
+        ["Sales Agent / Cashier", (row) => row.cashierName],
+        ["Sale Status", (row) => row.saleStatus],
+      ]
+
+      exportReportExcel({
+        label: `Sales by Price Tier - ${tierName}`,
+        filename: `Sales-Tier-${priceTierFilter}-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: itemRows,
+        branch: activeBranch,
+        generatedBy: user,
+        filters: [
+          ["Price Tier", `Tier ${priceTierFilter} (${tierName})`],
+          ["Search Query", salesSearch.trim() || "All"],
+          ["Sale Status", salesStatus || "All Statuses"],
+          ["Payment Status", paymentStatus || "All Payment Statuses"],
+        ],
+        totals: [
+          ["Price Tier Filter", `Tier ${priceTierFilter} · ${tierName}`],
+          ["Matching Line Items", itemRows.length],
+          ["Total Units Sold", totalTierUnits],
+          ["Total Sales Revenue (Tier " + priceTierFilter + ")", totalTierRevenue],
+        ],
+      })
+    } else {
+      const exportColumns = [
+        ["Receipt Code", (row) => row.receiptCode || "—"],
+        ["Date & Time", (row) => row.createdAt ? new Date(row.createdAt).toLocaleString("en-PH") : "—"],
+        ["Customer Name", (row) => row.customer?.fullName || "Walk-in Customer"],
+        ["Sale Status", (row) => formatStatus(row.status)],
+        ["Payment Status", (row) => formatStatus(row.paymentStatus)],
+        ["Payment Method", (row) => row.creditAccount ? formatStatus(row.creditAccount.provider) : formatStatus(row.paymentMethod || "CASH")],
+        ["Financing Term", (row) => row.creditAccount?.term ? formatStatus(row.creditAccount.term) : "—"],
+        ["Items Count", (row) => (row.items || []).length],
+        ["Subtotal", (row) => Number(row.subtotal || 0)],
+        ["Total Discount", (row) => Number(row.totalDiscount || 0)],
+        ["Grand Total", (row) => Number(row.grandTotal || 0)],
+        ["Amount Paid", (row) => Number(row.amountPaid || 0)],
+        ["Change", (row) => Number(row.changeAmount || 0)],
+        ["Cashier", (row) => row.cashier?.fullName || row.cashier?.username || "—"],
+        ["Remarks", (row) => row.remarks || "—"],
+      ]
+      exportReportExcel({
+        label: "Branch Sales History",
+        filename: `Sales-History-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: sales,
+        branch: activeBranch,
+        generatedBy: user,
+        filters: [
+          ["Price Tier", "All Price Tiers"],
+          ["Search Query", salesSearch.trim() || "All"],
+          ["Sale Status", salesStatus || "All Statuses"],
+          ["Payment Status", paymentStatus || "All Payment Statuses"],
+        ],
+        totals: [
+          ["Total Sales Exported", sales.length],
+          ["Total Sales Revenue", sales.reduce((sum, s) => sum + Number(s.grandTotal || 0), 0)],
+          ["Total Amount Paid", sales.reduce((sum, s) => sum + Number(s.amountPaid || 0), 0)],
+        ],
+      })
+    }
+  }
+
   const confirmCancellation = async (reason) => {
     if (!saleToCancel?.id || isCancellingSale) return
 
@@ -5234,51 +5421,60 @@ function PosSalesPage({ selectedBranch, user }) {
               </div>
             </div>
 
-            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-0.5">
-              <button
-                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  historyTab === "SALES"
-                    ? "bg-white text-slate-900 shadow-2xs"
-                    : "text-slate-500 hover:text-slate-900"
-                }`}
-                onClick={() => {
-                  setHistoryTab("SALES")
-                  loadSales()
-                }}
-                type="button"
-              >
-                <ReceiptText size={13} />
-                Sales History
-                {salesMeta?.total !== undefined ? (
-                  <span className="ml-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
-                    {salesMeta.total}
-                  </span>
-                ) : null}
-              </button>
-              <button
-                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  historyTab === "QUOTATIONS"
-                    ? "bg-white text-slate-900 shadow-2xs"
-                    : "text-slate-500 hover:text-slate-900"
-                }`}
-                onClick={() => {
-                  setHistoryTab("QUOTATIONS")
-                  loadQuotations()
-                }}
-                type="button"
-              >
-                <FileText size={13} />
-                Quotations (Convert)
-                {quotationsMeta?.totalItems !== undefined || quotationsMeta?.total !== undefined ? (
-                  <span className="ml-1 rounded-full bg-blue-50 border border-blue-200 px-1.5 py-0.2 text-[10px] font-bold text-blue-800">
-                    {quotationsMeta?.totalItems ?? quotationsMeta?.total}
-                  </span>
-                ) : null}
-              </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-0.5">
+                <button
+                  className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    historyTab === "SALES"
+                      ? "bg-white text-slate-900 shadow-2xs"
+                      : "text-slate-500 hover:text-slate-900"
+                  }`}
+                  onClick={() => {
+                    setHistoryTab("SALES")
+                    loadSales()
+                  }}
+                  type="button"
+                >
+                  <ReceiptText size={13} />
+                  Sales History
+                  {salesMeta?.total !== undefined ? (
+                    <span className="ml-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
+                      {salesMeta.total}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    historyTab === "QUOTATIONS"
+                      ? "bg-white text-slate-900 shadow-2xs"
+                      : "text-slate-500 hover:text-slate-900"
+                  }`}
+                  onClick={() => {
+                    setHistoryTab("QUOTATIONS")
+                    loadQuotations()
+                  }}
+                  type="button"
+                >
+                  <FileText size={13} />
+                  Quotations (Convert)
+                  {quotationsMeta?.totalItems !== undefined || quotationsMeta?.total !== undefined ? (
+                    <span className="ml-1 rounded-full bg-blue-50 border border-blue-200 px-1.5 py-0.2 text-[10px] font-bold text-blue-800">
+                      {quotationsMeta?.totalItems ?? quotationsMeta?.total}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
+
+              <ExportExcelButton
+                filteredCount={historyTab === "QUOTATIONS" ? quotations.length : sales.length}
+                label={historyTab === "QUOTATIONS" ? "Export Quotes (.xlsx)" : "Export Sales (.xlsx)"}
+                onExport={handleExportSalesExcel}
+                size="sm"
+              />
             </div>
           </div>
 
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
+          <div className="mt-3 grid gap-2 md:grid-cols-4">
             <label className="relative md:col-span-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input
@@ -5309,10 +5505,29 @@ function PosSalesPage({ selectedBranch, user }) {
                   <option value="UNPAID">Unpaid</option>
                   <option value="REFUNDED">Refunded</option>
                 </select>
+                <select
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold outline-none transition ${
+                    priceTierFilter
+                      ? "border-amber-400 bg-amber-50 text-amber-900 ring-1 ring-amber-300"
+                      : "border-slate-200 bg-white text-slate-800 focus:border-[var(--color-maroon)]"
+                  }`}
+                  onChange={(event) => {
+                    setPriceTierFilter(event.target.value)
+                    setSalesPage(1)
+                  }}
+                  value={priceTierFilter}
+                >
+                  <option value="">All Price Tiers</option>
+                  <option value="1">Price Tier 1 · SRP / Retail</option>
+                  <option value="2">Price Tier 2 · Wholesale / Dealer</option>
+                  <option value="3">Price Tier 3 · VIP / Contractor</option>
+                  <option value="4">Price Tier 4 · Corporate / Special</option>
+                  <option value="5">Price Tier 5 · Promo / Clearance</option>
+                </select>
               </>
             ) : (
               <select
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)] md:col-span-2"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)] md:col-span-3"
                 onChange={(event) => {
                   setQuotationStatusFilter(event.target.value)
                   setQuotationsPage(1)
@@ -5326,6 +5541,59 @@ function PosSalesPage({ selectedBranch, user }) {
               </select>
             )}
           </div>
+
+          {historyTab === "SALES" && priceTierFilter ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50/50 to-amber-50 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-amber-500 font-mono font-black text-sm text-white shadow-xs">
+                  T{priceTierFilter}
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-900 text-xs">
+                      Filtered by Price Tier {priceTierFilter} ({TIER_LABELS[priceTierFilter] || `Tier ${priceTierFilter}`})
+                    </p>
+                    <span className="rounded-full bg-amber-200/70 border border-amber-300 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                      Tier Filter Active
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Showing receipts containing products sold under this specific pricing tier
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Units Sold (Tier {priceTierFilter})
+                  </p>
+                  <p className="font-mono text-sm font-black text-slate-800">
+                    {filteredTierSummary.tierUnits} pc(s)
+                  </p>
+                </div>
+                <div className="h-7 w-px bg-amber-200" />
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-maroon)]">
+                    Total Sales (Tier {priceTierFilter})
+                  </p>
+                  <p className="font-mono text-base font-black text-[var(--color-maroon)]">
+                    {formatMoney(filteredTierSummary.tierRevenue)}
+                  </p>
+                </div>
+                <button
+                  className="rounded-xl border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-2xs"
+                  onClick={() => {
+                    setPriceTierFilter("")
+                    setSalesPage(1)
+                  }}
+                  type="button"
+                >
+                  Clear Tier
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {historyTab === "SALES" ? (
@@ -5381,6 +5649,15 @@ function PosSalesPage({ selectedBranch, user }) {
                           <p className="font-mono font-bold text-slate-900 text-xs">
                             {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
                           </p>
+                          {priceTierFilter ? (
+                            <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
+                              T{priceTierFilter}: {formatMoney(
+                                (sale.items || [])
+                                  .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
+                                  .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
+                              )}
+                            </p>
+                          ) : null}
                           {sale.creditAccount && Number(sale.creditAccount.remainingBalance || 0) > 0 ? (
                             <p className="text-[10px] text-blue-700 font-mono">
                               Bal: {formatMoney(sale.creditAccount.remainingBalance)}
@@ -5441,9 +5718,20 @@ function PosSalesPage({ selectedBranch, user }) {
                         <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
                         <p className="text-[10px] text-slate-400">{formatDate(sale.saleDate)}</p>
                       </div>
-                      <p className="font-mono font-bold text-slate-900">
-                        {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
-                      </p>
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-slate-900">
+                          {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
+                        </p>
+                        {priceTierFilter ? (
+                          <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
+                            T{priceTierFilter}: {formatMoney(
+                              (sale.items || [])
+                                .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
+                                .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
+                            )}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                     <p className="mt-1.5 text-slate-700">{sale.customer?.fullName || "Walk-in customer"}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">

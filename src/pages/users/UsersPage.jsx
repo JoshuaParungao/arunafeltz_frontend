@@ -34,6 +34,8 @@ import {
   rejectUser,
   updateUserById,
 } from "../../features/users/users.api"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const ROLE_LABELS = {
   SUPER_OWNER: "Main Admin",
@@ -890,6 +892,87 @@ function UsersPage({ selectedBranch, user }) {
     }
   }, [loadUsers, searchText])
 
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportUsersExcel = async () => {
+    setIsExporting(true)
+    try {
+      let allUsers = []
+      let currPage = 1
+      let totalPages = 1
+
+      do {
+        const params = { page: currPage, limit: 100 }
+        if (searchText.trim()) params.search = searchText.trim()
+        if (statusFilter) params.status = statusFilter
+        if (accountTypeFilter) {
+          const config = ACCOUNT_TYPE_CONFIG[accountTypeFilter]
+          if (config) {
+            params.role = config.role
+            params.incentiveClassification = config.incentiveClassification
+          }
+        }
+        if (branchFilter) params.branchId = branchFilter
+
+        const response = await getUsers(params)
+        const items = Array.isArray(response?.data) ? response.data : []
+        allUsers = allUsers.concat(items)
+        totalPages = Number(response?.meta?.totalPages || 1)
+        currPage += 1
+      } while (currPage <= totalPages && currPage <= 50)
+
+      const activeFilters = []
+      if (searchText.trim()) activeFilters.push({ label: "Search Keyword", value: searchText.trim() })
+      if (statusFilter) activeFilters.push({ label: "Status", value: statusFilter })
+      if (accountTypeFilter) activeFilters.push({ label: "Account Type", value: accountTypeFilter })
+      if (branchFilter) {
+        const foundBranch = branches.find((b) => b.id === branchFilter)
+        activeFilters.push({ label: "Branch", value: foundBranch?.name || branchFilter })
+      }
+
+      const headers = [
+        "User Code",
+        "Full Name",
+        "Username",
+        "Email",
+        "Role",
+        "Incentive Tier",
+        "Branch",
+        "Status",
+        "Last Login",
+        "Created Date",
+      ]
+
+      const rows = allUsers.map((u) => [
+        u.userCode || "-",
+        u.fullName || "-",
+        u.username || "-",
+        u.email || "-",
+        ROLE_LABELS[u.role] || u.role || "-",
+        u.incentiveClassification ? String(u.incentiveClassification).replace(/_/g, " ") : "Standard",
+        u.branch?.name || "-",
+        u.status || "ACTIVE",
+        u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString("en-PH") : "Never",
+        u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-PH") : "-",
+      ])
+
+      exportReportExcel({
+        title: "STAFF & USER ACCOUNTS DIRECTORY REPORT",
+        branchName: activeBranch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "staff_accounts",
+        headers,
+        rows,
+        activeFilters,
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to export users: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const handleSaved = (savedUser, action) => {
     setEditor(null)
     setLifecycleRequest(null)
@@ -947,6 +1030,11 @@ function UsersPage({ selectedBranch, user }) {
             <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
             Refresh
           </button>
+          <ExportExcelButton
+            count={total}
+            isExporting={isExporting}
+            onClick={handleExportUsersExcel}
+          />
           <button
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#7A1F2B] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#641824] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={assignableRoles.length === 0 || branches.length === 0}

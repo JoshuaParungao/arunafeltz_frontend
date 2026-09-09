@@ -4,6 +4,8 @@ import { useCallback } from "react"
 
 import { USER_ROLES } from "../../constants/roles"
 import { createItem, getItemCategories, getItems, getUnits, updateItemById } from "../../features/items/items.api"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const OWNER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -988,6 +990,78 @@ function ItemsPage({ selectedBranch, user }) {
     setPage(1)
   }
 
+  const handleExportItemsExcel = async () => {
+    try {
+      const params = {
+        branchId: selectedBranchId,
+      }
+      if (searchText.trim()) params.search = searchText.trim()
+      if (statusFilter) params.status = statusFilter
+      if (serializedFilter) params.isSerialized = serializedFilter
+      if (categoryFilter) params.categoryId = categoryFilter
+      if (unitFilter) params.unitId = unitFilter
+
+      const exportItems = []
+      let exportPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getItems({
+          ...params,
+          page: exportPage,
+          limit: 50,
+        })
+        const result = response?.data || {}
+        const pageItems = Array.isArray(result.data) ? result.data : []
+        exportItems.push(...pageItems)
+        totalPages = Math.max(1, Number(result.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages)
+
+      const exportColumns = [
+        ["Item Code", (row) => row.itemCode || "—"],
+        ["Item Name", (row) => row.itemName || "—"],
+        ["Barcode", (row) => row.barcode || "—"],
+        ["Category", (row) => row.category?.name || row.categoryName || "—"],
+        ["Brand", (row) => row.brand || "—"],
+        ["Unit", (row) => row.unit?.name || row.unitName || "—"],
+        ["Serialized", (row) => row.isSerialized ? "Yes" : "No"],
+        ["Warranty", (row) => parseItemWarranty(row)],
+        ["Cost Price", (row) => Number(row.costPrice || 0)],
+        ["Price 1", (row) => Number(row.price1 || 0)],
+        ["Price 2", (row) => Number(row.price2 || 0)],
+        ["Price 3", (row) => Number(row.price3 || 0)],
+        ["Price 4", (row) => Number(row.price4 || 0)],
+        ["Price 5", (row) => Number(row.price5 || 0)],
+        ["Status", (row) => row.status || (row.isActive ? "ACTIVE" : "INACTIVE")],
+      ]
+
+      exportReportExcel({
+        label: "Product Catalog",
+        filename: `Product-Catalog-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportItems,
+        branch: selectedBranch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", searchText.trim() || "All items"],
+          ["Category Filter", categoryFilter || "All categories"],
+          ["Status Filter", statusFilter || "All statuses"],
+          ["Serialized Only", serializedFilter ? "Yes" : "All"],
+        ],
+        totals: [
+          ["Total Catalog Items", exportItems.length],
+        ],
+      })
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        "Could not export product catalog to Excel."
+      )
+    }
+  }
+
   const openNewItem = () => {
     setEditingItem(null)
     setItemEditorError("")
@@ -1204,7 +1278,13 @@ function ItemsPage({ selectedBranch, user }) {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportExcelButton
+            filteredCount={pagination?.totalItems ?? items.length}
+            label="Export Catalog (.xlsx)"
+            onExport={handleExportItemsExcel}
+          />
+
           {canManageCatalog ? (
             <button
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-bold text-white shadow-sm"

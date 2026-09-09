@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CreditCard,
   Eye,
+  FileText,
   LoaderCircle,
   RefreshCw,
   Search,
@@ -21,6 +22,9 @@ import {
   getCreditAccounts,
 } from "../../features/credit-accounts/creditAccounts.api";
 import { generateUUID } from "../../utils/uuid";
+import { exportReportExcel } from "../../utils/businessDocumentExport";
+import ExportExcelButton from "../../components/common/ExportExcelButton";
+import CustomerArStatementModal from "./CustomerArStatementModal";
 
 const TERMS = [
   "STRAIGHT",
@@ -125,6 +129,7 @@ export default function CreditsPage({ selectedBranch, user }) {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [showCollectionForm, setShowCollectionForm] = useState(false);
   const [showDefaultModal, setShowDefaultModal] = useState(false);
+  const [showStatementModal, setShowStatementModal] = useState(false);
   const [defaultReason, setDefaultReason] = useState("");
   const [collectionForm, setCollectionForm] = useState({
     amount: "",
@@ -318,6 +323,49 @@ export default function CreditsPage({ selectedBranch, user }) {
     };
   }, [meta, totals]);
 
+  const handleExportExcel = () => {
+    const exportColumns = [
+      ["Credit Code", (row) => row.creditCode || "—"],
+      ["Date Opened", (row) => row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-PH") : "—"],
+      ["Customer Name", (row) => row.customer?.fullName || row.customerName || "—"],
+      ["Contact No", (row) => row.customer?.mobileNumber || row.customerPhone || "—"],
+      ["Source Type", (row) => label(row.sourceType)],
+      ["Reference Code", (row) => row.sale?.receiptCode || row.serviceJob?.jobOrderNo || "—"],
+      ["Financing Provider", (row) => label(row.provider)],
+      ["Term", (row) => label(row.term)],
+      ["Term Factor", (row) => Number(row.termBasis || 1).toFixed(4)],
+      ["Cash Promo Value", (row) => Number(row.cashPromoTotalAmount || 0)],
+      ["Downpayment Paid", (row) => Number(row.downpaymentAmount || 0)],
+      ["Total Financed Balance", (row) => Number(row.balanceAmount || 0)],
+      ["Total Collected", (row) => Number(row.totalCollected || 0)],
+      ["Remaining Balance", (row) => Number(row.remainingBalance || 0)],
+      ["Monthly Due", (row) => Number(row.monthlyDueAmount || 0)],
+      ["Next Due Date", (row) => row.nextDueDate ? new Date(row.nextDueDate).toLocaleDateString("en-PH") : "—"],
+      ["Status", (row) => label(row.status)],
+    ];
+
+    exportReportExcel({
+      label: "Receivable Accounts & Installments",
+      filename: `Receivables-${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      records: accounts,
+      branch: selectedBranch || user?.branch,
+      generatedBy: user,
+      filters: [
+        ["Search Query", search.trim() || "All"],
+        ["Status", status ? label(status) : "All Statuses"],
+        ["Source Type", sourceType ? label(sourceType) : "All Sources"],
+        ["Provider", provider ? label(provider) : "All Providers"],
+        ["Term", term ? label(term) : "All Terms"],
+      ],
+      totals: [
+        ["Total Accounts Exported", accounts.length],
+        ["Total Remaining Balance", accounts.reduce((sum, a) => sum + Number(a.remainingBalance || 0), 0)],
+        ["Total Collections To Date", accounts.reduce((sum, a) => sum + Number(a.totalCollected || 0), 0)],
+      ],
+    });
+  };
+
   const totalPages = Math.max(1, meta.totalPages || 1);
 
   return (
@@ -336,15 +384,22 @@ export default function CreditsPage({ selectedBranch, user }) {
               collections and reversals.
             </p>
           </div>
-          <button
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-            disabled={isLoading}
-            onClick={loadAccounts}
-            type="button"
-          >
-            <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} />
-            Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportExcelButton
+              filteredCount={meta?.total ?? accounts.length}
+              label="Export Receivables (.xlsx)"
+              onExport={handleExportExcel}
+            />
+            <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+              disabled={isLoading}
+              onClick={loadAccounts}
+              type="button"
+            >
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} />
+              Refresh
+            </button>
+          </div>
         </div>
       </section>
 
@@ -802,6 +857,16 @@ export default function CreditsPage({ selectedBranch, user }) {
                       <Banknote size={14} />
                       Post Collection
                     </button>
+                    {detail.customerId ? (
+                      <button
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                        onClick={() => setShowStatementModal(true)}
+                        type="button"
+                      >
+                        <FileText size={14} />
+                        Statement of Account (SOA)
+                      </button>
+                    ) : null}
                     {canCancelCollections ? (
                       <button
                         className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
@@ -1003,6 +1068,16 @@ export default function CreditsPage({ selectedBranch, user }) {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {showStatementModal && detail?.customerId ? (
+        <CustomerArStatementModal
+          customerId={detail.customerId}
+          customerName={detail.customer?.fullName || "Customer"}
+          onClose={() => setShowStatementModal(false)}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
       ) : null}
     </div>
   );

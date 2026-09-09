@@ -2277,11 +2277,13 @@ export function exportReportExcel({
       }
     }
 
-    // Auto-compute generous column widths with minimum 15 and max 60
+    // Auto-compute generous column widths (never cramped, minimum 18, max 75, +6 padding)
     const maxCols = aoa.reduce((max, r) => Math.max(max, r.length), 0)
     worksheet["!cols"] = Array.from({ length: maxCols }, (_, colIdx) => {
       let maxLen = 14
-      aoa.forEach((row) => {
+      aoa.forEach((row, rowIdx) => {
+        // Skip title/header banner rows when computing column 0 width
+        if (rowIdx < 4 && colIdx === 0) return
         const cellVal = row[colIdx]
         if (cellVal !== undefined && cellVal !== null) {
           const str =
@@ -2291,8 +2293,19 @@ export function exportReportExcel({
           maxLen = Math.max(maxLen, str.length)
         }
       })
-      return { wch: Math.min(60, maxLen + 4) }
+      return { wch: Math.max(18, Math.min(75, maxLen + 6)) }
     })
+
+    // Enable Excel AutoFilter dropdown on the data table header row
+    const headerRowIdx = aoa.indexOf(headers)
+    if (headerRowIdx >= 0 && records.length > 0 && headers.length > 0) {
+      worksheet["!autofilter"] = {
+        ref: XLSX.utils.encode_range({
+          s: { r: headerRowIdx, c: 0 },
+          e: { r: headerRowIdx + records.length, c: headers.length - 1 },
+        }),
+      }
+    }
 
     const workbook = XLSX.utils.book_new()
     const sheetName = cleanLabel.slice(0, 31).replace(/[\\/?*[\]]/g, "")

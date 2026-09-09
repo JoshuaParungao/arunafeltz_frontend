@@ -33,6 +33,8 @@ import SaleReceiptModal from "../../components/sales/SaleReceiptModal"
 import JobOrderReceiptModal from "../../components/services/JobOrderReceiptModal"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import CreditAccountDetailModal from "../../components/credits/CreditAccountDetailModal"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const CUSTOMER_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -1513,6 +1515,77 @@ function CustomersPage({ selectedBranch, user }) {
     }
   }, [loadCustomers, searchText])
 
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportCustomersExcel = async () => {
+    setIsExporting(true)
+    try {
+      let allCustomers = []
+      let currPage = 1
+      let totalPages = 1
+
+      do {
+        const params = {
+          page: currPage,
+          limit: 100,
+        }
+        if (activeBranchId) params.branchId = activeBranchId
+        if (searchText.trim()) params.search = searchText.trim()
+        if (statusFilter) params.status = statusFilter
+
+        const response = await getCustomers(params)
+        const result = response?.data
+        const items = Array.isArray(result?.items) ? result.items : []
+        allCustomers = allCustomers.concat(items)
+        totalPages = Number(result?.pagination?.totalPages || 1)
+        currPage += 1
+      } while (currPage <= totalPages && currPage <= 50)
+
+      const activeFilters = []
+      if (searchText.trim()) activeFilters.push({ label: "Search Keyword", value: searchText.trim() })
+      if (statusFilter) activeFilters.push({ label: "Status", value: statusFilter })
+
+      const headers = [
+        "Customer Code",
+        "Full Name",
+        "Mobile Number",
+        "Email",
+        "Company Name",
+        "Address",
+        "Branch",
+        "Status",
+        "Created Date",
+      ]
+
+      const rows = allCustomers.map((c) => [
+        c.customerCode || "-",
+        c.fullName || "-",
+        c.mobileNumber || "-",
+        c.email || "-",
+        c.companyName || "-",
+        c.address || "-",
+        c.branch?.name || activeBranch?.name || "-",
+        c.status || "ACTIVE",
+        c.createdAt ? formatDate(c.createdAt) : "-",
+      ])
+
+      exportReportExcel({
+        title: "CUSTOMERS DIRECTORY REPORT",
+        branchName: activeBranch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "customers_directory",
+        headers,
+        rows,
+        activeFilters,
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to export customers: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const openEditor = (mode, customer = null) => {
     setEditor({ mode, customer, key: `${mode}-${customer?.id || Date.now()}` })
   }
@@ -1599,6 +1672,11 @@ function CustomersPage({ selectedBranch, user }) {
             <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
             Refresh
           </button>
+          <ExportExcelButton
+            count={pagination?.totalItems || customers.length}
+            isExporting={isExporting}
+            onClick={handleExportCustomersExcel}
+          />
           {canManage ? (
             <button
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#7A1F2B] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#641824] disabled:cursor-not-allowed disabled:opacity-60"

@@ -31,6 +31,8 @@ import {
   resolveSupplierRma,
   updateWarrantyClaimStatus,
 } from "../../features/warranty-claims/warrantyClaims.api"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const CREATE_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "CASHIER", "TECHNICIAN"])
 const ACTION_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "CASHIER", "TECHNICIAN"])
@@ -289,6 +291,93 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
       setIsLoading(false)
     }
   }, [loadClaims, loadReferences])
+
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportWarrantyExcel = async () => {
+    setIsExporting(true)
+    try {
+      let allClaims = []
+      let currPage = 1
+      let totalPages = 1
+      const effectiveStatus = activeTab === "supplier" ? "SENT_TO_SUPPLIER" : statusFilter
+
+      do {
+        const response = await getWarrantyClaims({
+          ...(branchId ? { branchId } : {}),
+          ...(search.trim() ? { search: search.trim() } : {}),
+          ...(effectiveStatus ? { status: effectiveStatus } : {}),
+          page: currPage,
+          limit: 100,
+        })
+        const data = Array.isArray(response?.data) ? response.data : []
+        allClaims = allClaims.concat(data)
+        totalPages = Number(response?.meta?.totalPages || response?.meta?.total_pages || 1)
+        currPage += 1
+      } while (currPage <= totalPages && currPage <= 50)
+
+      let exportData = allClaims
+      if (activeTab === "replaced_log") {
+        exportData = allClaims.filter((c) => c.replacementSerialId || c.status === "REPLACED" || c.status === "REJECTED")
+      }
+
+      const activeFilters = [
+        { label: "Active View", value: activeTab === "supplier" ? "Supplier RMA Hub" : activeTab === "replaced_log" ? "Replaced & Shrinkage Log" : "All Claims" },
+      ]
+      if (search.trim()) activeFilters.push({ label: "Search Keyword", value: search.trim() })
+      if (effectiveStatus) activeFilters.push({ label: "Status", value: formatStatus(effectiveStatus) })
+
+      const headers = [
+        "Claim Code",
+        "Date Received",
+        "Customer Name",
+        "Contact",
+        "Product Name",
+        "Serial Number",
+        "Reported Issue",
+        "Status",
+        "Supplier Name",
+        "Supplier Ref No",
+        "Aging (Days)",
+        "Replacement Serial",
+        "Resolution Remarks",
+      ]
+
+      const rows = exportData.map((c) => {
+        const agingDays = calculateAgingDays(c.sentToSupplierAt || c.receivedAt)
+        return [
+          c.claimCode || "-",
+          dateOnly(c.receivedAt || c.createdAt),
+          c.customer?.fullName || "Walk-in Customer",
+          c.customer?.mobileNumber || "-",
+          c.item?.itemName || c.saleItem?.itemNameSnapshot || "Unlinked Item",
+          c.serial?.serialNumber || "No serial",
+          c.issueDescription || "-",
+          formatStatus(c.status),
+          c.supplierName || "-",
+          c.supplierReferenceNo || "-",
+          agingDays,
+          c.replacementSerial?.serialNumber || c.replacementSerialNumber || "-",
+          c.actionTaken || c.remarks || "-",
+        ]
+      })
+
+      exportReportExcel({
+        title: activeTab === "supplier" ? "WARRANTY SUPPLIER RMA REPORT" : activeTab === "replaced_log" ? "WARRANTY REPLACEMENTS LOG" : "WARRANTY CLAIMS REPORT",
+        branchName: branchName || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: `warranty_${activeTab}`,
+        headers,
+        rows,
+        activeFilters,
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to export warranty claims: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(refresh, 180)
@@ -697,6 +786,12 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
               <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
               {isLoading ? "Refreshing..." : "Refresh"}
             </button>
+
+            <ExportExcelButton
+              count={meta?.total || claims.length}
+              isExporting={isExporting}
+              onClick={handleExportWarrantyExcel}
+            />
 
             {canCreate ? (
               <button

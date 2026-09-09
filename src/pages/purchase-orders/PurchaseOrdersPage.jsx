@@ -13,8 +13,10 @@ import { getSuppliers } from "../../features/suppliers/suppliers.api"
 
 import {
   exportPurchaseOrderPdf,
+  exportReportExcel,
   printPurchaseOrder,
 } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 const EMPTY_LINE = { itemId: "", description: "", quantity: "1", unitCost: "0", discountAmount: "0" }
 
 function apiError(error, fallback) {
@@ -948,6 +950,60 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
     try { const response = await getPurchaseOrderById(order.id); setDetail(response?.data || order) } catch (error) { setMessage(apiError(error, "Could not load purchase order details.")) } finally { setIsDetailLoading(false) }
   }
 
+  const handleExportOrdersExcel = async () => {
+    try {
+      const queryParams = {
+        ...(branchId ? { branchId } : {}),
+        ...(search.trim() ? { search: search.trim() } : {}),
+        ...(status ? { status } : {}),
+      }
+
+      const exportOrders = []
+      let exportPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getPurchaseOrders({ ...queryParams, page: exportPage, limit: 50 })
+        const pageItems = Array.isArray(response?.data?.items) ? response.data.items : []
+        exportOrders.push(...pageItems)
+        totalPages = Math.max(1, Number(response?.data?.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages)
+
+      const exportColumns = [
+        ["PO Number", (row) => row.poNumber || "—"],
+        ["Date", (row) => row.orderDate ? dateOnly(row.orderDate) : dateOnly(row.createdAt)],
+        ["Supplier", (row) => row.supplier?.name || "—"],
+        ["Status", (row) => formatStatus(row.status)],
+        ["Items Count", (row) => (row.items || []).length],
+        ["Subtotal", (row) => Number(row.subtotal || 0)],
+        ["Total Discount", (row) => Number(row.totalDiscount || 0)],
+        ["Grand Total", (row) => Number(row.totalAmount || 0)],
+        ["Created By", (row) => row.createdByUser?.fullName || row.createdByUser?.username || "—"],
+        ["Notes", (row) => row.notes || "—"],
+      ]
+
+      exportReportExcel({
+        label: "Purchase Orders",
+        filename: `Purchase-Orders-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportOrders,
+        branch: selectedBranch || user?.branch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", search.trim() || "All"],
+          ["Status", status ? formatStatus(status) : "All statuses"],
+        ],
+        totals: [
+          ["Total POs Exported", exportOrders.length],
+          ["Combined PO Total Value", exportOrders.reduce((s, o) => s + Number(o.totalAmount || 0), 0)],
+        ],
+      })
+    } catch (error) {
+      setMessage(apiError(error, "Could not export purchase orders to Excel."))
+    }
+  }
+
   const save = async (form) => {
     setIsSaving(true)
     setMessage("")
@@ -1022,9 +1078,16 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
             <h1 className="mt-1 text-2xl font-black text-slate-900">Purchase Orders</h1>
             <p className="mt-0.5 text-xs text-slate-500">Create costed drafts, order them deliberately, and track receiving progress.</p>
           </div>
-          <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
-            <Plus size={15} />New PO
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportExcelButton
+              filteredCount={pagination?.totalItems ?? orders.length}
+              label="Export POs (.xlsx)"
+              onExport={handleExportOrdersExcel}
+            />
+            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
+              <Plus size={15} />New PO
+            </button>
+          </div>
         </div>
       </section>
 

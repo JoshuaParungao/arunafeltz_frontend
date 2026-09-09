@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react"
+import { RefreshCw } from "lucide-react"
 
 import { getAuditLogById, getAuditLogs } from "../../features/audit-logs/auditLogs.api"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 function isoBoundary(value, end = false) {
   if (!value) return undefined
@@ -178,16 +181,108 @@ export default function AuditLogsPage({ selectedBranch, user }) {
     }
   }
 
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportAuditLogsExcel = async () => {
+    setIsExporting(true)
+    try {
+      let allLogs = []
+      let currPage = 1
+      let totalPages = 1
+
+      do {
+        const response = await getAuditLogs({
+          ...(branchId ? { branchId } : {}),
+          ...(search.trim() ? { search: search.trim() } : {}),
+          ...(action.trim() ? { action: action.trim() } : {}),
+          ...(entityType.trim() ? { entityType: entityType.trim() } : {}),
+          ...(dateFrom ? { dateFrom: isoBoundary(dateFrom) } : {}),
+          ...(dateTo ? { dateTo: isoBoundary(dateTo, true) } : {}),
+          page: currPage,
+          limit: 100,
+        })
+        const items = Array.isArray(response?.data) ? response.data : []
+        const visibleItems = items.filter(
+          (log) => log.actor?.username?.toLowerCase() !== "calix"
+        )
+        allLogs = allLogs.concat(visibleItems)
+        totalPages = Number(response?.meta?.totalPages || 1)
+        currPage += 1
+      } while (currPage <= totalPages && currPage <= 50)
+
+      const activeFilters = []
+      if (search.trim()) activeFilters.push({ label: "Search Keyword", value: search.trim() })
+      if (action.trim()) activeFilters.push({ label: "Activity Filter", value: action.trim() })
+      if (entityType.trim()) activeFilters.push({ label: "Module Filter", value: entityType.trim() })
+      if (dateFrom) activeFilters.push({ label: "Date From", value: dateFrom })
+      if (dateTo) activeFilters.push({ label: "Date To", value: dateTo })
+
+      const headers = [
+        "Date & Time",
+        "Performer",
+        "Role",
+        "Activity",
+        "Module / Record",
+        "Branch",
+        "Description",
+      ]
+
+      const rows = allLogs.map((log) => [
+        dateTime(log.createdAt),
+        log.actor?.fullName || log.actor?.username || "System",
+        formatRole(log.actor?.role),
+        formatAction(log.action),
+        formatEntityType(log.entityType),
+        log.branch?.name || log.branch?.code || "-",
+        formatDescription(log.description),
+      ])
+
+      exportReportExcel({
+        title: "SYSTEM AUDIT & ACTIVITY LOGS REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "audit_logs",
+        headers,
+        rows,
+        activeFilters,
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to export audit logs: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-card">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--color-maroon)]">
-          Monitoring
-        </p>
-        <h1 className="mt-2 text-2xl font-black text-[var(--color-text-strong)]">Audit logs</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          Activity history with safe performer, entity, branch, and event trail.
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--color-maroon)]">
+              Monitoring
+            </p>
+            <h1 className="mt-2 text-2xl font-black text-[var(--color-text-strong)]">Audit logs</h1>
+            <p className="mt-1 text-sm text-[var(--color-muted)]">
+              Activity history with safe performer, entity, branch, and event trail.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-xs font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-soft)] transition disabled:opacity-50"
+              disabled={isLoading}
+              onClick={loadLogs}
+              type="button"
+            >
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} /> Refresh
+            </button>
+            <ExportExcelButton
+              count={meta?.total || logs.length}
+              isExporting={isExporting}
+              onClick={handleExportAuditLogsExcel}
+            />
+          </div>
+        </div>
       </section>
 
       <section className="grid gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-card md:grid-cols-2 xl:grid-cols-6">

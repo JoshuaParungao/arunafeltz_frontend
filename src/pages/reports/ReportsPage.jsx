@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { getReport } from "../../features/reports/reports.api"
 import { getBranches } from "../../features/branches/branches.api"
 import FinancialSummaryPanel from "./FinancialSummaryPanel"
+import FinancialIntelligenceSuite from "./intelligence/FinancialIntelligenceSuite"
 import { exportReportExcel, exportReportPdf } from "../../utils/businessDocumentExport"
 import { getRoleLabel } from "../../constants/roles"
 
@@ -18,6 +19,11 @@ function formatWord(value) {
 }
 
 const REPORTS = Object.freeze({
+  intelligence: {
+    label: "Financial Reporting & AR Intelligence Suite",
+    statuses: [],
+    columns: [],
+  },
   financial: {
     label: "Unified Financial Summary",
     statuses: [],
@@ -320,6 +326,12 @@ export default function ReportsPage({ selectedBranch, user }) {
   }, [isSuperOwner])
 
   const loadReport = useCallback(async () => {
+    if (reportKey === "intelligence") {
+      setIsLoading(false)
+      setResult(null)
+      return
+    }
+
     setIsLoading(true)
     setErrorMessage("")
 
@@ -724,6 +736,14 @@ export default function ReportsPage({ selectedBranch, user }) {
 
 const REPORT_CATEGORIES = [
   {
+    id: "intelligence",
+    label: "Intelligence Suite (20 Reports)",
+    icon: "💎",
+    reports: [
+      { key: "intelligence", label: "Financial & AR Intelligence Suite (20 Reports)" },
+    ],
+  },
+  {
     id: "staff",
     label: "Staff & Incentives",
     icon: "👥",
@@ -791,37 +811,39 @@ const REPORT_CATEGORIES = [
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40 transition shadow-2xs flex items-center gap-1.5"
-              disabled={isLoading || isExportingExcel}
-              onClick={handleExportExcel}
-              type="button"
-            >
-              <span>📊</span>
-              <span>{isExportingExcel ? "Exporting Excel..." : "Export Excel (.xlsx)"}</span>
-            </button>
+          {reportKey !== "intelligence" ? (
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40 transition shadow-2xs flex items-center gap-1.5"
+                disabled={isLoading || isExportingExcel}
+                onClick={handleExportExcel}
+                type="button"
+              >
+                <span>📊</span>
+                <span>{isExportingExcel ? "Exporting Excel..." : "Export Excel (.xlsx)"}</span>
+              </button>
 
-            <button
-              className="rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition flex items-center gap-1.5"
-              disabled={isLoading || isExportingPdf}
-              onClick={handleExportPdf}
-              type="button"
-            >
-              <span>📄</span>
-              <span>{isExportingPdf ? "Exporting PDF..." : "Export PDF"}</span>
-            </button>
+              <button
+                className="rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition flex items-center gap-1.5"
+                disabled={isLoading || isExportingPdf}
+                onClick={handleExportPdf}
+                type="button"
+              >
+                <span>📄</span>
+                <span>{isExportingPdf ? "Exporting PDF..." : "Export PDF"}</span>
+              </button>
 
-            <button
-              className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50 transition shadow-2xs flex items-center gap-1.5"
-              disabled={isLoading || isExportingPdf || isExportingExcel}
-              onClick={loadReport}
-              type="button"
-            >
-              <span>🔄</span>
-              <span>{isLoading ? "Loading..." : "Refresh"}</span>
-            </button>
-          </div>
+              <button
+                className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50 transition shadow-2xs flex items-center gap-1.5"
+                disabled={isLoading || isExportingPdf || isExportingExcel}
+                onClick={loadReport}
+                type="button"
+              >
+                <span>🔄</span>
+                <span>{isLoading ? "Loading..." : "Refresh"}</span>
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {/* Primary Category Switcher (Clean Segmented Bar) */}
@@ -980,13 +1002,22 @@ const REPORT_CATEGORIES = [
         </div>
       ) : null}
 
+      {/* Intelligence Suite (20-Report Architecture) */}
+      {reportKey === "intelligence" ? (
+        <FinancialIntelligenceSuite
+          dateRange={{ dateFrom, dateTo }}
+          selectedBranch={reportBranchId ? branches.find((b) => b.id === reportBranchId) : selectedBranch}
+          user={user}
+        />
+      ) : null}
+
       {/* 3. Financial Summary Special Panel */}
       {reportKey === "financial" && result?.data?.report ? (
         <FinancialSummaryPanel report={result.data.report} />
       ) : null}
 
       {/* 4. Minimalist Metric Cards */}
-      {reportKey !== "financial" && primitiveTotals.length > 0 ? (
+      {reportKey !== "financial" && reportKey !== "intelligence" && primitiveTotals.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {primitiveTotals.map(([key, value]) => (
             <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs" key={key}>
@@ -1002,6 +1033,7 @@ const REPORT_CATEGORIES = [
       ) : null}
 
       {/* 5. Clean Modern Table */}
+      {reportKey !== "intelligence" ? (
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
           <div className="flex items-center gap-2">
@@ -1120,6 +1152,7 @@ const REPORT_CATEGORIES = [
           </button>
         </div>
       </div>
+      ) : null}
 
       {/* Staff Detailed Sales & Services Activity Modal */}
       {selectedStaff ? (

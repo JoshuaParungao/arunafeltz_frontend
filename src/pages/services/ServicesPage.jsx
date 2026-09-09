@@ -46,6 +46,8 @@ import {
 import JobOrderReceiptPrint from "./JobOrderReceiptPrint"
 import DiagnosticIntakePrint from "./DiagnosticIntakePrint"
 import MaintenanceIntakePrint from "./MaintenanceIntakePrint"
+import { exportReportExcel } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 import {
   ACCESSORIES_OPTIONS,
   INTAKE_RECORD_HEADER,
@@ -1518,6 +1520,106 @@ export default function ServicesPage({ selectedBranch, user }) {
     }
   }, [loadJobs, loadReferences])
 
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportServicesExcel = async () => {
+    setIsExporting(true)
+    try {
+      let allJobs = []
+      let currPage = 1
+      let totalPages = 1
+      do {
+        const response = await getServiceJobs({
+          ...(branchId ? { branchId } : {}),
+          ...(search.trim() ? { search: search.trim() } : {}),
+          ...(statusFilter ? { status: statusFilter } : {}),
+          ...(repairTypeFilter ? { repairType: repairTypeFilter } : {}),
+          ...(quickOnly ? { isQuickService: true } : {}),
+          page: currPage,
+          limit: 100,
+        })
+        const data = Array.isArray(response?.data) ? response.data : []
+        allJobs = allJobs.concat(data)
+        totalPages = Number(response?.meta?.totalPages || response?.meta?.total_pages || 1)
+        currPage += 1
+      } while (currPage <= totalPages && currPage <= 50)
+
+      const activeFilters = []
+      if (search.trim()) activeFilters.push({ label: "Search Keyword", value: search.trim() })
+      if (statusFilter) activeFilters.push({ label: "Status", value: friendly(statusFilter) })
+      if (repairTypeFilter) {
+        const match = REPAIR_TYPES.find((r) => r.value === repairTypeFilter)
+        activeFilters.push({ label: "Repair Category", value: match ? match.label : repairTypeFilter })
+      }
+      if (quickOnly) activeFilters.push({ label: "Quick Service", value: "Yes" })
+
+      const headers = [
+        "JO Code",
+        "Date Encoded",
+        "Status",
+        "Customer Name",
+        "Contact",
+        "Device / Model",
+        "Serial Number",
+        "Problem / Diagnosis",
+        "Repair Type",
+        "Quick Service",
+        "Assigned Technician",
+        "Base Service Fee (₱)",
+        "Total Price (₱)",
+        "Paid Amount (₱)",
+        "Balance (₱)",
+        "Warranty Expiry",
+      ]
+
+      const rows = allJobs.map((job) => {
+        const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in"
+        const contact = job.customerContactSnapshot || job.customer?.mobileNumber || "-"
+        const techName = job.assignedTechnician ? technicianLabel(job.assignedTechnician) : "Unassigned"
+        const baseCharge = Number(job.baseServiceCharge || 0)
+        const total = Number(job.totalPrice || 0)
+        const paid = Number(job.paidAmount || 0)
+        const balance = Math.max(0, total - paid)
+        const created = job.createdAt ? new Date(job.createdAt).toLocaleDateString() : "-"
+        const warranty = job.warrantyExpiryDate ? new Date(job.warrantyExpiryDate).toLocaleDateString() : "-"
+
+        return [
+          job.jobCode || "-",
+          created,
+          friendly(job.status || "-"),
+          customerName,
+          contact,
+          job.deviceDescription || "-",
+          job.serialNumber || "-",
+          job.problemDescription || job.diagnosis || "-",
+          job.repairType === "BOARD_LEVEL_REPAIR" ? "Specialized / Board-level" : "Standard",
+          job.isQuickService ? "Yes" : "No",
+          techName,
+          baseCharge,
+          total,
+          paid,
+          balance,
+          warranty,
+        ]
+      })
+
+      exportReportExcel({
+        title: "SERVICE JOB ORDERS REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "service_job_orders",
+        headers,
+        rows,
+        activeFilters,
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to export service jobs: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   useEffect(() => {
     const timer = window.setTimeout(refresh, 180)
     return () => window.clearTimeout(timer)
@@ -2151,6 +2253,11 @@ export default function ServicesPage({ selectedBranch, user }) {
             <button className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold" disabled={isLoading} onClick={refresh} type="button">
               <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} /> Refresh
             </button>
+            <ExportExcelButton
+              count={meta?.total || jobs.length}
+              isExporting={isExporting}
+              onClick={handleExportServicesExcel}
+            />
             <button
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-soft)] shadow-sm"
               onClick={() => setPrintPreviewState({ isOpen: true, defaultDoc: "DIAGNOSTIC", isBlank: true, job: null })}
