@@ -606,7 +606,7 @@ function SaleDetailDialog({
                 </button>
               ) : (
                 <>
-                  {onAddItems && ["COMPLETED", "PARTIALLY_REFUNDED"].includes(sale?.status) && !sale?.creditAccount ? (
+                  {onAddItems && ["COMPLETED", "PARTIALLY_REFUNDED"].includes(sale?.status) ? (
                     <button
                       className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-emerald-800"
                       onClick={() => onAddItems(sale)}
@@ -1071,7 +1071,7 @@ function SaleDetailDialog({
                           Authorized staff can add items to this sale, process an item refund/return, or void the whole sale receipt.
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
-                          {onAddItems && !sale.creditAccount ? (
+                          {onAddItems ? (
                             <button
                               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-800"
                               onClick={() => onAddItems(sale)}
@@ -1177,6 +1177,7 @@ function CancelSaleDialog({ isSaving, onClose, onConfirm, sale }) {
 }
 
 function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
+  const isCreditSale = Boolean(sale?.creditAccount)
   const [items, setItems] = useState([])
   const [search, setSearch] = useState("")
   const [searchResults, setSearchResults] = useState([])
@@ -1274,8 +1275,12 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
   const addedGrandTotal = addedSubtotal
 
   useEffect(() => {
-    setPaymentAmount(addedGrandTotal > 0 ? addedGrandTotal.toFixed(2) : "")
-  }, [addedGrandTotal])
+    if (isCreditSale) {
+      setPaymentAmount((prev) => (prev === "" ? "0.00" : prev))
+    } else {
+      setPaymentAmount(addedGrandTotal > 0 ? addedGrandTotal.toFixed(2) : "")
+    }
+  }, [addedGrandTotal, isCreditSale])
 
   const changeAmount = useMemo(() => {
     const tender = Number(paymentAmount || 0)
@@ -1303,8 +1308,12 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
     }
 
     const tender = Number(paymentAmount || 0)
-    if (tender < addedGrandTotal) {
+    if (!isCreditSale && tender < addedGrandTotal) {
       setMessage(`Payment amount must be at least ₱${formatMoney(addedGrandTotal)}.`)
+      return
+    }
+    if (isCreditSale && tender < 0) {
+      setMessage("Downpayment amount cannot be negative.")
       return
     }
 
@@ -1317,13 +1326,13 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
         unitPrice: Number(it.unitPrice),
         serialNumber: it.serialNumber?.trim() || undefined,
       })),
-      payments: [
+      payments: tender > 0 ? [
         {
           paymentMethod,
           amount: tender,
           referenceNo: paymentReference.trim() || undefined,
         },
-      ],
+      ] : [],
       remarks: remarks.trim() || undefined,
     }
 
@@ -1343,8 +1352,10 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
         <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
-                Same Receipt Add-on
+              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                isCreditSale ? "text-blue-700 bg-blue-100" : "text-emerald-700 bg-emerald-100"
+              }`}>
+                {isCreditSale ? "Financed Sale Add-on" : "Same Receipt Add-on"}
               </span>
               <span className="font-mono text-xs font-bold text-slate-500">
                 Receipt #{sale.receiptCode}
@@ -1369,6 +1380,38 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
 
         <form onSubmit={submit}>
           <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+            {isCreditSale && sale.creditAccount ? (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                    💳 Active Financing · {formatStatus(sale.creditAccount.provider)}
+                  </span>
+                  <span className="font-mono text-[11px] font-bold text-blue-700">
+                    Account #{sale.creditAccount.creditCode}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-600 pt-1.5 border-t border-blue-200/60">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Financing Term</span>
+                    <span className="font-semibold text-slate-800">
+                      {sale.creditAccount.term ? (sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)) : "Straight / Standard"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Financed Balance</span>
+                    <span className="font-mono font-bold text-blue-900">₱{formatMoney(sale.creditAccount.remainingBalance)}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Additional Downpayment</span>
+                    <span className="font-semibold text-emerald-800">Optional (0 to ₱{formatMoney(addedGrandTotal)})</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-blue-800 font-medium">
+                  ℹ️ Adding items here keeps the same receipt code <strong>#{sale.receiptCode}</strong> and automatically recalculates the customer's financing balance and monthly dues.
+                </p>
+              </div>
+            ) : null}
+
             <div className="relative">
               <label className="block">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
@@ -1501,6 +1544,18 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
                   <span>Additional Items Total:</span>
                   <span className="font-mono font-bold text-emerald-800 text-sm">₱{formatMoney(addedGrandTotal)}</span>
                 </div>
+                {isCreditSale ? (
+                  <>
+                    <div className="flex justify-between text-xs text-slate-600">
+                      <span>Additional Downpayment:</span>
+                      <span className="font-mono font-semibold text-slate-700">₱{formatMoney(Number(paymentAmount || 0))}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-blue-800 font-bold">
+                      <span>Added to Financed Balance:</span>
+                      <span className="font-mono text-sm">₱{formatMoney(Math.max(addedGrandTotal - Number(paymentAmount || 0), 0))}</span>
+                    </div>
+                  </>
+                ) : null}
                 <div className="flex justify-between text-xs text-slate-600 pt-1 border-t border-emerald-200">
                   <span>Original Receipt Total:</span>
                   <span className="font-mono font-semibold text-slate-700">₱{formatMoney(sale.grandTotal)}</span>
@@ -1514,9 +1569,16 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
 
             {items.length > 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                  Payment for Added Items (₱{formatMoney(addedGrandTotal)})
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    {isCreditSale ? "Additional Downpayment (Optional)" : `Payment for Added Items (₱${formatMoney(addedGrandTotal)})`}
+                  </p>
+                  {isCreditSale ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      Can be 0.00 (charged to balance)
+                    </span>
+                  ) : null}
+                </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
@@ -1535,7 +1597,9 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
                   </label>
 
                   <label className="block">
-                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Tendered Amount</span>
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
+                      {isCreditSale ? "Downpayment Amount (₱)" : "Tendered Amount"}
+                    </span>
                     <input
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-emerald-500"
                       disabled={isSaving}
@@ -1549,7 +1613,7 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
                   </label>
                 </div>
 
-                {paymentMethod !== "CASH" ? (
+                {Number(paymentAmount || 0) > 0 && paymentMethod !== "CASH" ? (
                   <label className="block">
                     <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Reference Number</span>
                     <input
@@ -1560,12 +1624,14 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
                       value={paymentReference}
                     />
                   </label>
-                ) : (
+                ) : null}
+
+                {paymentMethod === "CASH" && changeAmount > 0 ? (
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700 bg-slate-50 p-2.5 rounded-xl">
                     <span>Change:</span>
                     <span className="font-mono text-sm text-emerald-700">₱{formatMoney(changeAmount)}</span>
                   </div>
-                )}
+                ) : null}
 
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Remarks / Note (Optional)</span>
@@ -1573,7 +1639,7 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none"
                     disabled={isSaving}
                     onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="e.g. Additional cables & accessories requested by customer"
+                    placeholder={isCreditSale ? "e.g. Additional items added to financing" : "e.g. Additional cables & accessories requested by customer"}
                     value={remarks}
                   />
                 </label>
@@ -1598,7 +1664,11 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
               type="submit"
             >
               {isSaving ? <LoaderCircle className="animate-spin" size={14} /> : <Plus size={14} />}
-              {isSaving ? "Appending items…" : `Confirm & Append (₱${formatMoney(addedGrandTotal)})`}
+              {isSaving
+                ? "Appending items…"
+                : isCreditSale
+                  ? `Confirm & Append to Financing (+₱${formatMoney(addedGrandTotal)})`
+                  : `Confirm & Append (₱${formatMoney(addedGrandTotal)})`}
             </button>
           </div>
         </form>
@@ -5153,7 +5223,7 @@ function PosSalesPage({ selectedBranch, user }) {
                             >
                               <Eye size={12} /> View
                             </button>
-                            {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                            {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") ? (
                               <button
                                 className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
                                 onClick={() => handleOpenAddItems(sale)}
@@ -5225,7 +5295,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       >
                         <Eye size={12} /> View
                       </button>
-                      {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                      {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") ? (
                         <button
                           className="flex-1 min-w-[75px] inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800"
                           onClick={() => handleOpenAddItems(sale)}
