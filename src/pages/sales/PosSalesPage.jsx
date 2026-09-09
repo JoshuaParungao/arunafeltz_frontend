@@ -3308,7 +3308,7 @@ function PosSalesPage({ selectedBranch, user }) {
                 : Number(line.markupPercent),
             quantity: Number(line.quantity),
             discountAmount: Number(line.discountAmount || 0),
-            batchId: line.batchId || undefined,
+            batchId: line.isCustomSerial ? undefined : (line.batchId || undefined),
             serialId: (!line.isCustomSerial && line.serialId) ? line.serialId : undefined,
             serialNumber: (line.isCustomSerial && line.customSerialNumber?.trim()) ? line.customSerialNumber.trim() : undefined,
             warrantyType: line.warrantyType || undefined,
@@ -4570,6 +4570,7 @@ function PosSalesPage({ selectedBranch, user }) {
                                     updateCartLine(line.localId, {
                                       isCustomSerial: !line.isCustomSerial,
                                       serialId: !line.isCustomSerial ? "" : (line.serials[0]?.id || ""),
+                                      batchId: !line.isCustomSerial ? "" : (line.serials[0]?.batch?.id || ""),
                                       customSerialNumber: "",
                                     })
                                   }
