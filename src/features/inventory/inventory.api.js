@@ -40,3 +40,8 @@ const response = await apiClient.get("/stock-transfers/requestable-items", { par
 return response.data
 }
 
+export async function updateInventorySerialBatch(serialId, payload) {
+  const response = await apiClient.patch(`/inventory/serials/${serialId}/batch`, payload)
+  return response.data
+}
+

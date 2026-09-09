@@ -27,6 +27,7 @@ import {
   getInventoryBatches,
   getInventoryMovements,
   getInventorySerials,
+  updateInventorySerialBatch,
 } from "../../features/inventory/inventory.api"
 import { getItems } from "../../features/items/items.api"
 import apiClient from "../../lib/apiClient"
@@ -385,6 +386,203 @@ function SerialStatusDialog({ isSaving, onClose, onSaved, serial }) {
           <button className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50" disabled={isSaving} type="submit">
             {isSaving ? <LoaderCircle className="animate-spin" size={14} /> : <Save size={14} />}
             {isSaving ? "Saving…" : "Confirm Status"}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function isAutoBatch(serial) {
+  const code = serial?.batch?.batchCode || ""
+  const remarks = (serial?.remarks || "").toLowerCase()
+  return (
+    code.startsWith("BAT-") ||
+    remarks.includes("auto-registered from pos") ||
+    remarks.includes("auto-created from pos")
+  )
+}
+
+function UpdateSerialBatchDialog({ isSaving, onClose, onSaved, serial }) {
+  const [batches, setBatches] = useState([])
+  const [selectedBatchId, setSelectedBatchId] = useState(serial?.batchId || "")
+  const [remarks, setRemarks] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [message, setMessage] = useState("")
+
+  useEffect(() => {
+    let active = true
+    setIsLoading(true)
+    getInventoryBatches({
+      branchId: serial.branch?.id || serial.branchId,
+      itemId: serial.item?.id || serial.itemId,
+      limit: 100,
+    })
+      .then((res) => {
+        if (!active) return
+        const rows = getInventoryResult(res).rows || []
+        setBatches(rows)
+        if (!selectedBatchId && rows.length > 0) {
+          setSelectedBatchId(rows[0].id)
+        }
+      })
+      .catch((err) => {
+        if (!active) return
+        setMessage(getApiErrorMessage(err, "Unable to load batches for this item."))
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedBatchId, serial])
+
+  const submit = async (event) => {
+    event.preventDefault()
+    if (!selectedBatchId) {
+      setMessage("Please select a target batch code.")
+      return
+    }
+    if (selectedBatchId === serial.batchId) {
+      setMessage("Please select a different batch to re-assign.")
+      return
+    }
+    onSaved({
+      batchId: selectedBatchId,
+      remarks: remarks.trim() || undefined,
+    })
+  }
+
+  const currentBatchCode = serial?.batch?.batchCode || "No batch assigned"
+
+  return (
+    <div
+      aria-labelledby="serial-batch-title"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs"
+      role="dialog"
+    >
+      <form
+        className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        onSubmit={submit}
+      >
+        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+          <div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-maroon)]">
+              Assign / Update PO Batch
+            </span>
+            <h2 className="mt-0.5 text-base font-mono font-black text-slate-900 leading-tight" id="serial-batch-title">
+              {serial.serialNumber}
+            </h2>
+          </div>
+          <button
+            aria-label="Close dialog"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={16} />
+          </button>
+        </header>
+
+        <div className="p-5 space-y-3.5">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs space-y-1">
+            <p className="text-slate-500">
+              Product: <strong className="text-slate-800 font-bold">{serial.item?.itemName}</strong> ({serial.item?.itemCode})
+            </p>
+            <p className="text-slate-500">
+              Current Batch: <strong className="text-slate-800 font-mono font-bold">{currentBatchCode}</strong>
+              {isAutoBatch(serial) ? (
+                <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+                  POS Auto-Batch
+                </span>
+              ) : null}
+            </p>
+            <p className="text-slate-500">
+              Status: <strong className="text-slate-800 font-bold">{formatStatus(serial.status)}</strong>
+            </p>
+          </div>
+
+          <label className="block">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                Target PO Batch Code
+              </span>
+              {isLoading ? (
+                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                  <LoaderCircle className="animate-spin" size={12} /> Loading batches…
+                </span>
+              ) : null}
+            </div>
+
+            {batches.length > 0 ? (
+              <select
+                autoFocus
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                disabled={isSaving || isLoading}
+                onChange={(event) => {
+                  setSelectedBatchId(event.target.value)
+                  setMessage("")
+                }}
+                value={selectedBatchId}
+              >
+                {batches.map((b) => {
+                  const isCurrent = b.id === serial.batchId
+                  const ref = b.referenceNo ? ` · Ref: ${b.referenceNo}` : ""
+                  const supp = b.supplierName ? ` · ${b.supplierName}` : ""
+                  const avail = ` · ${Number(b.quantityAvailable || 0)} in stock`
+                  return (
+                    <option key={b.id} value={b.id}>
+                      {b.batchCode}{ref}{supp}{avail} {isCurrent ? "(Current)" : ""}
+                    </option>
+                  )
+                })}
+              </select>
+            ) : (
+              <p className="mt-1 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800">
+                {isLoading
+                  ? "Loading batches for this product…"
+                  : "No batches found for this product yet. Once the PO is received, its batch code will appear here."}
+              </p>
+            )}
+          </label>
+
+          <label className="block">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+              Reason / Remarks (Optional)
+            </span>
+            <input
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+              disabled={isSaving}
+              onChange={(event) => {
+                setRemarks(event.target.value)
+                setMessage("")
+              }}
+              placeholder="e.g. Assigned unlisted POS sale to PO-2026-001 delivery"
+              value={remarks}
+            />
+          </label>
+
+          {message ? <p className="text-xs font-bold text-rose-700">{message}</p> : null}
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+          <button
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+            disabled={isSaving}
+            onClick={onClose}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
+            disabled={isSaving || batches.length === 0}
+            type="submit"
+          >
+            {isSaving ? <LoaderCircle className="animate-spin" size={14} /> : <Save size={14} />}
+            {isSaving ? "Saving…" : "Save Batch"}
           </button>
         </div>
       </form>
@@ -805,6 +1003,8 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
   const [detailMessage, setDetailMessage] = useState("")
   const [statusSerial, setStatusSerial] = useState(null)
   const [isSavingStatus, setIsSavingStatus] = useState(false)
+  const [batchSerial, setBatchSerial] = useState(null)
+  const [isSavingBatch, setIsSavingBatch] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const loadBranches = useCallback(async () => {
@@ -975,6 +1175,28 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
     }
   }
 
+  const saveSerialBatch = async (payload) => {
+    if (!batchSerial?.id || isSavingBatch) return
+
+    setIsSavingBatch(true)
+    try {
+      const response = await updateInventorySerialBatch(batchSerial.id, payload)
+      const result = response?.data
+      const updatedSerial = result?.serial
+      if (!response?.success || !updatedSerial) throw new Error("Invalid serial batch response")
+
+      setSerials((current) => current.map((serial) => (serial.id === updatedSerial.id ? updatedSerial : serial)))
+      setDetailSerial((current) => (current?.id === updatedSerial.id ? updatedSerial : current))
+      setNoticeMessage(`Serial ${updatedSerial.serialNumber} batch updated to ${updatedSerial.batch?.batchCode || "selected batch"}.`)
+      setBatchSerial(null)
+      await loadSerials()
+    } catch (error) {
+      setNoticeMessage(getApiErrorMessage(error, "Unable to update batch for this serial."))
+    } finally {
+      setIsSavingBatch(false)
+    }
+  }
+
   const handleStockInSaved = (_result, count) => {
     setIsAddModalOpen(false)
     setNoticeMessage(`Successfully added ${count || ""} serial unit(s) into inventory.`)
@@ -1126,7 +1348,16 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
                           <p className="text-[11px] text-slate-400">{serial.item?.itemCode || "—"}</p>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">{serial.branch?.code || "—"}</td>
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-700">{serial.batch?.batchCode || "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-700">
+                          <div className="flex flex-col gap-0.5">
+                            <span>{serial.batch?.batchCode || "—"}</span>
+                            {isAutoBatch(serial) ? (
+                              <span className="inline-flex items-center gap-1 w-fit rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200">
+                                POS Auto-Batch
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
                         <td className="px-4 py-3"><StatusBadge status={serial.status} /></td>
                         <td className="max-w-60 px-4 py-3 text-[11px] text-slate-500 truncate">{serial.remarks || "—"}</td>
                         <td className="px-4 py-3 text-right">
@@ -1134,6 +1365,11 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
                             <button className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => openSerialDetails(serial)} type="button">
                               <Eye size={13} /> History
                             </button>
+                            {canManage ? (
+                              <button className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => setBatchSerial(serial)} title="Assign / update PO batch code" type="button">
+                                <Tag size={12} /> Batch
+                              </button>
+                            ) : null}
                             {canManage && transitions.length > 0 ? (
                               <button className="rounded-lg border border-[var(--color-maroon)] bg-white px-2.5 py-1 text-[11px] font-bold text-[var(--color-maroon)] hover:bg-[var(--color-maroon-soft)] transition" onClick={() => setStatusSerial(serial)} type="button">
                                 Status
@@ -1156,16 +1392,24 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
                       <div className="min-w-0">
                         <p className="font-mono font-bold text-slate-900 break-all">{serial.serialNumber}</p>
                         <p className="mt-0.5 font-bold text-slate-800">{serial.item?.itemName || "—"}</p>
-                        <p className="text-[11px] text-slate-400">{serial.item?.itemCode || "—"} · {serial.batch?.batchCode || "No batch"}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {serial.item?.itemCode || "—"} · {serial.batch?.batchCode || "No batch"}
+                          {isAutoBatch(serial) ? " (POS Auto)" : ""}
+                        </p>
                       </div>
                       <StatusBadge status={serial.status} />
                     </div>
-                    <div className="mt-3 flex gap-1.5">
-                      <button className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => openSerialDetails(serial)} type="button">
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      <button className="flex-1 min-w-[70px] inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => openSerialDetails(serial)} type="button">
                         <Eye size={13} /> History
                       </button>
+                      {canManage ? (
+                        <button className="flex-1 min-w-[70px] inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => setBatchSerial(serial)} type="button">
+                          <Tag size={12} /> Batch
+                        </button>
+                      ) : null}
                       {canManage && transitions.length > 0 ? (
-                        <button className="flex-1 rounded-lg border border-[var(--color-maroon)] bg-white py-1.5 text-xs font-bold text-[var(--color-maroon)] hover:bg-[var(--color-maroon-soft)] transition" onClick={() => setStatusSerial(serial)} type="button">
+                        <button className="flex-1 min-w-[70px] rounded-lg border border-[var(--color-maroon)] bg-white py-1.5 text-xs font-bold text-[var(--color-maroon)] hover:bg-[var(--color-maroon-soft)] transition" onClick={() => setStatusSerial(serial)} type="button">
                           Status
                         </button>
                       ) : null}
@@ -1204,6 +1448,7 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
       ) : null}
       {detailSerial ? <SerialDetailDialog canManage={canManage} errorMessage={detailMessage} isLoading={isLoadingDetail} movements={movements} onClose={() => { setDetailSerial(null); setMovements([]); setDetailMessage("") }} onNavigate={onNavigate} onRequestStatus={setStatusSerial} serial={detailSerial} /> : null}
       {statusSerial ? <SerialStatusDialog isSaving={isSavingStatus} key={`${statusSerial.id}-${statusSerial.status}`} onClose={() => setStatusSerial(null)} onSaved={saveSerialStatus} serial={statusSerial} /> : null}
+      {batchSerial ? <UpdateSerialBatchDialog isSaving={isSavingBatch} key={`${batchSerial.id}-${batchSerial.batchId}`} onClose={() => setBatchSerial(null)} onSaved={saveSerialBatch} serial={batchSerial} /> : null}
     </div>
   )
 }
