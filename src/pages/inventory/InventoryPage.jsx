@@ -4,7 +4,7 @@ import { useCallback } from "react"
 
 import { getBranches } from "../../features/branches/branches.api"
 import StockAdjustmentPanel from "./StockAdjustmentPanel"
-import StockMovementHistoryPanel from "./StockMovementHistoryPanel"
+import InventoryDetailModal from "./InventoryDetailModal"
 import AddStockModal from "./AddStockModal"
 import {
   createStockAdjustment,
@@ -941,56 +941,48 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         </section>
       ) : null}
 
+      {/* View Details Modal */}
+      {adjustItem && adjustMode === "VIEW" ? (
+        <InventoryDetailModal
+          item={adjustItem}
+          batches={adjustBatches}
+          availableSerials={adjustAvailableSerials}
+          stockMovements={stockMovements}
+          isLoadingMovements={isLoadingMovements}
+          movementMessage={movementMessage}
+          canAdjust={canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id)}
+          canViewCost={canViewInventoryCosts}
+          onAdjust={(targetItem) => setAdjustMode("ADJUST")}
+          onClose={closeAdjustModal}
+        />
+      ) : null}
+
+      {/* Adjust Stock Modal */}
+      {adjustItem && adjustMode === "ADJUST" && canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id) ? (
+        <StockAdjustmentPanel
+          item={adjustItem}
+          batches={adjustBatches}
+          batchId={adjustBatchId}
+          type={adjustType}
+          quantity={adjustQuantity}
+          referenceNo={adjustReferenceNo}
+          remarks={adjustRemarks}
+          serialNumbersText={adjustSerialNumbersText}
+          availableSerials={adjustAvailableSerials}
+          onBatchChange={setAdjustBatchId}
+          onTypeChange={setAdjustType}
+          onQuantityChange={setAdjustQuantity}
+          onReferenceNoChange={setAdjustReferenceNo}
+          onRemarksChange={setAdjustRemarks}
+          onSerialNumbersChange={setAdjustSerialNumbersText}
+          message={adjustMessage}
+          isSaving={isAdjusting}
+          onSave={submitStockAdjustment}
+          onClose={closeAdjustModal}
+        />
+      ) : null}
+
       <section className="rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
-        {adjustItem && adjustMode === "ADJUST" && canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id) ? (
-          <StockAdjustmentPanel
-            item={adjustItem}
-            batches={adjustBatches}
-            batchId={adjustBatchId}
-            type={adjustType}
-            quantity={adjustQuantity}
-            referenceNo={adjustReferenceNo}
-            remarks={adjustRemarks}
-            serialNumbersText={adjustSerialNumbersText}
-            availableSerials={adjustAvailableSerials}
-            onBatchChange={setAdjustBatchId}
-            onTypeChange={setAdjustType}
-            onQuantityChange={setAdjustQuantity}
-            onReferenceNoChange={setAdjustReferenceNo}
-            onRemarksChange={setAdjustRemarks}
-            onSerialNumbersChange={setAdjustSerialNumbersText}
-            message={adjustMessage}
-            isSaving={isAdjusting}
-            onSave={submitStockAdjustment}
-            onClose={closeAdjustModal}
-          />
-        ) : null}
-        {adjustItem && adjustMode === "BATCHES" ? (
-          <section className="m-5 rounded-3xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-wide text-[#7A1F2B]">Batch details</p>
-                <h3 className="mt-1 text-lg font-black text-[var(--color-text-strong)]">{adjustItem.itemName}</h3>
-              </div>
-              <button className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-black" onClick={closeAdjustModal} type="button">Close</button>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {adjustBatches.length > 0 ? adjustBatches.map((batch) => (
-                <article className="rounded-2xl bg-white p-4" key={batch.id}>
-                  <p className="font-black text-[var(--color-text-strong)]">{batch.batchCode}</p>
-                  <p className="mt-1 text-sm text-[var(--color-muted)]">Available: {formatNumber(batch.quantityAvailable)}</p>
-                  {canViewInventoryCosts ? <p className="mt-1 text-xs text-[var(--color-muted)]">Acquisition cost: {formatMoney(batch.unitCost)}</p> : null}
-                  {canViewInventoryCosts ? <p className="mt-1 text-xs text-[var(--color-muted)]">Operational cost: {formatMoney(batch.operationalUnitCost ?? batch.unitCost)}</p> : null}
-                  {batch.originBatch ? <p className="mt-1 text-xs text-[var(--color-muted)]">Origin batch: {batch.originBatch.batchCode}</p> : null}
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">Status: {batch.status}</p>
-                </article>
-              )) : <p className="text-sm font-bold text-[var(--color-muted)]">No batches found.</p>}
-            </div>
-          </section>
-        ) : null}
-        {adjustItem && adjustMode === "BATCHES" ? (
-          <StockMovementHistoryPanel movements={stockMovements} isLoading={isLoadingMovements} message={movementMessage} />
-        ) : null}
         {isLoading ? (
           <div className="p-6 text-sm font-semibold text-[var(--color-muted)]">
             Loading inventory... Please wait.

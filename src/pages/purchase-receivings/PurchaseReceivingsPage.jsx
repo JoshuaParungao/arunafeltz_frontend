@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Boxes, CheckCircle2, ChevronLeft, ChevronRight, Eye, LoaderCircle, PackagePlus, Plus, Search, Trash2, X } from "lucide-react"
 
 import { getItems } from "../../features/items/items.api"
-import { getPurchaseOrders } from "../../features/purchase-orders/purchaseOrders.api"
+import { getPurchaseOrderById, getPurchaseOrders } from "../../features/purchase-orders/purchaseOrders.api"
 import {
   createPurchaseReceiving,
   getPurchaseReceivingById,
@@ -262,20 +262,85 @@ function ReceivingItemLookup({
 }
 
 function ReceivingForm({ initial, suppliers, purchaseOrders, catalogItems, isSaving, onClose, onSave }) {
-  const [form, setForm] = useState(() => ({
-    receivingCode: initial?.receivingCode || "",
-    supplierId: initial?.supplierId || "",
-    purchaseOrderId: initial?.purchaseOrderId || "",
-    supplierDeliveryNo: initial?.supplierDeliveryNo || "",
-    supplierInvoiceNo: initial?.supplierInvoiceNo || "",
-    referenceNo: initial?.referenceNo || "",
-    notes: initial?.notes || "",
-    internalNotes: initial?.internalNotes || "",
-    items: initial?.items?.length ? initial.items.map((line) => ({ itemId: line.itemId, purchaseOrderItemId: line.purchaseOrderItemId || "", description: line.description, quantityReceived: String(line.quantityReceived), unitCost: String(line.unitCost), discountAmount: String(line.discountAmount || 0), batchCode: line.batchCode || "", expiryDate: toDateInput(line.expiryDate), serialText: (line.serials || []).map((serial) => serial.serialNumber).join("\n") })) : [{ ...EMPTY_LINE }],
-  }))
+  const [form, setForm] = useState(() => {
+    const po = initial?.purchaseOrderId
+      ? purchaseOrders.find((order) => order.id === initial.purchaseOrderId)
+      : null
+
+    const initialItems = initial?.items?.length
+      ? initial.items.map((line) => ({
+          itemId: line.itemId,
+          purchaseOrderItemId: line.purchaseOrderItemId || "",
+          description: line.description,
+          quantityReceived: String(line.quantityReceived),
+          unitCost: String(line.unitCost),
+          discountAmount: String(line.discountAmount || 0),
+          batchCode: line.batchCode || "",
+          expiryDate: toDateInput(line.expiryDate),
+          serialText: (line.serials || []).map((serial) => serial.serialNumber).join("\n"),
+        }))
+      : po
+        ? po.items
+            .filter((line) => Number(line.quantity) > Number(line.receivedQuantity))
+            .map((line) => ({
+              itemId: line.itemId || "",
+              purchaseOrderItemId: line.id,
+              description: line.description,
+              quantityReceived: String(Number(line.quantity) - Number(line.receivedQuantity)),
+              unitCost: String(line.unitCost),
+              discountAmount: "0",
+              batchCode: "",
+              expiryDate: "",
+              serialText: "",
+            }))
+        : [{ ...EMPTY_LINE }]
+
+    return {
+      receivingCode: initial?.receivingCode || "",
+      supplierId: initial?.supplierId || po?.supplierId || "",
+      purchaseOrderId: initial?.purchaseOrderId || "",
+      supplierDeliveryNo: initial?.supplierDeliveryNo || "",
+      supplierInvoiceNo: initial?.supplierInvoiceNo || "",
+      referenceNo: initial?.referenceNo || "",
+      notes: initial?.notes || "",
+      internalNotes: initial?.internalNotes || "",
+      items: initialItems.length ? initialItems : [{ ...EMPTY_LINE }],
+    }
+  })
   const selectedPo = purchaseOrders.find((order) => order.id === form.purchaseOrderId)
   const [serialScanInputs, setSerialScanInputs] = useState({})
   const [serialScanMessages, setSerialScanMessages] = useState({})
+
+  const unaddedPoLines = useMemo(() => {
+    if (!selectedPo?.items) return []
+    return selectedPo.items.filter(
+      (poLine) =>
+        Number(poLine.quantity) > Number(poLine.receivedQuantity) &&
+        !form.items.some((line) => line.purchaseOrderItemId === poLine.id)
+    )
+  }, [selectedPo, form.items])
+
+  const addPoLine = (poLineId) => {
+    const poLine = selectedPo?.items?.find((p) => p.id === poLineId)
+    if (!poLine) return
+    setForm((current) => ({
+      ...current,
+      items: [
+        ...current.items.filter((l) => l.itemId || l.description),
+        {
+          itemId: poLine.itemId || "",
+          purchaseOrderItemId: poLine.id,
+          description: poLine.description,
+          quantityReceived: String(Number(poLine.quantity) - Number(poLine.receivedQuantity)),
+          unitCost: String(poLine.unitCost),
+          discountAmount: "0",
+          batchCode: "",
+          expiryDate: "",
+          serialText: "",
+        },
+      ],
+    }))
+  }
 
   const totals = useMemo(() => form.items.reduce((sum, line) => ({ subtotal: sum.subtotal + Number(line.quantityReceived || 0) * Number(line.unitCost || 0), discount: sum.discount + Number(line.discountAmount || 0) }), { subtotal: 0, discount: 0 }), [form.items])
 
@@ -400,11 +465,32 @@ function ReceivingForm({ initial, suppliers, purchaseOrders, catalogItems, isSav
               <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Received Items</h3>
               <p className="text-[11px] text-slate-500">Every line needs a batch code before posting. Serialized items require matching serial numbers.</p>
             </div>
-            {!selectedPo ? (
-              <button className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => setForm((current) => ({ ...current, items: [...current.items, { ...EMPTY_LINE }] }))} type="button">
-                <Plus size={13} /> Add Line
-              </button>
-            ) : null}
+            <div className="flex items-center gap-2">
+              {unaddedPoLines.length > 0 ? (
+                <select
+                  className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none hover:bg-slate-50 transition"
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      addPoLine(e.target.value)
+                      e.target.value = ""
+                    }
+                  }}
+                >
+                  <option value="" disabled>+ Restore removed PO line…</option>
+                  {unaddedPoLines.map((poLine) => (
+                    <option key={poLine.id} value={poLine.id}>
+                      {poLine.description} (Rem: {Number(poLine.quantity) - Number(poLine.receivedQuantity)})
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              {!selectedPo ? (
+                <button className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => setForm((current) => ({ ...current, items: [...current.items, { ...EMPTY_LINE }] }))} type="button">
+                  <Plus size={13} /> Add Line
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -464,7 +550,25 @@ function ReceivingForm({ initial, suppliers, purchaseOrders, catalogItems, isSav
                         value={line.discountAmount}
                       />
                     </label>
-                    <button className="grid size-8 place-items-center rounded-lg border border-rose-200 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-30 transition self-end" disabled={form.items.length === 1 || Boolean(selectedPo)} onClick={() => setForm((current) => ({ ...current, items: current.items.filter((_, lineIndex) => lineIndex !== index) }))} type="button">
+                    <button
+                      className="grid size-8 place-items-center rounded-lg border border-rose-200 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-30 transition self-end"
+                      disabled={form.items.length === 1 && !line.itemId && !line.description}
+                      onClick={() => {
+                        if (form.items.length === 1) {
+                          setForm((current) => ({
+                            ...current,
+                            items: [{ ...EMPTY_LINE }],
+                          }))
+                        } else {
+                          setForm((current) => ({
+                            ...current,
+                            items: current.items.filter((_, lineIndex) => lineIndex !== index),
+                          }))
+                        }
+                      }}
+                      title="Remove or exclude line from delivery"
+                      type="button"
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -617,8 +721,9 @@ function ReceivingForm({ initial, suppliers, purchaseOrders, catalogItems, isSav
   )
 }
 
-export default function PurchaseReceivingsPage({ selectedBranch, user }) {
+export default function PurchaseReceivingsPage({ initialContext, selectedBranch, user }) {
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
+  const handledInitialContextRef = useRef(null)
   const [receivings, setReceivings] = useState([])
   const [pagination, setPagination] = useState({})
   const [suppliers, setSuppliers] = useState([])
@@ -641,10 +746,21 @@ export default function PurchaseReceivingsPage({ selectedBranch, user }) {
       getPurchaseOrders({ ...(branchId ? { branchId } : {}), limit: 100 }),
       getItems({ ...(branchId ? { branchId } : {}), status: "ACTIVE", limit: 100 }),
     ])
+    let ordersList = (orderResponse?.data?.items || []).filter((order) => ["ORDERED", "PARTIALLY_RECEIVED"].includes(order.status))
+    if (initialContext?.purchaseOrderId && !ordersList.some((o) => o.id === initialContext.purchaseOrderId)) {
+      try {
+        const poRes = await getPurchaseOrderById(initialContext.purchaseOrderId)
+        if (poRes?.data && ["ORDERED", "PARTIALLY_RECEIVED"].includes(poRes.data.status)) {
+          ordersList = [poRes.data, ...ordersList]
+        }
+      } catch {
+        // ignore fallback
+      }
+    }
     setSuppliers(supplierResponse?.data?.items || [])
-    setPurchaseOrders((orderResponse?.data?.items || []).filter((order) => ["ORDERED", "PARTIALLY_RECEIVED"].includes(order.status)))
+    setPurchaseOrders(ordersList)
     setCatalogItems(itemResponse?.data?.items || [])
-  }, [branchId])
+  }, [branchId, initialContext?.purchaseOrderId])
 
   const load = useCallback(async () => {
     setIsLoading(true); setMessage("")
@@ -652,6 +768,15 @@ export default function PurchaseReceivingsPage({ selectedBranch, user }) {
   }, [branchId, page, search, status])
 
   useEffect(() => { const timer = window.setTimeout(async () => { try { await Promise.all([load(), loadReferenceData()]) } catch (error) { setMessage(apiError(error, "Could not load receiving reference data.")) } }, 150); return () => window.clearTimeout(timer) }, [load, loadReferenceData])
+
+  useEffect(() => {
+    if (!initialContext?.purchaseOrderId) return
+    if (handledInitialContextRef.current === initialContext.purchaseOrderId) return
+    if (purchaseOrders.length === 0) return
+
+    handledInitialContextRef.current = initialContext.purchaseOrderId
+    setEditing({ purchaseOrderId: initialContext.purchaseOrderId })
+  }, [initialContext, purchaseOrders])
 
   const openDetail = async (receiving) => { setDetail(receiving); setIsDetailLoading(true); try { const response = await getPurchaseReceivingById(receiving.id); setDetail(response?.data || receiving) } catch (error) { setMessage(apiError(error, "Could not load receiving details.")) } finally { setIsDetailLoading(false) } }
 

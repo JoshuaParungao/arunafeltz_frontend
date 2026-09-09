@@ -364,7 +364,7 @@ function PurchaseOrderForm({
             Supplier <span className="text-red-600">*</span>
             <select
               className={inputClass}
-              disabled={Boolean(initial?.id)}
+              disabled={Boolean(initial?.id && initial?.status !== "DRAFT")}
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
@@ -541,16 +541,23 @@ function PurchaseOrderForm({
 
                   <button
                     className="grid size-8 place-items-center rounded-lg border border-rose-200 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-30 transition"
-                    disabled={form.items.length === 1}
-                    onClick={() =>
-                      setForm((current) => ({
-                        ...current,
-                        items: current.items.filter(
-                          (_, lineIndex) =>
-                            lineIndex !== index,
-                        ),
-                      }))
-                    }
+                    disabled={form.items.length === 1 && !line.itemId && !line.description}
+                    onClick={() => {
+                      if (form.items.length === 1) {
+                        setForm((current) => ({
+                          ...current,
+                          items: [{ ...EMPTY_LINE }],
+                        }))
+                      } else {
+                        setForm((current) => ({
+                          ...current,
+                          items: current.items.filter(
+                            (_, lineIndex) => lineIndex !== index,
+                          ),
+                        }))
+                      }
+                    }}
+                    title="Remove or clear item line"
                     type="button"
                   >
                     <Trash2 size={14} />
@@ -687,7 +694,8 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
     setMessage("")
     const payload = {
       ...(form.poCode.trim() ? { poCode: form.poCode.trim() } : {}),
-      ...(!editing?.id ? { supplierId: form.supplierId, ...(branchId ? { branchId } : {}) } : {}),
+      supplierId: form.supplierId,
+      ...(!editing?.id && branchId ? { branchId } : {}),
       expectedDate: form.expectedDate || null,
       notes: form.notes.trim() || null,
       internalNotes: form.internalNotes.trim() || null,
@@ -778,13 +786,22 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
                       <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">{money(order.grandTotal)}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1.5">
-                          <button className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 transition" onClick={() => openDetail(order)} type="button"><Eye size={14} /></button>
+                          <button className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 transition" onClick={() => openDetail(order)} title="View PO" type="button"><Eye size={14} /></button>
                           {order.status === "DRAFT" ? (
                             <>
                               <button className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100 transition" onClick={() => setEditing(order)} type="button">Edit</button>
                               <button className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition" disabled={isSaving} onClick={() => changeStatus(order, "ORDERED")} type="button">Order</button>
                               <button className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 transition" disabled={isSaving} onClick={() => changeStatus(order, "CANCELLED")} type="button">Cancel</button>
                             </>
+                          ) : null}
+                          {["ORDERED", "PARTIALLY_RECEIVED"].includes(order.status) && onNavigate ? (
+                            <button
+                              className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition"
+                              onClick={() => onNavigate("receivings", user, { purchaseOrderId: order.id, autoOpen: true })}
+                              type="button"
+                            >
+                              Receive
+                            </button>
                           ) : null}
                         </div>
                       </td>
@@ -817,7 +834,7 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
                       </>
                     ) : null}
                     {["ORDERED", "PARTIALLY_RECEIVED"].includes(order.status) && onNavigate ? (
-                      <button className="rounded-lg bg-[var(--color-maroon)] px-3 py-1.5 text-xs font-bold text-white shadow-2xs" onClick={() => onNavigate("receivings")} type="button">Receive</button>
+                      <button className="rounded-lg bg-[var(--color-maroon)] px-3 py-1.5 text-xs font-bold text-white shadow-2xs" onClick={() => onNavigate("receivings", user, { purchaseOrderId: order.id, autoOpen: true })} type="button">Receive</button>
                     ) : null}
                   </div>
                 </article>
@@ -942,11 +959,43 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
                     <>
                       <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => { const target = detail; setDetail(null); setEditing(target) }} type="button">Edit Draft</button>
                       <button className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 transition disabled:opacity-50" disabled={isSaving} onClick={() => changeStatus(detail, "ORDERED")} type="button">Mark as Ordered</button>
+                      {onNavigate ? (
+                        <button
+                          className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-slate-900 transition disabled:opacity-50"
+                          disabled={isSaving}
+                          onClick={async () => {
+                            if (!window.confirm(`Mark ${detail.poCode} as ordered and open receiving now?`)) return
+                            setIsSaving(true)
+                            try {
+                              await updatePurchaseOrderStatus(detail.id, { status: "ORDERED" })
+                              setNotice(`${detail.poCode} marked as ordered. Opening receiving…`)
+                              const targetId = detail.id
+                              setDetail(null)
+                              onNavigate("receivings", user, { purchaseOrderId: targetId, autoOpen: true })
+                            } catch (error) {
+                              setMessage(apiError(error, "Could not update purchase order status."))
+                            } finally {
+                              setIsSaving(false)
+                            }
+                          }}
+                          type="button"
+                        >
+                          Order & Open Receiving
+                        </button>
+                      ) : null}
                       <button className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition disabled:opacity-50" disabled={isSaving} onClick={() => changeStatus(detail, "CANCELLED")} type="button">Cancel PO</button>
                     </>
                   ) : null}
                   {["ORDERED", "PARTIALLY_RECEIVED"].includes(detail.status) && onNavigate ? (
-                    <button className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition" onClick={() => onNavigate("receivings")} type="button">
+                    <button
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition"
+                      onClick={() => {
+                        const targetId = detail.id
+                        setDetail(null)
+                        onNavigate("receivings", user, { purchaseOrderId: targetId, autoOpen: true })
+                      }}
+                      type="button"
+                    >
                       <Send size={14} />Open Receiving
                     </button>
                   ) : null}
