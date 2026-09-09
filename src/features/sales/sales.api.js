@@ -29,3 +29,8 @@ export async function createSaleReturn(id, payload) {
   const response = await apiClient.post(`/sales/${id}/returns`, payload)
   return response.data
 }
+
+export async function appendSaleItems(id, payload) {
+  const response = await apiClient.post(`/sales/${id}/items`, payload)
+  return response.data
+}

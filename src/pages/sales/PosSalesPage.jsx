@@ -51,6 +51,7 @@ import {
 import { extractServiceTasks, extractServiceParts } from "../services/serviceJobForms"
 import { generateUUID } from "../../utils/uuid"
 import {
+  appendSaleItems,
   cancelSale,
   createSaleReturn,
   createSale,
@@ -379,6 +380,7 @@ function SaleDetailDialog({
   canReturn,
   errorMessage,
   isLoading,
+  onAddItems,
   onCancelSale,
   onClose,
   onReturnItems,
@@ -604,6 +606,16 @@ function SaleDetailDialog({
                 </button>
               ) : (
                 <>
+                  {onAddItems && ["COMPLETED", "PARTIALLY_REFUNDED"].includes(sale?.status) && !sale?.creditAccount ? (
+                    <button
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-emerald-800"
+                      onClick={() => onAddItems(sale)}
+                      title="Add items to this receipt"
+                      type="button"
+                    >
+                      <Plus size={15} /> Add Items
+                    </button>
+                  ) : null}
                   <button
                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100"
                     onClick={() => exportWarrantyReceiptPdf(sale)}
@@ -1049,16 +1061,25 @@ function SaleDetailDialog({
                     </section>
                   ) : null}
 
-                  {(canCancel || canReturn) && ["COMPLETED", "PARTIALLY_REFUNDED"].includes(sale.status) ? (
+                  {(canCancel || canReturn || onAddItems) && ["COMPLETED", "PARTIALLY_REFUNDED"].includes(sale.status) ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
                         Audit Actions & Reversals
                       </p>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-xs text-slate-500 max-w-md">
-                          Authorized staff can process an item refund/return or void the whole sale receipt.
+                          Authorized staff can add items to this sale, process an item refund/return, or void the whole sale receipt.
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
+                          {onAddItems && !sale.creditAccount ? (
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-800"
+                              onClick={() => onAddItems(sale)}
+                              type="button"
+                            >
+                              <Plus size={14} /> Add Items to Receipt
+                            </button>
+                          ) : null}
                           {canReturn && !sale.creditAccount && (sale.items || []).some((item) => item.itemId && Number(item.remainingReturnQuantity || 0) > 0) ? (
                             <button
                               className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-orange-700"
@@ -1151,6 +1172,437 @@ function CancelSaleDialog({ isSaving, onClose, onConfirm, sale }) {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
+  const [items, setItems] = useState([])
+  const [search, setSearch] = useState("")
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState("CASH")
+  const [paymentAmount, setPaymentAmount] = useState("")
+  const [paymentReference, setPaymentReference] = useState("")
+  const [remarks, setRemarks] = useState("")
+  const [message, setMessage] = useState("")
+
+  useEffect(() => {
+    if (!search.trim()) {
+      setSearchResults([])
+      return
+    }
+    let active = true
+    setIsSearching(true)
+    const timer = setTimeout(() => {
+      getItems({
+        branchId: sale.branchId,
+        status: "ACTIVE",
+        search: search.trim(),
+        limit: 10,
+      })
+        .then((res) => {
+          if (!active) return
+          const rows = getCatalogRows(res)
+          setSearchResults(rows)
+        })
+        .catch(() => {
+          if (active) setSearchResults([])
+        })
+        .finally(() => {
+          if (active) setIsSearching(false)
+        })
+    }, 250)
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [sale.branchId, search])
+
+  const addItem = (item) => {
+    const defaultTier = 1
+    const defaultPrice = Number(item.price1 || 0)
+    const newLine = {
+      id: generateUUID(),
+      item,
+      description: item.itemName,
+      priceTier: defaultTier,
+      quantity: 1,
+      unitPrice: defaultPrice,
+      serialNumber: "",
+      discountAmount: 0,
+    }
+    setItems((prev) => [...prev, newLine])
+    setSearch("")
+    setSearchResults([])
+    setMessage("")
+  }
+
+  const removeItem = (id) => {
+    setItems((prev) => prev.filter((it) => it.id !== id))
+  }
+
+  const updateLine = (id, field, value) => {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== id) return it
+        const updated = { ...it, [field]: value }
+        if (field === "priceTier" && it.item) {
+          const tier = Number(value)
+          const priceMap = {
+            1: it.item.price1,
+            2: it.item.price2,
+            3: it.item.price3,
+            4: it.item.price4,
+            5: it.item.price5,
+          }
+          updated.unitPrice = Number(priceMap[tier] || it.item.price1 || 0)
+        }
+        return updated
+      })
+    )
+  }
+
+  const addedSubtotal = useMemo(() => {
+    return items.reduce(
+      (sum, it) => sum + Number(it.quantity || 0) * Number(it.unitPrice || 0),
+      0
+    )
+  }, [items])
+
+  const addedGrandTotal = addedSubtotal
+
+  useEffect(() => {
+    setPaymentAmount(addedGrandTotal > 0 ? addedGrandTotal.toFixed(2) : "")
+  }, [addedGrandTotal])
+
+  const changeAmount = useMemo(() => {
+    const tender = Number(paymentAmount || 0)
+    return Math.max(tender - addedGrandTotal, 0)
+  }, [addedGrandTotal, paymentAmount])
+
+  const submit = (event) => {
+    event.preventDefault()
+    setMessage("")
+
+    if (items.length === 0) {
+      setMessage("Please add at least one item.")
+      return
+    }
+
+    for (const it of items) {
+      if (Number(it.quantity) <= 0) {
+        setMessage(`Quantity for ${it.description || "item"} must be greater than 0.`)
+        return
+      }
+      if (it.item?.isSerialized && !it.serialNumber?.trim()) {
+        setMessage(`Serial number is required for serialized item: ${it.item.itemName}.`)
+        return
+      }
+    }
+
+    const tender = Number(paymentAmount || 0)
+    if (tender < addedGrandTotal) {
+      setMessage(`Payment amount must be at least ₱${formatMoney(addedGrandTotal)}.`)
+      return
+    }
+
+    const payload = {
+      items: items.map((it) => ({
+        itemId: it.item?.id,
+        description: it.item ? undefined : it.description,
+        priceTier: it.item ? Number(it.priceTier || 1) : undefined,
+        quantity: Number(it.quantity),
+        unitPrice: Number(it.unitPrice),
+        serialNumber: it.serialNumber?.trim() || undefined,
+      })),
+      payments: [
+        {
+          paymentMethod,
+          amount: tender,
+          referenceNo: paymentReference.trim() || undefined,
+        },
+      ],
+      remarks: remarks.trim() || undefined,
+    }
+
+    onConfirm(payload)
+  }
+
+  const newReceiptTotal = Number(sale.grandTotal || 0) + addedGrandTotal
+
+  return (
+    <div
+      aria-labelledby="append-items-title"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/70 p-3 sm:p-5 overflow-y-auto backdrop-blur-xs"
+      role="dialog"
+    >
+      <div className="my-auto w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-200">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                Same Receipt Add-on
+              </span>
+              <span className="font-mono text-xs font-bold text-slate-500">
+                Receipt #{sale.receiptCode}
+              </span>
+            </div>
+            <h2 className="mt-1 text-lg font-black text-slate-900" id="append-items-title">
+              Add Items to Sale #{sale.receiptCode}
+            </h2>
+            <p className="text-xs text-slate-500">
+              Customer: <strong className="text-slate-700">{sale.customer?.fullName || "Walk-in customer"}</strong> · Current Total: <strong className="text-slate-900 font-mono">₱{formatMoney(sale.grandTotal)}</strong>
+            </p>
+          </div>
+          <button
+            aria-label="Close dialog"
+            className="rounded-xl border border-slate-200 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={16} />
+          </button>
+        </header>
+
+        <form onSubmit={submit}>
+          <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+            <div className="relative">
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                  Search & Add Product to this Receipt
+                </span>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    autoFocus
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    disabled={isSaving}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Type product name, code, or brand..."
+                    value={search}
+                  />
+                  {isSearching ? (
+                    <LoaderCircle className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  ) : null}
+                </div>
+              </label>
+
+              {searchResults.length > 0 ? (
+                <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl divide-y divide-slate-100">
+                  {searchResults.map((item) => (
+                    <button
+                      className="w-full text-left p-2.5 hover:bg-emerald-50/50 flex items-center justify-between text-xs transition"
+                      key={item.id}
+                      onClick={() => addItem(item)}
+                      type="button"
+                    >
+                      <div>
+                        <p className="font-bold text-slate-900">{item.itemName}</p>
+                        <p className="text-[10px] text-slate-400">{item.itemCode} {item.brand ? `· ${item.brand}` : ""} {item.isSerialized ? "· Serialized" : ""}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-emerald-700">₱{formatMoney(item.price1)}</p>
+                        <p className="text-[10px] text-slate-500">{Number(item.totalStock || item.stockQuantity || 0)} available</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  Items to Append ({items.length})
+                </span>
+                {items.length === 0 ? (
+                  <span className="text-xs text-slate-400">Search products above to add them to this sale.</span>
+                ) : null}
+              </div>
+
+              {items.length > 0 ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                      <tr>
+                        <th className="p-2.5">Item</th>
+                        <th className="p-2.5 w-24">Price Tier</th>
+                        <th className="p-2.5 w-20">Qty</th>
+                        <th className="p-2.5 w-28 text-right">Unit Price</th>
+                        <th className="p-2.5 w-28 text-right">Total</th>
+                        <th className="p-2.5 w-10 text-center"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {items.map((line) => (
+                        <tr key={line.id} className="hover:bg-slate-50/50">
+                          <td className="p-2.5">
+                            <p className="font-bold text-slate-900">{line.description}</p>
+                            {line.item?.isSerialized ? (
+                              <input
+                                className="mt-1 w-full rounded-lg border border-amber-300 bg-amber-50/50 px-2 py-1 text-[11px] font-mono text-slate-800 outline-none focus:border-amber-500"
+                                onChange={(e) => updateLine(line.id, "serialNumber", e.target.value)}
+                                placeholder="Scan or type serial number *"
+                                value={line.serialNumber}
+                              />
+                            ) : null}
+                          </td>
+                          <td className="p-2.5">
+                            <select
+                              className="w-full rounded-lg border border-slate-200 bg-white p-1 text-xs font-semibold outline-none"
+                              onChange={(e) => updateLine(line.id, "priceTier", e.target.value)}
+                              value={line.priceTier}
+                            >
+                              <option value="1">P1 (₱{formatMoney(line.item?.price1)})</option>
+                              <option value="2">P2 (₱{formatMoney(line.item?.price2)})</option>
+                              <option value="3">P3 (₱{formatMoney(line.item?.price3)})</option>
+                              <option value="4">P4 (₱{formatMoney(line.item?.price4)})</option>
+                              <option value="5">P5 (₱{formatMoney(line.item?.price5)})</option>
+                            </select>
+                          </td>
+                          <td className="p-2.5">
+                            <input
+                              className="w-full rounded-lg border border-slate-200 bg-white p-1 text-xs font-mono font-bold text-center outline-none"
+                              min="1"
+                              onChange={(e) => updateLine(line.id, "quantity", Math.max(1, Number(e.target.value) || 1))}
+                              type="number"
+                              value={line.quantity}
+                            />
+                          </td>
+                          <td className="p-2.5 text-right font-mono font-semibold text-slate-700">
+                            ₱{formatMoney(line.unitPrice)}
+                          </td>
+                          <td className="p-2.5 text-right font-mono font-bold text-slate-900">
+                            ₱{formatMoney(Number(line.quantity || 0) * Number(line.unitPrice || 0))}
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <button
+                              className="text-slate-400 hover:text-rose-600 p-1 rounded transition"
+                              onClick={() => removeItem(line.id)}
+                              type="button"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+
+            {items.length > 0 ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-2">
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>Additional Items Total:</span>
+                  <span className="font-mono font-bold text-emerald-800 text-sm">₱{formatMoney(addedGrandTotal)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-600 pt-1 border-t border-emerald-200">
+                  <span>Original Receipt Total:</span>
+                  <span className="font-mono font-semibold text-slate-700">₱{formatMoney(sale.grandTotal)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-900 font-black pt-1 border-t border-emerald-200">
+                  <span>New Overall Receipt Grand Total:</span>
+                  <span className="font-mono text-base text-emerald-900">₱{formatMoney(newReceiptTotal)}</span>
+                </div>
+              </div>
+            ) : null}
+
+            {items.length > 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  Payment for Added Items (₱{formatMoney(addedGrandTotal)})
+                </p>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Payment Method</span>
+                    <select
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none"
+                      disabled={isSaving}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      value={paymentMethod}
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="GCASH">GCash</option>
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Tendered Amount</span>
+                    <input
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-emerald-500"
+                      disabled={isSaving}
+                      min="0"
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                      type="number"
+                      value={paymentAmount}
+                    />
+                  </label>
+                </div>
+
+                {paymentMethod !== "CASH" ? (
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Reference Number</span>
+                    <input
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-500"
+                      disabled={isSaving}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                      placeholder="e.g. GCash Ref # or Transaction ID"
+                      value={paymentReference}
+                    />
+                  </label>
+                ) : (
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 bg-slate-50 p-2.5 rounded-xl">
+                    <span>Change:</span>
+                    <span className="font-mono text-sm text-emerald-700">₱{formatMoney(changeAmount)}</span>
+                  </div>
+                )}
+
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Remarks / Note (Optional)</span>
+                  <input
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none"
+                    disabled={isSaving}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="e.g. Additional cables & accessories requested by customer"
+                    value={remarks}
+                  />
+                </label>
+              </div>
+            ) : null}
+
+            {message ? <p className="text-xs font-bold text-rose-700 bg-rose-50 p-2.5 rounded-xl border border-rose-200">{message}</p> : null}
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+            <button
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+              disabled={isSaving}
+              onClick={onClose}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition disabled:opacity-50"
+              disabled={isSaving || items.length === 0}
+              type="submit"
+            >
+              {isSaving ? <LoaderCircle className="animate-spin" size={14} /> : <Plus size={14} />}
+              {isSaving ? "Appending items…" : `Confirm & Append (₱${formatMoney(addedGrandTotal)})`}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
@@ -1713,6 +2165,8 @@ function PosSalesPage({ selectedBranch, user }) {
   const [isCancellingSale, setIsCancellingSale] = useState(false)
   const [saleToReturn, setSaleToReturn] = useState(null)
   const [isReturningSale, setIsReturningSale] = useState(false)
+  const [saleToAppend, setSaleToAppend] = useState(null)
+  const [isAppendingSale, setIsAppendingSale] = useState(false)
   const [noticeMessage, setNoticeMessage] = useState("")
   const [saleCheckoutPreview, setSaleCheckoutPreview] = useState(null)
   const saleRequestRef = useRef({ signature: "", key: "" })
@@ -3269,6 +3723,37 @@ function PosSalesPage({ selectedBranch, user }) {
     }
   }
 
+  const handleOpenAddItems = async (sale) => {
+    try {
+      const response = await getSaleById(sale.id)
+      const detail = response?.data || sale
+      setSaleToAppend(detail)
+    } catch {
+      setSaleToAppend(sale)
+    }
+  }
+
+  const handleConfirmAppendItems = async (payload) => {
+    if (!saleToAppend?.id || isAppendingSale) return
+
+    setIsAppendingSale(true)
+    try {
+      const response = await appendSaleItems(saleToAppend.id, payload)
+      const updated = response?.data || response
+      setNoticeMessage(`Successfully added items to receipt #${saleToAppend.receiptCode}.`)
+      setSaleToAppend(null)
+      await loadSales()
+      await loadItems()
+      if (updated?.id) {
+        openSaleDetails(updated)
+      }
+    } catch (error) {
+      setNoticeMessage(getApiErrorMessage(error, "Unable to add items to this sale."))
+    } finally {
+      setIsAppendingSale(false)
+    }
+  }
+
   const confirmCancellation = async (reason) => {
     if (!saleToCancel?.id || isCancellingSale) return
 
@@ -4669,6 +5154,16 @@ function PosSalesPage({ selectedBranch, user }) {
                             </button>
                             {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
                               <button
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
+                                onClick={() => handleOpenAddItems(sale)}
+                                type="button"
+                                title="Add more items to this receipt"
+                              >
+                                <Plus size={12} /> Add Items
+                              </button>
+                            ) : null}
+                            {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                              <button
                                 className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800 hover:bg-orange-100 transition"
                                 onClick={() => handleOpenReturn(sale)}
                                 type="button"
@@ -4721,9 +5216,9 @@ function PosSalesPage({ selectedBranch, user }) {
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-2.5 flex items-center gap-1.5 pt-2 border-t border-slate-100">
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
                       <button
-                        className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-700"
+                        className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-700"
                         onClick={() => openSaleDetails(sale)}
                         type="button"
                       >
@@ -4731,7 +5226,16 @@ function PosSalesPage({ selectedBranch, user }) {
                       </button>
                       {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
                         <button
-                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800"
+                          className="flex-1 min-w-[75px] inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800"
+                          onClick={() => handleOpenAddItems(sale)}
+                          type="button"
+                        >
+                          <Plus size={12} /> Add Items
+                        </button>
+                      ) : null}
+                      {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                        <button
+                          className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800"
                           onClick={() => handleOpenReturn(sale)}
                           type="button"
                         >
@@ -4740,7 +5244,7 @@ function PosSalesPage({ selectedBranch, user }) {
                       ) : null}
                       {canCancelSale && sale.status === "COMPLETED" ? (
                         <button
-                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700"
+                          className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700"
                           onClick={() => handleOpenCancel(sale)}
                           type="button"
                         >
@@ -5049,7 +5553,21 @@ function PosSalesPage({ selectedBranch, user }) {
       ) : null}
 
       {isDetailOpen ? (
-        <SaleDetailDialog canCancel={canCancelSale} canReturn={canCancelSale} errorMessage={detailMessage} isLoading={isLoadingDetail} onCancelSale={(sale) => setSaleToCancel(sale)} onClose={() => { setIsDetailOpen(false); setDetailSale(null); setDetailMessage("") }} onReturnItems={(sale) => setSaleToReturn(sale)} sale={detailSale} />
+        <SaleDetailDialog
+          canCancel={canCancelSale}
+          canReturn={canCancelSale}
+          errorMessage={detailMessage}
+          isLoading={isLoadingDetail}
+          onAddItems={(sale) => {
+            setIsDetailOpen(false)
+            setDetailSale(null)
+            handleOpenAddItems(sale)
+          }}
+          onCancelSale={(sale) => setSaleToCancel(sale)}
+          onClose={() => { setIsDetailOpen(false); setDetailSale(null); setDetailMessage("") }}
+          onReturnItems={(sale) => setSaleToReturn(sale)}
+          sale={detailSale}
+        />
       ) : null}
 
       {saleToCancel ? (
@@ -5058,6 +5576,15 @@ function PosSalesPage({ selectedBranch, user }) {
 
       {saleToReturn ? (
         <ReturnSaleItemsDialog isSaving={isReturningSale} onClose={() => setSaleToReturn(null)} onConfirm={confirmSaleReturn} sale={saleToReturn} />
+      ) : null}
+
+      {saleToAppend ? (
+        <AppendSaleItemsDialog
+          isSaving={isAppendingSale}
+          onClose={() => setSaleToAppend(null)}
+          onConfirm={handleConfirmAppendItems}
+          sale={saleToAppend}
+        />
       ) : null}
 
       {isQuotationDocOpen && activeQuotationDoc ? (
