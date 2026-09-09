@@ -1331,6 +1331,8 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
       : Math.round((addedGrandTotal / termBasis) * 100) / 100
     const addedTermAdj = Math.max(addedFinancedAmount - addedGrandTotal, 0)
     const netAddedToBalance = Math.max(addedFinancedAmount - addedDownpayment, 0)
+    const prevRemainingBalance = Number(sale?.creditAccount?.remainingBalance || 0)
+    const termRestructureAdj = Math.round((newRemainingBalance - (prevRemainingBalance + netAddedToBalance)) * 100) / 100
 
     return {
       termBasis,
@@ -1343,7 +1345,8 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
       netAddedToBalance,
       combinedRegularTotal,
       combinedFinancedBalance,
-      prevRemainingBalance: Number(sale?.creditAccount?.remainingBalance || 0),
+      prevRemainingBalance,
+      termRestructureAdj,
       newRemainingBalance,
       prevMonthlyDue: Number(sale?.creditAccount?.monthlyDueAmount || 0),
       newMonthlyDue,
@@ -1672,6 +1675,14 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
                       <span>Added to Financed Balance (after DP):</span>
                       <span className="font-mono text-sm text-blue-900">+{formatMoney(financingSummary.netAddedToBalance)}</span>
                     </div>
+                    {Math.abs(financingSummary.termRestructureAdj || 0) > 0.01 ? (
+                      <div className="flex justify-between text-indigo-700 text-xs">
+                        <span>Term Restructure Adjustment (on previous items):</span>
+                        <span className="font-mono font-bold text-indigo-800">
+                          {financingSummary.termRestructureAdj > 0 ? "+" : "−"}₱{formatMoney(Math.abs(financingSummary.termRestructureAdj))}
+                        </span>
+                      </div>
+                    ) : null}
                     {Number(paymentAmount || 0) > 0 ? (
                       <div className="flex justify-between text-emerald-700 text-xs">
                         <span>Additional Downpayment Paid:</span>
