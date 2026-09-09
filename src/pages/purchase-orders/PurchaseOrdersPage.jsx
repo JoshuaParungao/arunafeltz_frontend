@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, ClipboardList, Eye, LoaderCircle, Plus, Search, Send, Trash2, X } from "lucide-react"
 
 import { getItems } from "../../features/items/items.api"
@@ -239,6 +239,157 @@ function PurchaseOrderItemLookup({
   )
 }
 
+function SupplierAutocompleteInput({
+  suppliers = [],
+  supplierId = "",
+  supplierName = "",
+  disabled = false,
+  inputClass = "",
+  onSelectSupplier,
+  onNameChange,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+
+  const normalizedQuery = (supplierName || "").trim().toLowerCase()
+
+  const matches = useMemo(() => {
+    if (!normalizedQuery) {
+      return suppliers.slice(0, 8)
+    }
+    return suppliers
+      .filter((s) => {
+        const name = (s.name || "").toLowerCase()
+        const code = (s.supplierCode || "").toLowerCase()
+        const contact = (s.contactNo || "").toLowerCase()
+        return (
+          name.includes(normalizedQuery) ||
+          code.includes(normalizedQuery) ||
+          contact.includes(normalizedQuery)
+        )
+      })
+      .slice(0, 10)
+  }, [suppliers, normalizedQuery])
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick)
+    return () => document.removeEventListener("mousedown", handleOutsideClick)
+  }, [])
+
+  const isExisting = Boolean(supplierId)
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div className="relative flex items-center">
+        <input
+          className={`${inputClass} pr-8 ${
+            isExisting
+              ? "border-emerald-300 bg-emerald-50/25 dark:bg-emerald-950/20"
+              : ""
+          }`}
+          disabled={disabled}
+          onChange={(e) => {
+            onNameChange(e.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => {
+            if (!disabled) setIsOpen(true)
+          }}
+          placeholder="Search existing or type new supplier…"
+          required
+          type="text"
+          value={supplierName}
+        />
+        {supplierName && !disabled ? (
+          <button
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 transition"
+            onClick={() => {
+              onNameChange("")
+              setIsOpen(true)
+            }}
+            tabIndex={-1}
+            type="button"
+          >
+            <X size={14} />
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-1 flex items-center justify-between text-[10px]">
+        {isExisting ? (
+          <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+            ✓ Existing directory supplier
+          </span>
+        ) : supplierName.trim() ? (
+          <span className="font-semibold text-amber-700 dark:text-amber-400">
+            + New supplier (auto-registers on save)
+          </span>
+        ) : (
+          <span className="text-slate-400">
+            Type name to search or add new
+          </span>
+        )}
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute left-0 top-[calc(100%-14px)] z-30 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+          <div className="max-h-52 overflow-y-auto divide-y divide-slate-100 p-1">
+            {matches.length > 0 ? (
+              matches.map((supplier) => {
+                const isSelected = supplier.id === supplierId
+                return (
+                  <button
+                    className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${
+                      isSelected
+                        ? "bg-emerald-50 font-bold text-emerald-900"
+                        : "hover:bg-slate-50 text-slate-800"
+                    }`}
+                    key={supplier.id}
+                    onClick={() => {
+                      onSelectSupplier(supplier)
+                      setIsOpen(false)
+                    }}
+                    type="button"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold truncate">{supplier.name}</span>
+                      <span className="shrink-0 font-mono text-[10px] font-semibold text-slate-400">
+                        {supplier.supplierCode}
+                      </span>
+                    </div>
+                    {(supplier.contactNo || supplier.address) && (
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 text-[10px] text-slate-500">
+                        {supplier.contactNo && <span>Tel: {supplier.contactNo}</span>}
+                        {supplier.address && (
+                          <span className="truncate max-w-[220px]">
+                            {supplier.address}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                )
+              })
+            ) : (
+              <div className="p-3 text-center text-xs text-slate-500">
+                <p className="font-semibold text-slate-700">No matching supplier</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Continue typing name, contact & address to add as new supplier.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PurchaseOrderForm({
   initial,
   suppliers,
@@ -247,9 +398,27 @@ function PurchaseOrderForm({
   onClose,
   onSave,
 }) {
+  const isLocked = Boolean(initial?.id && initial?.status !== "DRAFT")
+  const initialSupplier =
+    suppliers.find((s) => s.id === initial?.supplierId) || initial?.supplier
+
   const [form, setForm] = useState(() => ({
     poCode: initial?.poCode || "",
     supplierId: initial?.supplierId || "",
+    supplierName:
+      initialSupplier?.name ||
+      initial?.supplier?.name ||
+      initial?.supplierNameSnapshot ||
+      "",
+    supplierContact:
+      initial?.supplierContactSnapshot ||
+      initialSupplier?.contactNo ||
+      initial?.supplier?.contactNo ||
+      "",
+    supplierAddress:
+      initialSupplier?.address ||
+      initial?.supplier?.address ||
+      "",
     expectedDate: toDateInput(initial?.expectedDate),
     notes: initial?.notes || "",
     internalNotes: initial?.internalNotes || "",
@@ -344,74 +513,144 @@ function PurchaseOrderForm({
       }}
     >
       <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className={labelClass}>
-            PO Code
-            <input
-              className={`${inputClass} font-mono`}
-              onChange={(event) =>
+        {/* Row 1: Supplier Name (Autocomplete/Add), Contact No, Address */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className={labelClass}>
+              Supplier Name <span className="text-red-600">*</span>
+            </label>
+            <SupplierAutocompleteInput
+              disabled={isLocked}
+              inputClass={inputClass}
+              onNameChange={(name) => {
+                const exactMatch = suppliers.find(
+                  (s) => s.name.trim().toLowerCase() === name.trim().toLowerCase()
+                )
+                if (exactMatch) {
+                  setForm((current) => ({
+                    ...current,
+                    supplierId: exactMatch.id,
+                    supplierName: exactMatch.name,
+                    supplierContact: exactMatch.contactNo || current.supplierContact,
+                    supplierAddress: exactMatch.address || current.supplierAddress,
+                  }))
+                } else {
+                  setForm((current) => ({
+                    ...current,
+                    supplierId: "",
+                    supplierName: name,
+                  }))
+                }
+              }}
+              onSelectSupplier={(supplier) => {
                 setForm((current) => ({
                   ...current,
-                  poCode: event.target.value,
+                  supplierId: supplier.id,
+                  supplierName: supplier.name,
+                  supplierContact: supplier.contactNo || "",
+                  supplierAddress: supplier.address || "",
                 }))
-              }
-              placeholder="Auto-generated if blank"
-              value={form.poCode}
+              }}
+              supplierId={form.supplierId}
+              supplierName={form.supplierName}
+              suppliers={suppliers}
             />
-          </label>
+          </div>
 
-          <label className={labelClass}>
-            Supplier <span className="text-red-600">*</span>
-            <select
-              className={inputClass}
-              disabled={Boolean(initial?.id && initial?.status !== "DRAFT")}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  supplierId: event.target.value,
-                }))
-              }
-              required
-              value={form.supplierId}
-            >
-              <option value="">Select supplier</option>
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.supplierCode} · {supplier.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div>
+            <label className={labelClass}>
+              Contact Number <span className="text-red-600">*</span>
+              <input
+                className={inputClass}
+                disabled={isLocked}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    supplierContact: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 0917-123-4567"
+                required
+                value={form.supplierContact}
+              />
+            </label>
+          </div>
 
-          <label className={labelClass}>
-            Expected Date
-            <input
-              className={inputClass}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  expectedDate: event.target.value,
-                }))
-              }
-              type="date"
-              value={form.expectedDate}
-            />
-          </label>
+          <div>
+            <label className={labelClass}>
+              Address <span className="text-red-600">*</span>
+              <input
+                className={inputClass}
+                disabled={isLocked}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    supplierAddress: event.target.value,
+                  }))
+                }
+                placeholder="Street, City, Province"
+                required
+                value={form.supplierAddress}
+              />
+            </label>
+          </div>
+        </div>
 
-          <label className={labelClass}>
-            Supplier Notes
-            <input
-              className={inputClass}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  notes: event.target.value,
-                }))
-              }
-              placeholder="Delivery terms, instructions…"
-              value={form.notes}
-            />
-          </label>
+        {/* Row 2: PO Code, Expected Date, Supplier Notes */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className={labelClass}>
+              PO Code
+              <input
+                className={`${inputClass} font-mono`}
+                disabled={isLocked}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    poCode: event.target.value,
+                  }))
+                }
+                placeholder="Auto-generated if blank"
+                value={form.poCode}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className={labelClass}>
+              Expected Date
+              <input
+                className={inputClass}
+                disabled={isLocked}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    expectedDate: event.target.value,
+                  }))
+                }
+                type="date"
+                value={form.expectedDate}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className={labelClass}>
+              Supplier Notes
+              <input
+                className={inputClass}
+                disabled={isLocked}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    notes: event.target.value,
+                  }))
+                }
+                placeholder="Delivery terms, instructions…"
+                value={form.notes}
+              />
+            </label>
+          </div>
         </div>
 
         <section className="space-y-2.5">
@@ -692,21 +931,57 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
   const save = async (form) => {
     setIsSaving(true)
     setMessage("")
+
+    const supplierName = form.supplierName?.trim()
+    const supplierContact = form.supplierContact?.trim()
+    const supplierAddress = form.supplierAddress?.trim()
+
+    if (!form.supplierId && !supplierName) {
+      setMessage("Supplier name is required.")
+      setIsSaving(false)
+      return
+    }
+    if (!supplierContact) {
+      setMessage("Supplier contact number is required.")
+      setIsSaving(false)
+      return
+    }
+    if (!supplierAddress) {
+      setMessage("Supplier address is required.")
+      setIsSaving(false)
+      return
+    }
+
     const payload = {
       ...(form.poCode.trim() ? { poCode: form.poCode.trim() } : {}),
-      supplierId: form.supplierId,
+      ...(form.supplierId ? { supplierId: form.supplierId } : {}),
+      ...(supplierName ? { supplierName } : {}),
+      supplierContact,
+      supplierAddress,
       ...(!editing?.id && branchId ? { branchId } : {}),
       expectedDate: form.expectedDate || null,
       notes: form.notes.trim() || null,
       internalNotes: form.internalNotes.trim() || null,
-      items: form.items.map((line) => ({ itemId: line.itemId || null, description: line.description.trim(), quantity: Number(line.quantity), unitCost: Number(line.unitCost), discountAmount: Number(line.discountAmount || 0) })),
+      items: form.items.map((line) => ({
+        itemId: line.itemId || null,
+        description: line.description.trim(),
+        quantity: Number(line.quantity),
+        unitCost: Number(line.unitCost),
+        discountAmount: Number(line.discountAmount || 0),
+      })),
     }
     try {
-      const response = editing?.id ? await updatePurchaseOrder(editing.id, payload) : await createPurchaseOrder(payload)
+      const response = editing?.id
+        ? await updatePurchaseOrder(editing.id, payload)
+        : await createPurchaseOrder(payload)
       setNotice(`${response?.data?.poCode || "Purchase order"} saved as draft.`)
       setEditing(null)
-      await load()
-    } catch (error) { setMessage(apiError(error, "Could not save purchase order.")) } finally { setIsSaving(false) }
+      await Promise.all([load(), loadReferenceData()])
+    } catch (error) {
+      setMessage(apiError(error, "Could not save purchase order."))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const changeStatus = async (order, nextStatus) => {
