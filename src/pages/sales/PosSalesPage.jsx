@@ -2470,11 +2470,14 @@ function PosSalesPage({ selectedBranch, user }) {
         if (line.isCustomSerial) {
           const customSn = line.customSerialNumber?.trim().toLowerCase()
           if (customSn) {
-            if (customSerials.has(customSn)) return "The same serial cannot be used more than once in a sale."
-            customSerials.add(customSn)
+            const itemSerialKey = `${line.item?.id || line.itemId}:${customSn}`
+            if (customSerials.has(itemSerialKey)) {
+              return `The same serial cannot be used more than once for ${line.item.itemName} in a sale.`
+            }
+            customSerials.add(itemSerialKey)
           }
         } else if (line.serialId) {
-          if (serialIds.has(line.serialId)) return "The same serial cannot be used more than once in a sale."
+          if (serialIds.has(line.serialId)) return "The same serial unit cannot be used more than once in a sale."
           serialIds.add(line.serialId)
         }
       } else {
