@@ -211,6 +211,9 @@ function PurchaseOrderItemLookup({
                       {item.barcode
                         ? `Barcode: ${item.barcode}`
                         : "No barcode"}
+                      {item.costPrice !== null && item.costPrice !== undefined
+                        ? ` · Cost: ${money(item.costPrice)}`
+                        : ""}
                     </p>
                   </div>
 
@@ -423,13 +426,26 @@ function PurchaseOrderForm({
     notes: initial?.notes || "",
     internalNotes: initial?.internalNotes || "",
     items: initial?.items?.length
-      ? initial.items.map((line) => ({
-          itemId: line.itemId || "",
-          description: line.description,
-          quantity: String(line.quantity),
-          unitCost: String(line.unitCost),
-          discountAmount: String(line.discountAmount || 0),
-        }))
+      ? initial.items.map((line) => {
+          const matchingCatalogItem = catalogItems.find(
+            (c) => c.id === line.itemId,
+          )
+          const effectiveUnitCost =
+            Number(line.unitCost || 0) > 0
+              ? String(line.unitCost)
+              : matchingCatalogItem?.costPrice !== null &&
+                matchingCatalogItem?.costPrice !== undefined
+              ? String(matchingCatalogItem.costPrice)
+              : String(line.unitCost || 0)
+
+          return {
+            itemId: line.itemId || "",
+            description: line.description,
+            quantity: String(line.quantity),
+            unitCost: effectiveUnitCost,
+            discountAmount: String(line.discountAmount || 0),
+          }
+        })
       : [{ ...EMPTY_LINE }],
   }))
 
@@ -480,6 +496,10 @@ function PurchaseOrderForm({
       ...(item
         ? {
             description: `${item.itemCode} · ${item.itemName}`,
+            unitCost:
+              item.costPrice !== null && item.costPrice !== undefined
+                ? String(item.costPrice)
+                : "0",
           }
         : {}),
     })
