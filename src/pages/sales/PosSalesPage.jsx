@@ -1176,8 +1176,10 @@ function CancelSaleDialog({ isSaving, onClose, onConfirm, sale }) {
   )
 }
 
-function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
+function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm, sale }) {
   const isCreditSale = Boolean(sale?.creditAccount)
+  const initialTerm = sale?.creditAccount?.term || "MONTH_12"
+  const [selectedTerm, setSelectedTerm] = useState(initialTerm)
   const [items, setItems] = useState([])
   const [search, setSearch] = useState("")
   const [searchResults, setSearchResults] = useState([])
@@ -1187,6 +1189,17 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
   const [paymentReference, setPaymentReference] = useState("")
   const [remarks, setRemarks] = useState("")
   const [message, setMessage] = useState("")
+
+  const termBasis = useMemo(() => {
+    if (!isCreditSale) return 1
+    if (selectedTerm === "CASH_PROMO") return 1
+    const rate = installmentRates?.[selectedTerm] ?? DEFAULT_INSTALLMENT_BASIS[selectedTerm]
+    return typeof rate === "number" && rate > 0 ? rate : (selectedTerm === "STRAIGHT" ? 0.96 : 1)
+  }, [isCreditSale, installmentRates, selectedTerm])
+
+  const months = useMemo(() => {
+    return INSTALLMENT_TERM_MONTHS[selectedTerm] || 1
+  }, [selectedTerm])
 
   useEffect(() => {
     if (!search.trim()) {
@@ -1265,14 +1278,14 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
     )
   }
 
-  const addedSubtotal = useMemo(() => {
+  const addedCashSubtotal = useMemo(() => {
     return items.reduce(
       (sum, it) => sum + Number(it.quantity || 0) * Number(it.unitPrice || 0),
       0
     )
   }, [items])
 
-  const addedGrandTotal = addedSubtotal
+  const addedGrandTotal = addedCashSubtotal
 
   useEffect(() => {
     if (isCreditSale) {
@@ -1281,6 +1294,61 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
       setPaymentAmount(addedGrandTotal > 0 ? addedGrandTotal.toFixed(2) : "")
     }
   }, [addedGrandTotal, isCreditSale])
+
+  // Financing live calculation breakdown
+  const financingSummary = useMemo(() => {
+    if (!isCreditSale) return null
+
+    const prevCashPromo = Number(sale?.creditAccount?.cashPromoTotalAmount || sale?.creditAccount?.sourceTotalAmountSnapshot || sale?.subtotal || sale?.grandTotal || 0)
+    const combinedCashPromo = prevCashPromo + addedGrandTotal
+    const prevDownpayment = Number(sale?.creditAccount?.downpaymentAmount || 0)
+    const addedDownpayment = Number(paymentAmount || 0)
+    const totalDownpayment = prevDownpayment + addedDownpayment
+
+    const isCreditCard = sale?.creditAccount?.provider === "CREDIT_CARD"
+
+    let combinedRegularTotal
+    let combinedFinancedBalance
+
+    if (isCreditCard && totalDownpayment > 0) {
+      const remainingCash = Math.max(combinedCashPromo - totalDownpayment, 0)
+      const swipeAmount = Math.round((remainingCash / termBasis) * 100) / 100
+      combinedRegularTotal = Math.round((totalDownpayment + swipeAmount) * 100) / 100
+      combinedFinancedBalance = swipeAmount
+    } else {
+      combinedRegularTotal = selectedTerm === "CASH_PROMO" || termBasis === 1
+        ? combinedCashPromo
+        : Math.round((combinedCashPromo / termBasis) * 100) / 100
+      combinedFinancedBalance = Math.max(Math.round((combinedRegularTotal - totalDownpayment) * 100) / 100, 0)
+    }
+
+    const prevCollected = Number(sale?.creditAccount?.totalCollected || 0)
+    const newRemainingBalance = Math.max(combinedFinancedBalance - prevCollected, 0)
+    const newMonthlyDue = Math.round((combinedFinancedBalance / months) * 100) / 100
+
+    const addedFinancedAmount = selectedTerm === "CASH_PROMO" || termBasis === 1
+      ? addedGrandTotal
+      : Math.round((addedGrandTotal / termBasis) * 100) / 100
+    const addedTermAdj = Math.max(addedFinancedAmount - addedGrandTotal, 0)
+    const netAddedToBalance = Math.max(addedFinancedAmount - addedDownpayment, 0)
+
+    return {
+      termBasis,
+      months,
+      prevCashPromo,
+      combinedCashPromo,
+      addedFinancedAmount,
+      addedTermAdj,
+      addedDownpayment,
+      netAddedToBalance,
+      combinedRegularTotal,
+      combinedFinancedBalance,
+      prevRemainingBalance: Number(sale?.creditAccount?.remainingBalance || 0),
+      newRemainingBalance,
+      prevMonthlyDue: Number(sale?.creditAccount?.monthlyDueAmount || 0),
+      newMonthlyDue,
+    }
+  }, [isCreditSale, sale, addedGrandTotal, paymentAmount, selectedTerm, termBasis, months])
 
   const changeAmount = useMemo(() => {
     const tender = Number(paymentAmount || 0)
@@ -1333,6 +1401,7 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
           referenceNo: paymentReference.trim() || undefined,
         },
       ] : [],
+      term: isCreditSale ? selectedTerm : undefined,
       remarks: remarks.trim() || undefined,
     }
 
@@ -1381,34 +1450,51 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
         <form onSubmit={submit}>
           <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
             {isCreditSale && sale.creditAccount ? (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3.5 space-y-3">
+                <div className="flex items-center justify-between border-b border-blue-200/80 pb-2">
                   <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
                     💳 Active Financing · {formatStatus(sale.creditAccount.provider)}
                   </span>
-                  <span className="font-mono text-[11px] font-bold text-blue-700">
-                    Account #{sale.creditAccount.creditCode}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-600 pt-1.5 border-t border-blue-200/60">
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Financing Term</span>
-                    <span className="font-semibold text-slate-800">
-                      {sale.creditAccount.term ? (sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)) : "Straight / Standard"}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-900">
+                      Basis: {termBasis.toFixed(4)} ({months} mos)
+                    </span>
+                    <span className="font-mono text-[11px] font-bold text-blue-700">
+                      #{sale.creditAccount.creditCode}
                     </span>
                   </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Financed Balance</span>
-                    <span className="font-mono font-bold text-blue-900">₱{formatMoney(sale.creditAccount.remainingBalance)}</span>
+                    <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">
+                      Financing Term (Changeable)
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-blue-300 bg-white px-2.5 py-1.5 text-xs font-bold text-blue-900 outline-none focus:ring-1 focus:ring-blue-500"
+                      disabled={isSaving}
+                      onChange={(e) => setSelectedTerm(e.target.value)}
+                      value={selectedTerm}
+                    >
+                      <option value="STRAIGHT">Straight / 0% (1 mo)</option>
+                      <option value="MONTH_3">Month 3 (3 mos)</option>
+                      <option value="MONTH_6">Month 6 (6 mos)</option>
+                      <option value="MONTH_9">Month 9 (9 mos)</option>
+                      <option value="MONTH_12">Month 12 (12 mos)</option>
+                      <option value="MONTH_18">Month 18 (18 mos)</option>
+                      <option value="MONTH_24">Month 24 (24 mos)</option>
+                    </select>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Additional Downpayment</span>
-                    <span className="font-semibold text-emerald-800">Optional (0 to ₱{formatMoney(addedGrandTotal)})</span>
+                  <div className="rounded-xl bg-white border border-blue-100 p-2">
+                    <span className="text-[10px] text-slate-400 block font-bold uppercase">Current Financed Balance</span>
+                    <span className="font-mono font-bold text-blue-900 text-sm">₱{formatMoney(sale.creditAccount.remainingBalance)}</span>
+                    <span className="text-[10px] text-slate-400 block">Due: ₱{formatMoney(sale.creditAccount.monthlyDueAmount || 0)}/mo</span>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2">
+                    <span className="text-[10px] text-emerald-800 block font-bold uppercase">Additional Downpayment</span>
+                    <span className="font-bold text-emerald-900 text-xs">Optional</span>
+                    <span className="text-[10px] text-emerald-700 block">Can be ₱0.00 (charged to balance)</span>
                   </div>
                 </div>
-                <p className="text-[10px] text-blue-800 font-medium">
-                  ℹ️ Adding items here keeps the same receipt code <strong>#{sale.receiptCode}</strong> and automatically recalculates the customer's financing balance and monthly dues.
-                </p>
               </div>
             ) : null}
 
@@ -1474,8 +1560,8 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
                         <th className="p-2.5">Item</th>
                         <th className="p-2.5 w-24">Price Tier</th>
                         <th className="p-2.5 w-20">Qty</th>
-                        <th className="p-2.5 w-28 text-right">Unit Price</th>
-                        <th className="p-2.5 w-28 text-right">Total</th>
+                        <th className="p-2.5 w-32 text-right">Unit Price</th>
+                        <th className="p-2.5 w-32 text-right">Total</th>
                         <th className="p-2.5 w-10 text-center"></th>
                       </tr>
                     </thead>
@@ -1515,11 +1601,23 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
                               value={line.quantity}
                             />
                           </td>
-                          <td className="p-2.5 text-right font-mono font-semibold text-slate-700">
-                            ₱{formatMoney(line.unitPrice)}
+                          <td className="p-2.5 text-right font-mono">
+                            <p className="font-semibold text-slate-700">₱{formatMoney(line.unitPrice)}</p>
+                            {isCreditSale && termBasis < 1 ? (
+                              <p className="text-[10px] text-blue-700 font-bold">
+                                Financed: ₱{formatMoney(Math.round((line.unitPrice / termBasis) * 100) / 100)}
+                              </p>
+                            ) : null}
                           </td>
-                          <td className="p-2.5 text-right font-mono font-bold text-slate-900">
-                            ₱{formatMoney(Number(line.quantity || 0) * Number(line.unitPrice || 0))}
+                          <td className="p-2.5 text-right font-mono">
+                            <p className="font-bold text-slate-900">
+                              ₱{formatMoney(Number(line.quantity || 0) * Number(line.unitPrice || 0))}
+                            </p>
+                            {isCreditSale && termBasis < 1 ? (
+                              <p className="text-[10px] text-blue-900 font-black">
+                                Financed: ₱{formatMoney(Math.round(((Number(line.quantity || 0) * Number(line.unitPrice || 0)) / termBasis) * 100) / 100)}
+                              </p>
+                            ) : null}
                           </td>
                           <td className="p-2.5 text-center">
                             <button
@@ -1539,32 +1637,73 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
             </div>
 
             {items.length > 0 ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-2">
-                <div className="flex justify-between text-xs text-slate-600">
-                  <span>Additional Items Total:</span>
-                  <span className="font-mono font-bold text-emerald-800 text-sm">₱{formatMoney(addedGrandTotal)}</span>
-                </div>
-                {isCreditSale ? (
-                  <>
-                    <div className="flex justify-between text-xs text-slate-600">
-                      <span>Additional Downpayment:</span>
-                      <span className="font-mono font-semibold text-slate-700">₱{formatMoney(Number(paymentAmount || 0))}</span>
+              isCreditSale && financingSummary ? (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between border-b border-blue-200/80 pb-1.5">
+                    <span className="text-xs font-bold uppercase text-blue-900">
+                      Installment Recomputation Summary ({formatStatus(selectedTerm)})
+                    </span>
+                    <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-900">
+                      Rate / Factor: {termBasis.toFixed(4)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                    <div className="rounded-xl bg-white border border-blue-100 p-2">
+                      <span className="text-[10px] text-slate-500 block">Added Items (Cash Price)</span>
+                      <span className="font-mono font-bold text-slate-900">₱{formatMoney(addedGrandTotal)}</span>
                     </div>
-                    <div className="flex justify-between text-xs text-blue-800 font-bold">
-                      <span>Added to Financed Balance:</span>
-                      <span className="font-mono text-sm">₱{formatMoney(Math.max(addedGrandTotal - Number(paymentAmount || 0), 0))}</span>
+                    <div className="rounded-xl bg-white border border-blue-100 p-2">
+                      <span className="text-[10px] text-blue-700 block">Term Interest / Adjustment</span>
+                      <span className="font-mono font-bold text-blue-900">+{formatMoney(financingSummary.addedTermAdj)}</span>
                     </div>
-                  </>
-                ) : null}
-                <div className="flex justify-between text-xs text-slate-600 pt-1 border-t border-emerald-200">
-                  <span>Original Receipt Total:</span>
-                  <span className="font-mono font-semibold text-slate-700">₱{formatMoney(sale.grandTotal)}</span>
+                    <div className="rounded-xl bg-white border border-blue-100 p-2">
+                      <span className="text-[10px] text-indigo-700 block">Added Items Financed Value</span>
+                      <span className="font-mono font-bold text-indigo-900">₱{formatMoney(financingSummary.addedFinancedAmount)}</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-white border border-blue-100 p-2.5 space-y-1 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Current Financed Balance:</span>
+                      <span className="font-mono font-semibold text-slate-700">₱{formatMoney(financingSummary.prevRemainingBalance)}</span>
+                    </div>
+                    <div className="flex justify-between text-blue-900 font-bold">
+                      <span>Added to Financed Balance (after DP):</span>
+                      <span className="font-mono text-sm text-blue-900">+{formatMoney(financingSummary.netAddedToBalance)}</span>
+                    </div>
+                    {Number(paymentAmount || 0) > 0 ? (
+                      <div className="flex justify-between text-emerald-700 text-xs">
+                        <span>Additional Downpayment Paid:</span>
+                        <span className="font-mono font-bold text-emerald-800">−₱{formatMoney(Number(paymentAmount || 0))}</span>
+                      </div>
+                    ) : null}
+                    <div className="flex justify-between text-slate-900 font-black pt-1.5 border-t border-blue-100 text-sm">
+                      <span>New Total Financed Balance:</span>
+                      <span className="font-mono text-base text-blue-950">₱{formatMoney(financingSummary.newRemainingBalance)}</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-800 font-bold pt-1 border-t border-blue-100">
+                      <span>New Monthly Amortization ({months} months):</span>
+                      <span className="font-mono text-sm text-emerald-900">₱{formatMoney(financingSummary.newMonthlyDue)} / mo</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-xs text-slate-900 font-black pt-1 border-t border-emerald-200">
-                  <span>New Overall Receipt Grand Total:</span>
-                  <span className="font-mono text-base text-emerald-900">₱{formatMoney(newReceiptTotal)}</span>
+              ) : (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-2">
+                  <div className="flex justify-between text-xs text-slate-600">
+                    <span>Additional Items Total:</span>
+                    <span className="font-mono font-bold text-emerald-800 text-sm">₱{formatMoney(addedGrandTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-600 pt-1 border-t border-emerald-200">
+                    <span>Original Receipt Total:</span>
+                    <span className="font-mono font-semibold text-slate-700">₱{formatMoney(sale.grandTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-900 font-black pt-1 border-t border-emerald-200">
+                    <span>New Overall Receipt Grand Total:</span>
+                    <span className="font-mono text-base text-emerald-900">₱{formatMoney(newReceiptTotal)}</span>
+                  </div>
                 </div>
-              </div>
+              )
             ) : null}
 
             {items.length > 0 ? (
@@ -1666,8 +1805,8 @@ function AppendSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
               {isSaving ? <LoaderCircle className="animate-spin" size={14} /> : <Plus size={14} />}
               {isSaving
                 ? "Appending items…"
-                : isCreditSale
-                  ? `Confirm & Append to Financing (+₱${formatMoney(addedGrandTotal)})`
+                : isCreditSale && financingSummary
+                  ? `Confirm & Append to Financing (+₱${formatMoney(financingSummary.netAddedToBalance)})`
                   : `Confirm & Append (₱${formatMoney(addedGrandTotal)})`}
             </button>
           </div>
@@ -5651,6 +5790,7 @@ function PosSalesPage({ selectedBranch, user }) {
 
       {saleToAppend ? (
         <AppendSaleItemsDialog
+          installmentRates={installmentRates}
           isSaving={isAppendingSale}
           onClose={() => setSaleToAppend(null)}
           onConfirm={handleConfirmAppendItems}
