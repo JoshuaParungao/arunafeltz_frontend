@@ -1299,30 +1299,38 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
   const financingSummary = useMemo(() => {
     if (!isCreditSale) return null
 
-    const prevRemainingBalance = Number(sale?.creditAccount?.remainingBalance || 0)
     const prevCashPromo = Number(sale?.creditAccount?.cashPromoTotalAmount || sale?.creditAccount?.sourceTotalAmountSnapshot || sale?.subtotal || sale?.grandTotal || 0)
     const combinedCashPromo = prevCashPromo + addedGrandTotal
+    const prevDownpayment = Number(sale?.creditAccount?.downpaymentAmount || 0)
     const addedDownpayment = Number(paymentAmount || 0)
+    const totalDownpayment = prevDownpayment + addedDownpayment
 
     const isCreditCard = sale?.creditAccount?.provider === "CREDIT_CARD"
 
-    let addedFinancedAmount
-    if (isCreditCard && addedDownpayment > 0) {
-      const remainingCash = Math.max(addedGrandTotal - addedDownpayment, 0)
+    let combinedRegularTotal
+    let combinedFinancedBalance
+
+    if (isCreditCard && totalDownpayment > 0) {
+      const remainingCash = Math.max(combinedCashPromo - totalDownpayment, 0)
       const swipeAmount = Math.round((remainingCash / termBasis) * 100) / 100
-      addedFinancedAmount = Math.round((addedDownpayment + swipeAmount) * 100) / 100
+      combinedRegularTotal = Math.round((totalDownpayment + swipeAmount) * 100) / 100
+      combinedFinancedBalance = swipeAmount
     } else {
-      addedFinancedAmount = selectedTerm === "CASH_PROMO" || termBasis === 1
-        ? addedGrandTotal
-        : Math.round((addedGrandTotal / termBasis) * 100) / 100
+      combinedRegularTotal = selectedTerm === "CASH_PROMO" || termBasis === 1
+        ? combinedCashPromo
+        : Math.round((combinedCashPromo / termBasis) * 100) / 100
+      combinedFinancedBalance = Math.max(Math.round((combinedRegularTotal - totalDownpayment) * 100) / 100, 0)
     }
 
+    const prevCollected = Number(sale?.creditAccount?.totalCollected || 0)
+    const newRemainingBalance = Math.max(combinedFinancedBalance - prevCollected, 0)
+    const newMonthlyDue = Math.round((combinedFinancedBalance / months) * 100) / 100
+
+    const addedFinancedAmount = selectedTerm === "CASH_PROMO" || termBasis === 1
+      ? addedGrandTotal
+      : Math.round((addedGrandTotal / termBasis) * 100) / 100
     const addedTermAdj = Math.max(addedFinancedAmount - addedGrandTotal, 0)
     const netAddedToBalance = Math.max(addedFinancedAmount - addedDownpayment, 0)
-
-    // Current remaining balance + net added to balance
-    const newRemainingBalance = Math.round((prevRemainingBalance + netAddedToBalance) * 100) / 100
-    const newMonthlyDue = Math.round((newRemainingBalance / months) * 100) / 100
 
     return {
       termBasis,
@@ -1333,7 +1341,9 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
       addedTermAdj,
       addedDownpayment,
       netAddedToBalance,
-      prevRemainingBalance,
+      combinedRegularTotal,
+      combinedFinancedBalance,
+      prevRemainingBalance: Number(sale?.creditAccount?.remainingBalance || 0),
       newRemainingBalance,
       prevMonthlyDue: Number(sale?.creditAccount?.monthlyDueAmount || 0),
       newMonthlyDue,
