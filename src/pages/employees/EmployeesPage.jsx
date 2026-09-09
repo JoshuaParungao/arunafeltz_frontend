@@ -726,7 +726,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
 
       {/* 4. Main Employee Directory & Performance Table */}
       <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[950px] text-left text-xs">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-soft)] uppercase tracking-wider text-[var(--color-muted)] font-black">
               <tr>
@@ -849,6 +849,88 @@ export default function EmployeesPage({ selectedBranch, user }) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="grid gap-3 p-3 lg:hidden">
+          {isLoading ? (
+            <div className="p-6 text-center text-xs font-bold text-[var(--color-muted)]">
+              Loading employee performance records...
+            </div>
+          ) : records.length === 0 ? (
+            <div className="p-6 text-center text-xs font-bold text-[var(--color-muted)]">
+              No employee performance records found.
+            </div>
+          ) : (
+            records.map((staff) => (
+              <article
+                key={staff.id}
+                className="rounded-2xl border border-[var(--color-border)] bg-white p-3.5 shadow-2xs space-y-3 text-xs"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="grid size-9 shrink-0 place-items-center rounded-2xl bg-[var(--color-maroon)] text-white font-black text-xs">
+                      {staff.fullName ? staff.fullName.charAt(0).toUpperCase() : "U"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-[var(--color-text-strong)] truncate">{staff.fullName}</p>
+                      <p className="text-[10px] text-[var(--color-muted)]">
+                        @{staff.username} {staff.employeeCode ? `· ${staff.employeeCode}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-black uppercase text-[var(--color-text-strong)]">
+                    {getRoleLabel(staff.role)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--color-soft)] p-2.5 text-xs">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-[var(--color-muted)]">Sales Revenue</p>
+                    <p className="font-black text-xs text-[var(--color-text-strong)]">{peso(staff.salesRevenue)}</p>
+                    <p className="text-[10px] text-emerald-700 font-bold">{number(staff.completedSales)} sales</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-[var(--color-muted)]">Solo Comm ({staff.soloIncentivePercent ?? 0}%)</p>
+                    <p className="font-black text-xs text-amber-800">{peso(staff.soloIncentiveAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-[var(--color-muted)]">Services Done</p>
+                    <p className="font-black text-xs text-[var(--color-text-strong)]">{peso(staff.serviceRevenue)}</p>
+                    <p className="text-[10px] text-blue-700 font-bold">{number(staff.completedServices)} jobs</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-[var(--color-muted)]">Total Incentives</p>
+                    <p className="font-black text-sm text-[var(--color-maroon)]">{peso(staff.totalIncentiveAmount)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon)]"
+                    onClick={() => {
+                      setSelectedStaff(staff)
+                      setModalTab("sales")
+                    }}
+                    type="button"
+                  >
+                    <Eye size={13} />
+                    Transactions
+                  </button>
+                  {canManageIncentives ? (
+                    <button
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--color-maroon)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-maroon)] shadow-2xs hover:bg-[var(--color-maroon)] hover:text-white"
+                      onClick={() => handleOpenIncentiveRules(staff)}
+                      type="button"
+                    >
+                      <Sliders size={13} />
+                      Rules
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          )}
         </div>
       </div>
         </>

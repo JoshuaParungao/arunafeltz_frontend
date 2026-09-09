@@ -812,7 +812,7 @@ const REPORT_CATEGORIES = [
           </div>
 
           {reportKey !== "intelligence" ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40 transition shadow-2xs flex items-center gap-1.5"
                 disabled={isLoading || isExportingExcel}
@@ -848,7 +848,7 @@ const REPORT_CATEGORIES = [
 
         {/* Primary Category Switcher (Clean Segmented Bar) */}
         <div className="mt-5 border-t border-slate-100 pt-4">
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/70 rounded-2xl w-fit">
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/70 rounded-2xl w-full sm:w-fit max-w-full">
             {REPORT_CATEGORIES.map((cat) => {
               const isCatActive = cat.id === activeCategory.id
               return (
@@ -911,7 +911,7 @@ const REPORT_CATEGORIES = [
       <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Quick Date Range Pills */}
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <span className="text-[11px] font-bold text-slate-400 mr-1 uppercase">Period:</span>
             {[
               { label: "Today", days: 0 },
@@ -959,7 +959,7 @@ const REPORT_CATEGORIES = [
           </div>
 
           {/* Controls: Branch, Status, Search */}
-          <div className="flex flex-wrap items-center gap-2 flex-1 justify-end">
+          <div className="flex flex-wrap items-center gap-2 flex-1 justify-start sm:justify-end">
             {isSuperOwner ? (
               <select
                 aria-label="Report branch"

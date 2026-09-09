@@ -23,8 +23,8 @@ function MainLayout({
     APP_MODULES.find((item) => item.key === activePage)?.label || "Arunafeltz"
 
   return (
-    <main className="h-svh overflow-hidden bg-[var(--color-page)] text-[var(--color-text)]">
-      <div className="flex h-svh w-full overflow-hidden">
+    <main className="h-svh w-full max-w-full overflow-hidden bg-[var(--color-page)] text-[var(--color-text)]">
+      <div className="flex h-svh w-full max-w-full overflow-hidden">
         <div className="hidden lg:block">
           <Sidebar
             activePage={activePage}
@@ -42,7 +42,7 @@ function MainLayout({
               onClick={() => setIsMobileSidebarOpen(false)}
               type="button"
             />
-            <div className="absolute inset-y-0 left-0">
+            <div className="absolute inset-y-0 left-0 max-w-[85vw]">
               <Sidebar
                 activePage={activePage}
                 modules={modules}
@@ -53,7 +53,7 @@ function MainLayout({
           </div>
         ) : null}
 
-        <section className="flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
+        <section className="flex h-svh min-w-0 flex-1 flex-col overflow-hidden max-w-full">
           <Topbar
             activeLabel={activeLabel}
             canSwitchBranch={canSwitchBranch}
@@ -70,8 +70,8 @@ function MainLayout({
             user={user}
           />
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 md:px-6 lg:py-7">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full">
+            <div className="mx-auto w-full max-w-screen-2xl min-w-0 px-3 py-4 sm:px-4 sm:py-5 md:px-6 lg:py-7">
               {children}
             </div>
           </div>

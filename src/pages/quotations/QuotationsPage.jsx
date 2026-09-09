@@ -1584,7 +1584,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
             {/* Filters Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] p-4">
               <div className="flex flex-1 flex-wrap items-center gap-3">
-                <label className="relative min-w-[240px] flex-1">
+                <label className="relative min-w-0 flex-1 sm:min-w-[240px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={16} />
                   <input
                     className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] py-3 pl-10 pr-4 text-sm text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
@@ -1626,105 +1626,174 @@ export default function QuotationsPage({ selectedBranch, user }) {
             ) : null}
 
             {!isLoading && filteredQuotations.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[850px] text-left text-sm">
-                  <thead className="bg-[var(--color-soft)] text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
-                    <tr>
-                      <th className="px-5 py-4">Quotation No.</th>
-                      <th className="px-5 py-4">Customer</th>
-                      <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4 text-center">Items</th>
-                      <th className="px-5 py-4">Prepared By</th>
-                      <th className="px-5 py-4 text-right">Grand Total</th>
-                      <th className="px-5 py-4">Date Quoted</th>
-                      <th className="px-5 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]">
-                    {filteredQuotations.map((quotation) => {
-                      const badge = formatStatusBadge(quotation.status)
-                      return (
-                        <tr
-                          className="transition hover:bg-[var(--color-soft)]/50"
-                          key={quotation.id}
-                        >
-                          <td className="px-5 py-4 font-mono font-bold text-sm text-[var(--color-text-strong)]">
-                            {quotation.quotationCode || "—"}
-                          </td>
-                          <td className="px-5 py-4">
-                            <p className="font-bold text-sm text-[var(--color-text-strong)]">
-                              {quotation.customer?.fullName || quotation.customerName || "Walk-in Customer"}
-                            </p>
-                            {quotation.customer?.mobileNo ? (
-                              <p className="text-xs text-[var(--color-muted)]">{quotation.customer.mobileNo}</p>
-                            ) : null}
-                          </td>
-                          <td className="px-5 py-4">
-                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${badge.className}`}>
-                              {badge.label}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4 text-center font-mono font-bold text-xs text-[var(--color-text-strong)]">
-                            {getItemCount(quotation)}
-                          </td>
-                          <td className="px-5 py-4 text-xs font-medium text-[var(--color-muted)]">
-                            <div className="flex items-center gap-1.5">
-                              <User size={13} />
-                              <span>{quotation.preparedBy?.fullName || quotation.preparedByName || "—"}</span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-right font-mono font-black text-sm text-[var(--color-text-strong)]">
-                            ₱{money(quotation.grandTotal || quotation.totalAmount)}
-                          </td>
-                          <td className="px-5 py-4 text-xs text-[var(--color-muted)]">
-                            <div className="flex items-center gap-1.5">
-                              <Calendar size={13} />
-                              <span>{formatDate(quotation.createdAt)}</span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-right">
-                            <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
-                              <button
-                                className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
-                                disabled={isLoadingDetails}
-                                onClick={() => handleOpenView(quotation)}
-                                title="View quotation details"
-                                type="button"
-                              >
-                                <Eye size={13} />
-                                <span>View</span>
-                              </button>
-
-                              <button
-                                className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
-                                disabled={isLoadingDetails}
-                                onClick={() => handleOpenView(quotation)}
-                                title="Print quotation copy"
-                                type="button"
-                              >
-                                <Printer size={13} />
-                                <span>Print</span>
-                              </button>
-
-                              {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
+              <>
+                <div className="hidden overflow-x-auto lg:block">
+                  <table className="w-full min-w-[850px] text-left text-sm">
+                    <thead className="bg-[var(--color-soft)] text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
+                      <tr>
+                        <th className="px-5 py-4">Quotation No.</th>
+                        <th className="px-5 py-4">Customer</th>
+                        <th className="px-5 py-4">Status</th>
+                        <th className="px-5 py-4 text-center">Items</th>
+                        <th className="px-5 py-4">Prepared By</th>
+                        <th className="px-5 py-4 text-right">Grand Total</th>
+                        <th className="px-5 py-4">Date Quoted</th>
+                        <th className="px-5 py-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--color-border)]">
+                      {filteredQuotations.map((quotation) => {
+                        const badge = formatStatusBadge(quotation.status)
+                        return (
+                          <tr
+                            className="transition hover:bg-[var(--color-soft)]/50"
+                            key={quotation.id}
+                          >
+                            <td className="px-5 py-4 font-mono font-bold text-sm text-[var(--color-text-strong)]">
+                              {quotation.quotationCode || "—"}
+                            </td>
+                            <td className="px-5 py-4">
+                              <p className="font-bold text-sm text-[var(--color-text-strong)]">
+                                {quotation.customer?.fullName || quotation.customerName || "Walk-in Customer"}
+                              </p>
+                              {quotation.customer?.mobileNo ? (
+                                <p className="text-xs text-[var(--color-muted)]">{quotation.customer.mobileNo}</p>
+                              ) : null}
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${badge.className}`}>
+                                {badge.label}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-center font-mono font-bold text-xs text-[var(--color-text-strong)]">
+                              {getItemCount(quotation)}
+                            </td>
+                            <td className="px-5 py-4 text-xs font-medium text-[var(--color-muted)]">
+                              <div className="flex items-center gap-1.5">
+                                <User size={13} />
+                                <span>{quotation.preparedBy?.fullName || quotation.preparedByName || "—"}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-right font-mono font-black text-sm text-[var(--color-text-strong)]">
+                              ₱{money(quotation.grandTotal || quotation.totalAmount)}
+                            </td>
+                            <td className="px-5 py-4 text-xs text-[var(--color-muted)]">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar size={13} />
+                                <span>{formatDate(quotation.createdAt)}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-right">
+                              <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
                                 <button
-                                  className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300"
-                                  onClick={() => handleDeleteQuotation(quotation)}
-                                  title="Delete / Cancel quotation"
+                                  className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
+                                  disabled={isLoadingDetails}
+                                  onClick={() => handleOpenView(quotation)}
+                                  title="View quotation details"
                                   type="button"
                                 >
-                                  <Trash2 size={13} />
-                                  <span>Delete</span>
+                                  <Eye size={13} />
+                                  <span>View</span>
                                 </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
+                                  disabled={isLoadingDetails}
+                                  onClick={() => handleOpenView(quotation)}
+                                  title="Print quotation copy"
+                                  type="button"
+                                >
+                                  <Printer size={13} />
+                                  <span>Print</span>
+                                </button>
+
+                                {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
+                                  <button
+                                    className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300"
+                                    onClick={() => handleDeleteQuotation(quotation)}
+                                    title="Delete / Cancel quotation"
+                                    type="button"
+                                  >
+                                    <Trash2 size={13} />
+                                    <span>Delete</span>
+                                  </button>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="grid gap-3 p-3 lg:hidden">
+                  {filteredQuotations.map((quotation) => {
+                    const badge = formatStatusBadge(quotation.status)
+                    return (
+                      <article
+                        key={quotation.id}
+                        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-3.5 shadow-2xs space-y-2.5 text-xs"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-mono font-bold text-sm text-[var(--color-maroon)]">
+                              {quotation.quotationCode || "—"}
+                            </p>
+                            <p className="text-[10px] text-[var(--color-muted)]">
+                              {formatDate(quotation.createdAt)}
+                            </p>
+                          </div>
+                          <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-black ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="font-bold text-xs text-[var(--color-text-strong)]">
+                            {quotation.customer?.fullName || quotation.customerName || "Walk-in Customer"}
+                          </p>
+                          {quotation.customer?.mobileNo && (
+                            <p className="text-[11px] text-[var(--color-muted)]">{quotation.customer.mobileNo}</p>
+                          )}
+                          <p className="text-[11px] text-[var(--color-muted)]">
+                            Encoder: <span className="font-semibold text-[var(--color-text-strong)]">{quotation.preparedBy?.fullName || quotation.preparedByName || "—"}</span>
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-2 text-xs">
+                          <div>
+                            <p className="text-[10px] uppercase text-[var(--color-muted)]">Total Amount</p>
+                            <p className="font-mono font-black text-sm text-[var(--color-maroon)]">
+                              ₱{money(quotation.grandTotal || quotation.totalAmount)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-2xs hover:bg-[var(--color-soft)]"
+                              disabled={isLoadingDetails}
+                              onClick={() => handleOpenView(quotation)}
+                              type="button"
+                            >
+                              View / Print
+                            </button>
+                            {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
+                              <button
+                                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 shadow-2xs hover:bg-rose-100"
+                                onClick={() => handleDeleteQuotation(quotation)}
+                                type="button"
+                              >
+                                Delete
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              </>
             ) : null}
 
             {!isLoading && quotations.length > 0 && filteredQuotations.length === 0 ? (

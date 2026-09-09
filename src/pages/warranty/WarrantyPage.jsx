@@ -984,25 +984,125 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
               No warranty claims found matching your search.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[950px] text-left text-sm">
-                <thead className="bg-[var(--color-soft)] text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
-                  <tr>
-                    <th className="px-5 py-4">Claim No.</th>
-                    <th className="px-5 py-4">Customer</th>
-                    <th className="px-5 py-4">Product & Serial</th>
-                    <th className="px-5 py-4">Reported Issue</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4">Received Date</th>
-                    <th className="px-5 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
-                  {claims.map((claim) => {
-                    const isOutright = calculateAgingDays(claim.sale?.saleDate) <= 7 && claim.sale?.saleDate
-                    return (
-                      <tr className="transition hover:bg-[var(--color-soft)]/50" key={claim.id}>
-                        <td className="px-5 py-4">
+            <>
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full min-w-[950px] text-left text-sm">
+                  <thead className="bg-[var(--color-soft)] text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
+                    <tr>
+                      <th className="px-5 py-4">Claim No.</th>
+                      <th className="px-5 py-4">Customer</th>
+                      <th className="px-5 py-4">Product & Serial</th>
+                      <th className="px-5 py-4">Reported Issue</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4">Received Date</th>
+                      <th className="px-5 py-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {claims.map((claim) => {
+                      const isOutright = calculateAgingDays(claim.sale?.saleDate) <= 7 && claim.sale?.saleDate
+                      return (
+                        <tr className="transition hover:bg-[var(--color-soft)]/50" key={claim.id}>
+                          <td className="px-5 py-4">
+                            <button
+                              type="button"
+                              onClick={() => openDetail(claim)}
+                              className="font-mono font-bold text-sm text-[var(--color-maroon)] hover:underline text-left block"
+                            >
+                              {claim.claimCode}
+                            </button>
+                            {isOutright ? (
+                              <span className="inline-block mt-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.2 text-[9px] font-black">
+                                ⚡ 7D Outright
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-bold text-sm text-[var(--color-text-strong)]">
+                              {claim.customer?.fullName || "Walk-in Customer"}
+                            </p>
+                            {claim.customer?.mobileNumber ? (
+                              <p className="text-xs text-[var(--color-muted)]">{claim.customer.mobileNumber}</p>
+                            ) : null}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-bold text-xs text-[var(--color-text-strong)] max-w-xs truncate">
+                              {claim.item?.itemName || claim.saleItem?.itemNameSnapshot || "Unlinked Product"}
+                            </p>
+                            <p className="mt-0.5 text-xs font-mono text-[var(--color-muted)]">
+                              S/N: <strong>{claim.serial?.serialNumber || "No serial"}</strong>
+                            </p>
+                          </td>
+                          <td className="px-5 py-4 text-xs text-[var(--color-muted)] max-w-xs">
+                            <p className="line-clamp-2">{claim.issueDescription || "—"}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <StatusBadge status={claim.status} />
+                          </td>
+                          <td className="px-5 py-4 text-xs text-[var(--color-muted)]">
+                            {dateOnly(claim.receivedAt)}
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => openDetail(claim)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
+                              >
+                                <Eye size={13} />
+                                <span>Details</span>
+                              </button>
+
+                              {canAct && !["REPLACED", "REJECTED", "OUT"].includes(claim.status) ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => openImmediateReplacementModal(claim)}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition"
+                                    title="Issue immediate replacement unit"
+                                  >
+                                    <span>Swap</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => openDispatchSupplierModal(claim)}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-violet-700 hover:bg-violet-800 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition"
+                                    title="Dispatch to supplier for RMA"
+                                  >
+                                    <span>Supplier</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => openCustomerRejectModal(claim)}
+                                    className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-xs font-bold text-rose-700 transition"
+                                    title="Reject claim with remarks"
+                                  >
+                                    <span>Reject</span>
+                                  </button>
+                                </>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="grid gap-3 p-3 lg:hidden">
+                {claims.map((claim) => {
+                  const isOutright = calculateAgingDays(claim.sale?.saleDate) <= 7 && claim.sale?.saleDate
+                  return (
+                    <article
+                      key={claim.id}
+                      className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-3.5 shadow-2xs space-y-2.5 text-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
                           <button
                             type="button"
                             onClick={() => openDetail(claim)}
@@ -1015,81 +1115,69 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                               ⚡ 7D Outright
                             </span>
                           ) : null}
-                        </td>
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-sm text-[var(--color-text-strong)]">
-                            {claim.customer?.fullName || "Walk-in Customer"}
+                        </div>
+                        <StatusBadge status={claim.status} />
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="font-bold text-xs text-[var(--color-text-strong)]">
+                          {claim.item?.itemName || claim.saleItem?.itemNameSnapshot || "Unlinked Product"}
+                        </p>
+                        <p className="text-[11px] font-mono text-[var(--color-muted)]">
+                          S/N: <strong>{claim.serial?.serialNumber || "No serial"}</strong>
+                        </p>
+                        <p className="text-[11px] text-[var(--color-text-strong)]">
+                          Customer: <span className="font-semibold">{claim.customer?.fullName || "Walk-in Customer"}</span>
+                        </p>
+                        {claim.issueDescription && (
+                          <p className="text-[11px] text-[var(--color-muted)] line-clamp-2 bg-[var(--color-soft)]/60 rounded-lg p-2">
+                            Issue: {claim.issueDescription}
                           </p>
-                          {claim.customer?.mobileNumber ? (
-                            <p className="text-xs text-[var(--color-muted)]">{claim.customer.mobileNumber}</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-2 text-[10px] text-[var(--color-muted)]">
+                        <span>Received: {dateOnly(claim.receivedAt)}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => openDetail(claim)}
+                            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-strong)] shadow-2xs hover:bg-[var(--color-soft)]"
+                          >
+                            Details
+                          </button>
+                          {canAct && !["REPLACED", "REJECTED", "OUT"].includes(claim.status) ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openImmediateReplacementModal(claim)}
+                                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
+                              >
+                                Swap
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openDispatchSupplierModal(claim)}
+                                className="rounded-lg bg-violet-700 hover:bg-violet-800 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
+                              >
+                                Supplier
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openCustomerRejectModal(claim)}
+                                className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700"
+                              >
+                                Reject
+                              </button>
+                            </>
                           ) : null}
-                        </td>
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-xs text-[var(--color-text-strong)] max-w-xs truncate">
-                            {claim.item?.itemName || claim.saleItem?.itemNameSnapshot || "Unlinked Product"}
-                          </p>
-                          <p className="mt-0.5 text-xs font-mono text-[var(--color-muted)]">
-                            S/N: <strong>{claim.serial?.serialNumber || "No serial"}</strong>
-                          </p>
-                        </td>
-                        <td className="px-5 py-4 text-xs text-[var(--color-muted)] max-w-xs">
-                          <p className="line-clamp-2">{claim.issueDescription || "—"}</p>
-                        </td>
-                        <td className="px-5 py-4">
-                          <StatusBadge status={claim.status} />
-                        </td>
-                        <td className="px-5 py-4 text-xs text-[var(--color-muted)]">
-                          {dateOnly(claim.receivedAt)}
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => openDetail(claim)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
-                            >
-                              <Eye size={13} />
-                              <span>Details</span>
-                            </button>
-
-                            {canAct && !["REPLACED", "REJECTED", "OUT"].includes(claim.status) ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => openImmediateReplacementModal(claim)}
-                                  className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition"
-                                  title="Issue immediate replacement unit"
-                                >
-                                  <span>Swap</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => openDispatchSupplierModal(claim)}
-                                  className="inline-flex items-center gap-1 rounded-xl bg-violet-700 hover:bg-violet-800 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition"
-                                  title="Dispatch to supplier for RMA"
-                                >
-                                  <span>Supplier</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => openCustomerRejectModal(claim)}
-                                  className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-xs font-bold text-rose-700 transition"
-                                  title="Reject claim with remarks"
-                                >
-                                  <span>Reject</span>
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            </>
           )}
 
           {/* Minimalist Pagination */}
@@ -1216,58 +1304,88 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
               No replacements or shrinkage losses recorded yet.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] text-left text-sm">
-                <thead className="bg-[var(--color-soft)] text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
-                  <tr>
-                    <th className="px-5 py-4">Claim / Date</th>
-                    <th className="px-5 py-4">Classification</th>
-                    <th className="px-5 py-4">Customer & Product</th>
-                    <th className="px-5 py-4">Original Serial</th>
-                    <th className="px-5 py-4">Resolution Notes</th>
-                    <th className="px-5 py-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
-                  {replacedAndShrinkageClaims.map((claim) => (
-                    <tr className="hover:bg-[var(--color-soft)]/50 transition" key={claim.id}>
-                      <td className="px-5 py-4 font-mono font-bold text-xs text-[var(--color-maroon)]">
-                        <div>{claim.claimCode}</div>
-                        <div className="text-[10px] font-normal text-[var(--color-muted)]">{dateOnly(claim.replacedAt || claim.rejectedAt || claim.createdAt)}</div>
-                      </td>
-                      <td className="px-5 py-4">
-                        {claim.status === "REPLACED" ? (
-                          <span className="rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 text-xs font-black">
-                            🔄 Replacement Unit Out
-                          </span>
-                        ) : claim.status === "REJECTED" ? (
-                          <span className="rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 px-2 py-0.5 text-xs font-black">
-                            ❌ Shrinkage Loss Write-Off
-                          </span>
-                        ) : (
-                          <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-bold">
-                            {claim.status}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 text-xs">
-                        <p className="font-bold text-[var(--color-text-strong)]">{claim.item?.itemName || claim.saleItem?.itemNameSnapshot}</p>
-                        <p className="text-[11px] text-[var(--color-muted)]">{claim.customer?.fullName || "Walk-in"}</p>
-                      </td>
-                      <td className="px-5 py-4 font-mono text-xs font-bold text-[var(--color-text-strong)]">
-                        {claim.serial?.serialNumber || "—"}
-                      </td>
-                      <td className="px-5 py-4 text-xs text-[var(--color-muted)] max-w-xs truncate">
-                        {claim.actionTaken || claim.diagnosis || claim.remarks || "—"}
-                      </td>
-                      <td className="px-5 py-4">
-                        <StatusBadge status={claim.status} />
-                      </td>
+            <>
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full min-w-[850px] text-left text-sm">
+                  <thead className="bg-[var(--color-soft)] text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
+                    <tr>
+                      <th className="px-5 py-4">Claim / Date</th>
+                      <th className="px-5 py-4">Classification</th>
+                      <th className="px-5 py-4">Customer & Product</th>
+                      <th className="px-5 py-4">Original Serial</th>
+                      <th className="px-5 py-4">Resolution Notes</th>
+                      <th className="px-5 py-4">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {replacedAndShrinkageClaims.map((claim) => (
+                      <tr className="hover:bg-[var(--color-soft)]/50 transition" key={claim.id}>
+                        <td className="px-5 py-4 font-mono font-bold text-xs text-[var(--color-maroon)]">
+                          <div>{claim.claimCode}</div>
+                          <div className="text-[10px] font-normal text-[var(--color-muted)]">{dateOnly(claim.replacedAt || claim.rejectedAt || claim.createdAt)}</div>
+                        </td>
+                        <td className="px-5 py-4">
+                          {claim.status === "REPLACED" ? (
+                            <span className="rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 text-xs font-black">
+                              🔄 Replacement Unit Out
+                            </span>
+                          ) : claim.status === "REJECTED" ? (
+                            <span className="rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 px-2 py-0.5 text-xs font-black">
+                              ❌ Shrinkage Loss Write-Off
+                            </span>
+                          ) : (
+                            <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-bold">
+                              {claim.status}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-xs">
+                          <p className="font-bold text-[var(--color-text-strong)]">{claim.item?.itemName || claim.saleItem?.itemNameSnapshot}</p>
+                          <p className="text-[11px] text-[var(--color-muted)]">{claim.customer?.fullName || "Walk-in"}</p>
+                        </td>
+                        <td className="px-5 py-4 font-mono text-xs font-bold text-[var(--color-text-strong)]">
+                          {claim.serial?.serialNumber || "—"}
+                        </td>
+                        <td className="px-5 py-4 text-xs text-[var(--color-muted)] max-w-xs truncate">
+                          {claim.actionTaken || claim.diagnosis || claim.remarks || "—"}
+                        </td>
+                        <td className="px-5 py-4">
+                          <StatusBadge status={claim.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards for Replaced / Shrinkage */}
+              <div className="grid gap-3 p-3 lg:hidden">
+                {replacedAndShrinkageClaims.map((claim) => (
+                  <article
+                    key={claim.id}
+                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-3.5 shadow-2xs space-y-2 text-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-mono font-bold text-xs text-[var(--color-maroon)]">{claim.claimCode}</p>
+                        <p className="text-[10px] text-[var(--color-muted)]">{dateOnly(claim.replacedAt || claim.rejectedAt || claim.createdAt)}</p>
+                      </div>
+                      <StatusBadge status={claim.status} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-xs text-[var(--color-text-strong)]">{claim.item?.itemName || claim.saleItem?.itemNameSnapshot}</p>
+                      <p className="text-[11px] text-[var(--color-muted)]">Customer: {claim.customer?.fullName || "Walk-in"}</p>
+                      <p className="text-[11px] font-mono text-[var(--color-muted)]">S/N: {claim.serial?.serialNumber || "—"}</p>
+                      {claim.actionTaken || claim.diagnosis || claim.remarks ? (
+                        <p className="mt-1 text-[11px] text-[var(--color-muted)] bg-[var(--color-soft)]/60 rounded-lg p-2">
+                          Notes: {claim.actionTaken || claim.diagnosis || claim.remarks}
+                        </p>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
           )}
         </section>
       )}

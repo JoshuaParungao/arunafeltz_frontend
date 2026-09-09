@@ -181,7 +181,7 @@ export default function SettlementCashflowView({ selectedBranch, user, dateRange
 
       {/* Filter and Export Bar for Settlements */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold text-slate-500">Filter Settlement:</span>
           {[
             ["ALL", "All Settlements"],

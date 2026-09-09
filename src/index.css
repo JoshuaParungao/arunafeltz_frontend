@@ -52,17 +52,20 @@ html.dark,
 
 html {
   width: 100%;
+  max-width: 100%;
   min-width: 320px;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
   background: var(--color-page);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   width: 100%;
+  max-width: 100%;
   min-width: 320px;
   min-height: 100svh;
   margin: 0;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
   background:
     radial-gradient(circle at top left, rgba(122, 31, 43, 0.08), transparent 30rem),
     var(--color-page);
@@ -94,6 +97,57 @@ a {
 #root {
   min-height: 100svh;
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Responsive container constraints to eliminate mobile overflow */
+.overflow-x-auto,
+.table-responsive,
+.table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.overflow-x-auto::-webkit-scrollbar,
+.table-responsive::-webkit-scrollbar,
+.table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+.overflow-x-auto::-webkit-scrollbar-track,
+.table-responsive::-webkit-scrollbar-track,
+.table-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 9999px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb,
+.table-responsive::-webkit-scrollbar-thumb,
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(122, 31, 43, 0.28);
+  border-radius: 9999px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.table-responsive::-webkit-scrollbar-thumb:hover,
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(122, 31, 43, 0.55);
+}
+
+/* Ensure modal card wrappers never exceed viewport width */
+.modal-responsive,
+[role="dialog"] > div {
+  max-width: calc(100vw - 1.5rem);
+}
+
+/* Break long unbroken words/codes inside table cells */
+td, th {
+  overflow-wrap: break-word;
 }
 
 .brand-text,

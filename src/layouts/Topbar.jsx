@@ -367,7 +367,7 @@ function Topbar({
 
             {/* Notification Dropdown Flyout */}
             {isAlertsDropdownOpen && (
-              <div className="absolute right-0 top-12 z-50 w-80 sm:w-96 rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+              <div className="fixed sm:absolute right-3 left-3 sm:left-auto sm:right-0 top-16 sm:top-12 z-50 max-w-[calc(100vw-1.5rem)] sm:w-96 rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
                   <div className="flex items-center gap-2">
                     <span className="grid size-7 place-items-center rounded-xl bg-rose-50 text-[var(--color-maroon)] dark:bg-rose-950/60 dark:text-rose-400">
@@ -557,8 +557,8 @@ function Topbar({
 
       {/* Profile Edit Modal */}
       {isProfileModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Account Settings</span>

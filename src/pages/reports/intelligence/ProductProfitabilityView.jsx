@@ -186,7 +186,7 @@ export default function ProductProfitabilityView({ selectedBranch, user, dateRan
       {/* Filter and Search Bar */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs md:flex-row md:items-center md:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-3">
-          <div className="relative min-w-[240px] flex-1">
+          <div className="relative min-w-0 flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
             <input
               className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs font-semibold outline-none focus:border-[var(--color-maroon)] focus:bg-white"
@@ -201,7 +201,7 @@ export default function ProductProfitabilityView({ selectedBranch, user, dateRan
           </div>
 
           <input
-            className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)] focus:bg-white"
+            className="w-full sm:w-auto rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-semibold outline-none focus:border-[var(--color-maroon)] focus:bg-white"
             onChange={(e) => {
               setCategory(e.target.value)
               setPage(1)

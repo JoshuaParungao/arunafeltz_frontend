@@ -1236,9 +1236,9 @@ export default function CashBoxesPage({
               </div>
             </div>
 
-            {/* Expenses List Table */}
-            <div className="overflow-x-auto rounded-2xl border border-[var(--color-border)]">
-              <table className="w-full text-left text-sm">
+            {/* Expenses List Table - Desktop */}
+            <div className="hidden lg:block overflow-x-auto rounded-2xl border border-[var(--color-border)]">
+              <table className="w-full min-w-[650px] text-left text-sm">
                 <thead className="bg-[var(--color-soft)] text-xs font-black uppercase text-[var(--color-muted)]">
                   <tr>
                     <th className="p-3.5">Code / Voucher</th>
@@ -1290,6 +1290,50 @@ export default function CashBoxesPage({
                 </tbody>
               </table>
             </div>
+
+            {/* Expenses List Cards - Mobile */}
+            <div className="grid gap-3 lg:hidden">
+              {expenseTransactions.map((tx) => (
+                <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm space-y-2.5" key={tx.id}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-mono font-black text-xs text-[var(--color-text-strong)]">{tx.transactionCode}</p>
+                      {tx.referenceNo ? <p className="text-[11px] text-[var(--color-muted)] font-mono">Ref: {tx.referenceNo}</p> : null}
+                    </div>
+                    <p className="font-mono font-black text-base text-rose-600 dark:text-rose-400">
+                      -{money(tx.amount)}
+                    </p>
+                  </div>
+                  <p className="font-bold text-sm text-[var(--color-text-strong)] leading-snug">{tx.description}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--color-border)] text-xs text-[var(--color-muted)]">
+                    <div>
+                      <span>{dateOnly(tx.transactionDate)}</span>
+                      <span className="mx-1.5">·</span>
+                      <span>{tx.createdBy?.fullName || "—"}</span>
+                    </div>
+                    <div>
+                      {canManage && tx.status === "POSTED" && tx.source === "MANUAL" ? (
+                        <button
+                          className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-50"
+                          disabled={isSaving}
+                          onClick={() => reverseTransaction(tx)}
+                          type="button"
+                        >
+                          Void
+                        </button>
+                      ) : (
+                        <Status value={tx.status} />
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ))}
+              {expenseTransactions.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-muted)]">
+                  No store expenses recorded yet. Click <strong>"Record Expense"</strong> above to add one.
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1312,8 +1356,9 @@ export default function CashBoxesPage({
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-[var(--color-border)]">
-              <table className="w-full text-left text-sm">
+            {/* Cashless Table - Desktop */}
+            <div className="hidden lg:block overflow-x-auto rounded-2xl border border-[var(--color-border)]">
+              <table className="w-full min-w-[650px] text-left text-sm">
                 <thead className="bg-[var(--color-soft)] text-xs font-black uppercase text-[var(--color-muted)]">
                   <tr>
                     <th className="p-3.5">Receipt / Job Code</th>
@@ -1357,6 +1402,36 @@ export default function CashBoxesPage({
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Cashless Cards - Mobile */}
+            <div className="grid gap-3 lg:hidden">
+              {cashlessPillar.digitalTransactions.map((item) => (
+                <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm space-y-2" key={item.id}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-mono font-black text-xs text-[var(--color-text-strong)]">{item.sourceCode}</p>
+                      <p className="text-[11px] text-[var(--color-muted)]">{item.sourceType}</p>
+                    </div>
+                    <p className="font-mono font-black text-base text-emerald-600 dark:text-emerald-400">
+                      +{money(item.amount)}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-bold text-sky-700 dark:text-sky-400">{item.channel}</span>
+                    <span className="font-medium text-[var(--color-text-strong)]">{item.customerName}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--color-border)] text-xs text-[var(--color-muted)]">
+                    <span className="font-mono">{item.refNo || "No ref"}</span>
+                    <span>{dateTime(item.date)}</span>
+                  </div>
+                </article>
+              ))}
+              {cashlessPillar.digitalTransactions.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-muted)]">
+                  No cashless digital transactions recorded for this period.
+                </div>
+              )}
             </div>
           </div>
         )}

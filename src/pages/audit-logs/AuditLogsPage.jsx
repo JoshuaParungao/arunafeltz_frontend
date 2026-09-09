@@ -285,7 +285,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-card md:grid-cols-2 xl:grid-cols-6">
+      <section className="grid gap-2.5 sm:gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-3.5 sm:p-5 shadow-card md:grid-cols-2 xl:grid-cols-6">
         <input
           aria-label="Search audit logs"
           className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)] xl:col-span-2"
@@ -345,7 +345,8 @@ export default function AuditLogsPage({ selectedBranch, user }) {
       ) : null}
 
       <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[1000px] text-left text-sm">
             <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-[0.12em] text-[var(--color-muted)]">
               <tr>
@@ -355,7 +356,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
                 <th className="px-4 py-3">Module / Record</th>
                 <th className="px-4 py-3">Branch</th>
                 <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3">Details</th>
+                <th className="px-4 py-3 text-right">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
@@ -401,7 +402,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
                       <td className="px-4 py-4 max-w-sm text-xs leading-relaxed text-[var(--color-text)]">
                         {formatDescription(log.description)}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 text-right">
                         <button
                           className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
                           onClick={() => openLog(log)}
@@ -416,20 +417,77 @@ export default function AuditLogsPage({ selectedBranch, user }) {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between border-t border-[var(--color-border)] p-4">
+
+        {/* Mobile Cards View */}
+        <div className="grid gap-3 p-3 lg:hidden">
+          {isLoading ? (
+            <div className="p-6 text-center text-xs font-bold text-[var(--color-muted)]">
+              Loading audit logs...
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="p-6 text-center text-xs font-bold text-[var(--color-muted)]">
+              No activity records match the filters.
+            </div>
+          ) : (
+            logs.map((log) => (
+              <article
+                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-3.5 shadow-2xs space-y-2 text-xs"
+                key={log.id}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="inline-block rounded-md bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)] dark:text-rose-300">
+                      {formatAction(log.action)}
+                    </span>
+                    <span className="ml-1.5 text-[10px] font-bold text-[var(--color-muted)]">
+                      {formatEntityType(log.entityType)}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-[var(--color-muted)] whitespace-nowrap">
+                    {dateTime(log.createdAt)}
+                  </span>
+                </div>
+
+                <p className="text-xs text-[var(--color-text)] leading-relaxed">
+                  {formatDescription(log.description)}
+                </p>
+
+                <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-2 text-[11px]">
+                  <div className="min-w-0 pr-2">
+                    <p className="font-bold text-[var(--color-text-strong)] truncate">
+                      {log.actor?.fullName || log.actor?.username || "System"}
+                    </p>
+                    <p className="text-[10px] text-[var(--color-muted)]">
+                      {log.branch?.code || "Global"} · {formatRole(log.actor?.role)}
+                    </p>
+                  </div>
+                  <button
+                    className="shrink-0 rounded-xl border border-[var(--color-border)] bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-2xs hover:bg-[var(--color-soft)] transition"
+                    onClick={() => openLog(log)}
+                    type="button"
+                  >
+                    Details
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-[var(--color-border)] p-3 sm:p-4 text-xs sm:text-sm">
           <button
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:opacity-40 disabled:cursor-not-allowed"
             disabled={page <= 1}
             onClick={() => setPage((value) => Math.max(1, value - 1))}
             type="button"
           >
             Previous
           </button>
-          <span className="text-sm font-medium text-[var(--color-muted)]">
+          <span className="text-xs sm:text-sm font-medium text-[var(--color-muted)] text-center px-2">
             Page {meta.page || page} of {meta.totalPages || 1} • {meta.total || 0} records
           </span>
           <button
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:opacity-40 disabled:cursor-not-allowed"
             disabled={page >= Number(meta.totalPages || 1)}
             onClick={() => setPage((value) => value + 1)}
             type="button"
@@ -440,7 +498,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
       </section>
 
       {selectedLog ? (
-        <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-card">
+        <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 sm:p-5 shadow-card">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase text-[var(--color-maroon)]">Audit Detail</p>
@@ -456,7 +514,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
               Close
             </button>
           </div>
-          <dl className="mt-4 grid gap-3 md:grid-cols-3">
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-3.5">
               <dt className="text-xs font-bold text-[var(--color-muted)]">Performer</dt>
               <dd className="mt-1 font-bold text-[var(--color-text-strong)]">
@@ -469,14 +527,14 @@ export default function AuditLogsPage({ selectedBranch, user }) {
                 {selectedLog.branch?.name || selectedLog.branch?.code || "Global / System"}
               </dd>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-3.5">
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-3.5 sm:col-span-2 md:col-span-1">
               <dt className="text-xs font-bold text-[var(--color-muted)]">Date & Time</dt>
               <dd className="mt-1 font-bold text-[var(--color-text-strong)]">
                 {dateTime(selectedLog.createdAt)}
               </dd>
             </div>
           </dl>
-          <pre className="mt-4 max-h-96 overflow-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4 text-xs font-mono text-[var(--color-text-strong)]">
+          <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-3 sm:p-4 text-xs font-mono text-[var(--color-text-strong)]">
             {JSON.stringify(selectedLog.metadata || {}, null, 2)}
           </pre>
         </section>

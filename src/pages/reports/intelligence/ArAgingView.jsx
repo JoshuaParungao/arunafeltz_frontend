@@ -169,7 +169,7 @@ export default function ArAgingView({ selectedBranch, user, dateRange }) {
       {selectedSubTab === "AGING" && (
         <div className="space-y-5">
           {/* Interactive Aging Bucket Cards */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
             {[
               { key: "ALL", label: "All Active AR", count: summary.totalAccounts, amount: summary.totalOutstanding, border: "border-slate-300", bg: "bg-white", text: "text-slate-900" },
               { key: "CURRENT", label: "Current (Healthy)", count: buckets.current?.count, amount: buckets.current?.amount, border: "border-emerald-300", bg: "bg-emerald-50/40", text: "text-emerald-800" },
@@ -181,7 +181,7 @@ export default function ArAgingView({ selectedBranch, user, dateRange }) {
               const isSelected = selectedBucket === b.key
               return (
                 <button
-                  className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition shadow-2xs ${b.border} ${b.bg} ${
+                  className={`flex flex-col justify-between rounded-2xl border p-3 sm:p-4 text-left transition shadow-2xs ${b.border} ${b.bg} ${
                     isSelected ? "ring-2 ring-[var(--color-maroon)] shadow-sm" : "hover:shadow-xs"
                   }`}
                   key={b.key}
