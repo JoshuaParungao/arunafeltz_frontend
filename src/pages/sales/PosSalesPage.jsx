@@ -112,6 +112,33 @@ const RECEIVABLE_PROVIDER_VALUES = new Set(
   RECEIVABLE_PROVIDERS.map(([value]) => value),
 )
 
+const PRICING_TERMS = {
+  CASH: {
+    id: "CASH",
+    label: "Cash Discounted Price",
+    shortLabel: "Cash Discount",
+    divisor: 1.0,
+    markupPercent: 0,
+    note: "Cash, GCash, Bank Transfer",
+  },
+  SRP: {
+    id: "SRP",
+    label: "Suggested Retail Price",
+    shortLabel: "SRP (Cash / 0.96)",
+    divisor: 0.96,
+    markupPercent: 4,
+    note: "Straight Finance / Card (Cash / 0.96)",
+  },
+  REGULAR: {
+    id: "REGULAR",
+    label: "Regular Price",
+    shortLabel: "Regular (Cash / 0.875)",
+    divisor: 0.875,
+    markupPercent: 12.5,
+    note: "Installment Basis (Cash / 0.875)",
+  },
+}
+
 const INSTALLMENT_TERMS = [
   ["CASH_PROMO", "Cash Promo (0% Interest) (Tier Price)"],
   ["STRAIGHT", "Straight (Rate: 0.96)"],
@@ -325,26 +352,33 @@ function getLineBaseUnitPrice(line) {
   return Number(line.item?.[`price${line.priceTier}`] || 0)
 }
 
-function getLineUnitPrice(line) {
+function getLineUnitPrice(line, term = "CASH") {
+  let base = 0
   if (line.type === "SERVICE") {
-    return getServiceMarkupAdjustedPrice(
+    base = getServiceMarkupAdjustedPrice(
+      getLineBaseUnitPrice(line),
+      line.markupPercent,
+    )
+  } else {
+    base = getMarkupAdjustedPrice(
       getLineBaseUnitPrice(line),
       line.markupPercent,
     )
   }
 
-  return getMarkupAdjustedPrice(
-    getLineBaseUnitPrice(line),
-    line.markupPercent,
-  )
+  const divisor = PRICING_TERMS[term]?.divisor || 1.0
+  if (divisor !== 1.0) {
+    return Math.round((base / divisor) * 100) / 100
+  }
+  return base
 }
 
-function getLineGross(line) {
-  return Number(line.quantity || 0) * getLineUnitPrice(line)
+function getLineGross(line, term = "CASH") {
+  return Number(line.quantity || 0) * getLineUnitPrice(line, term)
 }
 
-function getLineTotal(line) {
-  return Math.max(getLineGross(line) - Number(line.discountAmount || 0), 0)
+function getLineTotal(line, term = "CASH") {
+  return Math.max(getLineGross(line, term) - Number(line.discountAmount || 0), 0)
 }
 
 function roundMoney(value) {
@@ -2207,6 +2241,10 @@ function PosSalesPage({ selectedBranch, user }) {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.selectedPriceTier || 1
   })
+  const [pricingTerm, setPricingTerm] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.pricingTerm || "CASH"
+  })
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
   const [customerMessage, setCustomerMessage] = useState("")
   const customerRequestIdRef = useRef(0)
@@ -2333,6 +2371,7 @@ function PosSalesPage({ selectedBranch, user }) {
         customerEmail,
         customerCompany,
         selectedPriceTier,
+        pricingTerm,
         remarks,
         isPcBuild,
         selectedBuilderId,
@@ -2359,6 +2398,7 @@ function PosSalesPage({ selectedBranch, user }) {
     customerEmail,
     customerCompany,
     selectedPriceTier,
+    pricingTerm,
     remarks,
     isPcBuild,
     selectedBuilderId,
@@ -2410,13 +2450,36 @@ function PosSalesPage({ selectedBranch, user }) {
   const [saleCheckoutPreview, setSaleCheckoutPreview] = useState(null)
   const saleRequestRef = useRef({ signature: "", key: "" })
 
+  const termTotals = useMemo(() => {
+    let cashGross = 0
+    let totalDiscount = 0
+
+    for (const line of cart) {
+      cashGross += getLineGross(line, "CASH")
+      totalDiscount += Number(line.discountAmount || 0)
+    }
+
+    const additionalCharge = Number(serviceCharge || 0)
+    const cashGrand = Math.max(cashGross - totalDiscount + additionalCharge, 0)
+    const srpGrand = Math.round((cashGrand / 0.96) * 100) / 100
+    const regularGrand = Math.round((cashGrand / 0.875) * 100) / 100
+
+    return {
+      cashGross,
+      totalDiscount,
+      cashGrand,
+      srpGrand,
+      regularGrand,
+    }
+  }, [cart, serviceCharge])
+
   const totals = useMemo(() => {
     let productGross = 0
     let serviceGross = 0
     let totalDiscount = 0
 
     for (const line of cart) {
-      const gross = getLineGross(line)
+      const gross = getLineGross(line, pricingTerm)
       if (line.type === "SERVICE") serviceGross += gross
       else productGross += gross
       totalDiscount += Number(line.discountAmount || 0)
@@ -2427,7 +2490,7 @@ function PosSalesPage({ selectedBranch, user }) {
     const grandTotal = Math.max(subtotal - totalDiscount + additionalCharge, 0)
 
     return { productGross, serviceGross, subtotal, totalDiscount, additionalCharge, grandTotal }
-  }, [cart, serviceCharge])
+  }, [cart, serviceCharge, pricingTerm])
 
   const isReceivableCheckout = RECEIVABLE_PROVIDER_VALUES.has(paymentMethod)
   const isInHouseCheckout = paymentMethod === "IN_HOUSE_INSTALLMENT"
@@ -3395,8 +3458,8 @@ function PosSalesPage({ selectedBranch, user }) {
               : line.description.trim()
             : line.item?.itemName || "Item"
 
-        const baseUnit = getLineUnitPrice(line)
-        const baseTotal = getLineTotal(line)
+        const baseUnit = getLineUnitPrice(line, pricingTerm)
+        const baseTotal = getLineTotal(line, pricingTerm)
 
         // When AR Installment is selected, show the financed unit price with interest rate
         const unitPrice = isCredit && termBasis < 1
@@ -3542,20 +3605,31 @@ function PosSalesPage({ selectedBranch, user }) {
       setRemarks(effectiveRemarks)
 
       const settlementAmount = Number(effectivePaymentAmount || 0)
-      const builderStaff = serviceStaffList.find((s) => s.id === selectedBuilderId)
-      const formattedRemarks = isPcBuild
+      const termTag = pricingTerm !== "CASH" ? `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]` : ""
+      const rawBuildRemarks = isPcBuild
         ? builderStaff?.fullName
           ? `[PC BUILD] Assembled by: ${builderStaff.fullName}${effectiveRemarks ? ` | ${effectiveRemarks}` : ""}`
           : effectiveRemarks
             ? `[PC BUILD] ${effectiveRemarks}`
             : "[PC BUILD]"
-        : effectiveRemarks || undefined
+        : effectiveRemarks || ""
+      const formattedRemarks = [rawBuildRemarks, termTag].filter(Boolean).join(" ") || undefined
+
       const salePayload = {
         branchId,
         customerId: effectiveCustomerId,
         serviceCharge: Number(serviceCharge || 0),
         remarks: formattedRemarks,
         items: cart.map((line) => {
+          const explicitMarkup =
+            line.markupPercent === "" ||
+            line.markupPercent === undefined ||
+            line.markupPercent === null
+              ? 0
+              : Number(line.markupPercent)
+          const termMarkup = PRICING_TERMS[pricingTerm]?.markupPercent || 0
+          const effectiveMarkup = explicitMarkup || termMarkup
+
           if (line.type === "SERVICE") {
             const rawDescription = line.description.trim()
             const finalDescription = line.serviceStaffName
@@ -3565,13 +3639,8 @@ function PosSalesPage({ selectedBranch, user }) {
             return {
               description: finalDescription,
               quantity: Number(line.quantity),
-              unitPrice: Number(line.baseUnitPrice ?? line.unitPrice),
-              markupPercent:
-                line.markupPercent === "" ||
-                line.markupPercent === undefined ||
-                line.markupPercent === null
-                  ? 0
-                  : Number(line.markupPercent),
+              unitPrice: getLineUnitPrice(line, pricingTerm),
+              markupPercent: effectiveMarkup,
               discountAmount: Number(line.discountAmount || 0),
             }
           }
@@ -3579,12 +3648,7 @@ function PosSalesPage({ selectedBranch, user }) {
           return {
             itemId: line.itemId,
             priceTier: Number(line.priceTier),
-            markupPercent:
-              line.markupPercent === "" ||
-              line.markupPercent === undefined ||
-              line.markupPercent === null
-                ? 0
-                : Number(line.markupPercent),
+            markupPercent: effectiveMarkup,
             quantity: Number(line.quantity),
             discountAmount: Number(line.discountAmount || 0),
             batchId: line.isCustomSerial ? undefined : (line.batchId || undefined),
@@ -3797,16 +3861,21 @@ function PosSalesPage({ selectedBranch, user }) {
       subtotal: totals.subtotal,
       totalDiscount: totals.totalDiscount,
       grandTotal: totals.grandTotal,
+      pricingTerm,
+      notes: [
+        remarks.trim(),
+        `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
+      ].filter(Boolean).join(" "),
       items: cart.map((line, index) => ({
         id: line.localId || `item-${index}`,
         lineNo: index + 1,
         itemCodeSnapshot: line.item?.itemCode || "—",
         description: line.type === "SERVICE" ? (line.description || "Service") : (line.item?.itemName || "Item"),
         quantity: Number(line.quantity || 1),
-        unitPrice: getLineUnitPrice(line),
+        unitPrice: getLineUnitPrice(line, pricingTerm),
         baseUnitPrice: getLineBaseUnitPrice(line),
         discountAmount: Number(line.discountAmount || 0),
-        lineTotal: getLineTotal(line),
+        lineTotal: getLineTotal(line, pricingTerm),
         warrantyDuration: line.warrantyDuration || (line.item?.hasWarranty ? "1 YEAR WARRANTY" : ""),
         isPcBuildPart: isPcBuild,
       })),
@@ -3869,9 +3938,11 @@ function PosSalesPage({ selectedBranch, user }) {
       )
       const serviceDoneById = serviceLineWithDoneBy?.serviceStaffId || undefined
 
-      const formattedRemarks = isPcBuild
-        ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
-        : remarks.trim() || undefined
+      const formattedRemarks = [
+        isPcBuild ? "[PC BUILD]" : "",
+        remarks.trim(),
+        `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
+      ].filter(Boolean).join(" ")
 
       const settlementConfig = {
         paymentMethod,
@@ -3882,6 +3953,7 @@ function PosSalesPage({ selectedBranch, user }) {
         creditDueDay: isReceivableCheckout ? creditDueDay : undefined,
         creditFirstDueDate: isReceivableCheckout ? creditFirstDueDate : undefined,
         providerReference: isReceivableCheckout ? providerReference.trim() : undefined,
+        pricingTerm,
       }
 
       const quotationPayload = {
@@ -3889,9 +3961,10 @@ function PosSalesPage({ selectedBranch, user }) {
         customerId: effectiveCustomerId,
         serviceDoneById,
         title: isPcBuild ? "PC Build Quotation" : (formattedRemarks || undefined),
-        notes: serializeQuotationNotes(remarks.trim(), settlementConfig),
+        notes: serializeQuotationNotes(formattedRemarks, settlementConfig),
         isPcBuild,
         items: cart.map((line) => {
+          const unitPrice = getLineUnitPrice(line, pricingTerm)
           if (line.type === "SERVICE") {
             const rawDesc = line.description.trim()
             const finalDesc = line.serviceStaffName
@@ -3902,7 +3975,7 @@ function PosSalesPage({ selectedBranch, user }) {
               description: finalDesc,
               priceTier: 1,
               quantity: Number(line.quantity),
-              unitPrice: Number(line.baseUnitPrice ?? line.unitPrice),
+              unitPrice,
               markupPercent:
                 line.markupPercent === "" ||
                 line.markupPercent === undefined ||
@@ -3923,6 +3996,7 @@ function PosSalesPage({ selectedBranch, user }) {
           return {
             itemId: line.itemId,
             priceTier: Number(line.priceTier),
+            unitPrice,
             markupPercent:
               line.markupPercent === "" ||
               line.markupPercent === undefined ||
@@ -3933,7 +4007,7 @@ function PosSalesPage({ selectedBranch, user }) {
             discountAmount: Number(line.discountAmount || 0),
             isPcBuildPart: isPcBuild,
             warrantyDuration: line.warrantyDuration || undefined,
-            remarks: serialText || line.remarks || undefined,
+            remarks: serialText ? `S/N: ${serialText}` : (line.remarks || undefined),
           }
         }),
       }
@@ -5082,7 +5156,7 @@ function PosSalesPage({ selectedBranch, user }) {
                               <ShieldCheck size={12} /> {line.warrantyDuration || "1 YEAR WARRANTY"}
                             </span>
                             <span className="font-mono font-black text-slate-900 text-xs">
-                              {formatMoney(getLineTotal(line))}
+                              {formatMoney(getLineTotal(line, pricingTerm))}
                             </span>
                           </div>
                         </div>
@@ -5111,7 +5185,7 @@ function PosSalesPage({ selectedBranch, user }) {
                               {line.isJobOrder ? "ℹ️ Changeable price for this Job Order" : ""}
                             </span>
                             <div className="text-right font-mono font-black text-slate-900 text-xs">
-                              Total: {formatMoney(getLineTotal(line))}
+                              Total: {formatMoney(getLineTotal(line, pricingTerm))}
                             </div>
                           </div>
                         </div>
@@ -5133,6 +5207,56 @@ function PosSalesPage({ selectedBranch, user }) {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Sale Remarks</span>
                   <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setRemarks(event.target.value)} placeholder="e.g. Warranty notes, special instructions, freebies..." value={remarks} />
                 </label>
+              </div>
+
+              {/* Standard Pricing Terms Selector (Cash, SRP: /0.96, Regular: /0.875) */}
+              <div className="space-y-1.5 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    Pricing Term
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {PRICING_TERMS[pricingTerm]?.note}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPricingTerm("CASH")}
+                    className={`rounded-xl py-2 px-1 text-center transition cursor-pointer ${
+                      pricingTerm === "CASH"
+                        ? "bg-[var(--color-maroon)] text-white shadow-2xs font-bold"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
+                    }`}
+                  >
+                    <div className="text-[11px] leading-tight">Cash Discount</div>
+                    <div className="text-[10px] font-mono mt-0.5 opacity-90">{formatMoney(termTotals.cashGrand)}</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPricingTerm("SRP")}
+                    className={`rounded-xl py-2 px-1 text-center transition cursor-pointer ${
+                      pricingTerm === "SRP"
+                        ? "bg-blue-700 text-white shadow-2xs font-bold"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
+                    }`}
+                  >
+                    <div className="text-[11px] leading-tight">SRP (/0.96)</div>
+                    <div className="text-[10px] font-mono mt-0.5 opacity-90">{formatMoney(termTotals.srpGrand)}</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPricingTerm("REGULAR")}
+                    className={`rounded-xl py-2 px-1 text-center transition cursor-pointer ${
+                      pricingTerm === "REGULAR"
+                        ? "bg-indigo-700 text-white shadow-2xs font-bold"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
+                    }`}
+                  >
+                    <div className="text-[11px] leading-tight">Regular (/0.875)</div>
+                    <div className="text-[10px] font-mono mt-0.5 opacity-90">{formatMoney(termTotals.regularGrand)}</div>
+                  </button>
+                </div>
               </div>
 
               {/* Totals Summary Breakdown */}
