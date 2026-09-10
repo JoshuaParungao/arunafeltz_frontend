@@ -111,6 +111,12 @@ export const APP_MODULES = [
     roles: BRANCH_OPERATION_ROLES,
   },
   {
+    key: "categories",
+    label: "Product Categories",
+    group: "File Maintenance",
+    roles: BRANCH_OPERATION_ROLES,
+  },
+  {
     key: "services-maintenance",
     label: "Services & Repair Rates",
     group: "File Maintenance",

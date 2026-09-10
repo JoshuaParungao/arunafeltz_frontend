@@ -225,26 +225,29 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
     if (ccSwipeAmount != null) {
       return Math.round((paidAmount + ccSwipeAmount) * 100) / 100
     }
-    if (
-      isCredit &&
-      (sale?.creditAccount?.regularPriceTotalAmount ||
+    const savedRegular = Number(
+      sale?.creditAccount?.regularPriceTotalAmount ||
         sale?.creditAccount?.principalAmount ||
-        sale?.installmentCalculation?.regularPriceTotalAmount)
-    ) {
-      return Number(
-        sale?.creditAccount?.regularPriceTotalAmount ||
-          sale?.creditAccount?.principalAmount ||
-          sale?.installmentCalculation?.regularPriceTotalAmount
-      )
+        sale?.installmentCalculation?.regularPriceTotalAmount ||
+        0
+    )
+    if (termBasis < 1 && termBasis > 0 && cashPromoTotal > 0) {
+      if (savedRegular > cashPromoTotal) {
+        return savedRegular
+      }
+      return Math.round((cashPromoTotal / termBasis) * 100) / 100
+    }
+    if (isCredit && savedRegular > 0) {
+      return savedRegular
     }
     return Number(sale?.grandTotal || sale?.subtotal || 0)
-  }, [ccSwipeAmount, paidAmount, isCredit, sale])
+  }, [ccSwipeAmount, paidAmount, isCredit, sale, termBasis, cashPromoTotal])
 
   const balanceToPay = useMemo(() => {
     if (ccSwipeAmount != null) {
       return ccSwipeAmount
     }
-    return Math.max(0, totalAmount - paidAmount)
+    return Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100)
   }, [ccSwipeAmount, totalAmount, paidAmount])
 
   const groupedItems = useMemo(() => {

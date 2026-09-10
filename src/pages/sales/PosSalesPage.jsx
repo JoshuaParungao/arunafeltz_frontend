@@ -517,8 +517,14 @@ function SaleDetailDialog({
   const termBasis = rawTermBasis > 0 && rawTermBasis < 1
     ? rawTermBasis
     : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
-  const rawTotalAmount = isCredit && (sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
-    ? Number(sale?.creditAccount?.regularPriceTotalAmount || sale?.creditAccount?.principalAmount || sale?.installmentCalculation?.regularPriceTotalAmount)
+  const savedRegular = Number(
+    sale?.creditAccount?.regularPriceTotalAmount ||
+      sale?.creditAccount?.principalAmount ||
+      sale?.installmentCalculation?.regularPriceTotalAmount ||
+      0
+  )
+  const rawTotalAmount = isCredit && savedRegular > 0
+    ? savedRegular
     : Number(sale?.grandTotal || sale?.subtotal || 0)
 
   const ccSwipeAmount = isCreditCardWithDp && termBasis < 1 && cashPromoTotal > 0
@@ -526,10 +532,12 @@ function SaleDetailDialog({
     : null
   const totalAmount = ccSwipeAmount != null
     ? Math.round((paidAmount + ccSwipeAmount) * 100) / 100
-    : rawTotalAmount
+    : (termBasis < 1 && termBasis > 0 && cashPromoTotal > 0
+        ? (savedRegular > cashPromoTotal ? savedRegular : Math.round((cashPromoTotal / termBasis) * 100) / 100)
+        : rawTotalAmount)
   const balanceToPay = ccSwipeAmount != null
     ? ccSwipeAmount
-    : Math.max(0, totalAmount - paidAmount)
+    : Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100)
 
   const groupedItems = useMemo(() => {
     return groupReceiptItems(sale?.items || [], {
@@ -5153,6 +5161,9 @@ function PosSalesPage({ selectedBranch, user }) {
                       onChange={(event) => {
                         const nextMethod = event.target.value
                         setPaymentMethod(nextMethod)
+                        if (nextMethod === "DEBIT_CARD") {
+                          setCreditTerm("STRAIGHT")
+                        }
                         if (RECEIVABLE_PROVIDER_VALUES.has(nextMethod)) {
                           setPaymentAmount("0")
                           setPaymentAmountTouched(true)
@@ -5289,7 +5300,10 @@ function PosSalesPage({ selectedBranch, user }) {
                           onChange={(event) => setCreditTerm(event.target.value)}
                           value={creditTerm}
                         >
-                          {INSTALLMENT_TERMS.map(([value, label]) => {
+                          {(paymentMethod === "DEBIT_CARD"
+                            ? INSTALLMENT_TERMS.filter(([val]) => val === "STRAIGHT" || val === "CASH_PROMO")
+                            : INSTALLMENT_TERMS
+                          ).map(([value, label]) => {
                             const rate = installmentRates?.[value] ?? DEFAULT_INSTALLMENT_BASIS[value]
                             return (
                               <option key={value} value={value}>

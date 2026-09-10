@@ -31,6 +31,7 @@ import { getQuotationById } from "../features/quotations/quotations.api"
 const StaffDashboardPage = lazy(() => import("../pages/dashboard/StaffDashboardPage"))
 const SettingsPage = lazy(() => import("../pages/settings/SettingsPage"))
 const ItemsPage = lazy(() => import("../pages/items/ItemsPage"))
+const CategoriesPage = lazy(() => import("../pages/categories/CategoriesPage"))
 const InventoryPage = lazy(() => import("../pages/inventory/InventoryPage"))
 const StockTransfersPage = lazy(() => import("../pages/stock-transfers/StockTransfersPage"))
 const QuotationsPage = lazy(() => import("../pages/quotations/QuotationsPage"))
@@ -313,6 +314,10 @@ function App() {
 
     if (activePage === "items") {
       return <ItemsPage selectedBranch={selectedBranch} user={user} />
+    }
+
+    if (activePage === "categories") {
+      return <CategoriesPage selectedBranch={selectedBranch} user={user} />
     }
 
     if (activePage === "services-maintenance") {

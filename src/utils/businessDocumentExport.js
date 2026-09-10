@@ -1467,16 +1467,15 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   const totalsLabelX = margin + contentWidth - 65
   const totalsValueX = margin + contentWidth
 
-  const rawTotalAmount =
-    isCredit &&
-    (sale?.creditAccount?.regularPriceTotalAmount ||
+  const savedRegular = Number(
+    sale?.creditAccount?.regularPriceTotalAmount ||
       sale?.creditAccount?.principalAmount ||
-      options?.installmentCalculation?.regularPriceTotalAmount)
-      ? Number(
-          sale.creditAccount?.regularPriceTotalAmount ||
-            sale.creditAccount?.principalAmount ||
-            options?.installmentCalculation?.regularPriceTotalAmount
-        )
+      options?.installmentCalculation?.regularPriceTotalAmount ||
+      0
+  )
+  const rawTotalAmount =
+    isCredit && savedRegular > 0
+      ? savedRegular
       : Number(sale?.grandTotal || sale?.subtotal || 0)
 
   const ccSwipeAmount = isCreditCardWithDp && termBasis < 1 && cashPromoTotal > 0
@@ -1484,10 +1483,12 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     : null
   const totalAmount = ccSwipeAmount != null
     ? Math.round((paidAmount + ccSwipeAmount) * 100) / 100
-    : rawTotalAmount
+    : (termBasis < 1 && termBasis > 0 && cashPromoTotal > 0
+        ? (savedRegular > cashPromoTotal ? savedRegular : Math.round((cashPromoTotal / termBasis) * 100) / 100)
+        : rawTotalAmount)
   const balanceToPay = ccSwipeAmount != null
     ? ccSwipeAmount
-    : Math.max(0, totalAmount - paidAmount)
+    : Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100)
 
   const isFinance = Boolean(isCreditCardWithDp || isCredit || sale?.creditAccount)
 
