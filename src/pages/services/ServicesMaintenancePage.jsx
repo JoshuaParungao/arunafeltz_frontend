@@ -32,19 +32,22 @@ const OWNER_ROLES = new Set([
 ])
 
 const DEVICE_TYPE_PRESETS = [
-  "Laptop",
-  "Desktop",
-  "MacBook",
-  "Printer",
-  "Monitor",
-  "Smartphone / Tablet",
-  "Console",
-  "General / All Units",
+  "LAPTOP",
+  "DESKTOP",
+  "GPU",
+  "MOTHERBOARD",
+  "MACBOOK",
+  "PRINTER",
+  "MONITOR",
+  "SMARTPHONE / TABLET",
+  "CONSOLE",
+  "PC COMPONENT",
+  "OTHER",
 ]
 
 const EMPTY_SERVICE_FORM = {
   name: "",
-  deviceType: "Laptop",
+  deviceType: "LAPTOP",
   repairType: "ORDINARY_REPAIR",
   basePrice: "0",
   markupPercent: "0",
@@ -271,16 +274,23 @@ function ServiceEditorModal({
                   />
                 </label>
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  {DEVICE_TYPE_PRESETS.map((preset) => (
-                    <button
-                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100 transition"
-                      key={preset}
-                      onClick={() => onChange("deviceType", preset)}
-                      type="button"
-                    >
-                      {preset}
-                    </button>
-                  ))}
+                  {DEVICE_TYPE_PRESETS.map((preset) => {
+                    const isSelected = form.deviceType?.trim().toUpperCase() === preset
+                    return (
+                      <button
+                        className={`rounded-lg border px-2.5 py-1 text-[10px] font-bold transition ${
+                          isSelected
+                            ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] text-white shadow-2xs"
+                            : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                        }`}
+                        key={preset}
+                        onClick={() => onChange("deviceType", preset)}
+                        type="button"
+                      >
+                        {preset}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -704,6 +714,70 @@ export default function ServicesMaintenancePage({ user }) {
           >
             Clear filters
           </button>
+        </div>
+
+        {/* Unit / Device Category Quick Filter Pills */}
+        <div className="mt-4 pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <Layers size={13} className="text-[var(--color-maroon)]" />
+              Quick Filter by Device Category:
+            </span>
+            {deviceFilter ? (
+              <button
+                className="text-[11px] font-bold text-[var(--color-maroon)] hover:underline"
+                onClick={() => {
+                  setDeviceFilter("")
+                  setPage(1)
+                }}
+                type="button"
+              >
+                Reset to All ({deviceFilter})
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
+                !deviceFilter
+                  ? "bg-[var(--color-maroon)] text-white shadow-soft"
+                  : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100"
+              }`}
+              onClick={() => {
+                setDeviceFilter("")
+                setPage(1)
+              }}
+              type="button"
+            >
+              All Devices
+            </button>
+
+            {DEVICE_TYPE_PRESETS.map((preset) => {
+              const isActive = deviceFilter?.toUpperCase() === preset
+              return (
+                <button
+                  key={preset}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-mono font-bold transition shadow-2xs ${
+                    isActive
+                      ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] text-white shadow-soft"
+                      : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                  }`}
+                  onClick={() => {
+                    if (isActive) {
+                      setDeviceFilter("")
+                    } else {
+                      setDeviceFilter(preset)
+                    }
+                    setPage(1)
+                  }}
+                  type="button"
+                >
+                  {preset}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">

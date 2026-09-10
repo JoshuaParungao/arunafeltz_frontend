@@ -313,7 +313,7 @@ function App() {
     }
 
     if (activePage === "items") {
-      return <ItemsPage selectedBranch={selectedBranch} user={user} />
+      return <ItemsPage onNavigate={setSafeActivePage} selectedBranch={selectedBranch} user={user} />
     }
 
     if (activePage === "categories") {

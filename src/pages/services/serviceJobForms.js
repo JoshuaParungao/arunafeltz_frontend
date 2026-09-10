@@ -10,11 +10,15 @@ export const DEFAULT_SHOP_INFO = {
 
 export const UNIT_TYPES = [
   "Laptop",
-  "Desktop / System Unit",
+  "Desktop",
+  "GPU",
   "Motherboard",
-  "Graphics Card (GPU)",
+  "MacBook",
   "Printer",
   "Monitor",
+  "Smartphone / Tablet",
+  "Console",
+  "PC Component",
   "Other",
 ]
 
@@ -215,12 +219,16 @@ export function serializeStructuredNotes({
 
 function detectUnitType(deviceDesc = "") {
   const d = deviceDesc.toLowerCase()
+  if (d.includes("macbook") || d.includes("imac") || d.includes("apple")) return "MacBook"
   if (d.includes("laptop") || d.includes("notebook")) return "Laptop"
-  if (d.includes("desktop") || d.includes("system unit") || d.includes("pc")) return "Desktop / System Unit"
-  if (d.includes("gpu") || d.includes("graphics card") || d.includes("geforce") || d.includes("radeon") || d.includes("rtx") || d.includes("gtx")) return "Graphics Card (GPU)"
+  if (d.includes("desktop") || d.includes("system unit")) return "Desktop"
+  if (d.includes("gpu") || d.includes("graphics card") || d.includes("geforce") || d.includes("radeon") || d.includes("rtx") || d.includes("gtx")) return "GPU"
   if (d.includes("motherboard") || d.includes("mobo")) return "Motherboard"
   if (d.includes("printer")) return "Printer"
   if (d.includes("monitor")) return "Monitor"
+  if (d.includes("phone") || d.includes("tablet") || d.includes("ipad") || d.includes("android")) return "Smartphone / Tablet"
+  if (d.includes("console") || d.includes("playstation") || d.includes("ps4") || d.includes("ps5") || d.includes("switch") || d.includes("xbox")) return "Console"
+  if (d.includes("component") || d.includes("ram") || d.includes("psu") || d.includes("ssd") || d.includes("hdd")) return "PC Component"
   return "Other"
 }
 

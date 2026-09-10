@@ -39,6 +39,21 @@ function formatDate(value) {
   })
 }
 
+const DEFAULT_STANDARD_PARTS_CATEGORIES = [
+  { categoryCode: "CAT-CPU", name: "CPU / Processor", description: "Processors and CPUs (Intel, AMD)." },
+  { categoryCode: "CAT-MOBO", name: "Motherboard", description: "Motherboards across form factors (ATX, mATX, ITX)." },
+  { categoryCode: "CAT-RAM", name: "RAM / Memory", description: "DDR4, DDR5 desktop and laptop memory modules." },
+  { categoryCode: "CAT-GPU", name: "GPU / Graphics Card", description: "Dedicated graphics cards and video display adapters." },
+  { categoryCode: "CAT-STORAGE", name: "Storage", description: "NVMe M.2 SSDs, SATA SSDs, and hard disk drives." },
+  { categoryCode: "CAT-PSU", name: "Power Supply", description: "Power supply units (PSU) and modular power cables." },
+  { categoryCode: "CAT-CASE", name: "PC Case / Chassis", description: "Computer chassis, gaming cases, and tower enclosures." },
+  { categoryCode: "CAT-COOLING", name: "Cooling & Fans", description: "AIO liquid coolers, CPU air coolers, case fans, thermal paste." },
+  { categoryCode: "CAT-MONITOR", name: "Monitor / Display", description: "PC monitors, gaming displays, and panel screens." },
+  { categoryCode: "CAT-PERIPHERALS", name: "Peripherals", description: "Keyboards, mice, headsets, webcams, desk pads." },
+  { categoryCode: "CAT-ACCESSORIES", name: "Accessories", description: "Adapters, extension cords, brackets, and accessories." },
+  { categoryCode: "CAT-NETWORKING", name: "Networking", description: "Wi-Fi adapters, routers, switches, and patch cords." },
+]
+
 const DEFAULT_STANDARD_UNITS = [
   { unitCode: "BOX", name: "Box", description: "Unit for boxed items or packaged boxes." },
   { unitCode: "KIT", name: "Kit", description: "Unit for kits, combo packages, or modular toolkits." },
@@ -397,6 +412,35 @@ export default function CategoriesPage({ selectedBranch, user }) {
     }
   }
 
+  const handleQuickAddStandardCategory = async (preset) => {
+    setIsSaving(true)
+    try {
+      await createItemCategory({
+        name: preset.name,
+        categoryCode: preset.categoryCode,
+        description: preset.description,
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+      })
+      setNoticeMessage(`Category "${preset.name}" added successfully!`)
+      loadCategories(catPagination.page)
+      setTimeout(() => setNoticeMessage(""), 4000)
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || ""
+      if (msg.includes("already exists") || msg.includes("ALREADY_EXISTS")) {
+        setNoticeMessage(`Category "${preset.name}" already exists in the catalog.`)
+      } else {
+        setErrorMessage(msg || "Failed to add preset category.")
+      }
+      setTimeout(() => setNoticeMessage(""), 4000)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const existingCategoryCodes = useMemo(() => {
+    return new Set(categories.map((c) => String(c.categoryCode || "").toUpperCase()))
+  }, [categories])
+
   const existingUnitCodes = useMemo(() => {
     return new Set(units.map((u) => String(u.unitCode || "").toUpperCase()))
   }, [units])
@@ -522,6 +566,82 @@ export default function CategoriesPage({ selectedBranch, user }) {
         <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-800 shadow-soft">
           <AlertCircle size={16} className="shrink-0 text-red-600" />
           <span>{errorMessage}</span>
+        </div>
+      ) : null}
+
+      {/* Quick Presets & Filter Pills for Product Categories */}
+      {activeTab === "categories" ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <Tag size={14} className="text-[var(--color-maroon)]" />
+              Standard PC Parts Presets & Quick Filter:
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-500 font-medium">
+                Common Computer Hardware Categories
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <button
+              className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
+                !searchQuery
+                  ? "bg-[var(--color-maroon)] text-white shadow-soft"
+                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+              }`}
+              onClick={() => setSearchQuery("")}
+              type="button"
+            >
+              All Categories
+            </button>
+
+            {DEFAULT_STANDARD_PARTS_CATEGORIES.map((preset) => {
+              const isActiveFilter = searchQuery.trim().toLowerCase() === preset.name.toLowerCase()
+              const isRegistered =
+                existingCategoryCodes.has(preset.categoryCode) ||
+                categories.some((c) => c.name?.toLowerCase() === preset.name.toLowerCase())
+
+              return (
+                <button
+                  key={preset.categoryCode}
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
+                    isActiveFilter
+                      ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] text-white shadow-soft"
+                      : isRegistered
+                        ? "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                        : "border-dashed border-amber-300 bg-amber-50/80 text-amber-800 hover:bg-amber-100"
+                  }`}
+                  onClick={() => {
+                    if (isActiveFilter) {
+                      setSearchQuery("")
+                    } else {
+                      setSearchQuery(preset.name)
+                    }
+                  }}
+                  title={`Filter by ${preset.name}`}
+                  type="button"
+                >
+                  <span>{preset.name}</span>
+                  {!isRegistered ? (
+                    <span
+                      className="rounded bg-amber-200 px-1 text-[9px] font-bold text-amber-900"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleQuickAddStandardCategory(preset)
+                      }}
+                      title="Click to register this parts category"
+                    >
+                      + Add
+                    </span>
+                  ) : (
+                    <CheckCircle2 size={11} className="text-emerald-600 shrink-0" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
       ) : null}
 

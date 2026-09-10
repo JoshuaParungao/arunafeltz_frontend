@@ -279,6 +279,7 @@ function ItemEditorModal({
   isSaving,
   onChange,
   onClose,
+  onNavigate,
   onSave,
   units,
 }) {
@@ -421,7 +422,18 @@ function ItemEditorModal({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className={labelClass}>Category</span>
+                <div className="flex items-center justify-between">
+                  <span className={labelClass}>Category</span>
+                  {onNavigate ? (
+                    <button
+                      className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline"
+                      onClick={() => onNavigate("categories")}
+                      type="button"
+                    >
+                      + Manage in File Maintenance ↗
+                    </button>
+                  ) : null}
+                </div>
                 <select
                   className={inputClass}
                   onChange={(event) =>
@@ -857,7 +869,7 @@ function ItemMobileCard({ canManagePrices, canViewCost, item, onEditPrices }) {
   )
 }
 
-function ItemsPage({ selectedBranch, user }) {
+function ItemsPage({ onNavigate, selectedBranch, user }) {
   const selectedBranchId = selectedBranch?.id
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
@@ -1342,9 +1354,21 @@ function ItemsPage({ selectedBranch, user }) {
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Category
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                Category
+              </span>
+              {onNavigate ? (
+                <button
+                  className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline flex items-center gap-0.5"
+                  onClick={() => onNavigate("categories")}
+                  title="Manage categories in File Maintenance"
+                  type="button"
+                >
+                  Manage ↗
+                </button>
+              ) : null}
+            </div>
             <select
               className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
               onChange={(event) => {
@@ -1637,6 +1661,7 @@ function ItemsPage({ selectedBranch, user }) {
         isSaving={isSavingItem}
         onChange={updateItemForm}
         onClose={closeItemEditor}
+        onNavigate={onNavigate}
         onSave={saveItem}
         units={unitOptions}
       />
