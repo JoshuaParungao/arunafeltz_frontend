@@ -5660,23 +5660,71 @@ function PosSalesPage({ selectedBranch, user }) {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <p className="font-mono font-bold text-slate-900 text-xs">
-                            {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
-                          </p>
-                          {priceTierFilter ? (
-                            <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
-                              T{priceTierFilter}: {formatMoney(
-                                (sale.items || [])
-                                  .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
-                                  .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
-                              )}
-                            </p>
-                          ) : null}
-                          {sale.creditAccount && Number(sale.creditAccount.remainingBalance || 0) > 0 ? (
-                            <p className="text-[10px] text-blue-700 font-mono">
-                              Bal: {formatMoney(sale.creditAccount.remainingBalance)}
-                            </p>
-                          ) : null}
+                          {(() => {
+                            const cr = sale.creditAccount
+                            const cashTotal = Number(
+                              cr?.cashPromoTotalAmount ||
+                                cr?.sourceTotalAmountSnapshot ||
+                                sale.grandTotal ||
+                                sale.subtotal ||
+                                0
+                            )
+                            const rawBasis = Number(cr?.termBasis || 0)
+                            const termKey = cr?.term
+                            const basis =
+                              rawBasis > 0 && rawBasis < 1
+                                ? rawBasis
+                                : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
+                            const savedRegular = Number(cr?.regularPriceTotalAmount || 0)
+                            const dp = Number(cr?.downpaymentAmount || sale.amountPaid || 0)
+                            const collected = Number(cr?.totalCollected || 0)
+
+                            const effectiveTotal =
+                              basis < 1 && cashTotal > 0
+                                ? (savedRegular > cashTotal
+                                    ? savedRegular
+                                    : Math.round((cashTotal / basis) * 100) / 100)
+                                : (savedRegular > 0 ? savedRegular : Number(sale.grandTotal || 0))
+
+                            const rawRemaining = Number(cr?.remainingBalance || 0)
+                            const effectiveBal = cr
+                              ? (basis < 1 && cashTotal > 0 && rawRemaining <= cashTotal
+                                  ? Math.max(0, Math.round((effectiveTotal - dp - collected) * 100) / 100)
+                                  : rawRemaining)
+                              : 0
+
+                            return (
+                              <>
+                                <p className="font-mono font-bold text-slate-900 text-xs">
+                                  {formatMoney(effectiveTotal)}
+                                </p>
+                                {priceTierFilter ? (
+                                  <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
+                                    T{priceTierFilter}: {formatMoney(
+                                      (sale.items || [])
+                                        .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
+                                        .reduce(
+                                          (sum, it) =>
+                                            sum +
+                                            Number(
+                                              it.lineTotal ||
+                                                Number(it.unitPrice || 0) *
+                                                  Number(it.quantity || 1) ||
+                                                0
+                                            ),
+                                          0
+                                        )
+                                    )}
+                                  </p>
+                                ) : null}
+                                {cr && effectiveBal > 0 ? (
+                                  <p className="text-[10px] text-blue-700 font-mono">
+                                    Bal: {formatMoney(effectiveBal)}
+                                  </p>
+                                ) : null}
+                              </>
+                            )
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center justify-end gap-1.5">
