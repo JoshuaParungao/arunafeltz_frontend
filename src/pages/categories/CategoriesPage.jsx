@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
+  Box,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
   LoaderCircle,
   Plus,
   RefreshCw,
+  Ruler,
   Search,
   Tag,
   X,
@@ -20,6 +22,11 @@ import {
   getItemCategories,
   updateItemCategoryById,
 } from "../../features/categories/categories.api"
+import {
+  createUnit,
+  getUnits,
+  updateUnitById,
+} from "../../features/units/units.api"
 
 function formatDate(value) {
   if (!value) return "—"
@@ -32,9 +39,23 @@ function formatDate(value) {
   })
 }
 
+const DEFAULT_STANDARD_UNITS = [
+  { unitCode: "BOX", name: "Box", description: "Unit for boxed items or packaged boxes." },
+  { unitCode: "KIT", name: "Kit", description: "Unit for kits, combo packages, or modular toolkits." },
+  { unitCode: "METER", name: "Meter", description: "Unit for cables and items measured by length." },
+  { unitCode: "PAIR", name: "Pair", description: "Unit for paired items." },
+  { unitCode: "PIECE", name: "Piece", description: "Individual product or item count." },
+  { unitCode: "ROLL", name: "Roll", description: "Unit for rolled cables, tape, or tubing." },
+  { unitCode: "SET", name: "Set", description: "Unit for bundled items or complete sets." },
+  { unitCode: "UNIT", name: "Unit", description: "Standard discrete unit / equipment." },
+]
+
 export default function CategoriesPage({ selectedBranch, user }) {
+  const [activeTab, setActiveTab] = useState("categories") // "categories" | "units"
+
+  // Category State
   const [categories, setCategories] = useState([])
-  const [pagination, setPagination] = useState({
+  const [catPagination, setCatPagination] = useState({
     page: 1,
     limit: 15,
     totalItems: 0,
@@ -42,6 +63,18 @@ export default function CategoriesPage({ selectedBranch, user }) {
     hasNextPage: false,
     hasPreviousPage: false,
   })
+
+  // Unit State
+  const [units, setUnits] = useState([])
+  const [unitPagination, setUnitPagination] = useState({
+    page: 1,
+    limit: 15,
+    totalItems: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  })
+
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL")
@@ -50,15 +83,26 @@ export default function CategoriesPage({ selectedBranch, user }) {
   const [errorMessage, setErrorMessage] = useState("")
   const [noticeMessage, setNoticeMessage] = useState("")
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  // Category Modal State
+  const [isCatModalOpen, setIsCatModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
-  const [form, setForm] = useState({
+  const [catForm, setCatForm] = useState({
     name: "",
     categoryCode: "",
     description: "",
     status: "ACTIVE",
   })
+
+  // Unit Modal State
+  const [isUnitModalOpen, setIsUnitModalOpen] = useState(false)
+  const [editingUnit, setEditingUnit] = useState(null)
+  const [unitForm, setUnitForm] = useState({
+    name: "",
+    unitCode: "",
+    description: "",
+    status: "ACTIVE",
+  })
+
   const [formError, setFormError] = useState("")
 
   // Debounce search input
@@ -76,6 +120,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
     return user?.branchId || selectedBranch?.id || undefined
   }, [user, selectedBranch])
 
+  // Load Categories
   const loadCategories = useCallback(
     async (page = 1) => {
       setIsLoading(true)
@@ -95,11 +140,11 @@ export default function CategoriesPage({ selectedBranch, user }) {
         if (Array.isArray(data?.items)) {
           setCategories(data.items)
           if (data.pagination) {
-            setPagination(data.pagination)
+            setCatPagination(data.pagination)
           }
         } else if (Array.isArray(data)) {
           setCategories(data)
-          setPagination((prev) => ({
+          setCatPagination((prev) => ({
             ...prev,
             totalItems: data.length,
             totalPages: 1,
@@ -123,45 +168,91 @@ export default function CategoriesPage({ selectedBranch, user }) {
     [debouncedSearch, statusFilter, effectiveBranchId]
   )
 
-  useEffect(() => {
-    loadCategories(1)
-  }, [loadCategories])
+  // Load Units
+  const loadUnits = useCallback(
+    async (page = 1) => {
+      setIsLoading(true)
+      setErrorMessage("")
+      try {
+        const params = {
+          page: String(page),
+          limit: "25",
+          ...(debouncedSearch ? { search: debouncedSearch } : {}),
+          ...(statusFilter !== "ALL" ? { status: statusFilter } : {}),
+        }
 
-  const handleOpenCreateModal = () => {
+        const response = await getUnits(params)
+        const data = response?.data || response
+
+        if (Array.isArray(data?.items)) {
+          setUnits(data.items)
+          if (data.pagination) {
+            setUnitPagination(data.pagination)
+          }
+        } else if (Array.isArray(data)) {
+          setUnits(data)
+          setUnitPagination((prev) => ({
+            ...prev,
+            totalItems: data.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          }))
+        } else {
+          setUnits([])
+        }
+      } catch (err) {
+        console.error("Failed to load units:", err)
+        setErrorMessage(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Unable to load units of measure. Please try again."
+        )
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [debouncedSearch, statusFilter]
+  )
+
+  useEffect(() => {
+    if (activeTab === "categories") {
+      loadCategories(1)
+    } else {
+      loadUnits(1)
+    }
+  }, [activeTab, loadCategories, loadUnits])
+
+  // Category Modal Handlers
+  const handleOpenCreateCategoryModal = () => {
     setEditingCategory(null)
-    setForm({
+    setCatForm({
       name: "",
       categoryCode: "",
       description: "",
       status: "ACTIVE",
     })
     setFormError("")
-    setIsModalOpen(true)
+    setIsCatModalOpen(true)
   }
 
-  const handleOpenEditModal = (category) => {
+  const handleOpenEditCategoryModal = (category) => {
     setEditingCategory(category)
-    setForm({
+    setCatForm({
       name: category.name || "",
       categoryCode: category.categoryCode || "",
       description: category.description || "",
       status: category.status || "ACTIVE",
     })
     setFormError("")
-    setIsModalOpen(true)
+    setIsCatModalOpen(true)
   }
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setEditingCategory(null)
-    setFormError("")
-  }
-
-  const handleSubmit = async (e) => {
+  const handleCategorySubmit = async (e) => {
     e.preventDefault()
     setFormError("")
 
-    if (!form.name.trim()) {
+    if (!catForm.name.trim()) {
       setFormError("Category Name is required.")
       return
     }
@@ -169,32 +260,30 @@ export default function CategoriesPage({ selectedBranch, user }) {
     setIsSaving(true)
     try {
       if (editingCategory) {
-        // Update existing category
         const payload = {
-          name: form.name.trim(),
-          description: form.description.trim() || null,
-          status: form.status,
+          name: catForm.name.trim(),
+          description: catForm.description.trim() || null,
+          status: catForm.status,
         }
         await updateItemCategoryById(editingCategory.id, payload)
-        setNoticeMessage(`Category "${form.name.trim()}" updated successfully!`)
+        setNoticeMessage(`Category "${catForm.name.trim()}" updated successfully!`)
       } else {
-        // Create new category
         const payload = {
-          name: form.name.trim(),
-          ...(form.categoryCode.trim()
-            ? { categoryCode: form.categoryCode.trim().toUpperCase() }
+          name: catForm.name.trim(),
+          ...(catForm.categoryCode.trim()
+            ? { categoryCode: catForm.categoryCode.trim().toUpperCase() }
             : {}),
-          ...(form.description.trim()
-            ? { description: form.description.trim() }
+          ...(catForm.description.trim()
+            ? { description: catForm.description.trim() }
             : {}),
           ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
         }
         await createItemCategory(payload)
-        setNoticeMessage(`Category "${form.name.trim()}" created successfully!`)
+        setNoticeMessage(`Category "${catForm.name.trim()}" created successfully!`)
       }
 
-      handleCloseModal()
-      loadCategories(pagination.page)
+      setIsCatModalOpen(false)
+      loadCategories(catPagination.page)
       setTimeout(() => setNoticeMessage(""), 4000)
     } catch (err) {
       console.error("Save category error:", err)
@@ -207,6 +296,110 @@ export default function CategoriesPage({ selectedBranch, user }) {
       setIsSaving(false)
     }
   }
+
+  // Unit Modal Handlers
+  const handleOpenCreateUnitModal = () => {
+    setEditingUnit(null)
+    setUnitForm({
+      name: "",
+      unitCode: "",
+      description: "",
+      status: "ACTIVE",
+    })
+    setFormError("")
+    setIsUnitModalOpen(true)
+  }
+
+  const handleOpenEditUnitModal = (unit) => {
+    setEditingUnit(unit)
+    setUnitForm({
+      name: unit.name || "",
+      unitCode: unit.unitCode || "",
+      description: unit.description || "",
+      status: unit.status || "ACTIVE",
+    })
+    setFormError("")
+    setIsUnitModalOpen(true)
+  }
+
+  const handleUnitSubmit = async (e) => {
+    e.preventDefault()
+    setFormError("")
+
+    if (!unitForm.unitCode.trim()) {
+      setFormError("Unit Code is required (e.g. BOX, KIT, PIECE).")
+      return
+    }
+
+    if (!unitForm.name.trim()) {
+      setFormError("Unit Name is required (e.g. Box, Kit, Piece).")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      if (editingUnit) {
+        const payload = {
+          unitCode: unitForm.unitCode.trim().toUpperCase(),
+          name: unitForm.name.trim(),
+          description: unitForm.description.trim() || null,
+          status: unitForm.status,
+        }
+        await updateUnitById(editingUnit.id, payload)
+        setNoticeMessage(`Unit "${unitForm.unitCode.trim().toUpperCase()}" updated successfully!`)
+      } else {
+        const payload = {
+          unitCode: unitForm.unitCode.trim().toUpperCase(),
+          name: unitForm.name.trim(),
+          description: unitForm.description.trim() || null,
+        }
+        await createUnit(payload)
+        setNoticeMessage(`Unit "${unitForm.unitCode.trim().toUpperCase()}" created successfully!`)
+      }
+
+      setIsUnitModalOpen(false)
+      loadUnits(unitPagination.page)
+      setTimeout(() => setNoticeMessage(""), 4000)
+    } catch (err) {
+      console.error("Save unit error:", err)
+      setFormError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to save unit of measure. Please check if code already exists."
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Quick Preset Unit Seed Handler
+  const handleQuickAddStandardUnit = async (preset) => {
+    setIsSaving(true)
+    try {
+      await createUnit({
+        unitCode: preset.unitCode,
+        name: preset.name,
+        description: preset.description,
+      })
+      setNoticeMessage(`Unit "${preset.unitCode}" added successfully!`)
+      loadUnits(unitPagination.page)
+      setTimeout(() => setNoticeMessage(""), 4000)
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || ""
+      if (msg.includes("already exists") || msg.includes("ALREADY_EXISTS")) {
+        setNoticeMessage(`Unit "${preset.unitCode}" already exists in the system.`)
+      } else {
+        setErrorMessage(msg || "Failed to add preset unit.")
+      }
+      setTimeout(() => setNoticeMessage(""), 4000)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const existingUnitCodes = useMemo(() => {
+    return new Set(units.map((u) => String(u.unitCode || "").toUpperCase()))
+  }, [units])
 
   return (
     <div className="space-y-6">
@@ -225,10 +418,12 @@ export default function CategoriesPage({ selectedBranch, user }) {
             ) : null}
           </div>
           <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
-            Product Categories
+            {activeTab === "categories" ? "Product Categories" : "Units of Measure"}
           </h1>
           <p className="text-xs text-[var(--color-muted)] sm:text-sm">
-            Manage inventory item classifications, groupings, and catalog categories for point of sale and reporting.
+            {activeTab === "categories"
+              ? "Manage inventory item classifications, groupings, and catalog categories."
+              : "Manage units of measurement (BOX, KIT, METER, PAIR, PIECE, ROLL, SET, UNIT) for inventory items."}
           </p>
         </div>
 
@@ -236,23 +431,83 @@ export default function CategoriesPage({ selectedBranch, user }) {
           <button
             className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-soft transition hover:bg-slate-50 disabled:opacity-50"
             disabled={isLoading}
-            onClick={() => loadCategories(pagination.page)}
-            title="Refresh categories"
+            onClick={() => (activeTab === "categories" ? loadCategories(catPagination.page) : loadUnits(unitPagination.page))}
+            title="Refresh list"
             type="button"
           >
             <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} />
             Refresh
           </button>
-          <button
-            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
-            onClick={handleOpenCreateModal}
-            type="button"
-          >
-            <Plus size={15} />
-            Add Category
-          </button>
+          {activeTab === "categories" ? (
+            <button
+              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+              onClick={handleOpenCreateCategoryModal}
+              type="button"
+            >
+              <Plus size={15} />
+              Add Category
+            </button>
+          ) : (
+            <button
+              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+              onClick={handleOpenCreateUnitModal}
+              type="button"
+            >
+              <Plus size={15} />
+              Add Unit of Measure
+            </button>
+          )}
         </div>
       </header>
+
+      {/* Primary Section Switcher Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
+        <button
+          className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black transition ${
+            activeTab === "categories"
+              ? "bg-[var(--color-maroon)] text-white shadow-soft"
+              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+          }`}
+          onClick={() => {
+            setActiveTab("categories")
+            setSearchQuery("")
+          }}
+          type="button"
+        >
+          <Tag size={15} />
+          Product Categories
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              activeTab === "categories" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {catPagination.totalItems || categories.length}
+          </span>
+        </button>
+
+        <button
+          className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black transition ${
+            activeTab === "units"
+              ? "bg-[var(--color-maroon)] text-white shadow-soft"
+              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+          }`}
+          onClick={() => {
+            setActiveTab("units")
+            setSearchQuery("")
+          }}
+          type="button"
+        >
+          <Ruler size={15} />
+          Units of Measure (UOM)
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              activeTab === "units" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {unitPagination.totalItems || units.length}
+          </span>
+        </button>
+      </div>
 
       {/* Notice Message */}
       {noticeMessage ? (
@@ -270,7 +525,86 @@ export default function CategoriesPage({ selectedBranch, user }) {
         </div>
       ) : null}
 
-      {/* Filters Bar */}
+      {/* Quick Presets & Filter Pills for Unit of Measure */}
+      {activeTab === "units" ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <Ruler size={14} className="text-[var(--color-maroon)]" />
+              Quick Filter by Standard Unit:
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-500 font-medium">
+                8 Standard Units Supported
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <button
+              className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
+                !searchQuery
+                  ? "bg-[var(--color-maroon)] text-white shadow-soft"
+                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+              }`}
+              onClick={() => setSearchQuery("")}
+              type="button"
+            >
+              All Units
+            </button>
+
+            {DEFAULT_STANDARD_UNITS.map((preset) => {
+              const isActiveFilter = searchQuery.trim().toUpperCase() === preset.unitCode
+              const isRegistered = existingUnitCodes.has(preset.unitCode)
+
+              return (
+                <button
+                  key={preset.unitCode}
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-mono font-bold transition shadow-2xs ${
+                    isActiveFilter
+                      ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] text-white shadow-soft"
+                      : isRegistered
+                        ? "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                        : "border-dashed border-amber-300 bg-amber-50/80 text-amber-800 hover:bg-amber-100"
+                  }`}
+                  onClick={() => {
+                    if (isActiveFilter) {
+                      setSearchQuery("")
+                    } else {
+                      setSearchQuery(preset.unitCode)
+                    }
+                  }}
+                  title={`Filter by ${preset.unitCode} (${preset.name})`}
+                  type="button"
+                >
+                  <span>{preset.unitCode}</span>
+                  <span
+                    className={`font-sans text-[10px] font-normal ${
+                      isActiveFilter ? "text-white/80" : "text-slate-500"
+                    }`}
+                  >
+                    ({preset.name})
+                  </span>
+                  {!isRegistered ? (
+                    <span
+                      className="rounded bg-amber-200 px-1 text-[9px] font-bold text-amber-900"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleQuickAddStandardUnit(preset)
+                      }}
+                      title="Click to register this unit"
+                    >
+                      + Add
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Search & Filter Bar */}
       <section className="flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1">
           <Search
@@ -280,7 +614,11 @@ export default function CategoriesPage({ selectedBranch, user }) {
           <input
             className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-10 pr-4 text-xs font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--color-maroon)] focus:bg-white focus:ring-1 focus:ring-[var(--color-maroon)]"
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search category name or code..."
+            placeholder={
+              activeTab === "categories"
+                ? "Search category name or code..."
+                : "Search unit code (e.g. BOX, KIT, METER) or name..."
+            }
             type="text"
             value={searchQuery}
           />
@@ -322,133 +660,257 @@ export default function CategoriesPage({ selectedBranch, user }) {
         </div>
       </section>
 
-      {/* Categories Table */}
-      <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-              <tr>
-                <th className="px-5 py-3.5">Category Code</th>
-                <th className="px-5 py-3.5">Category Name</th>
-                <th className="px-5 py-3.5">Description</th>
-                <th className="px-5 py-3.5 text-center">Status</th>
-                <th className="px-5 py-3.5 text-right">Created</th>
-                <th className="px-5 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
+      {/* Main Table: Categories or Units */}
+      {activeTab === "categories" ? (
+        <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                 <tr>
-                  <td colSpan={6} className="py-12 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <LoaderCircle
-                        className="animate-spin text-[var(--color-maroon)]"
-                        size={24}
-                      />
-                      <span className="text-xs font-semibold text-slate-500">
-                        Loading categories...
-                      </span>
-                    </div>
-                  </td>
+                  <th className="px-5 py-3.5">Category Code</th>
+                  <th className="px-5 py-3.5">Category Name</th>
+                  <th className="px-5 py-3.5">Description</th>
+                  <th className="px-5 py-3.5 text-center">Status</th>
+                  <th className="px-5 py-3.5 text-right">Created</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
-              ) : categories.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
-                      <Tag size={32} />
-                      <p className="text-sm font-bold text-slate-700">
-                        No categories found
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {searchQuery || statusFilter !== "ALL"
-                          ? "Try adjusting your search or filters."
-                          : "Start by clicking '+ Add Category' above."}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                categories.map((cat) => (
-                  <tr
-                    key={cat.id}
-                    className="transition hover:bg-slate-50/80 group"
-                  >
-                    <td className="px-5 py-3.5 font-mono font-bold text-slate-900">
-                      {cat.categoryCode || "—"}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="font-bold text-slate-900">{cat.name}</div>
-                      {cat.branch ? (
-                        <div className="text-[10px] text-slate-500">
-                          Branch: {cat.branch.name} ({cat.branch.code})
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-600 max-w-xs truncate">
-                      {cat.description || "—"}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
-                          cat.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-200 text-slate-700"
-                        }`}
-                      >
-                        {cat.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right text-slate-500 font-mono">
-                      {formatDate(cat.createdAt)}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] hover:bg-slate-50"
-                        onClick={() => handleOpenEditModal(cat)}
-                        title="Edit category"
-                        type="button"
-                      >
-                        <Edit3 size={13} />
-                        Edit
-                      </button>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <LoaderCircle
+                          className="animate-spin text-[var(--color-maroon)]"
+                          size={24}
+                        />
+                        <span className="text-xs font-semibold text-slate-500">
+                          Loading categories...
+                        </span>
+                      </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Footer */}
-        {pagination.totalPages > 1 ? (
-          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-3">
-            <span className="text-xs font-semibold text-slate-600">
-              Page {pagination.page} of {pagination.totalPages} ({pagination.totalItems} total)
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 disabled:opacity-40"
-                disabled={!pagination.hasPreviousPage || isLoading}
-                onClick={() => loadCategories(pagination.page - 1)}
-                type="button"
-              >
-                <ChevronLeft size={14} /> Prev
-              </button>
-              <button
-                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 disabled:opacity-40"
-                disabled={!pagination.hasNextPage || isLoading}
-                onClick={() => loadCategories(pagination.page + 1)}
-                type="button"
-              >
-                Next <ChevronRight size={14} />
-              </button>
-            </div>
+                ) : categories.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                        <Tag size={32} />
+                        <p className="text-sm font-bold text-slate-700">
+                          No categories found
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {searchQuery || statusFilter !== "ALL"
+                            ? "Try adjusting your search or filters."
+                            : "Start by clicking '+ Add Category' above."}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  categories.map((cat) => (
+                    <tr
+                      key={cat.id}
+                      className="transition hover:bg-slate-50/80 group"
+                    >
+                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900">
+                        {cat.categoryCode || "—"}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="font-bold text-slate-900">{cat.name}</div>
+                        {cat.branch ? (
+                          <div className="text-[10px] text-slate-500">
+                            Branch: {cat.branch.name} ({cat.branch.code})
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-600 max-w-xs truncate">
+                        {cat.description || "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
+                            cat.status === "ACTIVE"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          {cat.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-slate-500 font-mono">
+                        {formatDate(cat.createdAt)}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <button
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] hover:bg-slate-50"
+                          onClick={() => handleOpenEditCategoryModal(cat)}
+                          title="Edit category"
+                          type="button"
+                        >
+                          <Edit3 size={13} />
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        ) : null}
-      </section>
+
+          {/* Pagination Footer */}
+          {catPagination.totalPages > 1 ? (
+            <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-3">
+              <span className="text-xs font-semibold text-slate-600">
+                Page {catPagination.page} of {catPagination.totalPages} ({catPagination.totalItems} total)
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 disabled:opacity-40"
+                  disabled={!catPagination.hasPreviousPage || isLoading}
+                  onClick={() => loadCategories(catPagination.page - 1)}
+                  type="button"
+                >
+                  <ChevronLeft size={14} /> Prev
+                </button>
+                <button
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 disabled:opacity-40"
+                  disabled={!catPagination.hasNextPage || isLoading}
+                  onClick={() => loadCategories(catPagination.page + 1)}
+                  type="button"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : (
+        /* Units of Measure Table */
+        <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                <tr>
+                  <th className="px-5 py-3.5">Unit Code</th>
+                  <th className="px-5 py-3.5">Unit Name</th>
+                  <th className="px-5 py-3.5">Description</th>
+                  <th className="px-5 py-3.5 text-center">Status</th>
+                  <th className="px-5 py-3.5 text-right">Created</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <LoaderCircle
+                          className="animate-spin text-[var(--color-maroon)]"
+                          size={24}
+                        />
+                        <span className="text-xs font-semibold text-slate-500">
+                          Loading units of measure...
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : units.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                        <Ruler size={32} />
+                        <p className="text-sm font-bold text-slate-700">
+                          No units of measure found
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {searchQuery || statusFilter !== "ALL"
+                            ? "Try adjusting your search or filters."
+                            : "Click one of the standard presets above or '+ Add Unit of Measure'."}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  units.map((unit) => (
+                    <tr
+                      key={unit.id}
+                      className="transition hover:bg-slate-50/80 group"
+                    >
+                      <td className="px-5 py-3.5 font-mono font-black text-slate-900">
+                        <span className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-slate-900 border border-slate-200">
+                          {unit.unitCode}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-bold text-slate-900">
+                        {unit.name}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-600 max-w-xs truncate">
+                        {unit.description || "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
+                            unit.status === "ACTIVE"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          {unit.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-slate-500 font-mono">
+                        {formatDate(unit.createdAt)}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <button
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] hover:bg-slate-50"
+                          onClick={() => handleOpenEditUnitModal(unit)}
+                          title="Edit unit"
+                          type="button"
+                        >
+                          <Edit3 size={13} />
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Unit Pagination Footer */}
+          {unitPagination.totalPages > 1 ? (
+            <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-3">
+              <span className="text-xs font-semibold text-slate-600">
+                Page {unitPagination.page} of {unitPagination.totalPages} ({unitPagination.totalItems} total)
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 disabled:opacity-40"
+                  disabled={!unitPagination.hasPreviousPage || isLoading}
+                  onClick={() => loadUnits(unitPagination.page - 1)}
+                  type="button"
+                >
+                  <ChevronLeft size={14} /> Prev
+                </button>
+                <button
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 disabled:opacity-40"
+                  disabled={!unitPagination.hasNextPage || isLoading}
+                  onClick={() => loadUnits(unitPagination.page + 1)}
+                  type="button"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      )}
 
       {/* Modal for Add / Edit Category */}
-      {isModalOpen ? (
+      {isCatModalOpen ? (
         <div
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
@@ -465,14 +927,14 @@ export default function CategoriesPage({ selectedBranch, user }) {
               <button
                 aria-label="Close"
                 className="rounded-xl border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-200"
-                onClick={handleCloseModal}
+                onClick={() => setIsCatModalOpen(false)}
                 type="button"
               >
                 <X size={15} />
               </button>
             </header>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleCategorySubmit} className="p-6 space-y-4">
               {formError ? (
                 <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
                   <AlertCircle size={15} className="shrink-0" />
@@ -487,11 +949,11 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 <input
                   autoFocus
                   className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
                   placeholder="e.g. Monitors, Keyboards, Liquid Coolers"
                   required
                   type="text"
-                  value={form.name}
+                  value={catForm.name}
                 />
               </label>
 
@@ -503,11 +965,11 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   <input
                     className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
                     onChange={(e) =>
-                      setForm({ ...form, categoryCode: e.target.value })
+                      setCatForm({ ...catForm, categoryCode: e.target.value })
                     }
                     placeholder="e.g. CAT-MONITOR"
                     type="text"
-                    value={form.categoryCode}
+                    value={catForm.categoryCode}
                   />
                 </label>
               ) : null}
@@ -519,11 +981,11 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 <textarea
                   className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] resize-none"
                   onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
+                    setCatForm({ ...catForm, description: e.target.value })
                   }
                   placeholder="Additional notes or sub-types covered by this category..."
                   rows={3}
-                  value={form.description}
+                  value={catForm.description}
                 />
               </label>
 
@@ -534,8 +996,8 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   </span>
                   <select
                     className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    value={form.status}
+                    onChange={(e) => setCatForm({ ...catForm, status: e.target.value })}
+                    value={catForm.status}
                   >
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="INACTIVE">INACTIVE</option>
@@ -546,7 +1008,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
               <footer className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
                 <button
                   className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
-                  onClick={handleCloseModal}
+                  onClick={() => setIsCatModalOpen(false)}
                   type="button"
                 >
                   Cancel
@@ -560,6 +1022,126 @@ export default function CategoriesPage({ selectedBranch, user }) {
                     <LoaderCircle className="animate-spin" size={14} />
                   ) : null}
                   {editingCategory ? "Save Changes" : "Create Category"}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal for Add / Edit Unit of Measure */}
+      {isUnitModalOpen ? (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <Ruler size={18} className="text-[var(--color-maroon)]" />
+                <h3 className="text-base font-black text-slate-900">
+                  {editingUnit ? "Edit Unit of Measure" : "Add Unit of Measure"}
+                </h3>
+              </div>
+              <button
+                aria-label="Close"
+                className="rounded-xl border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-200"
+                onClick={() => setIsUnitModalOpen(false)}
+                type="button"
+              >
+                <X size={15} />
+              </button>
+            </header>
+
+            <form onSubmit={handleUnitSubmit} className="p-6 space-y-4">
+              {formError ? (
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
+                  <AlertCircle size={15} className="shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              ) : null}
+
+              <label className="block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                  Unit Code <span className="text-red-500">*</span>
+                </span>
+                <input
+                  autoFocus
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                  disabled={Boolean(editingUnit)}
+                  onChange={(e) =>
+                    setUnitForm({ ...unitForm, unitCode: e.target.value.toUpperCase() })
+                  }
+                  placeholder="e.g. BOX, KIT, METER, PAIR, PIECE, ROLL, SET, UNIT"
+                  required
+                  type="text"
+                  value={unitForm.unitCode}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                  Unit Display Name <span className="text-red-500">*</span>
+                </span>
+                <input
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                  onChange={(e) => setUnitForm({ ...unitForm, name: e.target.value })}
+                  placeholder="e.g. Box, Kit, Meter, Pair, Piece, Roll, Set, Unit"
+                  required
+                  type="text"
+                  value={unitForm.name}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                  Description <span className="text-slate-400 font-normal">(Optional)</span>
+                </span>
+                <textarea
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] resize-none"
+                  onChange={(e) =>
+                    setUnitForm({ ...unitForm, description: e.target.value })
+                  }
+                  placeholder="Description of this measurement unit..."
+                  rows={3}
+                  value={unitForm.description}
+                />
+              </label>
+
+              {editingUnit ? (
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                    Status
+                  </span>
+                  <select
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                    onChange={(e) => setUnitForm({ ...unitForm, status: e.target.value })}
+                    value={unitForm.status}
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                  </select>
+                </label>
+              ) : null}
+
+              <footer className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                <button
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                  onClick={() => setIsUnitModalOpen(false)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-soft hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
+                  disabled={isSaving}
+                  type="submit"
+                >
+                  {isSaving ? (
+                    <LoaderCircle className="animate-spin" size={14} />
+                  ) : null}
+                  {editingUnit ? "Save Changes" : "Create Unit"}
                 </button>
               </footer>
             </form>

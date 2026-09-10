@@ -112,7 +112,7 @@ export const APP_MODULES = [
   },
   {
     key: "categories",
-    label: "Product Categories",
+    label: "Categories & Units",
     group: "File Maintenance",
     roles: BRANCH_OPERATION_ROLES,
   },
