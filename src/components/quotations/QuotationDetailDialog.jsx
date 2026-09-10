@@ -65,7 +65,7 @@ export default function QuotationDetailDialog({
     return Number(quotation?.grandTotal || quotation?.subtotal || 0)
   }, [quotation])
 
-  const defaultTermRate = Number(installmentCalculation?.termBasis || 0.96)
+  const defaultTermRate = Number(installmentCalculation?.termBasis || 0.875)
   const termRate = Number(installmentCalculation?.termBasis || defaultTermRate)
   const isAR = Boolean(installmentCalculation)
 
@@ -307,7 +307,7 @@ export default function QuotationDetailDialog({
                   ) : (
                     <>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-slate-400 font-bold uppercase text-[10px]">REGULAR (3 MOS):</span>
+                        <span className="text-slate-400 font-bold uppercase text-[10px]">REGULAR PRICE:</span>
                         <span className="font-mono text-slate-500 text-xs font-semibold">
                           {formatMoney(regularTotal)}
                         </span>
@@ -353,7 +353,7 @@ export default function QuotationDetailDialog({
                     <span className="font-mono">{formatMoney(cashPromoTotal)}</span>
                   </div>
                   <div className="flex justify-between text-slate-500 text-[11px]">
-                    <span>SUGGESTED RETAIL PRICE (3 MOS)</span>
+                    <span>SUGGESTED RETAIL PRICE (SRP)</span>
                     <span className="font-mono">{formatMoney(srpTotal)}</span>
                   </div>
                   <div className={`flex justify-between ${Boolean(installmentCalculation) ? "font-black text-slate-900 text-xs" : "text-slate-500 text-[11px]"}`}>

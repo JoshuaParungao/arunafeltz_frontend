@@ -1074,7 +1074,7 @@ export function groupReceiptItems(items = [], options = {}) {
 }
 
 export function groupQuotationItems(items = [], options = {}) {
-  const { termRate = 0.96 } = options
+  const { termRate = 0.875 } = options
 
   const groups = []
   const groupMap = new Map()
@@ -1096,7 +1096,7 @@ export function groupQuotationItems(items = [], options = {}) {
       item.lineTotal ?? (qty * cashUnit - (Number(item.discountAmount) || 0))
     )
 
-    const rate = termRate > 0 ? termRate : 0.96
+    const rate = termRate > 0 ? termRate : 0.875
     const regUnit = Math.round((cashUnit / rate) * 100) / 100
     const regTotal = Math.round((cashTotal / rate) * 100) / 100
 
@@ -1830,7 +1830,7 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     ],
   ]
 
-  const termRate = Number(options.installmentCalculation?.termBasis || 0.96)
+  const termRate = Number(options.installmentCalculation?.termBasis || 0.875)
   const groupedItems = groupQuotationItems(quotation?.items || [], { termRate })
   const tableBody = groupedItems.map((group) => {
     const itemCode = sanitizeForPdf(group.itemCode || "-")
@@ -2055,7 +2055,7 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     )
 
     doc.setTextColor(120, 120, 120)
-    doc.text("REGULAR PRICE (3 MOS)", totalsLabelX, finalY + 8.5)
+    doc.text("REGULAR PRICE", totalsLabelX, finalY + 8.5)
     doc.text(
       regularTotal.toLocaleString("en-PH", {
         minimumFractionDigits: 2,

@@ -36,6 +36,31 @@ import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import { parseItemWarranty } from "../items/ItemsPage"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
+import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
+
+const PRICING_TERMS = {
+  CASH: {
+    id: "CASH",
+    label: "Cash Discounted Price",
+    shortLabel: "Cash Discount",
+    divisor: 1.0,
+    note: "Cash, GCash, Bank Transfer",
+  },
+  SRP: {
+    id: "SRP",
+    label: "Suggested Retail Price",
+    shortLabel: "SRP (Cash / 0.96)",
+    divisor: 0.96,
+    note: "Straight Finance / Card (Cash / 0.96)",
+  },
+  REGULAR: {
+    id: "REGULAR",
+    label: "Regular Price",
+    shortLabel: "Regular (Cash / 0.875)",
+    divisor: 0.875,
+    note: "Installment Basis (Cash / 0.875)",
+  },
+}
 
 const DEFAULT_INSTALLMENT_BASIS = {
   MONTH_3: 1.06,
@@ -145,25 +170,36 @@ function getServiceMarkupAdjustedPrice(baseUnitPrice, markupPercent) {
   return Number((base / (1 - markup / 100)).toFixed(2))
 }
 
-function getLineUnitPrice(line) {
+function getLineUnitPrice(line, term = "CASH") {
+  let basePrice = 0
   if (line.type === "SERVICE") {
-    return getServiceMarkupAdjustedPrice(line.baseUnitPrice, line.markupPercent)
+    basePrice = getServiceMarkupAdjustedPrice(line.baseUnitPrice, line.markupPercent)
+  } else {
+    const tier = Number(line.priceTier || 1)
+    const rawPrice = Number(line.item?.[`price${tier}`] || 0)
+    const markup = Number(line.markupPercent || 0)
+    if (!Number.isFinite(markup) || markup <= 0 || markup >= 100) {
+      basePrice = rawPrice
+    } else {
+      basePrice = Number((rawPrice / (1 - markup / 100)).toFixed(2))
+    }
   }
-  const tier = Number(line.priceTier || 1)
-  const basePrice = Number(line.item?.[`price${tier}`] || 0)
-  const markup = Number(line.markupPercent || 0)
-  if (!Number.isFinite(markup) || markup <= 0 || markup >= 100) return basePrice
-  return Number((basePrice / (1 - markup / 100)).toFixed(2))
+
+  const divisor = PRICING_TERMS[term]?.divisor || 1.0
+  if (divisor !== 1.0) {
+    return Math.round((basePrice / divisor) * 100) / 100
+  }
+  return basePrice
 }
 
-function getLineGross(line) {
+function getLineGross(line, term = "CASH") {
   const qty = Number(line.quantity || 0)
-  const unitPrice = getLineUnitPrice(line)
+  const unitPrice = getLineUnitPrice(line, term)
   return qty * unitPrice
 }
 
-function getLineTotal(line) {
-  const gross = getLineGross(line)
+function getLineTotal(line, term = "CASH") {
+  const gross = getLineGross(line, term)
   const discount = Number(line.discountAmount || 0)
   return Math.max(gross - discount, 0)
 }
@@ -201,6 +237,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
   const itemRequestIdRef = useRef(0)
 
   const [selectedPriceTier, setSelectedPriceTier] = useState(1)
+  const [pricingTerm, setPricingTerm] = useState("CASH") // "CASH" | "SRP" | "REGULAR"
   const [isPcBuild, setIsPcBuild] = useState(false)
   const [remarks, setRemarks] = useState("")
 
@@ -229,6 +266,9 @@ export default function QuotationsPage({ selectedBranch, user }) {
   const [installmentRates, setInstallmentRates] = useState(DEFAULT_INSTALLMENT_BASIS)
   const [showFinancingCalc, setShowFinancingCalc] = useState(false)
   const [selectedTerm, setSelectedTerm] = useState("MONTH_3")
+
+  // Quotation to Convert
+  const [quotationToConvert, setQuotationToConvert] = useState(null)
 
   // Builder Execution State
   const [isCreatingQuotation, setIsCreatingQuotation] = useState(false)
@@ -281,21 +321,44 @@ export default function QuotationsPage({ selectedBranch, user }) {
     }
   }, [])
 
-  // Load Customers
-  const loadCustomers = useCallback(async () => {
+  // Load Customers with File Maintenance support
+  const loadCustomers = useCallback(async (query = "") => {
     if (!branchId) return
     try {
       const response = await getCustomers({
         branchId,
         status: "ACTIVE",
+        search: query.trim() || undefined,
         limit: 100,
       })
-      const rows = Array.isArray(response?.data) ? response.data : []
+      const rows = getCatalogRows(response)
       setCustomers(rows)
     } catch {
       // ignore
     }
   }, [branchId])
+
+  // Debounced search to query backend customer database as user types
+  useEffect(() => {
+    if (viewMode !== "BUILDER") return
+    const timer = setTimeout(() => {
+      loadCustomers(customerSearch)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [customerSearch, loadCustomers, viewMode])
+
+  // Local instant filter for existing customers in memory
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase()
+    if (!q) return customers
+    return customers.filter((c) => {
+      const name = String(c.fullName || "").toLowerCase()
+      const phone = String(c.mobileNumber || "").toLowerCase()
+      const code = String(c.customerCode || "").toLowerCase()
+      const company = String(c.companyName || "").toLowerCase()
+      return name.includes(q) || phone.includes(q) || code.includes(q) || company.includes(q)
+    })
+  }, [customers, customerSearch])
 
   // Load Service Staff
   const loadServiceStaff = useCallback(async () => {
@@ -462,14 +525,37 @@ export default function QuotationsPage({ selectedBranch, user }) {
     })
   }
 
-  // Quotation Cart Totals
+  // Term totals for the 3 standard options: Cash Discounted, SRP (Cash / 0.96), Regular (Cash / 0.875)
+  const termTotals = useMemo(() => {
+    let cashGross = 0
+    let totalDiscount = 0
+
+    for (const line of cart) {
+      cashGross += getLineGross(line, "CASH")
+      totalDiscount += Number(line.discountAmount || 0)
+    }
+
+    const cashGrand = Math.max(cashGross - totalDiscount, 0)
+    const srpGrand = Math.round((cashGrand / 0.96) * 100) / 100
+    const regularGrand = Math.round((cashGrand / 0.875) * 100) / 100
+
+    return {
+      cashGross,
+      totalDiscount,
+      cashGrand,
+      srpGrand,
+      regularGrand,
+    }
+  }, [cart])
+
+  // Quotation Cart Totals based on current selected pricingTerm
   const totals = useMemo(() => {
     let productGross = 0
     let serviceGross = 0
     let totalDiscount = 0
 
     for (const line of cart) {
-      const gross = getLineGross(line)
+      const gross = getLineGross(line, pricingTerm)
       const discount = Number(line.discountAmount || 0)
 
       if (line.type === "PRODUCT") {
@@ -489,7 +575,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
       totalDiscount,
       grandTotal,
     }
-  }, [cart])
+  }, [cart, pricingTerm])
 
   // Financing calculation
   const installmentCalculation = useMemo(() => {
@@ -699,12 +785,16 @@ export default function QuotationsPage({ selectedBranch, user }) {
       grandTotal: totals.grandTotal,
       subtotalAmount: totals.productGross + totals.serviceGross,
       totalDiscountAmount: totals.totalDiscount,
-      notes: remarks.trim() || undefined,
+      pricingTerm,
+      notes: [
+        remarks.trim(),
+        `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
+      ].filter(Boolean).join(" "),
       isPcBuild,
       items: cart.map((line, index) => {
-        const unitPrice = getLineUnitPrice(line)
-        const gross = getLineGross(line)
-        const lineTotal = getLineTotal(line)
+        const unitPrice = getLineUnitPrice(line, pricingTerm)
+        const gross = getLineGross(line, pricingTerm)
+        const lineTotal = getLineTotal(line, pricingTerm)
 
         return {
           id: `preview-${index}`,
@@ -764,20 +854,24 @@ export default function QuotationsPage({ selectedBranch, user }) {
       const serviceLineWithDoneBy = cart.find((l) => l.type === "SERVICE" && l.serviceStaffId)
       const serviceDoneById = serviceLineWithDoneBy?.serviceStaffId || undefined
 
-      const formattedRemarks = isPcBuild
-        ? (remarks.trim() ? `[PC BUILD] ${remarks.trim()}` : "[PC BUILD]")
-        : remarks.trim() || undefined
+      const formattedRemarks = [
+        isPcBuild ? "[PC BUILD]" : "",
+        remarks.trim(),
+        `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
+      ].filter(Boolean).join(" ")
 
       const quotationPayload = {
         branchId,
         customerId: effectiveCustomerId,
         serviceDoneById,
         title: isPcBuild ? "PC Build Quotation" : (formattedRemarks || undefined),
-        notes: serializeQuotationNotes(remarks.trim(), {
+        notes: serializeQuotationNotes(formattedRemarks, {
           installmentCalculation: showFinancingCalc ? installmentCalculation : undefined,
+          pricingTerm,
         }),
         isPcBuild,
         items: cart.map((line) => {
+          const unitPrice = getLineUnitPrice(line, pricingTerm)
           if (line.type === "SERVICE") {
             const rawDesc = line.description.trim()
             const finalDesc = line.serviceStaffName
@@ -788,7 +882,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
               description: finalDesc,
               priceTier: 1,
               quantity: Number(line.quantity),
-              unitPrice: Number(line.baseUnitPrice ?? line.unitPrice),
+              unitPrice,
               markupPercent: line.markupPercent === "" ? 0 : Number(line.markupPercent),
               discountAmount: Number(line.discountAmount || 0),
               isPcBuildPart: isPcBuild,
@@ -798,6 +892,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
           return {
             itemId: line.itemId,
             priceTier: Number(line.priceTier),
+            unitPrice,
             markupPercent: line.markupPercent === "" ? 0 : Number(line.markupPercent),
             quantity: Number(line.quantity),
             discountAmount: Number(line.discountAmount || 0),
@@ -957,12 +1052,12 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   value={customerSearch}
                 />
 
-                {isCustomerDropdownOpen && customerSearch.trim() && customers.length > 0 ? (
+                {isCustomerDropdownOpen && customerSearch.trim() && filteredCustomers.length > 0 ? (
                   <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl text-xs">
                     <div className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Existing Customers
+                      Existing Customers ({filteredCustomers.length})
                     </div>
-                    {customers.slice(0, 8).map((c) => (
+                    {filteredCustomers.slice(0, 10).map((c) => (
                       <button
                         className="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-blue-50/60"
                         key={c.id}
@@ -1387,7 +1482,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                           <ShieldCheck size={12} /> {line.warrantyDuration || "1 YEAR WARRANTY"}
                         </span>
                         <span className="font-mono font-black text-slate-900">
-                          ₱{money(getLineTotal(line))}
+                          ₱{money(getLineTotal(line, pricingTerm))}
                         </span>
                       </div>
                     </article>
@@ -1405,6 +1500,56 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   value={remarks}
                 />
               </label>
+
+              {/* Standard Pricing Terms Selector (Cash, SRP: /0.96, Regular: /0.875) */}
+              <div className="space-y-1.5 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    Pricing Term
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {PRICING_TERMS[pricingTerm]?.note}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPricingTerm("CASH")}
+                    className={`rounded-xl py-2 px-1 text-center transition ${
+                      pricingTerm === "CASH"
+                        ? "bg-[var(--color-maroon)] text-white shadow-2xs font-bold"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
+                    }`}
+                  >
+                    <div className="text-[11px] leading-tight">Cash Discount</div>
+                    <div className="text-[10px] font-mono mt-0.5 opacity-90">₱{money(termTotals.cashGrand)}</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPricingTerm("SRP")}
+                    className={`rounded-xl py-2 px-1 text-center transition ${
+                      pricingTerm === "SRP"
+                        ? "bg-blue-700 text-white shadow-2xs font-bold"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
+                    }`}
+                  >
+                    <div className="text-[11px] leading-tight">SRP (/0.96)</div>
+                    <div className="text-[10px] font-mono mt-0.5 opacity-90">₱{money(termTotals.srpGrand)}</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPricingTerm("REGULAR")}
+                    className={`rounded-xl py-2 px-1 text-center transition ${
+                      pricingTerm === "REGULAR"
+                        ? "bg-indigo-700 text-white shadow-2xs font-bold"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
+                    }`}
+                  >
+                    <div className="text-[11px] leading-tight">Regular (/0.875)</div>
+                    <div className="text-[10px] font-mono mt-0.5 opacity-90">₱{money(termTotals.regularGrand)}</div>
+                  </button>
+                </div>
+              </div>
 
               {/* Financing Calculation Option */}
               <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-2.5 space-y-2 text-xs">
@@ -1683,8 +1828,20 @@ export default function QuotationsPage({ selectedBranch, user }) {
                                 <span>{formatDate(quotation.createdAt)}</span>
                               </div>
                             </td>
-                            <td className="px-5 py-4 text-right">
+                              <td className="px-5 py-4 text-right">
                               <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                                {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
+                                  <button
+                                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                                    onClick={() => setQuotationToConvert(quotation)}
+                                    title="Convert quotation directly to sale"
+                                    type="button"
+                                  >
+                                    <FileCheck2 size={13} />
+                                    <span>Convert</span>
+                                  </button>
+                                ) : null}
+
                                 <button
                                   className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
                                   disabled={isLoadingDetails}
@@ -1770,6 +1927,15 @@ export default function QuotationsPage({ selectedBranch, user }) {
                             </p>
                           </div>
                           <div className="flex items-center gap-1.5">
+                            {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
+                              <button
+                                className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700"
+                                onClick={() => setQuotationToConvert(quotation)}
+                                type="button"
+                              >
+                                Convert
+                              </button>
+                            ) : null}
                             <button
                               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-2xs hover:bg-[var(--color-soft)]"
                               disabled={isLoadingDetails}
@@ -1809,6 +1975,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
       {isPrintPreviewOpen && selectedQuotation ? (
         <QuotationDetailDialog
           onClose={() => setIsPrintPreviewOpen(false)}
+          onConvertToSale={setQuotationToConvert}
           quotation={selectedQuotation}
         />
       ) : null}
@@ -1823,8 +1990,24 @@ export default function QuotationsPage({ selectedBranch, user }) {
             setIsQuotationDocOpen(false)
             setActiveQuotationDoc(null)
           }}
+          onConvertToSale={setQuotationToConvert}
           onSaveQuotation={isQuotationPreviewMode ? handleSaveQuotation : null}
           quotation={activeQuotationDoc}
+        />
+      ) : null}
+
+      {/* DIRECT CONVERT TO SALE DIALOG */}
+      {quotationToConvert ? (
+        <QuotationConversionDialog
+          branchId={branchId}
+          installmentRates={installmentRates}
+          onClose={() => setQuotationToConvert(null)}
+          onSuccess={(createdSale) => {
+            setQuotationToConvert(null)
+            setNoticeMessage(`Quotation converted to Sale ${createdSale?.receiptCode || ""} successfully!`)
+            loadQuotations()
+          }}
+          quotation={quotationToConvert}
         />
       ) : null}
     </section>
