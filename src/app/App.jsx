@@ -335,7 +335,14 @@ function App() {
     }
 
     if (activePage === "pos") {
-      return <PosSalesPage selectedBranch={selectedBranch} user={user} />
+      return (
+        <PosSalesPage
+          initialContext={pageContext}
+          onNavigate={setSafeActivePage}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
     }
 
     if (activePage === "serials") {
@@ -343,7 +350,14 @@ function App() {
     }
 
     if (activePage === "services") {
-      return <ServicesPage selectedBranch={selectedBranch} user={user} />
+      return (
+        <ServicesPage
+          initialContext={pageContext}
+          onNavigate={setSafeActivePage}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
     }
 
     if (activePage === "warranty") {

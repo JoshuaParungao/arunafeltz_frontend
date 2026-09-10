@@ -1990,7 +1990,26 @@ function ReturnSaleItemsDialog({ isSaving, onClose, onConfirm, sale }) {
   )
 }
 
-function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob }) {
+const isJobBilledInSales = (job, salesList = []) => {
+  if (!job?.jobCode) return null
+  const code = String(job.jobCode).trim()
+  const digits = code.match(/\d+$/)?.[0] || ""
+
+  return (
+    salesList.find((s) => {
+      if (s.status === "CANCELLED") return false
+      if (Array.isArray(s.items)) {
+        return s.items.some((i) => {
+          const desc = String(i.description || "")
+          return desc.includes(code) || (digits.length >= 4 && desc.includes(digits))
+        })
+      }
+      return false
+    }) || null
+  )
+}
+
+function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob, sales = [] }) {
   const [searchText, setSearchText] = useState("")
   const [statusFilter, setStatusFilter] = useState("ACTIVE")
   const [jobs, setJobs] = useState([])
@@ -2006,11 +2025,16 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob }) {
         branchId,
         search: searchText.trim() || undefined,
         status: statusFilter === "ALL" ? undefined : statusFilter === "READY_FOR_RELEASE" ? "READY_FOR_RELEASE" : undefined,
-        limit: 30,
+        limit: 50,
       })
       let rows = Array.isArray(response?.data) ? response.data : []
-      if (statusFilter === "ACTIVE") {
-        rows = rows.filter((j) => j.status !== "COMPLETED" && j.status !== "CANCELLED")
+      if (statusFilter === "ACTIVE" || statusFilter === "READY_FOR_RELEASE") {
+        rows = rows.filter((j) => {
+          if (j.status === "COMPLETED" || j.status === "CANCELLED" || j.releasedAt) return false
+          if (j.serviceNotes?.includes("[BILLED IN POS") || j.releaseNotes?.includes("Settled and released via POS invoice")) return false
+          if (isJobBilledInSales(j, sales)) return false
+          return true
+        })
       }
       setJobs(rows)
     } catch (err) {
@@ -2018,7 +2042,7 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob }) {
     } finally {
       setIsLoading(false)
     }
-  }, [branchId, searchText, statusFilter])
+  }, [branchId, searchText, statusFilter, sales])
 
   useEffect(() => {
     const timer = setTimeout(loadJobs, 250)
@@ -2163,29 +2187,51 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob }) {
                         {formatMoney(finalPrice)}
                       </span>
                     </div>
-                    {cart.some((l) => l.isJobOrder && l.jobOrderId === job.id) ? (
-                      <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 text-xs font-bold">
-                        <CheckCircle2 size={13} />
-                        In Cart
-                      </span>
-                    ) : job.status === "COMPLETED" ? (
-                      <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 px-3 py-1.5 text-xs font-bold">
-                        Already Released
-                      </span>
-                    ) : job.status === "CANCELLED" ? (
-                      <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-500 px-3 py-1.5 text-xs font-bold">
-                        Cancelled
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onSelectJob(job)}
-                        className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
-                      >
-                        <Plus size={14} />
-                        Load to Cart
-                      </button>
-                    )}
+                    {(() => {
+                      const matchedSale = isJobBilledInSales(job, sales)
+                      const isBilled = Boolean(
+                        matchedSale ||
+                        job.serviceNotes?.includes("[BILLED IN POS") ||
+                        job.releaseNotes?.includes("Settled and released via POS invoice")
+                      )
+                      const billedRef =
+                        matchedSale?.receiptCode ||
+                        job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ||
+                        job.releaseNotes?.match(/POS invoice\s*(\S+)/)?.[1]
+
+                      if (cart.some((l) => l.isJobOrder && l.jobOrderId === job.id)) {
+                        return (
+                          <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 text-xs font-bold">
+                            <CheckCircle2 size={13} />
+                            In Cart
+                          </span>
+                        )
+                      }
+                      if (isBilled || job.status === "COMPLETED" || job.releasedAt) {
+                        return (
+                          <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 px-3 py-1.5 text-xs font-bold">
+                            {billedRef ? `Already Billed (${billedRef})` : "Already Released / Billed"}
+                          </span>
+                        )
+                      }
+                      if (job.status === "CANCELLED") {
+                        return (
+                          <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-500 px-3 py-1.5 text-xs font-bold">
+                            Cancelled
+                          </span>
+                        )
+                      }
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onSelectJob(job)}
+                          className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
+                        >
+                          <Plus size={14} />
+                          Load to Cart
+                        </button>
+                      )
+                    })()}
                   </div>
                 </div>
               )
@@ -2197,7 +2243,7 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob }) {
   )
 }
 
-function PosSalesPage({ selectedBranch, user }) {
+function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const activeBranch = selectedBranch || user?.branch || null
   const branchId = activeBranch?.id
   const canCreateSale = SALE_MANAGER_ROLES.has(user?.role)
@@ -3012,6 +3058,22 @@ function PosSalesPage({ selectedBranch, user }) {
   const handleSelectJobOrder = (job) => {
     if (!job) return
 
+    const matchedSale = isJobBilledInSales(job, sales)
+    if (
+      matchedSale ||
+      job.serviceNotes?.includes("[BILLED IN POS") ||
+      job.releaseNotes?.includes("Settled and released via POS invoice")
+    ) {
+      const ref =
+        matchedSale?.receiptCode ||
+        job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1]
+      setCartMessage(
+        `Job Order ${job.jobCode} has already been billed${ref ? ` under POS Receipt #${ref}` : ""}.`,
+      )
+      setShowJobOrderLookup(false)
+      return
+    }
+
     if (job.status === "COMPLETED" || job.status === "CANCELLED") {
       setCartMessage(`Job Order ${job.jobCode} is already ${job.status.toLowerCase().replace(/_/g, " ")} and cannot be loaded.`)
       setShowJobOrderLookup(false)
@@ -3121,6 +3183,33 @@ function PosSalesPage({ selectedBranch, user }) {
     setShowJobOrderLookup(false)
     setNoticeMessage(`Loaded Job Order ${job.jobCode} (${newLines.length} item${newLines.length === 1 ? "" : "s"}) into cart.`)
   }
+
+  // Auto-load Job Order if redirected from Services module
+  useEffect(() => {
+    let joId = initialContext?.loadJobId || initialContext?.loadJob?.id
+    if (!joId) {
+      try {
+        joId = sessionStorage.getItem("pos_load_jo_id")
+      } catch {
+        // Ignore
+      }
+    }
+    if (joId && branchId) {
+      try {
+        sessionStorage.removeItem("pos_load_jo_id")
+      } catch {
+        // Ignore
+      }
+      getServiceJobById(joId)
+        .then((res) => {
+          const job = res?.data || res
+          if (job && job.id) {
+            handleSelectJobOrder(job)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [initialContext, branchId])
 
   const updateCartLine = (localId, patch) => {
     setCart((current) =>
@@ -3811,11 +3900,50 @@ function PosSalesPage({ selectedBranch, user }) {
               }).catch(() => null)
             }
 
-            await releaseServiceJob(joId, {
+            const releasePayload = {
               releaseOutcome: "SERVICE_COMPLETED",
+              repairType: currentJob?.repairType || "ORDINARY_REPAIR",
+              baseServiceCharge: Number(
+                cartLine?.unitPrice ??
+                  currentJob?.finalServiceCharge ??
+                  currentJob?.baseServiceCharge ??
+                  0,
+              ),
+              markupPercent: 0,
               ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
               releaseNotes: `Settled and released via POS invoice ${sale.receiptCode}`,
+              serviceNotes: [
+                currentJob?.serviceNotes?.trim() || "",
+                `[BILLED IN POS: Invoice ${sale.receiptCode}]`,
+              ]
+                .filter(Boolean)
+                .join(" "),
+            }
+
+            const releaseResult = await releaseServiceJob(joId, releasePayload).catch((err) => {
+              console.warn(`Primary auto-release failed for Job Order ${joId}:`, err)
+              return null
             })
+
+            if (!releaseResult) {
+              await releaseServiceJob(joId, {
+                ...releasePayload,
+                serviceDoneById:
+                  currentJob?.assignedTechnicianId ||
+                  currentJob?.serviceDoneById ||
+                  undefined,
+              }).catch(async () => {
+                await updateServiceJobStatus(joId, {
+                  status: "READY_FOR_RELEASE",
+                  serviceNotes: [
+                    currentJob?.serviceNotes?.trim() || "",
+                    `[BILLED IN POS: Invoice ${sale.receiptCode}]`,
+                  ]
+                    .filter(Boolean)
+                    .join(" "),
+                }).catch(() => null)
+              })
+            }
           } catch (releaseErr) {
             console.warn(`Could not auto-release Job Order ${joId}:`, releaseErr)
           }
@@ -6368,6 +6496,7 @@ function PosSalesPage({ selectedBranch, user }) {
           cart={cart}
           onClose={() => setShowJobOrderLookup(false)}
           onSelectJob={handleSelectJobOrder}
+          sales={sales}
         />
       ) : null}
     </div>

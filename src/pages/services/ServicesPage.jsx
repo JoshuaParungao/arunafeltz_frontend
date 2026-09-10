@@ -26,6 +26,7 @@ import {
   Wrench,
   X,
   Zap,
+  ShoppingCart,
 } from "lucide-react"
 
 import { getCustomers } from "../../features/customers/customers.api"
@@ -950,6 +951,7 @@ function WorkshopTasksManager({
   onSaveTasks,
   onStatusChange,
   onOpenRelease,
+  onPayInPos,
   canManage = false,
 }) {
   const initialTasks = useMemo(() => extractServiceTasks(job), [job])
@@ -1124,6 +1126,15 @@ function WorkshopTasksManager({
               <p className="text-xs text-purple-800">
                 The unit is ready for release! Cashier can load J.O. #{job.jobCode} in the POS counter to collect payment and release the unit with the official Delivery / Warranty Receipt.
               </p>
+              {onPayInPos ? (
+                <button
+                  type="button"
+                  onClick={() => onPayInPos(job)}
+                  className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-black shadow-xs transition cursor-pointer"
+                >
+                  <ShoppingCart size={14} /> Open &amp; Pay in POS Cashiering &rarr;
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1350,13 +1361,26 @@ function lifecycleChoices(job) {
   return []
 }
 
-export default function ServicesPage({ selectedBranch, user }) {
+export default function ServicesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const canCreate = CREATE_ROLES.has(user?.role)
   const canUpdateLifecycle = LIFECYCLE_ROLES.has(user?.role)
   const canManageAssignment = ASSIGNMENT_MANAGER_ROLES.has(user?.role)
   const canCollectPayment = PAYMENT_ROLES.has(user?.role)
   const canCancelPayment = PAYMENT_CANCELLER_ROLES.has(user?.role)
+
+  const sendToPosCashiering = (job) => {
+    const targetJob = job || selectedJob
+    if (!targetJob) return
+    try {
+      sessionStorage.setItem("pos_load_jo_id", targetJob.id)
+    } catch {
+      // Ignore
+    }
+    if (typeof onNavigate === "function") {
+      onNavigate("pos", { loadJobId: targetJob.id, loadJob: targetJob })
+    }
+  }
 
   const [jobs, setJobs] = useState([])
   const [meta, setMeta] = useState({})
@@ -1994,14 +2018,20 @@ export default function ServicesPage({ selectedBranch, user }) {
     const completedWork = selectedJob?.status === "READY_FOR_RELEASE"
     const existingPerformerId =
       selectedJob?.serviceDoneById || selectedJob?.serviceDoneBy?.id || ""
+    const defaultRepairType = selectedJob?.repairType || "ORDINARY_REPAIR"
+    const fallbackPerformerId =
+      existingPerformerId ||
+      selectedJob?.assignedTechnicianId ||
+      selectedJob?.assignedTechnician?.id ||
+      (technicians?.[0]?.id || "")
     setReleaseForm({
       releaseOutcome: completedWork ? "SERVICE_COMPLETED" : "CUSTOMER_PULL_OUT",
       releaseNotes: "",
-      repairType: selectedJob?.repairType || "",
+      repairType: defaultRepairType,
       serviceDoneById:
         user?.role === "TECHNICIAN" && existingPerformerId !== user.id
           ? ""
-          : existingPerformerId,
+          : fallbackPerformerId,
       baseServiceCharge: String(
         selectedJob?.baseServiceCharge ??
           selectedJob?.finalServiceCharge ??
@@ -2019,7 +2049,7 @@ export default function ServicesPage({ selectedBranch, user }) {
     event.preventDefault()
     if (!selectedJob || isSaving) return
     const isCompletedRelease = COMPLETED_OUTCOMES.has(releaseForm.releaseOutcome)
-    const repairType = selectedJob.repairType || releaseForm.repairType
+    const repairType = selectedJob.repairType || releaseForm.repairType || "ORDINARY_REPAIR"
     const selectedPerformer = technicians.find(
       (technician) => technician.id === releaseForm.serviceDoneById,
     )
@@ -3196,6 +3226,7 @@ export default function ServicesPage({ selectedBranch, user }) {
                   isSaving={isSaving}
                   job={selectedJob}
                   onOpenRelease={openRelease}
+                  onPayInPos={sendToPosCashiering}
                   onSaveTasks={handleSaveWorkshopTasks}
                   onStatusChange={handleWorkshopStatusChange}
                   serviceCatalog={serviceCatalog}
@@ -3318,9 +3349,18 @@ export default function ServicesPage({ selectedBranch, user }) {
                         </button>
                       ))
                     : null}
+                  {selectedIsActive && selectedJob?.status !== "CANCELLED" ? (
+                    <button
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
+                      onClick={() => sendToPosCashiering(selectedJob)}
+                      type="button"
+                    >
+                      <ShoppingCart size={15} /> Pay in POS Cashiering
+                    </button>
+                  ) : null}
                   {canActOnSelected && selectedIsActive ? (
                     <button
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-sky-700 px-4 py-2 text-xs font-black text-white shadow-2xs hover:opacity-90 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-sky-700 px-4 py-2 text-xs font-black text-white shadow-2xs hover:opacity-90 transition cursor-pointer"
                       onClick={openRelease}
                       type="button"
                     >
