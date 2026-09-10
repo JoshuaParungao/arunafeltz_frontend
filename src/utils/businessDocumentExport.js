@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
+import { parseQuotationSettlement } from "./quotationSettlement"
 
 const MAROON = [122, 31, 43]
 const DARK = [31, 41, 55]
@@ -8,7 +9,7 @@ const MUTED = [100, 116, 139]
 const BORDER = [226, 232, 240]
 const BG_LIGHT = [248, 250, 252]
 
-const INSTALLMENT_TERM_MONTHS = {
+export const INSTALLMENT_TERM_MONTHS = {
   STRAIGHT: 1,
   MONTH_3: 3,
   MONTH_6: 6,
@@ -1752,6 +1753,11 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     })
     .toUpperCase()
 
+  const installmentCalc =
+    options.installmentCalculation ||
+    parseQuotationSettlement(quotation?.notes)?.installmentCalculation
+  const isAR = Boolean(installmentCalc)
+
   const metaRows = [
     ["Date:", formattedDate],
     [
@@ -1764,6 +1770,12 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
       sanitizeForPdf(customer.mobileNumber || customer.email || "-"),
     ],
     ["Salesman:", String(salesman).toUpperCase()],
+    [
+      "TERMS:",
+      isAR
+        ? `${installmentCalc?.months || 24} MONTHS (AR / INSTALLMENT)`
+        : "CASH DISCOUNTED PRICE",
+    ],
   ]
 
   for (const [lbl, val] of metaRows) {
@@ -1830,7 +1842,12 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     ],
   ]
 
-  const termRate = Number(options.installmentCalculation?.termBasis || 0.875)
+  const termRate = Number(
+    installmentCalc?.rate ||
+      installmentCalc?.termBasis ||
+      options.installmentCalculation?.termBasis ||
+      0.875
+  )
   const groupedItems = groupQuotationItems(quotation?.items || [], { termRate })
   const tableBody = groupedItems.map((group) => {
     const itemCode = sanitizeForPdf(group.itemCode || "-")
@@ -1897,32 +1914,24 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
       3: {
         cellWidth: 23,
         halign: "right",
-        textColor: options.installmentCalculation
-          ? [0, 0, 0]
-          : [130, 130, 130],
+        textColor: isAR ? [0, 0, 0] : [130, 130, 130],
       },
       4: {
         cellWidth: 23,
         halign: "right",
-        fontStyle: options.installmentCalculation ? "bold" : "normal",
-        textColor: options.installmentCalculation
-          ? [0, 32, 96]
-          : [130, 130, 130],
+        fontStyle: isAR ? "bold" : "normal",
+        textColor: isAR ? [0, 32, 96] : [130, 130, 130],
       },
       5: {
         cellWidth: 23,
         halign: "right",
-        textColor: !options.installmentCalculation
-          ? [0, 0, 0]
-          : [130, 130, 130],
+        textColor: !isAR ? [0, 0, 0] : [130, 130, 130],
       },
       6: {
         cellWidth: 24,
         halign: "right",
-        fontStyle: !options.installmentCalculation ? "bold" : "normal",
-        textColor: !options.installmentCalculation
-          ? [0, 0, 0]
-          : [130, 130, 130],
+        fontStyle: !isAR ? "bold" : "normal",
+        textColor: !isAR ? [0, 0, 0] : [130, 130, 130],
       },
     },
   })
@@ -1939,8 +1948,11 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   const cashPromoTotal = Number(
     quotation?.grandTotal || quotation?.subtotal || 0
   )
-  const regularTotal = Math.round((cashPromoTotal / termRate) * 100) / 100
-  const isAR = Boolean(options.installmentCalculation)
+  const baseRegularPrice = Math.round((cashPromoTotal / 0.875) * 100) / 100
+  const srpTotal = Math.round((cashPromoTotal / 0.96) * 100) / 100
+  const financedTotal = installmentCalc?.regularPriceTotalAmount
+    ? Number(installmentCalc.regularPriceTotalAmount)
+    : Math.round((cashPromoTotal / (termRate > 0 && termRate < 1 ? termRate : 0.875)) * 100) / 100
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(7.5)
@@ -1998,52 +2010,7 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
   if (isAR) {
     doc.setTextColor(120, 120, 120)
-    doc.text("TOTAL CASH PROMO", totalsLabelX, finalY + 4)
-    doc.text(
-      cashPromoTotal.toLocaleString("en-PH", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
-      totalsValueX,
-      finalY + 4,
-      { align: "right" }
-    )
-
-    const calc = options.installmentCalculation
-    doc.setTextColor(0, 32, 96)
-    doc.text(
-      `REGULAR PRICE (${calc?.months || 1} MOS)`,
-      totalsLabelX,
-      finalY + 8.5
-    )
-    doc.text(
-      regularTotal.toLocaleString("en-PH", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
-      totalsValueX,
-      finalY + 8.5,
-      { align: "right" }
-    )
-
-    doc.setFontSize(7.5)
-    doc.text(
-      `SELECTED AR (${calc?.months || 1} MOS):`,
-      totalsLabelX,
-      finalY + 13
-    )
-    doc.text(
-      `${Number(calc?.monthlyDueAmount || 0).toLocaleString("en-PH", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}/mo`,
-      totalsValueX,
-      finalY + 13,
-      { align: "right" }
-    )
-  } else {
-    doc.setTextColor(0, 0, 0)
-    doc.text("TOTAL CASH PROMO", totalsLabelX, finalY + 4)
+    doc.text("ORIGINAL CASH PROMO", totalsLabelX, finalY + 4)
     doc.text(
       cashPromoTotal.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
@@ -2057,7 +2024,7 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
     doc.setTextColor(120, 120, 120)
     doc.text("REGULAR PRICE", totalsLabelX, finalY + 8.5)
     doc.text(
-      regularTotal.toLocaleString("en-PH", {
+      baseRegularPrice.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
@@ -2065,9 +2032,58 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
       finalY + 8.5,
       { align: "right" }
     )
+
+    doc.setFontSize(8)
+    doc.setTextColor(0, 32, 96)
+    doc.text("TOTAL FINANCED BALANCE", totalsLabelX, finalY + 13)
+    doc.text(
+      financedTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      finalY + 13,
+      { align: "right" }
+    )
+  } else {
+    doc.setTextColor(0, 0, 0)
+    doc.text("TOTAL CASH DISCOUNTED PRICE", totalsLabelX, finalY + 4)
+    doc.text(
+      cashPromoTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      finalY + 4,
+      { align: "right" }
+    )
+
+    doc.setTextColor(120, 120, 120)
+    doc.text("SUGGESTED RETAIL PRICE (SRP)", totalsLabelX, finalY + 8.5)
+    doc.text(
+      srpTotal.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      finalY + 8.5,
+      { align: "right" }
+    )
+
+    doc.setTextColor(120, 120, 120)
+    doc.text("REGULAR PRICE", totalsLabelX, finalY + 13)
+    doc.text(
+      baseRegularPrice.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      totalsValueX,
+      finalY + 13,
+      { align: "right" }
+    )
   }
 
-  finalY = Math.max(noteY + 8, finalY + (isAR ? 23 : 18))
+  finalY = Math.max(noteY + 8, finalY + 20)
 
   const leftSigX = margin
   const rightSigX = margin + contentWidth - 75

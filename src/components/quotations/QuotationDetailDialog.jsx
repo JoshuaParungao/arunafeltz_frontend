@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { Download, FileText, Printer, X } from "lucide-react"
 import { exportCustomerQuotationPdf, groupQuotationItems, printCustomerQuotation } from "../../utils/businessDocumentExport"
+import { parseQuotationSettlement } from "../../utils/quotationSettlement"
 
 function formatMoney(value) {
   const amount = Number(value || 0)
@@ -61,25 +62,49 @@ export default function QuotationDetailDialog({
 
   const items = quotation?.items || []
 
+  // Resolve installment calculation: use prop first, or parse from quotation.notes
+  const effectiveInstallmentCalculation = useMemo(() => {
+    if (installmentCalculation) return installmentCalculation
+    const parsed = parseQuotationSettlement(quotation?.notes)
+    return parsed?.installmentCalculation || null
+  }, [installmentCalculation, quotation?.notes])
+
+  const isAR = Boolean(effectiveInstallmentCalculation)
+
   const cashPromoTotal = useMemo(() => {
     return Number(quotation?.grandTotal || quotation?.subtotal || 0)
   }, [quotation])
 
-  const defaultTermRate = Number(installmentCalculation?.termBasis || 0.875)
-  const termRate = Number(installmentCalculation?.termBasis || defaultTermRate)
-  const isAR = Boolean(installmentCalculation)
+  const defaultTermRate = Number(
+    effectiveInstallmentCalculation?.rate ||
+      effectiveInstallmentCalculation?.termBasis ||
+      0.875
+  )
+  const termRate = Number(
+    effectiveInstallmentCalculation?.rate ||
+      effectiveInstallmentCalculation?.termBasis ||
+      defaultTermRate
+  )
 
   const srpTotal = useMemo(() => {
     return Math.round((cashPromoTotal / 0.96) * 100) / 100
   }, [cashPromoTotal])
 
-  const regularTotal = useMemo(() => {
-    return Math.round((cashPromoTotal / defaultTermRate) * 100) / 100
-  }, [cashPromoTotal, defaultTermRate])
+  const baseRegularPrice = useMemo(() => {
+    return Math.round((cashPromoTotal / 0.875) * 100) / 100
+  }, [cashPromoTotal])
+
+  const financedTotal = useMemo(() => {
+    if (effectiveInstallmentCalculation?.regularPriceTotalAmount) {
+      return Number(effectiveInstallmentCalculation.regularPriceTotalAmount)
+    }
+    const rate = termRate > 0 && termRate < 1 ? termRate : 0.875
+    return Math.round((cashPromoTotal / rate) * 100) / 100
+  }, [cashPromoTotal, termRate, effectiveInstallmentCalculation])
 
   const groupedItems = useMemo(() => {
-    return groupQuotationItems(items, { termRate })
-  }, [items, termRate])
+    return groupQuotationItems(quotation?.items || [], { termRate })
+  }, [quotation?.items, termRate])
 
   const quoteDate = quotation?.createdAt || quotation?.quotationDate || new Date()
   const isPcBuild = quotation?.isPcBuild || false
@@ -139,7 +164,7 @@ export default function QuotationDetailDialog({
 
               <button
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100"
-                onClick={() => exportCustomerQuotationPdf(quotation, { installmentCalculation })}
+                onClick={() => exportCustomerQuotationPdf(quotation, { installmentCalculation: effectiveInstallmentCalculation })}
                 title="Export as PDF file"
                 type="button"
               >
@@ -148,7 +173,7 @@ export default function QuotationDetailDialog({
 
               <button
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[#002060] px-3.5 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-[#001740]"
-                onClick={() => printCustomerQuotation(quotation, { installmentCalculation })}
+                onClick={() => printCustomerQuotation(quotation, { installmentCalculation: effectiveInstallmentCalculation })}
                 title="Print quotation"
                 type="button"
               >
@@ -200,6 +225,13 @@ export default function QuotationDetailDialog({
 
                   <span className="font-bold text-slate-600">Salesman:</span>
                   <span className="col-span-2 font-bold uppercase">{salesman}</span>
+
+                  <span className="font-bold text-slate-600">TERMS:</span>
+                  <span className={`col-span-2 font-bold uppercase ${isAR ? "text-[#002060]" : "text-slate-700"}`}>
+                    {isAR
+                      ? `${effectiveInstallmentCalculation?.months || 24} MONTHS (AR / INSTALLMENT)`
+                      : "CASH DISCOUNTED PRICE"}
+                  </span>
                 </div>
               </div>
 
@@ -226,16 +258,16 @@ export default function QuotationDetailDialog({
                       <th className="py-2 px-2 w-[14%]">ITEM CODE</th>
                       <th className="py-2 px-2 w-[34%]">ITEM DESCRIPTION</th>
                       <th className="py-2 px-1.5 text-center w-[8%]">QTY.</th>
-                      <th className={`py-2 px-2 text-right w-[11%] ${Boolean(installmentCalculation) ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
+                      <th className={`py-2 px-2 text-right w-[11%] ${isAR ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
                         REGULAR PRICE
                       </th>
-                      <th className={`py-2 px-2 text-right w-[11%] ${Boolean(installmentCalculation) ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
+                      <th className={`py-2 px-2 text-right w-[11%] ${isAR ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
                         REGULAR AMOUNT
                       </th>
-                      <th className={`py-2 px-2 text-right w-[11%] ${!installmentCalculation ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
+                      <th className={`py-2 px-2 text-right w-[11%] ${!isAR ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
                         CASH PROMO
                       </th>
-                      <th className={`py-2 px-2 text-right w-[11%] ${!installmentCalculation ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
+                      <th className={`py-2 px-2 text-right w-[11%] ${!isAR ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
                         CASH AMOUNT
                       </th>
                     </tr>
@@ -287,7 +319,7 @@ export default function QuotationDetailDialog({
                   TOTAL AMOUNT:
                 </span>
                 <div className="flex items-center gap-6">
-                  {Boolean(installmentCalculation) ? (
+                  {isAR ? (
                     <>
                       <div className="flex items-center gap-1.5">
                         <span className="text-slate-400 font-bold uppercase text-[10px]">CASH PROMO:</span>
@@ -297,10 +329,10 @@ export default function QuotationDetailDialog({
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[#002060] font-black uppercase text-xs">
-                          REGULAR ({installmentCalculation?.months ? `${installmentCalculation.months} MOS` : "AR"}):
+                          TOTAL FINANCED BALANCE:
                         </span>
                         <span className="font-mono text-[#002060] text-base font-black">
-                          {formatMoney(regularTotal)}
+                          {formatMoney(financedTotal)}
                         </span>
                       </div>
                     </>
@@ -309,7 +341,7 @@ export default function QuotationDetailDialog({
                       <div className="flex items-center gap-1.5">
                         <span className="text-slate-400 font-bold uppercase text-[10px]">REGULAR PRICE:</span>
                         <span className="font-mono text-slate-500 text-xs font-semibold">
-                          {formatMoney(regularTotal)}
+                          {formatMoney(baseRegularPrice)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -323,7 +355,7 @@ export default function QuotationDetailDialog({
                 </div>
               </div>
 
-              {/* Pricing Breakdown & Disclaimers matching QUOTATION-FOR-NEW-SYSTEM (4).xlsx */}
+              {/* Pricing Breakdown & Disclaimers matching QUOTATION-FOR-NEW-SYSTEM (4).xlsx and Sales Receipt */}
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 py-3 items-start">
                 <div className="sm:col-span-7 space-y-1.5">
                   {isPcBuild ? (
@@ -348,25 +380,37 @@ export default function QuotationDetailDialog({
                 </div>
 
                 <div className="sm:col-span-5 space-y-1.5 text-xs text-right">
-                  <div className={`flex justify-between ${!installmentCalculation ? "font-black text-slate-900 text-xs" : "text-slate-500 text-[11px]"}`}>
-                    <span>TOTAL CASH DISCOUNTED PRICE</span>
-                    <span className="font-mono">{formatMoney(cashPromoTotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 text-[11px]">
-                    <span>SUGGESTED RETAIL PRICE (SRP)</span>
-                    <span className="font-mono">{formatMoney(srpTotal)}</span>
-                  </div>
-                  <div className={`flex justify-between ${Boolean(installmentCalculation) ? "font-black text-slate-900 text-xs" : "text-slate-500 text-[11px]"}`}>
-                    <span>REGULAR PRICE {installmentCalculation?.months ? `(${installmentCalculation.months} MOS)` : ""}</span>
-                    <span className="font-mono">{formatMoney(regularTotal)}</span>
-                  </div>
-
-                  {installmentCalculation ? (
-                    <div className="flex justify-between font-black text-[#002060] border-t border-slate-200 pt-1 text-[11px]">
-                      <span>SELECTED AR ({installmentCalculation.months} MOS)</span>
-                      <span className="font-mono">{formatMoney(installmentCalculation.monthlyDueAmount)}/mo</span>
-                    </div>
-                  ) : null}
+                  {isAR ? (
+                    <>
+                      <div className="flex justify-between text-slate-600 text-[11px]">
+                        <span>ORIGINAL CASH PROMO</span>
+                        <span className="font-mono">{formatMoney(cashPromoTotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600 text-[11px]">
+                        <span>REGULAR PRICE</span>
+                        <span className="font-mono">{formatMoney(baseRegularPrice)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1 text-xs">
+                        <span>TOTAL FINANCED BALANCE</span>
+                        <span className="font-mono text-sm">{formatMoney(financedTotal)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between font-black text-slate-900 text-xs">
+                        <span>TOTAL CASH DISCOUNTED PRICE</span>
+                        <span className="font-mono">{formatMoney(cashPromoTotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-500 text-[11px]">
+                        <span>SUGGESTED RETAIL PRICE (SRP)</span>
+                        <span className="font-mono">{formatMoney(srpTotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-500 text-[11px]">
+                        <span>REGULAR PRICE</span>
+                        <span className="font-mono">{formatMoney(baseRegularPrice)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

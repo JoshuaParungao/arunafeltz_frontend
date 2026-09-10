@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { AlertCircle, CheckCircle2, DollarSign, FileText, LoaderCircle, Package, ShieldCheck, X } from "lucide-react"
+import { AlertCircle, CheckCircle2, DollarSign, FileText, LoaderCircle, Package, X } from "lucide-react"
 import { getInventoryBatches, getInventorySerials } from "../../features/inventory/inventory.api"
+import { getQuotationById } from "../../features/quotations/quotations.api"
 import { createSale } from "../../features/sales/sales.api"
 import { parseQuotationSettlement, stripSettlementTag } from "../../utils/quotationSettlement"
 
@@ -23,15 +24,23 @@ const RECEIVABLE_PROVIDERS = [
 const RECEIVABLE_PROVIDER_VALUES = new Set(RECEIVABLE_PROVIDERS.map(([val]) => val))
 
 const DEFAULT_INSTALLMENT_BASIS = {
-  MONTH_3: 0.94,
-  MONTH_6: 0.9,
-  MONTH_12: 0.85,
+  STRAIGHT: 0.96,
+  MONTH_3: 0.96,
+  MONTH_6: 0.935,
+  MONTH_9: 0.905,
+  MONTH_12: 0.875,
+  MONTH_18: 0.815,
+  MONTH_24: 0.755,
 }
 
 const INSTALLMENT_TERM_MONTHS = {
+  STRAIGHT: 1,
   MONTH_3: 3,
   MONTH_6: 6,
+  MONTH_9: 9,
   MONTH_12: 12,
+  MONTH_18: 18,
+  MONTH_24: 24,
 }
 
 function formatMoney(value) {
@@ -66,7 +75,10 @@ export default function QuotationConversionDialog({
     return parseQuotationSettlement(quotation?.notes) || {}
   }, [quotation?.notes])
 
-  const initialMethod = savedSettlement.paymentMethod || "CASH"
+  const savedCalc = savedSettlement.installmentCalculation
+  const initialMethod =
+    savedSettlement.paymentMethod ||
+    (savedCalc ? "IN_HOUSE_INSTALLMENT" : "CASH")
   const isInitialReceivable = RECEIVABLE_PROVIDER_VALUES.has(initialMethod)
 
   const [paymentMethod, setPaymentMethod] = useState(initialMethod)
@@ -80,7 +92,7 @@ export default function QuotationConversionDialog({
   )
   const [referenceNo, setReferenceNo] = useState(savedSettlement.paymentReference || "")
   const [providerReferenceNo, setProviderReferenceNo] = useState(savedSettlement.providerReference || "")
-  const [creditTerm, setCreditTerm] = useState(savedSettlement.creditTerm || "MONTH_3")
+  const [creditTerm, setCreditTerm] = useState(savedSettlement.creditTerm || savedCalc?.term || "MONTH_3")
   const [creditDueDay, setCreditDueDay] = useState(savedSettlement.creditDueDay || "")
   const [creditFirstDueDate, setCreditFirstDueDate] = useState(savedSettlement.creditFirstDueDate || "")
   const [remarks, setRemarks] = useState(stripSettlementTag(quotation?.notes || ""))
@@ -96,7 +108,7 @@ export default function QuotationConversionDialog({
     if (!isReceivable) return null
 
     const termBasis = Number(
-      installmentRates?.[creditTerm] || DEFAULT_INSTALLMENT_BASIS[creditTerm] || 1,
+      installmentRates?.[creditTerm] || DEFAULT_INSTALLMENT_BASIS[creditTerm] || 0.875,
     )
     const months = INSTALLMENT_TERM_MONTHS[creditTerm] || 1
     const cashPromoTotal = grandTotal
@@ -128,7 +140,7 @@ export default function QuotationConversionDialog({
     let isCancelled = false
 
     async function loadStock() {
-      if (!quotation?.items?.length || !branchId) {
+      if (!branchId || !quotation) {
         setIsLoadingStock(false)
         return
       }
@@ -137,8 +149,26 @@ export default function QuotationConversionDialog({
       setErrorMessage("")
 
       try {
+        let activeItems = quotation?.items || []
+        if (activeItems.length === 0 && quotation?.id) {
+          try {
+            const detailRes = await getQuotationById(quotation.id)
+            const detailData = detailRes?.data || detailRes
+            if (Array.isArray(detailData?.items) && detailData.items.length > 0) {
+              activeItems = detailData.items
+            }
+          } catch (fetchErr) {
+            console.warn("Could not fetch quotation items:", fetchErr)
+          }
+        }
+
+        if (activeItems.length === 0) {
+          setIsLoadingStock(false)
+          return
+        }
+
         const preparedLineGroups = await Promise.all(
-          (quotation.items || []).map(async (item) => {
+          activeItems.map(async (item) => {
             if (!item.itemId) {
               return [
                 {
@@ -406,7 +436,7 @@ export default function QuotationConversionDialog({
                 </span>
               </h2>
               <p className="text-xs text-slate-500">
-                Customer: <span className="font-semibold text-slate-800">{quotation?.customer?.fullName || "Walk-in"}</span> • Created: {new Date(quotation?.createdAt || Date.now()).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}
+                Customer: <span className="font-semibold text-slate-800">{quotation?.customer?.fullName || "Walk-in"}</span> • Created: {quotation?.createdAt ? new Date(quotation.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" }) : "—"}
               </p>
             </div>
           </div>
@@ -696,7 +726,10 @@ export default function QuotationConversionDialog({
                     >
                       <option value="MONTH_3">3 Months</option>
                       <option value="MONTH_6">6 Months</option>
+                      <option value="MONTH_9">9 Months</option>
                       <option value="MONTH_12">12 Months</option>
+                      <option value="MONTH_18">18 Months</option>
+                      <option value="MONTH_24">24 Months</option>
                     </select>
                   </label>
                   <label className="block">

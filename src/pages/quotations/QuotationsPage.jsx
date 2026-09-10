@@ -10,7 +10,6 @@ import {
   LoaderCircle,
   PackageSearch,
   Plus,
-  Printer,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -63,12 +62,13 @@ const PRICING_TERMS = {
 }
 
 const DEFAULT_INSTALLMENT_BASIS = {
-  MONTH_3: 1.06,
-  MONTH_6: 1.12,
-  MONTH_9: 1.18,
-  MONTH_12: 1.24,
-  MONTH_18: 1.36,
-  MONTH_24: 1.48,
+  STRAIGHT: 0.96,
+  MONTH_3: 0.96,
+  MONTH_6: 0.935,
+  MONTH_9: 0.905,
+  MONTH_12: 0.875,
+  MONTH_18: 0.815,
+  MONTH_24: 0.755,
 }
 
 const INSTALLMENT_TERMS = [
@@ -277,6 +277,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
   const [activeQuotationDoc, setActiveQuotationDoc] = useState(null)
   const [isQuotationDocOpen, setIsQuotationDocOpen] = useState(false)
   const [isQuotationPreviewMode, setIsQuotationPreviewMode] = useState(false)
+  const [lastSavedCalc, setLastSavedCalc] = useState(null)
 
   // Load Quotation History
   const loadQuotations = useCallback(async () => {
@@ -580,11 +581,13 @@ export default function QuotationsPage({ selectedBranch, user }) {
   // Financing calculation
   const installmentCalculation = useMemo(() => {
     if (!showFinancingCalc || totals.grandTotal <= 0) return null
-    const basisRate = installmentRates?.[selectedTerm] ?? DEFAULT_INSTALLMENT_BASIS[selectedTerm] ?? 1.0
+    const basisRate = Number(installmentRates?.[selectedTerm] ?? DEFAULT_INSTALLMENT_BASIS[selectedTerm] ?? 0.875)
     const months = Number(selectedTerm.replace("MONTH_", "")) || 3
-    const financedTotal = Number((totals.grandTotal * basisRate).toFixed(2))
-    const interestAmount = Number((financedTotal - totals.grandTotal).toFixed(2))
-    const monthlyDue = Number((financedTotal / months).toFixed(2))
+    const financedTotal = basisRate > 0 && basisRate < 1
+      ? Math.round((totals.grandTotal / basisRate) * 100) / 100
+      : Math.round((totals.grandTotal * basisRate) * 100) / 100
+    const interestAmount = Math.max(0, Math.round((financedTotal - totals.grandTotal) * 100) / 100)
+    const monthlyDue = Math.round((financedTotal / months) * 100) / 100
 
     return {
       term: selectedTerm,
@@ -733,6 +736,25 @@ export default function QuotationsPage({ selectedBranch, user }) {
     } catch {
       setSelectedQuotation(quotation)
       setIsPrintPreviewOpen(true)
+    } finally {
+      setIsLoadingDetails(false)
+    }
+  }
+
+  const handleOpenConvert = async (quotation) => {
+    if (!quotation?.id) return
+    if (quotation.items && quotation.items.length > 0) {
+      setQuotationToConvert(quotation)
+      return
+    }
+    setIsLoadingDetails(true)
+    try {
+      const response = await getQuotationById(quotation.id)
+      const detailed = response?.data || response || quotation
+      setQuotationToConvert(detailed)
+    } catch (err) {
+      console.error("Failed to load quotation details for conversion:", err)
+      setQuotationToConvert(quotation)
     } finally {
       setIsLoadingDetails(false)
     }
@@ -910,6 +932,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
       }
 
       setNoticeMessage(`Quotation ${createdQuote.quotationCode || ""} created successfully!`)
+      setLastSavedCalc(showFinancingCalc ? installmentCalculation : null)
       setActiveQuotationDoc(createdQuote)
       setIsQuotationPreviewMode(false)
       setIsQuotationDocOpen(true)
@@ -1833,7 +1856,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
                                 {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
                                   <button
                                     className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700"
-                                    onClick={() => setQuotationToConvert(quotation)}
+                                    disabled={isLoadingDetails}
+                                    onClick={() => handleOpenConvert(quotation)}
                                     title="Convert quotation directly to sale"
                                     type="button"
                                   >
@@ -1850,25 +1874,14 @@ export default function QuotationsPage({ selectedBranch, user }) {
                                   type="button"
                                 >
                                   <Eye size={13} />
-                                  <span>View</span>
-                                </button>
-
-                                <button
-                                  className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
-                                  disabled={isLoadingDetails}
-                                  onClick={() => handleOpenView(quotation)}
-                                  title="Print quotation copy"
-                                  type="button"
-                                >
-                                  <Printer size={13} />
-                                  <span>Print</span>
+                                  <span>View / Print</span>
                                 </button>
 
                                 {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
                                   <button
-                                    className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300"
+                                    className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400"
                                     onClick={() => handleDeleteQuotation(quotation)}
-                                    title="Delete / Cancel quotation"
+                                    title="Cancel / Delete quotation"
                                     type="button"
                                   >
                                     <Trash2 size={13} />
@@ -1930,7 +1943,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
                             {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
                               <button
                                 className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700"
-                                onClick={() => setQuotationToConvert(quotation)}
+                                disabled={isLoadingDetails}
+                                onClick={() => handleOpenConvert(quotation)}
                                 type="button"
                               >
                                 Convert
@@ -1975,7 +1989,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
       {isPrintPreviewOpen && selectedQuotation ? (
         <QuotationDetailDialog
           onClose={() => setIsPrintPreviewOpen(false)}
-          onConvertToSale={setQuotationToConvert}
+          onConvertToSale={handleOpenConvert}
           quotation={selectedQuotation}
         />
       ) : null}
@@ -1983,14 +1997,18 @@ export default function QuotationsPage({ selectedBranch, user }) {
       {/* BUILDER PREVIEW / SAVE PRINT DIALOG */}
       {isQuotationDocOpen && activeQuotationDoc ? (
         <QuotationDetailDialog
-          installmentCalculation={showFinancingCalc ? installmentCalculation : null}
+          installmentCalculation={
+            isQuotationPreviewMode
+              ? (showFinancingCalc ? installmentCalculation : null)
+              : lastSavedCalc
+          }
           isPreview={isQuotationPreviewMode}
           isSavingQuotation={isCreatingQuotation}
           onClose={() => {
             setIsQuotationDocOpen(false)
             setActiveQuotationDoc(null)
           }}
-          onConvertToSale={setQuotationToConvert}
+          onConvertToSale={handleOpenConvert}
           onSaveQuotation={isQuotationPreviewMode ? handleSaveQuotation : null}
           quotation={activeQuotationDoc}
         />
