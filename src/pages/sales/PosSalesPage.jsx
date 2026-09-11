@@ -3926,15 +3926,22 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             })
 
             if (!releaseResult) {
+              const fallbackDoneBy =
+                effectiveDoneBy ||
+                currentJob?.assignedTechnicianId ||
+                currentJob?.serviceDoneById ||
+                user?.id ||
+                undefined
+
               await releaseServiceJob(joId, {
                 ...releasePayload,
-                serviceDoneById:
-                  currentJob?.assignedTechnicianId ||
-                  currentJob?.serviceDoneById ||
-                  undefined,
-              }).catch(async () => {
+                ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
+              }).catch(async (fallbackErr) => {
+                console.warn(`Fallback auto-release failed for Job Order ${joId}:`, fallbackErr)
                 await updateServiceJobStatus(joId, {
                   status: "READY_FOR_RELEASE",
+                  repairType: currentJob?.repairType || "ORDINARY_REPAIR",
+                  ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
                   serviceNotes: [
                     currentJob?.serviceNotes?.trim() || "",
                     `[BILLED IN POS: Invoice ${sale.receiptCode}]`,

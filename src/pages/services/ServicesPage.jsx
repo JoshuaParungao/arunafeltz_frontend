@@ -37,6 +37,7 @@ import {
   createServiceJob,
   createServicePayment,
   getServiceCatalog,
+  getServicePartsCatalog,
   getServiceJobById,
   getServiceJobs,
   getServiceTechnicians,
@@ -115,6 +116,12 @@ const EMPTY_CREATE = {
   repairType: "ORDINARY_REPAIR",
   baseServiceCharge: "",
   markupPercent: "",
+  pricingMode: "STANDARD",
+  technicianFee: "",
+  partsCost: "",
+  partsMarkup: "",
+  servicePartId: "",
+  partDescription: "",
   isQuickService: false,
 
   // Intake Form Specific Fields
@@ -635,61 +642,238 @@ function ServicePricingFields({
   onBaseChange,
   onMarkupChange,
   isOptional = false,
+  pricingMode = "STANDARD",
+  onPricingModeChange,
+  technicianFee = "",
+  partsCost = "",
+  partsMarkup = "",
+  servicePartId = "",
+  partDescription = "",
+  onTechnicianFeeChange,
+  onPartsCostChange,
+  onPartsMarkupChange,
+  onServicePartChange,
+  servicePartsCatalog = [],
 }) {
+  const isPartsMode = pricingMode === "PARTS_BREAKDOWN"
+
+  // Standard calculations
   const baseIsValid = isValidBaseServiceCharge(baseServiceCharge)
   const markupIsValid = isValidMarkup(markupPercent)
-  const finalServiceCharge =
+  const standardFinalPrice =
     baseIsValid && markupIsValid
       ? getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
       : 0
   const numericBase = baseIsValid ? Number(baseServiceCharge || 0) : 0
-  const isUndetermined = numericBase === 0
+
+  // Parts breakdown calculations
+  const techFeeNum = Number(technicianFee || 0)
+  const partsCostNum = Number(partsCost || 0)
+  const partsMarkupNum = Number(partsMarkup || 0)
+  const partsSrpNum = partsCostNum + partsMarkupNum
+  const partsModeTotal = techFeeNum + partsCostNum + partsMarkupNum
+
+  const finalCustomerPrice = isPartsMode ? partsModeTotal : standardFinalPrice
+  const isUndetermined = !isPartsMode && numericBase === 0
 
   return (
     <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={isOptional ? "Base service charge (leave ₱0.00 for diagnosis / undetermined)" : "Base service charge *"}>
-          <input
-            className={FIELD_CLASS}
-            min="0"
-            onChange={(event) => onBaseChange(event.target.value)}
-            placeholder="0.00 (Undetermined / For Diagnosis)"
-            required={!isOptional}
-            step="0.01"
-            type="number"
-            value={baseServiceCharge}
-          />
-        </Field>
-        <Field label="Markup % (optional)">
-          <input
-            className={FIELD_CLASS}
-            max="99.9999"
-            min="0"
-            onChange={(event) => onMarkupChange(event.target.value)}
-            step="0.0001"
-            type="number"
-            value={markupPercent}
-          />
-        </Field>
-      </div>
-      {!markupIsValid ? (
-        <p className="text-xs font-bold text-rose-500">Markup must be at least 0% and less than 100%.</p>
-      ) : null}
-      <div className="grid gap-2 text-xs sm:grid-cols-3">
-        <div><p className="font-bold text-[var(--color-muted)]">Base</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(numericBase)}</p></div>
-        <div><p className="font-bold text-[var(--color-muted)]">Markup amount</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(Math.max(finalServiceCharge - numericBase, 0))}</p></div>
-        <div>
-          <p className="font-bold text-[var(--color-muted)]">Final customer price</p>
-          <p className="mt-1 font-black text-[var(--color-maroon)]">
-            {isUndetermined ? "₱0.00 (For Diagnosis / Undetermined)" : money(finalServiceCharge)}
-          </p>
+      {/* Mode Switcher */}
+      {onPricingModeChange && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+            Pricing Calculation Mode:
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                !isPartsMode
+                  ? "bg-[var(--color-maroon)] text-white shadow-xs"
+                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
+              onClick={() => onPricingModeChange("STANDARD")}
+              type="button"
+            >
+              Standard Labor Charge
+            </button>
+            <button
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                isPartsMode
+                  ? "bg-[var(--color-maroon)] text-white shadow-xs"
+                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
+              onClick={() => onPricingModeChange("PARTS_BREAKDOWN")}
+              type="button"
+            >
+              ⚡ With Service Parts &amp; Markup (Piyesa + Tubo)
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {isPartsMode ? (
+        /* 3-Tier Parts Breakdown Mode (LCD Replacement, IC chips, etc.) */
+        <div className="space-y-3">
+          {/* Part Selection from Catalog */}
+          {servicePartsCatalog.length > 0 && onServicePartChange && (
+            <Field label="Pumili sa Service Parts Catalog (Opsyonal para sa auto-fill ng puhunan at tubo)">
+              <select
+                className={FIELD_CLASS}
+                onChange={(e) => {
+                  const partId = e.target.value
+                  if (!partId) {
+                    onServicePartChange(null)
+                  } else {
+                    const selected = servicePartsCatalog.find((p) => p.id === partId)
+                    if (selected) onServicePartChange(selected)
+                  }
+                }}
+                value={servicePartId || ""}
+              >
+                <option value="">-- Manual Entry / Custom Service Part --</option>
+                {servicePartsCatalog.map((part) => (
+                  <option key={part.id} value={part.id}>
+                    [{part.category || "PART"}] {part.name} (Puhunan: {money(part.costPrice)} | Tubo: {money(part.markupAmount)})
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="👨‍🔧 Fee / Labor Rate ni Tech (₱) *">
+              <input
+                className={`${FIELD_CLASS} font-mono`}
+                min="0"
+                onChange={(e) => onTechnicianFeeChange && onTechnicianFeeChange(e.target.value)}
+                placeholder="0.00"
+                step="0.01"
+                type="number"
+                value={technicianFee}
+              />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Bayad sa paggawa ng technician</span>
+            </Field>
+
+            <Field label="📦 Puhunan sa Piyesa (Cost ₱) *">
+              <input
+                className={`${FIELD_CLASS} font-mono text-amber-900 font-bold`}
+                min="0"
+                onChange={(e) => onPartsCostChange && onPartsCostChange(e.target.value)}
+                placeholder="0.00"
+                step="0.01"
+                type="number"
+                value={partsCost}
+              />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Halaga ng biniling piyesa (LCD, IC, atbp.)</span>
+            </Field>
+
+            <Field label="🏢 Tubo ng Shop sa Piyesa (Markup ₱)">
+              <input
+                className={`${FIELD_CLASS} font-mono text-emerald-900 font-bold`}
+                min="0"
+                onChange={(e) => onPartsMarkupChange && onPartsMarkupChange(e.target.value)}
+                placeholder="0.00"
+                step="0.01"
+                type="number"
+                value={partsMarkup}
+              />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Tubo/patong ng shop sa mismong piyesa</span>
+            </Field>
+          </div>
+
+          {/* Internal Transparency Box */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-2 text-xs">
+            <div className="flex items-center justify-between border-b border-amber-200/70 pb-1.5">
+              <span className="font-black uppercase tracking-wider text-amber-900 text-[10px] flex items-center gap-1">
+                🔒 Shop Internal Breakdown (Hidden from customer receipt):
+              </span>
+              <span className="text-[10px] font-bold text-slate-500">
+                Piyesa SRP: {money(partsSrpNum)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+              <div className="rounded-lg bg-white p-2 border border-amber-200/80">
+                <p className="text-[10px] font-bold text-amber-800">Puhunan sa Piyesa</p>
+                <p className="mt-0.5 font-mono font-black text-amber-950">{money(partsCostNum)}</p>
+              </div>
+
+              <div className="rounded-lg bg-white p-2 border border-blue-200/80">
+                <p className="text-[10px] font-bold text-blue-800">Fee ni Technician</p>
+                <p className="mt-0.5 font-mono font-black text-blue-950">{money(techFeeNum)}</p>
+              </div>
+
+              <div className="rounded-lg bg-white p-2 border border-emerald-200/80">
+                <p className="text-[10px] font-bold text-emerald-800">Tubo ng Shop</p>
+                <p className="mt-0.5 font-mono font-black text-emerald-950">{money(partsMarkupNum)}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-amber-200/70">
+              <span className="font-bold text-slate-700">Kabuuang Singil sa Client (Total Price):</span>
+              <span className="font-mono font-black text-base text-[var(--color-maroon)]">
+                {money(finalCustomerPrice)}
+              </span>
+            </div>
+
+            <p className="text-[10px] text-slate-500 italic">
+              ℹ️ Point of view ni client: Walang makikitang internal cost breakdown sa claim stub o resibo. Ang kabuuang <strong>{money(finalCustomerPrice)}</strong> lamang ang lalabas.
+            </p>
+          </div>
+        </div>
+      ) : (
+        /* Standard Single Base Charge + Markup % */
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={isOptional ? "Base service charge (leave ₱0.00 for diagnosis / undetermined)" : "Base service charge *"}>
+              <input
+                className={FIELD_CLASS}
+                min="0"
+                onChange={(event) => onBaseChange(event.target.value)}
+                placeholder="0.00 (Undetermined / For Diagnosis)"
+                required={!isOptional}
+                step="0.01"
+                type="number"
+                value={baseServiceCharge}
+              />
+            </Field>
+            <Field label="Markup % (optional)">
+              <input
+                className={FIELD_CLASS}
+                max="99.9999"
+                min="0"
+                onChange={(event) => onMarkupChange(event.target.value)}
+                step="0.0001"
+                type="number"
+                value={markupPercent}
+              />
+            </Field>
+          </div>
+          {!markupIsValid ? (
+            <p className="text-xs font-bold text-rose-500">Markup must be at least 0% and less than 100%.</p>
+          ) : null}
+          <div className="grid gap-2 text-xs sm:grid-cols-3">
+            <div><p className="font-bold text-[var(--color-muted)]">Base</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(numericBase)}</p></div>
+            <div><p className="font-bold text-[var(--color-muted)]">Markup amount</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(Math.max(finalCustomerPrice - numericBase, 0))}</p></div>
+            <div>
+              <p className="font-bold text-[var(--color-muted)]">Final customer price</p>
+              <p className="mt-1 font-black text-[var(--color-maroon)]">
+                {isUndetermined ? "₱0.00 (For Diagnosis / Undetermined)" : money(finalCustomerPrice)}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
 function FinancialSnapshot({ compact = false, job }) {
+  const partsCost = Number(job.unallocatedRepairCostPoolSnapshot || 0)
+  const techFee = Number(job.repairFeeSnapshot || 0)
+  const shopMarkup = Number(job.companyShareAmountSnapshot || 0)
+  const hasPartsBreakdown = partsCost > 0 || (techFee > 0 && shopMarkup > 0)
+
   const snapshotFields = [
     ["Repair Cost %", percentOrDash(job.repairCostPercentSnapshot)],
     ["Company Share %", percentOrDash(job.companySharePercentSnapshot)],
@@ -705,12 +889,40 @@ function FinancialSnapshot({ compact = false, job }) {
   if (!hasSnapshot) return null
 
   return (
-    <section className={compact ? "mt-3 rounded-xl bg-slate-50 p-3" : "rounded-2xl border border-[var(--color-border)] p-4"}>
+    <section className={compact ? "mt-3 rounded-xl bg-slate-50 p-3 space-y-2.5" : "rounded-2xl border border-[var(--color-border)] p-4 space-y-3"}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className={compact ? "text-[11px] font-black uppercase tracking-wide" : "font-black"}>Stored financial snapshot</p>
+        <p className={compact ? "text-[11px] font-black uppercase tracking-wide" : "font-black"}>Stored Financial Snapshot</p>
         <p className="text-[10px] font-bold text-[var(--color-muted)]">Captured {dateTime(job.financialSnapshotAt)}</p>
       </div>
-      <div className={compact ? "mt-2 grid grid-cols-2 gap-2 text-[10px]" : "mt-3 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4"}>
+
+      {/* Prominent 3-way Breakdown Card if parts breakdown / cost pool snapshot was captured */}
+      {hasPartsBreakdown && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+          <p className="text-[10px] font-black uppercase tracking-wider text-amber-900 mb-2">
+            📊 Internal Puhunan at Hatian Summary (Shop vs Tech):
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="rounded-lg bg-white p-2 border border-amber-200/80">
+              <span className="text-[10px] font-bold text-slate-500 block">📦 Puhunan sa Piyesa</span>
+              <span className="font-mono font-bold text-amber-950">{money(partsCost)}</span>
+            </div>
+            <div className="rounded-lg bg-white p-2 border border-blue-200/80">
+              <span className="text-[10px] font-bold text-slate-500 block">👨‍🔧 Bayad/Fee ni Tech</span>
+              <span className="font-mono font-bold text-blue-950">{money(techFee)}</span>
+            </div>
+            <div className="rounded-lg bg-white p-2 border border-emerald-200/80">
+              <span className="text-[10px] font-bold text-slate-500 block">🏢 Tubo ng Shop</span>
+              <span className="font-mono font-bold text-emerald-950">{money(shopMarkup)}</span>
+            </div>
+            <div className="rounded-lg bg-white p-2 border border-rose-200/80">
+              <span className="text-[10px] font-bold text-slate-500 block">🧾 Client Total</span>
+              <span className="font-mono font-black text-[var(--color-maroon)]">{money(job.finalServiceCharge)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={compact ? "mt-2 grid grid-cols-2 gap-2 text-[10px]" : "grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4"}>
         {snapshotFields.map(([label, value]) => (
           <div key={label}>
             <p className="font-bold text-[var(--color-muted)]">{label}</p>
@@ -947,6 +1159,7 @@ function WorkshopTasksManager({
   job,
   technicians = [],
   serviceCatalog = [],
+  servicePartsCatalog = [],
   isSaving = false,
   onSaveTasks,
   onStatusChange,
@@ -1126,7 +1339,11 @@ function WorkshopTasksManager({
               <p className="text-xs text-purple-800">
                 The unit is ready for release! Cashier can load J.O. #{job.jobCode} in the POS counter to collect payment and release the unit with the official Delivery / Warranty Receipt.
               </p>
-              {onPayInPos ? (
+              {job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") || job.status === "COMPLETED" || job.releasedAt ? (
+                <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 text-xs font-black text-emerald-800 shadow-xs">
+                  <CheckCircle2 size={14} /> Billed in POS Cashiering {job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(Invoice #${job.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
+                </div>
+              ) : onPayInPos ? (
                 <button
                   type="button"
                   onClick={() => onPayInPos(job)}
@@ -1242,13 +1459,47 @@ function WorkshopTasksManager({
             </h4>
           </div>
           {canManage && (
-            <button
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
-              onClick={handleAddPart}
-              type="button"
-            >
-              <Plus size={13} /> Add Part
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {servicePartsCatalog.length > 0 && (
+                <select
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 transition outline-none cursor-pointer"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const selected = servicePartsCatalog.find((p) => p.id === e.target.value)
+                    if (selected) {
+                      const cost = Number(selected.costPrice || 0)
+                      const markup = Number(selected.markupAmount || 0)
+                      setParts((prev) => [
+                        ...prev,
+                        {
+                          id: `part-${Date.now()}`,
+                          partName: selected.name,
+                          quantity: 1,
+                          unitPrice: cost + markup,
+                          catalogPartId: selected.id,
+                        },
+                      ])
+                      setIsDirty(true)
+                      e.target.value = ""
+                    }
+                  }}
+                >
+                  <option disabled value="">+ From Parts Catalog...</option>
+                  {servicePartsCatalog.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      [{p.category || "PART"}] {p.name} ({money(Number(p.costPrice || 0) + Number(p.markupAmount || 0))})
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+                onClick={handleAddPart}
+                type="button"
+              >
+                <Plus size={13} /> Add Custom Part
+              </button>
+            </div>
           )}
         </div>
 
@@ -1476,6 +1727,7 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
   const [customerSearch, setCustomerSearch] = useState("")
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
   const [serviceCatalog, setServiceCatalog] = useState([])
+  const [servicePartsCatalog, setServicePartsCatalog] = useState([])
   const customerDropdownRef = useRef(null)
   const customerInputRef = useRef(null)
 
@@ -1520,16 +1772,19 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
   const loadReferences = useCallback(async () => {
     if (!canCreate || (user?.role === "SUPER_OWNER" && !branchId)) return
     const params = { ...(branchId ? { branchId } : {}), status: "ACTIVE", limit: 100 }
-    const [customerResponse, technicianResponse, catalogResponse] = await Promise.all([
+    const [customerResponse, technicianResponse, catalogResponse, partsCatalogResponse] = await Promise.all([
       getCustomers(params),
       getServiceTechnicians(branchId ? { branchId } : {}),
       getServiceCatalog().catch(() => ({ data: [] })),
+      getServicePartsCatalog().catch(() => ({ data: [] })),
     ])
     const customerData = customerResponse?.data
     setCustomers(Array.isArray(customerData) ? customerData : customerData?.data || [])
     setTechnicians(Array.isArray(technicianResponse?.data) ? technicianResponse.data : [])
     const catalogData = catalogResponse?.data || catalogResponse || []
     setServiceCatalog(Array.isArray(catalogData) ? catalogData : [])
+    const partsCatalogData = partsCatalogResponse?.data || partsCatalogResponse || []
+    setServicePartsCatalog(Array.isArray(partsCatalogData) ? partsCatalogData : [])
   }, [branchId, canCreate, user?.role])
 
   const refresh = useCallback(async () => {
@@ -1693,9 +1948,15 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
       return
     }
 
-    const baseServiceCharge = Number(createForm.baseServiceCharge || 0)
-    const markupPercent = normalizedMarkup(createForm.markupPercent)
-    const finalServiceCharge = getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
+    const isPartsMode = createForm.pricingMode === "PARTS_BREAKDOWN"
+    const techFee = Number(createForm.technicianFee || 0)
+    const partsCost = Number(createForm.partsCost || 0)
+    const partsMarkup = Number(createForm.partsMarkup || 0)
+    const partsTotalCharge = techFee + partsCost + partsMarkup
+
+    const baseServiceCharge = isPartsMode ? partsTotalCharge : Number(createForm.baseServiceCharge || 0)
+    const markupPercent = isPartsMode ? 0 : normalizedMarkup(createForm.markupPercent)
+    const finalServiceCharge = isPartsMode ? partsTotalCharge : getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
     // Build structured intake record
     const intakeRecord = {
       intakeType: createForm.intakeType,
@@ -1781,6 +2042,13 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
         markupPercent,
         estimatedServiceCharge: finalServiceCharge,
         isQuickService: createForm.isQuickService,
+        ...(isPartsMode ? {
+          technicianFee: techFee,
+          partsCost: partsCost,
+          partsMarkup: partsMarkup,
+          servicePartId: createForm.servicePartId || undefined,
+          partDescription: createForm.partDescription?.trim() || undefined,
+        } : {}),
       })
       const created = response?.data
       setCreateForm(EMPTY_CREATE)
@@ -3011,6 +3279,76 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
                   markupPercent={createForm.markupPercent}
                   onBaseChange={(value) => setCreateForm((form) => ({ ...form, baseServiceCharge: value }))}
                   onMarkupChange={(value) => setCreateForm((form) => ({ ...form, markupPercent: value }))}
+                  onPartsCostChange={(value) => {
+                    setCreateForm((form) => {
+                      const tech = Number(form.technicianFee || 0)
+                      const cost = Number(value || 0)
+                      const markup = Number(form.partsMarkup || 0)
+                      const total = tech + cost + markup
+                      return {
+                        ...form,
+                        partsCost: value,
+                        baseServiceCharge: total > 0 ? String(total) : "",
+                      }
+                    })
+                  }}
+                  onPartsMarkupChange={(value) => {
+                    setCreateForm((form) => {
+                      const tech = Number(form.technicianFee || 0)
+                      const cost = Number(form.partsCost || 0)
+                      const markup = Number(value || 0)
+                      const total = tech + cost + markup
+                      return {
+                        ...form,
+                        partsMarkup: value,
+                        baseServiceCharge: total > 0 ? String(total) : "",
+                      }
+                    })
+                  }}
+                  onPricingModeChange={(mode) => setCreateForm((form) => ({ ...form, pricingMode: mode }))}
+                  onServicePartChange={(part) => {
+                    if (!part) {
+                      setCreateForm((form) => ({
+                        ...form,
+                        servicePartId: "",
+                        partDescription: "",
+                      }))
+                      return
+                    }
+                    setCreateForm((form) => {
+                      const tech = Number(form.technicianFee || 0)
+                      const cost = Number(part.costPrice || 0)
+                      const markup = Number(part.markupAmount || 0)
+                      const total = tech + cost + markup
+                      return {
+                        ...form,
+                        servicePartId: part.id,
+                        partDescription: part.name,
+                        partsCost: String(cost),
+                        partsMarkup: String(markup),
+                        baseServiceCharge: total > 0 ? String(total) : "",
+                      }
+                    })
+                  }}
+                  onTechnicianFeeChange={(value) => {
+                    setCreateForm((form) => {
+                      const tech = Number(value || 0)
+                      const cost = Number(form.partsCost || 0)
+                      const markup = Number(form.partsMarkup || 0)
+                      const total = tech + cost + markup
+                      return {
+                        ...form,
+                        technicianFee: value,
+                        baseServiceCharge: total > 0 ? String(total) : "",
+                      }
+                    })
+                  }}
+                  partDescription={createForm.partDescription}
+                  partsCost={createForm.partsCost}
+                  partsMarkup={createForm.partsMarkup}
+                  pricingMode={createForm.pricingMode}
+                  servicePartId={createForm.servicePartId}
+                  servicePartsCatalog={servicePartsCatalog}
                 />
                 <Field label="Additional internal service notes"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setCreateForm((form) => ({ ...form, serviceNotes: event.target.value }))} placeholder="Internal remarks not printed on customer receipt..." rows="2" value={createForm.serviceNotes} /></Field>
               </div>
@@ -3230,6 +3568,7 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
                   onSaveTasks={handleSaveWorkshopTasks}
                   onStatusChange={handleWorkshopStatusChange}
                   serviceCatalog={serviceCatalog}
+                  servicePartsCatalog={servicePartsCatalog}
                   technicians={technicians}
                 />
 
@@ -3350,13 +3689,19 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
                       ))
                     : null}
                   {selectedIsActive && selectedJob?.status !== "CANCELLED" ? (
-                    <button
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
-                      onClick={() => sendToPosCashiering(selectedJob)}
-                      type="button"
-                    >
-                      <ShoppingCart size={15} /> Pay in POS Cashiering
-                    </button>
+                    selectedJob?.serviceNotes?.includes("[BILLED IN POS") || selectedJob?.releaseNotes?.includes("Settled and released via POS invoice") || selectedJob?.status === "COMPLETED" || selectedJob?.releasedAt ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-300 px-3.5 py-2 text-xs font-black text-emerald-700 shadow-2xs">
+                        <CheckCircle2 size={14} /> Billed in POS {selectedJob?.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(#${selectedJob.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
+                      </span>
+                    ) : (
+                      <button
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
+                        onClick={() => sendToPosCashiering(selectedJob)}
+                        type="button"
+                      >
+                        <ShoppingCart size={15} /> Pay in POS Cashiering
+                      </button>
+                    )
                   ) : null}
                   {canActOnSelected && selectedIsActive ? (
                     <button
@@ -3476,6 +3821,21 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
           <form onSubmit={submitRelease}>
             <div className="space-y-4 p-5 sm:p-6">
               <div className="rounded-2xl bg-sky-50 p-4 text-sm text-sky-800">A repaired/service-completed release closes the JO as completed. An unrepaired, pull-out, no-fault, declined, or other release closes it without claiming that a repair was completed.</div>
+
+              {errorMessage ? (
+                <div className="flex items-start gap-2.5 rounded-2xl border border-rose-300 bg-rose-50 p-3.5 text-xs font-bold text-rose-800 shadow-xs">
+                  <CircleAlert className="mt-0.5 shrink-0 text-rose-600" size={17} />
+                  <span className="leading-relaxed">{errorMessage}</span>
+                </div>
+              ) : null}
+
+              <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-900 shadow-xs">
+                <AlertCircle className="mt-0.5 shrink-0 text-amber-700" size={17} />
+                <div className="leading-relaxed">
+                  <strong className="font-bold text-amber-950">Paalala sa Incentive Rules:</strong> Siguraduhing naka-configure ang <em>Incentive Program Rules</em> (Repair Cost % at Technician Rates) sa Settings para sa branch na ito upang maging opisyal at tumpak ang commission at company share.
+                </div>
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Release outcome *"><select className={FIELD_CLASS} onChange={(event) => setReleaseForm((form) => ({ ...form, releaseOutcome: event.target.value }))} value={releaseForm.releaseOutcome}>{allowedReleaseOutcomes.map((outcome) => <option key={outcome.value} value={outcome.value}>{outcome.label}</option>)}</select></Field>
                 <Field label={releaseIsCompleted ? "Repair category *" : "Repair category (optional for legacy pull-out)"}>

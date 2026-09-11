@@ -67,3 +67,23 @@ export async function deleteServiceCatalogItem(id) {
   const response = await apiClient.delete(`/service-jobs/catalog/${id}`)
   return response.data
 }
+
+export async function getServicePartsCatalog() {
+  const response = await apiClient.get("/service-jobs/parts-catalog")
+  return response.data
+}
+
+export async function createServicePartsCatalogItem(payload) {
+  const response = await apiClient.post("/service-jobs/parts-catalog", payload)
+  return response.data
+}
+
+export async function updateServicePartsCatalogItem(id, payload) {
+  const response = await apiClient.put(`/service-jobs/parts-catalog/${id}`, payload)
+  return response.data
+}
+
+export async function deleteServicePartsCatalogItem(id) {
+  const response = await apiClient.delete(`/service-jobs/parts-catalog/${id}`)
+  return response.data
+}
