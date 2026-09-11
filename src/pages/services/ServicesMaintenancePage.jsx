@@ -95,12 +95,13 @@ function StatusPill({ status }) {
 
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide ${
         isActive
-          ? "bg-green-50 text-green-700 border border-green-200"
-          : "bg-slate-100 text-slate-600 border border-slate-200"
+          ? "bg-emerald-50/80 text-emerald-700 border border-emerald-200/50"
+          : "bg-slate-100/80 text-slate-500 border border-slate-200/50"
       }`}
     >
+      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
       {isActive ? "ACTIVE" : "INACTIVE"}
     </span>
   )
@@ -115,23 +116,17 @@ function ServiceDetailModal({ item, onClose }) {
   const finalPrice = basePrice + basePrice * (markup / 100)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl border border-slate-200">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+      <div className="max-h-[85vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl border border-slate-200/80 flex flex-col">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="min-w-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Service Rate Details
-            </span>
-            <h2 className="mt-0.5 truncate text-base font-black text-slate-900 leading-tight">
-              {item.name}
-            </h2>
-            <p className="text-xs font-semibold text-slate-500 font-mono">
-              {item.deviceType} • {isBoard ? "Board Level Repair" : "Standard Repair"}
+            <h2 className="text-sm font-bold text-slate-900 truncate">{item.name}</h2>
+            <p className="text-xs text-slate-500 mt-0.5 font-mono">
+              {item.deviceType || "General"} · {isBoard ? "Board Level Repair" : "Standard Repair"}
             </p>
           </div>
-
           <button
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             onClick={onClose}
             type="button"
           >
@@ -139,69 +134,52 @@ function ServiceDetailModal({ item, onClose }) {
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
-          <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Service Name</p>
-              <p className="mt-1 font-bold text-slate-900">{item.name}</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Unit / Device Type</p>
-              <p className="mt-1 font-bold text-slate-900">{item.deviceType || "General"}</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Repair Classification</p>
-              <p className="mt-1 font-bold text-slate-900">
-                {isBoard ? "🔬 Board Level Repair" : "🔧 Standard / Ordinary Repair"}
-              </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                {isBoard ? "Requires Senior Technician qualification" : "Open to all branch technicians"}
+        <div className="p-6 space-y-4 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-2.5 text-xs">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Classification</span>
+              <p className="mt-0.5 font-semibold text-slate-800">
+                {isBoard ? "Board Level Repair" : "Standard Repair"}
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Service Mode</p>
-              <p className="mt-1 font-bold text-slate-900">
-                {item.isQuickService ? "⚡ Quick / Same-Day Service" : "Standard Queue"}
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Service Mode</span>
+              <p className="mt-0.5 font-semibold text-slate-800">
+                {item.isQuickService ? "Quick / Same-Day" : "Standard Queue"}
               </p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3.5 space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Standard Pricing</p>
-            <div className="grid gap-2 grid-cols-3 text-xs">
-              <div className="rounded-lg bg-slate-50 p-2.5 text-center border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-500">Base Service Charge</p>
-                <p className="mt-0.5 font-mono font-bold text-slate-900">{formatMoney(basePrice)}</p>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 space-y-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Pricing Details</span>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="p-2.5 rounded-lg bg-white border border-slate-100">
+                <span className="text-[10px] text-slate-400 block">Base Charge</span>
+                <span className="mt-0.5 font-mono font-semibold text-slate-800 block">{formatMoney(basePrice)}</span>
               </div>
-
-              <div className="rounded-lg bg-slate-50 p-2.5 text-center border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-500">Default Markup</p>
-                <p className="mt-0.5 font-mono font-bold text-slate-900">{markup}%</p>
+              <div className="p-2.5 rounded-lg bg-white border border-slate-100">
+                <span className="text-[10px] text-slate-400 block">Markup</span>
+                <span className="mt-0.5 font-mono font-semibold text-slate-800 block">{markup}%</span>
               </div>
-
-              <div className="rounded-lg bg-[var(--color-soft)] p-2.5 text-center border border-[var(--color-border)]">
-                <p className="text-[10px] font-bold text-[var(--color-maroon)]">Final Rate to Customer</p>
-                <p className="mt-0.5 font-mono font-black text-sm text-[var(--color-maroon)]">
-                  {formatMoney(finalPrice)}
-                </p>
+              <div className="p-2.5 rounded-lg bg-[var(--color-maroon-soft)]/20 border border-[var(--color-border)]">
+                <span className="text-[10px] text-[var(--color-maroon)] font-semibold block">Customer Rate</span>
+                <span className="mt-0.5 font-mono font-bold text-sm text-[var(--color-maroon)] block">{formatMoney(finalPrice)}</span>
               </div>
             </div>
           </div>
 
           {item.description ? (
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Scope of Work & Notes</p>
-              <p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap">{item.description}</p>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Scope of Work</span>
+              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{item.description}</p>
             </div>
           ) : null}
         </div>
 
-        <div className="flex justify-end border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+        <div className="flex justify-end border-t border-slate-100 px-6 py-3.5 bg-slate-50/30">
           <button
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-xl px-4 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
             onClick={onClose}
             type="button"
           >
@@ -234,30 +212,26 @@ function ServiceEditorModal({
   }
 
   const inputClass =
-    "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400"
-  const labelClass = "text-[11px] font-bold uppercase tracking-wider text-slate-600"
+    "mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white focus:ring-1 focus:ring-[var(--color-maroon)]/20 placeholder:text-slate-400"
+  const labelClass = "text-[11px] font-semibold text-slate-600 block tracking-wide"
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
       <form
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl border border-slate-200 flex flex-col"
+        className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl border border-slate-200/80 flex flex-col"
         onSubmit={handleSubmit}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/75 px-5 py-3.5 sticky top-0 z-10">
+        <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              {isEditing ? "Modify Service Rate" : "New Service Rate"}
-            </span>
-            <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight">
-              {isEditing ? "Edit Service Rate" : "Add Service Rate to Catalog"}
+            <h2 className="text-sm font-bold text-slate-900">
+              {isEditing ? "Edit Service Rate" : "New Service Rate"}
             </h2>
-            <p className="text-xs text-slate-500">
-              Configure standard repair pricing, classification, and device type.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Standard repair pricing, classification, and device type.
             </p>
           </div>
-
           <button
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -267,191 +241,166 @@ function ServiceEditorModal({
         </header>
 
         {errorMessage ? (
-          <div className="m-5 mb-0 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
-            <AlertCircle className="mt-0.5 shrink-0" size={15} />
+          <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-red-200/80 bg-red-50/60 p-3 text-xs text-red-700 font-medium">
+            <AlertCircle className="shrink-0" size={14} />
             <span>{errorMessage}</span>
           </div>
         ) : null}
 
-        <div className="p-5 space-y-4">
-          <section className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Service Identification
-            </h3>
+        <div className="p-6 space-y-4 overflow-y-auto">
+          <label className="block">
+            <span className={labelClass}>Service Name *</span>
+            <input
+              className={inputClass}
+              maxLength="120"
+              onChange={(event) => onChange("name", event.target.value)}
+              placeholder="e.g. Laptop Deep Cleaning & Thermal Repaste"
+              required
+              value={form.name}
+            />
+          </label>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className={`${labelClass} text-slate-700`}>Service / Repair Name *</span>
-                <input
-                  className={inputClass}
-                  maxLength="120"
-                  onChange={(event) => onChange("name", event.target.value)}
-                  placeholder="e.g. Laptop Deep Cleaning & Thermal Repaste"
-                  required
-                  value={form.name}
-                />
-              </label>
-
-              <label className="block">
-                <span className={labelClass}>Unit / Device Category *</span>
-                <select
-                  className={inputClass}
-                  onChange={(event) => onChange("deviceType", event.target.value)}
-                  value={form.deviceType}
-                >
-                  {DEVICE_TYPE_PRESETS.map((device) => (
-                    <option key={device} value={device}>
-                      {device}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="sm:col-span-2">
-                <span className={labelClass}>Repair Classification *</span>
-                <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
-                  <button
-                    className={`flex flex-col items-start p-3 rounded-xl border text-left transition ${
-                      form.repairType === "ORDINARY_REPAIR"
-                        ? "border-[var(--color-maroon)] bg-slate-50 ring-1 ring-[var(--color-maroon)]"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
-                    onClick={() => onChange("repairType", "ORDINARY_REPAIR")}
-                    type="button"
-                  >
-                    <div className="flex items-center gap-1.5 font-black text-sky-700 text-xs">
-                      <Wrench size={15} className="text-sky-600" />
-                      <span>Standard Repair</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      General cleaning, OS installation, storage/RAM upgrade.
-                    </p>
-                  </button>
-
-                  <button
-                    className={`flex flex-col items-start p-3 rounded-xl border text-left transition ${
-                      form.repairType === "BOARD_LEVEL_REPAIR"
-                        ? "border-purple-600 bg-purple-50/50 ring-1 ring-purple-600"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
-                    onClick={() => onChange("repairType", "BOARD_LEVEL_REPAIR")}
-                    type="button"
-                  >
-                    <div className="flex items-center gap-1.5 font-black text-purple-700 text-xs">
-                      <Sparkles size={15} className="text-purple-600" />
-                      <span>Board Level Repair</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Micro-soldering, shorted line tracing, IC chip replacement.
-                    </p>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-3 pt-2 border-t border-slate-100">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Pricing &amp; Labor Rates
-            </h3>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className={`${labelClass} text-slate-700`}>Base Service Charge (₱) *</span>
-                <input
-                  className={`${inputClass} font-mono`}
-                  min="0"
-                  onChange={(event) => onChange("basePrice", event.target.value)}
-                  placeholder="0.00"
-                  required
-                  step="0.01"
-                  type="number"
-                  value={form.basePrice}
-                />
-              </label>
-
-              <label className="block">
-                <span className={labelClass}>Default Markup (%)</span>
-                <input
-                  className={`${inputClass} font-mono`}
-                  min="0"
-                  onChange={(event) => onChange("markupPercent", event.target.value)}
-                  placeholder="0"
-                  step="0.01"
-                  type="number"
-                  value={form.markupPercent}
-                />
-              </label>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50/75 p-3 flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-600">Final Standard Customer Price:</span>
-              <span className="font-mono font-black text-sm text-[var(--color-maroon)]">
-                {formatMoney(finalPriceNum)}
-              </span>
-            </div>
-          </section>
-
-          <section className="space-y-3 pt-2 border-t border-slate-100">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Scope of Work &amp; Status
-            </h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className={labelClass}>Device Category *</span>
+              <select
+                className={inputClass}
+                onChange={(event) => onChange("deviceType", event.target.value)}
+                value={form.deviceType}
+              >
+                {DEVICE_TYPE_PRESETS.map((device) => (
+                  <option key={device} value={device}>
+                    {device}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <label className="block">
-              <span className={labelClass}>Description / Standard Inclusions</span>
-              <textarea
-                className={`${inputClass} resize-none`}
-                maxLength="2000"
-                onChange={(event) => onChange("description", event.target.value)}
-                placeholder="Scope of work, standard inclusions, notes..."
-                rows="3"
-                value={form.description}
+              <span className={labelClass}>Status</span>
+              <select
+                className={inputClass}
+                onChange={(event) => onChange("status", event.target.value)}
+                value={form.status}
+              >
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </label>
+          </div>
+
+          <div>
+            <span className={labelClass}>Classification</span>
+            <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+              <button
+                className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                  form.repairType === "ORDINARY_REPAIR"
+                    ? "border-[var(--color-maroon)] bg-[var(--color-maroon-soft)]/20 ring-1 ring-[var(--color-maroon)]/30"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+                onClick={() => onChange("repairType", "ORDINARY_REPAIR")}
+                type="button"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900">
+                  <Wrench size={13} className="text-[var(--color-maroon)]" />
+                  <span>Standard Repair</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">Cleaning, OS installation, storage/RAM</p>
+              </button>
+
+              <button
+                className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                  form.repairType === "BOARD_LEVEL_REPAIR"
+                    ? "border-[var(--color-maroon)] bg-[var(--color-maroon-soft)]/20 ring-1 ring-[var(--color-maroon)]/30"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+                onClick={() => onChange("repairType", "BOARD_LEVEL_REPAIR")}
+                type="button"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900">
+                  <Sparkles size={13} className="text-[var(--color-maroon)]" />
+                  <span>Board Level</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">Micro-soldering, tracing, IC chips</p>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className={labelClass}>Base Charge (₱) *</span>
+              <input
+                className={`${inputClass} font-mono`}
+                min="0"
+                onChange={(event) => onChange("basePrice", event.target.value)}
+                placeholder="0.00"
+                required
+                step="0.01"
+                type="number"
+                value={form.basePrice}
               />
             </label>
 
-            <div className="grid gap-3 sm:grid-cols-2 pt-1">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
-                <input
-                  checked={form.isQuickService}
-                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
-                  onChange={(event) => onChange("isQuickService", event.target.checked)}
-                  type="checkbox"
-                />
-                <span>⚡ Quick / Express Service Template</span>
-              </label>
+            <label className="block">
+              <span className={labelClass}>Default Markup (%)</span>
+              <input
+                className={`${inputClass} font-mono`}
+                min="0"
+                onChange={(event) => onChange("markupPercent", event.target.value)}
+                placeholder="0"
+                step="0.01"
+                type="number"
+                value={form.markupPercent}
+              />
+            </label>
+          </div>
 
-              <label className="block">
-                <span className={labelClass}>Status</span>
-                <select
-                  className={inputClass}
-                  onChange={(event) => onChange("status", event.target.value)}
-                  value={form.status}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
-              </label>
-            </div>
-          </section>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 flex items-center justify-between text-xs">
+            <span className="text-slate-600 font-medium">Customer Final Rate:</span>
+            <span className="font-mono font-bold text-sm text-[var(--color-maroon)]">
+              {formatMoney(finalPriceNum)}
+            </span>
+          </div>
+
+          <label className="block">
+            <span className={labelClass}>Description / Notes</span>
+            <textarea
+              className={`${inputClass} resize-none`}
+              maxLength="2000"
+              onChange={(event) => onChange("description", event.target.value)}
+              placeholder="Scope of work, standard inclusions..."
+              rows="2"
+              value={form.description}
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer pt-1">
+            <input
+              checked={form.isQuickService}
+              className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+              onChange={(event) => onChange("isQuickService", event.target.checked)}
+              type="checkbox"
+            />
+            <span className="font-medium">Quick / Express Same-Day Service</span>
+          </label>
         </div>
 
-        <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+        <footer className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-3.5 bg-slate-50/30">
           <button
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
             disabled={isSaving}
             onClick={onClose}
             type="button"
           >
             Cancel
           </button>
-
           <button
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-semibold text-white hover:bg-[var(--color-maroon-hover)] transition shadow-2xs disabled:opacity-50 cursor-pointer"
             disabled={isSaving}
             type="submit"
           >
-            <Save size={14} />
-            {isSaving ? "Saving…" : isEditing ? "Save service rate" : "Create service rate"}
+            <Save size={13} />
+            {isSaving ? "Saving…" : isEditing ? "Save Changes" : "Create Rate"}
           </button>
         </footer>
       </form>
@@ -467,23 +416,17 @@ function PartDetailModal({ item, onClose }) {
   const suggestedSrp = cost + markup
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl border border-slate-200">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+      <div className="max-h-[85vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl border border-slate-200/80 flex flex-col">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="min-w-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Service Part & Material Details
-            </span>
-            <h2 className="mt-0.5 truncate text-base font-black text-slate-900 leading-tight">
-              {item.name}
-            </h2>
-            <p className="text-xs font-semibold text-slate-500 font-mono">
-              {item.deviceType || "General"} • Category: {item.category || "OTHER"}
+            <h2 className="text-sm font-bold text-slate-900 truncate">{item.name}</h2>
+            <p className="text-xs text-slate-500 mt-0.5 font-mono">
+              {item.deviceType || "General"} · {item.category || "OTHER"}
             </p>
           </div>
-
           <button
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             onClick={onClose}
             type="button"
           >
@@ -491,67 +434,55 @@ function PartDetailModal({ item, onClose }) {
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
-          <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Part / Material Name</p>
-              <p className="mt-1 font-bold text-slate-900">{item.name}</p>
+        <div className="p-6 space-y-4 overflow-y-auto">
+          <div className="grid grid-cols-3 gap-2.5 text-xs">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Device</span>
+              <p className="mt-0.5 font-semibold text-slate-800 truncate">{item.deviceType || "All"}</p>
             </div>
 
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Device Compatibility</p>
-              <p className="mt-1 font-bold text-slate-900">{item.deviceType || "All Devices"}</p>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Category</span>
+              <p className="mt-0.5 font-semibold text-slate-800 truncate font-mono">{item.category || "OTHER"}</p>
             </div>
 
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</p>
-              <p className="mt-1 font-bold text-slate-900">{item.category || "OTHER"}</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</p>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Status</span>
               <div className="mt-1">
                 <StatusPill status={item.isActive !== false ? "ACTIVE" : "INACTIVE"} />
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3.5 space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Cost & Markup Economics</p>
-            <div className="grid gap-2 grid-cols-3 text-xs">
-              <div className="rounded-lg bg-amber-50 p-2.5 text-center border border-amber-200/60">
-                <p className="text-[10px] font-bold text-amber-800">Part Cost (₱)</p>
-                <p className="mt-0.5 font-mono font-bold text-amber-950">{formatMoney(cost)}</p>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 space-y-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Economics</span>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="p-2.5 rounded-lg bg-white border border-slate-100">
+                <span className="text-[10px] text-slate-400 block">Part Cost</span>
+                <span className="mt-0.5 font-mono font-semibold text-slate-800 block">{formatMoney(cost)}</span>
               </div>
-
-              <div className="rounded-lg bg-emerald-50 p-2.5 text-center border border-emerald-200/60">
-                <p className="text-[10px] font-bold text-emerald-800">Shop Markup (₱)</p>
-                <p className="mt-0.5 font-mono font-bold text-emerald-950">{formatMoney(markup)}</p>
+              <div className="p-2.5 rounded-lg bg-white border border-slate-100">
+                <span className="text-[10px] text-slate-400 block">Shop Markup</span>
+                <span className="mt-0.5 font-mono font-semibold text-slate-800 block">+{formatMoney(markup)}</span>
               </div>
-
-              <div className="rounded-lg bg-[var(--color-soft)] p-2.5 text-center border border-[var(--color-border)]">
-                <p className="text-[10px] font-bold text-[var(--color-maroon)]">Suggested Part SRP</p>
-                <p className="mt-0.5 font-mono font-black text-sm text-[var(--color-maroon)]">
-                  {formatMoney(suggestedSrp)}
-                </p>
+              <div className="p-2.5 rounded-lg bg-[var(--color-maroon-soft)]/20 border border-[var(--color-border)]">
+                <span className="text-[10px] text-[var(--color-maroon)] font-semibold block">Suggested SRP</span>
+                <span className="mt-0.5 font-mono font-bold text-sm text-[var(--color-maroon)] block">{formatMoney(suggestedSrp)}</span>
               </div>
             </div>
-            <p className="text-[10px] text-slate-500 italic mt-1">
-              * Note: Customer receipts and claim stubs will only display the consolidated final service charge without exposing internal part cost or markup.
-            </p>
           </div>
 
           {item.description ? (
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description / Specs</p>
-              <p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap">{item.description}</p>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Specifications</span>
+              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{item.description}</p>
             </div>
           ) : null}
         </div>
 
-        <div className="flex justify-end border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+        <div className="flex justify-end border-t border-slate-100 px-6 py-3.5 bg-slate-50/30">
           <button
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-xl px-4 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
             onClick={onClose}
             type="button"
           >
@@ -635,18 +566,18 @@ function ManagePartCategoriesModal({
   }
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-      <div className="max-h-[85vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200 flex flex-col">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+      <div className="max-h-[85vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl border border-slate-200/80 flex flex-col">
+        <header className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
           <div className="flex items-center gap-2">
-            <Layers className="text-[var(--color-maroon)]" size={18} />
+            <Layers className="text-[var(--color-maroon)]" size={16} />
             <div>
-              <h2 className="text-sm font-black text-slate-900">Manage Part Categories</h2>
-              <p className="text-[11px] text-slate-500">Edit, rename, or delete categories.</p>
+              <h2 className="text-sm font-bold text-slate-900">Part Categories</h2>
+              <p className="text-[11px] text-slate-500">Edit, rename, or delete categories</p>
             </div>
           </div>
           <button
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            className="rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             onClick={onClose}
             type="button"
           >
@@ -655,28 +586,28 @@ function ManagePartCategoriesModal({
         </header>
 
         {statusMessage ? (
-          <div className="mx-4 mt-3 rounded-xl bg-sky-50 border border-sky-200 px-3 py-2 text-xs font-semibold text-sky-800 flex items-center justify-between">
+          <div className="mx-4 mt-3 rounded-xl bg-slate-50 border border-slate-200/70 px-3 py-2 text-xs font-medium text-slate-700 flex items-center justify-between">
             <span>{statusMessage}</span>
-            <button className="text-sky-600 hover:text-sky-900 cursor-pointer" onClick={() => setStatusMessage("")} type="button">
+            <button className="text-slate-400 hover:text-slate-700 cursor-pointer" onClick={() => setStatusMessage("")} type="button">
               <X size={13} />
             </button>
           </div>
         ) : null}
 
-        <div className="p-3.5 border-b border-slate-100">
+        <div className="p-3 border-b border-slate-100">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
             <input
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-8 pr-3 py-1.5 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-8 pr-3 py-1.5 text-xs text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white placeholder:text-slate-400"
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search category to edit or delete..."
+              placeholder="Filter categories..."
               type="text"
               value={searchTerm}
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100 space-y-1">
+        <div className="flex-1 overflow-y-auto p-3 divide-y divide-slate-100 space-y-1">
           {filteredCategories.length === 0 ? (
             <div className="text-center py-6 text-xs text-slate-400">
               No categories found matching &quot;{searchTerm}&quot;.
@@ -687,12 +618,12 @@ function ManagePartCategoriesModal({
               const isEditingThis = editingCat === cat
 
               return (
-                <div className="flex items-center justify-between py-2.5 gap-2" key={cat}>
+                <div className="flex items-center justify-between py-2 gap-2" key={cat}>
                   {isEditingThis ? (
                     <div className="flex-1 flex items-center gap-2">
                       <input
                         autoFocus
-                        className="flex-1 rounded-lg border border-[var(--color-maroon)] px-2.5 py-1 text-xs font-mono uppercase font-bold text-slate-900 outline-none focus:ring-1 focus:ring-[var(--color-maroon)]"
+                        className="flex-1 rounded-lg border border-[var(--color-maroon)] px-2.5 py-1 text-xs font-mono uppercase font-bold text-slate-900 outline-none"
                         onChange={(e) => setRenameValue(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleSaveRename(cat)
@@ -702,50 +633,50 @@ function ManagePartCategoriesModal({
                         value={renameValue}
                       />
                       <button
-                        className="rounded-lg bg-[var(--color-maroon)] text-white p-1.5 hover:bg-[var(--color-maroon-hover)] transition cursor-pointer"
+                        className="rounded-lg bg-[var(--color-maroon)] text-white p-1 hover:bg-[var(--color-maroon-hover)] transition cursor-pointer"
                         disabled={isProcessing}
                         onClick={() => handleSaveRename(cat)}
                         title="Save rename"
                         type="button"
                       >
-                        <Check size={14} />
+                        <Check size={13} />
                       </button>
                       <button
-                        className="rounded-lg border border-slate-200 text-slate-500 p-1.5 hover:bg-slate-100 transition cursor-pointer"
+                        className="rounded-lg border border-slate-200 text-slate-500 p-1 hover:bg-slate-100 transition cursor-pointer"
                         disabled={isProcessing}
                         onClick={() => setEditingCat(null)}
                         title="Cancel"
                         type="button"
                       >
-                        <X size={14} />
+                        <X size={13} />
                       </button>
                     </div>
                   ) : (
                     <>
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono font-bold text-xs text-slate-900 truncate">
+                        <span className="font-mono font-semibold text-xs text-slate-900 truncate">
                           {cat}
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                          {count} {count === 1 ? "part" : "parts"}
+                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 font-medium">
+                          {count}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
                         <button
-                          className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-[var(--color-maroon)] hover:border-[var(--color-maroon)] transition cursor-pointer"
+                          className="rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                           disabled={isProcessing}
                           onClick={() => handleStartRename(cat)}
-                          title={`Edit / Rename "${cat}"`}
+                          title={`Edit "${cat}"`}
                           type="button"
                         >
                           <Edit3 size={13} />
                         </button>
                         <button
-                          className="rounded-lg border border-rose-200 bg-white p-1.5 text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition cursor-pointer"
+                          className="rounded-lg p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                           disabled={isProcessing}
                           onClick={() => handleDelete(cat)}
-                          title={`Delete category "${cat}"`}
+                          title={`Delete "${cat}"`}
                           type="button"
                         >
                           <Trash2 size={13} />
@@ -759,9 +690,9 @@ function ManagePartCategoriesModal({
           )}
         </div>
 
-        <footer className="border-t border-slate-200 bg-slate-50/75 px-5 py-3 flex justify-end">
+        <footer className="border-t border-slate-100 bg-slate-50/40 px-5 py-3 flex justify-end">
           <button
-            className="rounded-xl border border-slate-300 bg-white px-4 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            className="rounded-xl px-4 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
             onClick={onClose}
             type="button"
           >
@@ -813,30 +744,27 @@ function PartEditorModal({
   }
 
   const inputClass =
-    "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400"
-  const labelClass = "text-[11px] font-bold uppercase tracking-wider text-slate-600"
+    "mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white focus:ring-1 focus:ring-[var(--color-maroon)]/20 placeholder:text-slate-400"
+  const labelClass = "text-[11px] font-semibold text-slate-600 block tracking-wide"
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
       <form
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl border border-slate-200 flex flex-col"
+        className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl border border-slate-200/80 flex flex-col"
         onSubmit={handleSubmit}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/75 px-5 py-3.5 sticky top-0 z-10">
+        <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              {isEditing ? "Modify Service Part" : "New Service Part & Material"}
-            </span>
-            <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight">
-              {isEditing ? "Edit Part & Markup" : "Add Service Part / Replacement Screen / Material"}
+            <h2 className="text-sm font-bold text-slate-900">
+              {isEditing ? "Edit Service Part" : "New Service Part"}
             </h2>
-            <p className="text-xs text-slate-500">
-              Dedicated service materials catalog with shop markup calculation.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Service material item and internal markup computation.
             </p>
           </div>
 
           <button
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            className="rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -846,255 +774,216 @@ function PartEditorModal({
         </header>
 
         {errorMessage ? (
-          <div className="m-5 mb-0 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
-            <AlertCircle className="mt-0.5 shrink-0" size={15} />
+          <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-red-200/80 bg-red-50/60 p-3 text-xs text-red-700 font-medium">
+            <AlertCircle className="shrink-0" size={14} />
             <span>{errorMessage}</span>
           </div>
         ) : null}
 
-        <div className="p-5 space-y-4">
-          <section className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Part Identification
-            </h3>
+        <div className="p-6 space-y-4 overflow-y-auto">
+          <label className="block">
+            <span className={labelClass}>Part / Material Description *</span>
+            <input
+              className={inputClass}
+              maxLength="150"
+              onChange={(event) => onChange("name", event.target.value)}
+              placeholder="e.g. Laptop 15.6 FHD 144Hz IPS Screen (30-Pin EDP)"
+              required
+              value={form.name}
+            />
+          </label>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className={`${labelClass} text-slate-700`}>Part / Material Description *</span>
-                <input
-                  className={inputClass}
-                  maxLength="150"
-                  onChange={(event) => onChange("name", event.target.value)}
-                  placeholder="e.g. Laptop 15.6 FHD 144Hz IPS Screen (30-Pin EDP)"
-                  required
-                  value={form.name}
-                />
-              </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className={labelClass}>Device Category</span>
+              <select
+                className={inputClass}
+                onChange={(event) => onChange("deviceType", event.target.value)}
+                value={form.deviceType}
+              >
+                {DEVICE_TYPE_PRESETS.map((device) => (
+                  <option key={device} value={device}>
+                    {device}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-              <label className="block">
-                <span className={labelClass}>Device Category</span>
-                <select
-                  className={inputClass}
-                  onChange={(event) => onChange("deviceType", event.target.value)}
-                  value={form.deviceType}
-                >
-                  {DEVICE_TYPE_PRESETS.map((device) => (
-                    <option key={device} value={device}>
-                      {device}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="block">
-                <div className="flex items-center justify-between gap-1 mb-1">
-                  <span className={labelClass}>Part Category</span>
-                  <div className="flex items-center gap-1.5">
-                    {!isCustomCategoryMode ? (
-                      <>
-                        <button
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-maroon)] hover:underline cursor-pointer"
-                          onClick={() => {
-                            setIsCustomCategoryMode(true)
-                            setCustomCategoryInput("")
-                          }}
-                          type="button"
-                        >
-                          <Plus size={12} />
-                          Add New
-                        </button>
-                        <span className="text-slate-300">·</span>
-                        <button
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
-                          onClick={() => onOpenCategoryManager?.()}
-                          type="button"
-                        >
-                          <Edit3 size={11} />
-                          Edit / Delete
-                        </button>
-                      </>
-                    ) : (
+            <div className="block">
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className={labelClass}>Part Category</span>
+                <div className="flex items-center gap-1 text-[11px]">
+                  {!isCustomCategoryMode ? (
+                    <>
                       <button
-                        className="text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                        className="font-semibold text-[var(--color-maroon)] hover:underline cursor-pointer"
                         onClick={() => {
-                          setIsCustomCategoryMode(false)
+                          setIsCustomCategoryMode(true)
                           setCustomCategoryInput("")
                         }}
                         type="button"
                       >
-                        Select from list
+                        + Add
                       </button>
-                    )}
-                  </div>
-                </div>
-
-                {!isCustomCategoryMode ? (
-                  <select
-                    className={inputClass}
-                    onChange={(event) => {
-                      if (event.target.value === "__NEW_CUSTOM__") {
-                        setIsCustomCategoryMode(true)
-                        setCustomCategoryInput("")
-                      } else if (event.target.value === "__MANAGE_CATEGORIES__") {
-                        onOpenCategoryManager?.()
-                      } else {
-                        onChange("category", event.target.value)
-                      }
-                    }}
-                    value={form.category}
-                  >
-                    {availableCategories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                    <option value="__NEW_CUSTOM__">+ Add Custom Category...</option>
-                    <option value="__MANAGE_CATEGORIES__">⚙️ Edit / Delete Categories...</option>
-                  </select>
-                ) : (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <input
-                        autoFocus
-                        className={`${inputClass} mt-0 font-mono uppercase tracking-wider`}
-                        maxLength="50"
-                        onChange={(event) => setCustomCategoryInput(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault()
-                            handleApplyCustomCategory()
-                          } else if (event.key === "Escape") {
-                            setIsCustomCategoryMode(false)
-                          }
-                        }}
-                        placeholder="e.g. CHARGER, TRACKPAD, HOUSING..."
-                        type="text"
-                        value={customCategoryInput}
-                      />
+                      <span className="text-slate-300">·</span>
                       <button
-                        className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] px-3 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition shrink-0 cursor-pointer disabled:opacity-50"
-                        disabled={!customCategoryInput.trim()}
-                        onClick={handleApplyCustomCategory}
+                        className="text-slate-400 hover:text-slate-700 hover:underline cursor-pointer"
+                        onClick={() => onOpenCategoryManager?.()}
                         type="button"
                       >
-                        Use
+                        Manage
                       </button>
-                    </div>
-                    <p className="text-[10px] text-slate-500">
-                      Enter a custom part category name and click &quot;Use&quot; or press Enter.
-                    </p>
-                  </div>
-                )}
+                    </>
+                  ) : (
+                    <button
+                      className="text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                      onClick={() => {
+                        setIsCustomCategoryMode(false)
+                        setCustomCategoryInput("")
+                      }}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {!isCustomCategoryMode ? (
+                <select
+                  className={inputClass}
+                  onChange={(event) => {
+                    if (event.target.value === "__NEW_CUSTOM__") {
+                      setIsCustomCategoryMode(true)
+                      setCustomCategoryInput("")
+                    } else if (event.target.value === "__MANAGE_CATEGORIES__") {
+                      onOpenCategoryManager?.()
+                    } else {
+                      onChange("category", event.target.value)
+                    }
+                  }}
+                  value={form.category}
+                >
+                  {availableCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                  <option value="__NEW_CUSTOM__">+ Add Custom Category...</option>
+                  <option value="__MANAGE_CATEGORIES__">⚙️ Edit / Delete Categories...</option>
+                </select>
+              ) : (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <input
+                    autoFocus
+                    className={`${inputClass} mt-0 font-mono uppercase`}
+                    maxLength="50"
+                    onChange={(event) => setCustomCategoryInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        handleApplyCustomCategory()
+                      } else if (event.key === "Escape") {
+                        setIsCustomCategoryMode(false)
+                      }
+                    }}
+                    placeholder="e.g. CHARGER, HOUSING"
+                    type="text"
+                    value={customCategoryInput}
+                  />
+                  <button
+                    className="rounded-xl bg-[var(--color-maroon)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-maroon-hover)] transition shrink-0 cursor-pointer disabled:opacity-50"
+                    disabled={!customCategoryInput.trim()}
+                    onClick={handleApplyCustomCategory}
+                    type="button"
+                  >
+                    Use
+                  </button>
+                </div>
+              )}
             </div>
-          </section>
+          </div>
 
-          <section className="space-y-3 pt-2 border-t border-slate-100">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-                Cost &amp; Shop Markup Economics
-              </h3>
-              <span className="text-[10px] font-bold text-slate-500">
-                🔒 Shop Internal Only
-              </span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className={`${labelClass} text-amber-800`}>Part Cost Price (₱) *</span>
-                <input
-                  className={`${inputClass} font-mono`}
-                  min="0"
-                  onChange={(event) => onChange("costPrice", event.target.value)}
-                  placeholder="0.00"
-                  required
-                  step="0.01"
-                  type="number"
-                  value={form.costPrice}
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Purchase cost of the replacement part (e.g. 5,000.00)
-                </span>
-              </label>
-
-              <label className="block">
-                <span className={`${labelClass} text-emerald-800`}>Shop Markup Amount (₱)</span>
-                <input
-                  className={`${inputClass} font-mono`}
-                  min="0"
-                  onChange={(event) => onChange("markupAmount", event.target.value)}
-                  placeholder="0.00"
-                  step="0.01"
-                  type="number"
-                  value={form.markupAmount}
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Shop markup/margin on this part (e.g. 2,500.00)
-                </span>
-              </label>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50/75 p-3 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-600">Suggested Part Retail Price (SRP):</span>
-                <span className="font-mono font-black text-sm text-[var(--color-maroon)]">
-                  {formatMoney(totalEstimatedPartPrice)}
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-500">
-                Formula: Cost ({formatMoney(cost)}) + Markup ({formatMoney(markup)}) = {formatMoney(totalEstimatedPartPrice)}
-              </p>
-            </div>
-          </section>
-
-          <section className="space-y-3 pt-2 border-t border-slate-100">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Specifications & Status
-            </h3>
-
+          <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className={labelClass}>Specifications / Compatibility Notes</span>
-              <textarea
-                className={`${inputClass} resize-none`}
-                maxLength="2000"
-                onChange={(event) => onChange("description", event.target.value)}
-                placeholder="Pin count, resolution, compatible models, part numbers..."
-                rows="3"
-                value={form.description}
+              <span className={labelClass}>Part Cost Price (₱) *</span>
+              <input
+                className={`${inputClass} font-mono`}
+                min="0"
+                onChange={(event) => onChange("costPrice", event.target.value)}
+                placeholder="0.00"
+                required
+                step="0.01"
+                type="number"
+                value={form.costPrice}
               />
             </label>
 
             <label className="block">
-              <span className={labelClass}>Status</span>
-              <select
-                className={inputClass}
-                onChange={(event) => onChange("status", event.target.value)}
-                value={form.status}
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
+              <span className={labelClass}>Shop Markup Amount (₱)</span>
+              <input
+                className={`${inputClass} font-mono`}
+                min="0"
+                onChange={(event) => onChange("markupAmount", event.target.value)}
+                placeholder="0.00"
+                step="0.01"
+                type="number"
+                value={form.markupAmount}
+              />
             </label>
-          </section>
+          </div>
+
+          <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 flex items-center justify-between text-xs">
+            <div className="text-slate-500 text-[11px]">
+              Cost <span className="font-mono text-slate-800 font-semibold">{formatMoney(cost)}</span> + Markup <span className="font-mono text-slate-800 font-semibold">{formatMoney(markup)}</span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Suggested SRP</span>
+              <span className="font-mono font-bold text-sm text-[var(--color-maroon)]">{formatMoney(totalEstimatedPartPrice)}</span>
+            </div>
+          </div>
+
+          <label className="block">
+            <span className={labelClass}>Specifications / Notes</span>
+            <textarea
+              className={`${inputClass} resize-none`}
+              maxLength="2000"
+              onChange={(event) => onChange("description", event.target.value)}
+              placeholder="Pin count, resolution, compatible models..."
+              rows="2"
+              value={form.description}
+            />
+          </label>
+
+          <label className="block">
+            <span className={labelClass}>Status</span>
+            <select
+              className={inputClass}
+              onChange={(event) => onChange("status", event.target.value)}
+              value={form.status}
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </label>
         </div>
 
-        <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+        <footer className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-3.5 bg-slate-50/30">
           <button
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
             disabled={isSaving}
             onClick={onClose}
             type="button"
           >
             Cancel
           </button>
-
           <button
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-semibold text-white hover:bg-[var(--color-maroon-hover)] transition shadow-2xs disabled:opacity-50 cursor-pointer"
             disabled={isSaving}
             type="submit"
           >
-            <Save size={14} />
-            {isSaving ? "Saving…" : isEditing ? "Save Service Part" : "Create Service Part"}
+            <Save size={13} />
+            {isSaving ? "Saving…" : isEditing ? "Save Part" : "Create Part"}
           </button>
         </footer>
       </form>
@@ -1658,87 +1547,87 @@ export default function ServicesMaintenancePage({ user }) {
   }, [filteredPartsCatalog, partsPage, pageSize])
 
   return (
-    <div className="space-y-6">
-      {/* Header section matching ItemsPage */}
+    <div className="space-y-5">
+      {/* Header Section */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-[var(--color-text-strong)]">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
             Services &amp; Parts Maintenance
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
-            Manage standard repair rates, technician fees, service parts (LCD, ICs, batteries), and shop mark-up economics.
+          <p className="mt-0.5 text-xs text-slate-500">
+            Standard repair rates, technician fees, service parts, and shop markup economics.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <button
             aria-label="Refresh catalog list"
-            className="inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
             disabled={activeTab === "LABOR" ? isLoading : isPartsLoading}
             onClick={activeTab === "LABOR" ? fetchCatalog : fetchPartsCatalog}
             type="button"
           >
-            <RefreshCw className={(activeTab === "LABOR" ? isLoading : isPartsLoading) ? "animate-spin" : ""} size={16} />
+            <RefreshCw className={(activeTab === "LABOR" ? isLoading : isPartsLoading) ? "animate-spin" : ""} size={13} />
             Refresh
           </button>
 
           {canManageCatalog ? (
             activeTab === "LABOR" ? (
               <button
-                className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[var(--color-maroon-hover)]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-maroon-hover)] transition shadow-2xs cursor-pointer"
                 onClick={openNewService}
                 type="button"
               >
-                <Plus size={16} />
+                <Plus size={14} />
                 New Service Rate
               </button>
             ) : (
               <button
-                className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[var(--color-maroon-hover)]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-maroon-hover)] transition shadow-2xs cursor-pointer"
                 onClick={openNewPart}
                 type="button"
               >
-                <Plus size={16} />
-                New Service Part & Markup
+                <Plus size={14} />
+                New Service Part
               </button>
             )
           ) : null}
         </div>
       </div>
 
-      {/* Primary Tab Switcher */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+      {/* Primary Tab Switcher (Segmented Minimalist) */}
+      <div className="inline-flex p-1 bg-slate-100/80 rounded-xl border border-slate-200/60">
         <button
-          className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black transition cursor-pointer ${
+          className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
             activeTab === "LABOR"
-              ? "bg-[var(--color-maroon)] text-white shadow-sm"
-              : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+              ? "bg-white text-slate-900 shadow-2xs"
+              : "text-slate-500 hover:text-slate-800"
           }`}
           onClick={() => setActiveTab("LABOR")}
           type="button"
         >
-          <Wrench size={15} />
+          <Wrench size={13} />
           <span>Labor &amp; Service Rates</span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-            activeTab === "LABOR" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+          <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono ${
+            activeTab === "LABOR" ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-600"
           }`}>
             {catalogItems.length}
           </span>
         </button>
 
         <button
-          className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black transition cursor-pointer ${
+          className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
             activeTab === "PARTS"
-              ? "bg-[var(--color-maroon)] text-white shadow-sm"
-              : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+              ? "bg-white text-slate-900 shadow-2xs"
+              : "text-slate-500 hover:text-slate-800"
           }`}
           onClick={() => setActiveTab("PARTS")}
           type="button"
         >
-          <Layers size={15} />
+          <Layers size={13} />
           <span>Service Parts &amp; Markup Catalog</span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-            activeTab === "PARTS" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+          <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono ${
+            activeTab === "PARTS" ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-600"
           }`}>
             {partsCatalogItems.length}
           </span>
@@ -1749,12 +1638,12 @@ export default function ServicesMaintenancePage({ user }) {
         /* TAB 1: LABOR CATALOG */
         <>
           {/* Filter Section Card */}
-          <section className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-[260px] flex-1 items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3">
-                <Search className="text-[var(--color-muted)]" size={18} />
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/50 px-3 py-2 text-xs">
+                <Search className="text-slate-400 shrink-0" size={14} />
                 <input
-                  className="w-full bg-transparent text-sm font-semibold text-[var(--color-text-strong)] outline-none placeholder:text-[var(--color-muted)]"
+                  className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400 text-xs"
                   onChange={(event) => {
                     setSearchText(event.target.value)
                     setPage(1)
@@ -1764,20 +1653,20 @@ export default function ServicesMaintenancePage({ user }) {
                 />
                 {searchText ? (
                   <button
-                    className="text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                    className="text-slate-400 hover:text-slate-700 cursor-pointer"
                     onClick={() => {
                       setSearchText("")
                       setPage(1)
                     }}
                     type="button"
                   >
-                    <X size={16} />
+                    <X size={14} />
                   </button>
                 ) : null}
               </div>
 
               <button
-                className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                className="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 onClick={clearFilters}
                 type="button"
               >
@@ -1785,33 +1674,33 @@ export default function ServicesMaintenancePage({ user }) {
               </button>
             </div>
 
-            {/* Unit / Device Category Quick Filter Pills */}
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Layers size={13} className="text-[var(--color-maroon)]" />
-                  Quick Filter by Device Category:
+            {/* Device Quick Filter Pills */}
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Layers size={12} className="text-[var(--color-maroon)]" />
+                  Filter by Device:
                 </span>
                 {deviceFilter ? (
                   <button
-                    className="text-[11px] font-bold text-[var(--color-maroon)] hover:underline"
+                    className="text-[11px] font-semibold text-[var(--color-maroon)] hover:underline cursor-pointer"
                     onClick={() => {
                       setDeviceFilter("")
                       setPage(1)
                     }}
                     type="button"
                   >
-                    Reset to All ({deviceFilter})
+                    Reset ({deviceFilter})
                   </button>
                 ) : null}
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1">
                 <button
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition cursor-pointer ${
                     !deviceFilter
-                      ? "bg-[var(--color-maroon)] text-white shadow-soft"
-                      : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100"
+                      ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                      : "bg-slate-100/70 text-slate-600 hover:bg-slate-100 border border-slate-200/50"
                   }`}
                   onClick={() => {
                     setDeviceFilter("")
@@ -1827,17 +1716,13 @@ export default function ServicesMaintenancePage({ user }) {
                   return (
                     <button
                       key={preset}
-                      className={`rounded-xl border px-3 py-1.5 text-xs font-mono font-bold transition shadow-2xs ${
+                      className={`rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition cursor-pointer ${
                         isActive
-                          ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] text-white shadow-soft"
-                          : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                          ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                          : "bg-slate-100/70 text-slate-600 hover:bg-slate-100 border border-slate-200/50"
                       }`}
                       onClick={() => {
-                        if (isActive) {
-                          setDeviceFilter("")
-                        } else {
-                          setDeviceFilter(preset)
-                        }
+                        setDeviceFilter(isActive ? "" : preset)
                         setPage(1)
                       }}
                       type="button"
@@ -1849,13 +1734,13 @@ export default function ServicesMaintenancePage({ user }) {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4 pt-1">
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                  Unit / Device Type
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Unit Type
                 </span>
                 <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-1.5 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => {
                     setDeviceFilter(event.target.value)
                     setPage(1)
@@ -1872,11 +1757,11 @@ export default function ServicesMaintenancePage({ user }) {
               </label>
 
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                  Repair Classification
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Classification
                 </span>
                 <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-1.5 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => {
                     setRepairTypeFilter(event.target.value)
                     setPage(1)
@@ -1890,11 +1775,11 @@ export default function ServicesMaintenancePage({ user }) {
               </label>
 
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Service Mode
                 </span>
                 <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-1.5 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => {
                     setQuickFilter(event.target.value)
                     setPage(1)
@@ -1908,11 +1793,11 @@ export default function ServicesMaintenancePage({ user }) {
               </label>
 
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Status
                 </span>
                 <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-1.5 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => {
                     setStatusFilter(event.target.value)
                     setPage(1)
@@ -1928,48 +1813,48 @@ export default function ServicesMaintenancePage({ user }) {
           </section>
 
           {errorMessage ? (
-            <section className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-semibold leading-6 text-red-700">
-              <AlertCircle className="mt-0.5 shrink-0" size={18} />
+            <section className="flex items-center gap-2 rounded-xl border border-red-200/80 bg-red-50/60 p-3 text-xs font-medium text-red-700">
+              <AlertCircle className="shrink-0" size={15} />
               <span>{errorMessage}</span>
             </section>
           ) : null}
 
-          {/* Labor Table Section Card */}
-          <section className="rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
+          {/* Labor Table Section */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white overflow-hidden shadow-2xs">
             {isLoading ? (
-              <div className="p-6 text-sm font-semibold text-[var(--color-muted)]">
+              <div className="p-6 text-xs font-medium text-slate-400">
                 Loading service rates... Please wait.
               </div>
             ) : paginatedLaborItems.length === 0 ? (
               <div className="grid place-items-center p-8 text-center">
-                <Wrench className="text-[var(--color-muted)]" size={38} />
-                <p className="mt-3 font-bold text-[var(--color-text-strong)]">
+                <Wrench className="text-slate-300" size={32} />
+                <p className="mt-2 text-xs font-semibold text-slate-700">
                   No matching service rates found
                 </p>
-                <p className="mt-1 text-sm text-[var(--color-muted)]">
+                <p className="mt-0.5 text-[11px] text-slate-400">
                   Try clearing the filters or add a new service rate.
                 </p>
               </div>
             ) : (
               <>
                 <div className="hidden lg:block">
-                  <div className="table-wrapper overflow-x-auto">
-                    <table className="w-full min-w-[950px] border-separate border-spacing-0 text-left text-sm">
-                      <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead className="bg-slate-50/60 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                         <tr>
-                          <th className="whitespace-nowrap px-4 py-3.5">Service Name</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Unit / Device</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Classification</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Base Price</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Markup</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Final Rate</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Service Mode</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Status</th>
-                          <th className="whitespace-nowrap px-4 py-3.5 text-right">Actions</th>
+                          <th className="px-4 py-2.5">Service Name</th>
+                          <th className="px-4 py-2.5">Device</th>
+                          <th className="px-4 py-2.5">Classification</th>
+                          <th className="px-4 py-2.5">Base Price</th>
+                          <th className="px-4 py-2.5">Markup</th>
+                          <th className="px-4 py-2.5">Final Rate</th>
+                          <th className="px-4 py-2.5">Mode</th>
+                          <th className="px-4 py-2.5">Status</th>
+                          <th className="px-4 py-2.5 text-right">Actions</th>
                         </tr>
                       </thead>
 
-                      <tbody className="divide-y divide-[var(--color-border)]">
+                      <tbody className="divide-y divide-slate-100">
                         {paginatedLaborItems.map((item) => {
                           const isBoard = item.repairType === "BOARD_LEVEL_REPAIR"
                           const basePrice = Number(item.basePrice || 0)
@@ -1977,93 +1862,91 @@ export default function ServicesMaintenancePage({ user }) {
                           const finalPrice = basePrice + basePrice * (markup / 100)
 
                           return (
-                            <tr key={item.id} className="align-top transition hover:bg-[var(--color-soft)]">
-                              <td className="min-w-[220px] px-4 py-4">
-                                <p className="font-bold text-[var(--color-text-strong)]">
+                            <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-4 py-3 min-w-[200px]">
+                                <p className="font-semibold text-slate-900">
                                   {item.name}
                                 </p>
                                 {item.description ? (
-                                  <p className="mt-1 text-xs text-[var(--color-muted)] line-clamp-1">
+                                  <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
                                     {item.description}
                                   </p>
                                 ) : null}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 font-semibold text-[var(--color-text-strong)]">
+                              <td className="px-4 py-3 font-medium text-slate-700 whitespace-nowrap">
                                 {item.deviceType || "General"}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4">
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                    isBoard
-                                      ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                      : "bg-sky-50 text-sky-700 border border-sky-200"
-                                  }`}
-                                >
-                                  {isBoard ? "🔬 Board Level" : "🔧 Standard"}
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium ${
+                                  isBoard
+                                    ? "bg-purple-50 text-purple-700 border border-purple-200/50"
+                                    : "bg-slate-100 text-slate-600 border border-slate-200/50"
+                                }`}>
+                                  {isBoard ? "Board Level" : "Standard"}
                                 </span>
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 font-mono font-semibold text-[var(--color-text-strong)]">
+                              <td className="px-4 py-3 font-mono font-medium text-slate-700 whitespace-nowrap">
                                 {formatMoney(basePrice)}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 font-mono text-[var(--color-muted)]">
+                              <td className="px-4 py-3 font-mono text-slate-400 whitespace-nowrap">
                                 {markup}%
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 font-mono font-black text-[var(--color-maroon)]">
+                              <td className="px-4 py-3 font-mono font-bold text-[var(--color-maroon)] whitespace-nowrap">
                                 {formatMoney(finalPrice)}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 text-xs">
+                              <td className="px-4 py-3 text-[11px] whitespace-nowrap">
                                 {item.isQuickService ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 font-bold text-amber-800 border border-amber-200">
-                                    <Zap size={12} /> Quick
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800 border border-amber-200/50">
+                                    <Zap size={10} /> Quick
                                   </span>
                                 ) : (
-                                  <span className="text-[var(--color-muted)]">Standard</span>
+                                  <span className="text-slate-400">Standard</span>
                                 )}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4">
+                              <td className="px-4 py-3 whitespace-nowrap">
                                 <StatusPill status={item.isActive !== false ? "ACTIVE" : "INACTIVE"} />
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
+                              <td className="px-4 py-3 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1">
                                   <button
-                                    className="rounded-xl border border-[var(--color-border)] bg-white p-2 text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] cursor-pointer"
+                                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                                     onClick={() => setDetailItem(item)}
                                     title="View details"
                                     type="button"
                                   >
-                                    <Eye size={15} />
+                                    <Eye size={14} />
                                   </button>
 
                                   {canManageCatalog ? (
                                     <>
                                       <button
-                                        className="rounded-xl border border-[#7A1F2B] bg-white p-2 text-[#7A1F2B] transition hover:bg-[#F4F1EC] cursor-pointer"
+                                        className="p-1 rounded-lg text-slate-400 hover:text-[var(--color-maroon)] hover:bg-slate-100 transition cursor-pointer"
                                         onClick={() => openServiceEditor(item)}
                                         title="Edit rate"
                                         type="button"
                                       >
-                                        <Edit3 size={15} />
+                                        <Edit3 size={14} />
                                       </button>
 
                                       <button
-                                        className="rounded-xl border border-rose-200 bg-white p-2 text-rose-600 transition hover:bg-rose-50 cursor-pointer"
+                                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                                         disabled={deletingId === item.id}
                                         onClick={() => handleDeleteService(item)}
                                         title="Delete rate"
                                         type="button"
                                       >
                                         {deletingId === item.id ? (
-                                          <LoaderCircle className="animate-spin" size={15} />
+                                          <LoaderCircle className="animate-spin" size={14} />
                                         ) : (
-                                          <Trash2 size={15} />
+                                          <Trash2 size={14} />
                                         )}
                                       </button>
                                     </>
@@ -2079,7 +1962,7 @@ export default function ServicesMaintenancePage({ user }) {
                 </div>
 
                 {/* Mobile Cards View */}
-                <div className="grid gap-3 p-4 lg:hidden">
+                <div className="grid gap-2.5 p-3 lg:hidden">
                   {paginatedLaborItems.map((item) => {
                     const isBoard = item.repairType === "BOARD_LEVEL_REPAIR"
                     const basePrice = Number(item.basePrice || 0)
@@ -2088,65 +1971,47 @@ export default function ServicesMaintenancePage({ user }) {
 
                     return (
                       <article
-                        className="rounded-2xl border border-[var(--color-border)] bg-white p-4 shadow-card"
+                        className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs space-y-2.5"
                         key={item.id}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <h2 className="font-bold text-[var(--color-text-strong)]">
+                            <h2 className="text-xs font-semibold text-slate-900 truncate">
                               {item.name}
                             </h2>
-                            <p className="mt-1 text-xs text-[var(--color-muted)]">
-                              {item.deviceType} • {isBoard ? "Board Level" : "Standard"}
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {item.deviceType} · {isBoard ? "Board Level" : "Standard"}
                             </p>
                           </div>
-
                           <StatusPill status={item.isActive !== false ? "ACTIVE" : "INACTIVE"} />
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
                           <div>
-                            <p className="font-bold text-[var(--color-muted)]">Base Price</p>
-                            <p className="font-bold font-mono text-[var(--color-text-strong)]">
-                              {formatMoney(basePrice)}
-                            </p>
+                            <span className="text-[10px] text-slate-400 block">Base Price</span>
+                            <span className="font-mono font-medium text-slate-700">{formatMoney(basePrice)}</span>
                           </div>
-
-                          <div>
-                            <p className="font-bold text-[var(--color-muted)]">Final Rate</p>
-                            <p className="font-black font-mono text-[var(--color-maroon)]">
-                              {formatMoney(finalPrice)}
-                            </p>
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-400 block">Final Rate</span>
+                            <span className="font-mono font-bold text-[var(--color-maroon)]">{formatMoney(finalPrice)}</span>
                           </div>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-xs font-bold text-[var(--color-muted)]">
-                            {isBoard ? "🔬 Board Level" : "🔧 Standard"}
-                          </span>
-                          {item.isQuickService ? (
-                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
-                              ⚡ Quick Service
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-4 flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 pt-1">
                           <button
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[var(--color-border)] bg-white py-2.5 text-xs font-bold text-[var(--color-text-strong)]"
+                            className="flex-1 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition"
                             onClick={() => setDetailItem(item)}
                             type="button"
                           >
-                            <Eye size={14} /> View
+                            View
                           </button>
-
                           {canManageCatalog ? (
                             <button
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[#7A1F2B] bg-white py-2.5 text-xs font-bold text-[#7A1F2B]"
+                              className="flex-1 py-1.5 text-xs font-medium text-[var(--color-maroon)] bg-[var(--color-maroon-soft)]/20 hover:bg-[var(--color-maroon-soft)]/40 rounded-lg transition"
                               onClick={() => openServiceEditor(item)}
                               type="button"
                             >
-                              <Edit3 size={14} /> Edit
+                              Edit
                             </button>
                           ) : null}
                         </div>
@@ -2155,26 +2020,26 @@ export default function ServicesMaintenancePage({ user }) {
                   })}
                 </div>
 
-                {/* Labor Pagination Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] px-6 py-4">
-                  <span className="text-xs font-bold text-[var(--color-muted)]">
-                    Showing {paginatedLaborItems.length} of {totalLaborItems} service rates
+                {/* Pagination Controls */}
+                <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-400">
+                  <span>
+                    Showing {paginatedLaborItems.length} of {totalLaborItems} rates
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
-                      className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] disabled:opacity-40"
+                      className="rounded-lg px-2.5 py-1 font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer"
                       disabled={page <= 1}
                       onClick={() => setPage((p) => p - 1)}
                       type="button"
                     >
                       Previous
                     </button>
-                    <span className="text-xs font-bold text-[var(--color-text-strong)]">
-                      {page} of {totalLaborPages}
+                    <span className="font-mono text-slate-700 font-medium">
+                      {page} / {totalLaborPages}
                     </span>
                     <button
-                      className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] disabled:opacity-40"
+                      className="rounded-lg px-2.5 py-1 font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer"
                       disabled={page >= totalLaborPages}
                       onClick={() => setPage((p) => p + 1)}
                       type="button"
@@ -2191,12 +2056,12 @@ export default function ServicesMaintenancePage({ user }) {
         /* TAB 2: SERVICE PARTS CATALOG */
         <>
           {/* Parts Filter Section Card */}
-          <section className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-[260px] flex-1 items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3">
-                <Search className="text-[var(--color-muted)]" size={18} />
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/50 px-3 py-2 text-xs">
+                <Search className="text-slate-400 shrink-0" size={14} />
                 <input
-                  className="w-full bg-transparent text-sm font-semibold text-[var(--color-text-strong)] outline-none placeholder:text-[var(--color-muted)]"
+                  className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400 text-xs"
                   onChange={(event) => {
                     setPartsSearchText(event.target.value)
                     setPartsPage(1)
@@ -2206,20 +2071,20 @@ export default function ServicesMaintenancePage({ user }) {
                 />
                 {partsSearchText ? (
                   <button
-                    className="text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                    className="text-slate-400 hover:text-slate-700 cursor-pointer"
                     onClick={() => {
                       setPartsSearchText("")
                       setPartsPage(1)
                     }}
                     type="button"
                   >
-                    <X size={16} />
+                    <X size={14} />
                   </button>
                 ) : null}
               </div>
 
               <button
-                className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                className="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 onClick={clearPartsFilters}
                 type="button"
               >
@@ -2228,15 +2093,15 @@ export default function ServicesMaintenancePage({ user }) {
             </div>
 
             {/* Quick Filter by Category */}
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Layers size={13} className="text-[var(--color-maroon)]" />
-                  Quick Filter by Part Category:
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Layers size={12} className="text-[var(--color-maroon)]" />
+                  Filter by Category:
                 </span>
                 <div className="flex items-center gap-2">
                   <button
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-700 hover:underline cursor-pointer"
                     onClick={() => setIsCategoryManagerOpen(true)}
                     type="button"
                   >
@@ -2247,26 +2112,26 @@ export default function ServicesMaintenancePage({ user }) {
                     <>
                       <span className="text-slate-300">·</span>
                       <button
-                        className="text-[11px] font-bold text-[var(--color-maroon)] hover:underline"
+                        className="text-[11px] font-semibold text-[var(--color-maroon)] hover:underline cursor-pointer"
                         onClick={() => {
                           setPartsCategoryFilter("")
                           setPartsPage(1)
                         }}
                         type="button"
                       >
-                        Reset to All ({partsCategoryFilter})
+                        Reset ({partsCategoryFilter})
                       </button>
                     </>
                   ) : null}
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1">
                 <button
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition cursor-pointer ${
                     !partsCategoryFilter
-                      ? "bg-[var(--color-maroon)] text-white shadow-soft"
-                      : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100"
+                      ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                      : "bg-slate-100/70 text-slate-600 hover:bg-slate-100 border border-slate-200/50"
                   }`}
                   onClick={() => {
                     setPartsCategoryFilter("")
@@ -2282,17 +2147,13 @@ export default function ServicesMaintenancePage({ user }) {
                   return (
                     <button
                       key={cat}
-                      className={`rounded-xl border px-3 py-1.5 text-xs font-mono font-bold transition shadow-2xs ${
+                      className={`rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition cursor-pointer ${
                         isActive
-                          ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] text-white shadow-soft"
-                          : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                          ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                          : "bg-slate-100/70 text-slate-600 hover:bg-slate-100 border border-slate-200/50"
                       }`}
                       onClick={() => {
-                        if (isActive) {
-                          setPartsCategoryFilter("")
-                        } else {
-                          setPartsCategoryFilter(cat)
-                        }
+                        setPartsCategoryFilter(isActive ? "" : cat)
                         setPartsPage(1)
                       }}
                       type="button"
@@ -2304,13 +2165,13 @@ export default function ServicesMaintenancePage({ user }) {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="grid gap-2.5 md:grid-cols-3 pt-1">
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Device Compatibility
                 </span>
                 <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-1.5 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => {
                     setPartsDeviceFilter(event.target.value)
                     setPartsPage(1)
@@ -2327,11 +2188,11 @@ export default function ServicesMaintenancePage({ user }) {
               </label>
 
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Part Category
                 </span>
                 <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-1.5 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => {
                     setPartsCategoryFilter(event.target.value)
                     setPartsPage(1)
@@ -2348,11 +2209,11 @@ export default function ServicesMaintenancePage({ user }) {
               </label>
 
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Status
                 </span>
                 <select
-                  className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-1.5 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:bg-white"
                   onChange={(event) => {
                     setPartsStatusFilter(event.target.value)
                     setPartsPage(1)
@@ -2368,124 +2229,124 @@ export default function ServicesMaintenancePage({ user }) {
           </section>
 
           {partsErrorMessage ? (
-            <section className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-semibold leading-6 text-red-700">
-              <AlertCircle className="mt-0.5 shrink-0" size={18} />
+            <section className="flex items-center gap-2 rounded-xl border border-red-200/80 bg-red-50/60 p-3 text-xs font-medium text-red-700">
+              <AlertCircle className="shrink-0" size={15} />
               <span>{partsErrorMessage}</span>
             </section>
           ) : null}
 
-          {/* Parts Table Section Card */}
-          <section className="rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
+          {/* Parts Table Section */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white overflow-hidden shadow-2xs">
             {isPartsLoading ? (
-              <div className="p-6 text-sm font-semibold text-[var(--color-muted)]">
+              <div className="p-6 text-xs font-medium text-slate-400">
                 Loading service parts catalog... Please wait.
               </div>
             ) : paginatedPartsItems.length === 0 ? (
               <div className="grid place-items-center p-8 text-center">
-                <Layers className="text-[var(--color-muted)]" size={38} />
-                <p className="mt-3 font-bold text-[var(--color-text-strong)]">
+                <Layers className="text-slate-300" size={32} />
+                <p className="mt-2 text-xs font-semibold text-slate-700">
                   No matching service parts found
                 </p>
-                <p className="mt-1 text-sm text-[var(--color-muted)]">
+                <p className="mt-0.5 text-[11px] text-slate-400">
                   Add replacement screens, chips, or materials to your catalog.
                 </p>
               </div>
             ) : (
               <>
                 <div className="hidden lg:block">
-                  <div className="table-wrapper overflow-x-auto">
-                    <table className="w-full min-w-[950px] border-separate border-spacing-0 text-left text-sm">
-                      <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead className="bg-slate-50/60 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                         <tr>
-                          <th className="whitespace-nowrap px-4 py-3.5">Part / Material Name</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Device</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Category</th>
-                          <th className="whitespace-nowrap px-4 py-3.5 text-amber-900">Part Cost (₱)</th>
-                          <th className="whitespace-nowrap px-4 py-3.5 text-emerald-900">Shop Markup (₱)</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Suggested Part SRP</th>
-                          <th className="whitespace-nowrap px-4 py-3.5">Status</th>
-                          <th className="whitespace-nowrap px-4 py-3.5 text-right">Actions</th>
+                          <th className="px-4 py-2.5">Part / Material Name</th>
+                          <th className="px-4 py-2.5">Device</th>
+                          <th className="px-4 py-2.5">Category</th>
+                          <th className="px-4 py-2.5">Part Cost (₱)</th>
+                          <th className="px-4 py-2.5">Shop Markup (₱)</th>
+                          <th className="px-4 py-2.5">Suggested SRP</th>
+                          <th className="px-4 py-2.5">Status</th>
+                          <th className="px-4 py-2.5 text-right">Actions</th>
                         </tr>
                       </thead>
 
-                      <tbody className="divide-y divide-[var(--color-border)]">
+                      <tbody className="divide-y divide-slate-100">
                         {paginatedPartsItems.map((item) => {
                           const cost = Number(item.costPrice || 0)
                           const markup = Number(item.markupAmount || 0)
                           const suggestedSrp = cost + markup
 
                           return (
-                            <tr key={item.id} className="align-top transition hover:bg-[var(--color-soft)]">
-                              <td className="min-w-[240px] px-4 py-4">
-                                <p className="font-bold text-[var(--color-text-strong)]">
+                            <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-4 py-3 min-w-[220px]">
+                                <p className="font-semibold text-slate-900">
                                   {item.name}
                                 </p>
                                 {item.description ? (
-                                  <p className="mt-1 text-xs text-[var(--color-muted)] line-clamp-1">
+                                  <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
                                     {item.description}
                                   </p>
                                 ) : null}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 font-semibold text-[var(--color-text-strong)]">
+                              <td className="px-4 py-3 font-medium text-slate-700 whitespace-nowrap">
                                 {item.deviceType || "General"}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4">
-                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200/50">
                                   {item.category || "OTHER"}
                                 </span>
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 font-mono font-bold text-amber-950">
+                              <td className="px-4 py-3 font-mono font-medium text-slate-700 whitespace-nowrap">
                                 {formatMoney(cost)}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 font-mono font-bold text-emerald-950">
+                              <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">
                                 +{formatMoney(markup)}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 font-mono font-black text-[var(--color-maroon)]">
+                              <td className="px-4 py-3 font-mono font-bold text-[var(--color-maroon)] whitespace-nowrap">
                                 {formatMoney(suggestedSrp)}
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4">
+                              <td className="px-4 py-3 whitespace-nowrap">
                                 <StatusPill status={item.isActive !== false ? "ACTIVE" : "INACTIVE"} />
                               </td>
 
-                              <td className="whitespace-nowrap px-4 py-4 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
+                              <td className="px-4 py-3 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1">
                                   <button
-                                    className="rounded-xl border border-[var(--color-border)] bg-white p-2 text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] cursor-pointer"
+                                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                                     onClick={() => setDetailPartItem(item)}
                                     title="View part details"
                                     type="button"
                                   >
-                                    <Eye size={15} />
+                                    <Eye size={14} />
                                   </button>
 
                                   {canManageCatalog ? (
                                     <>
                                       <button
-                                        className="rounded-xl border border-[#7A1F2B] bg-white p-2 text-[#7A1F2B] transition hover:bg-[#F4F1EC] cursor-pointer"
+                                        className="p-1 rounded-lg text-slate-400 hover:text-[var(--color-maroon)] hover:bg-slate-100 transition cursor-pointer"
                                         onClick={() => openPartEditor(item)}
                                         title="Edit part"
                                         type="button"
                                       >
-                                        <Edit3 size={15} />
+                                        <Edit3 size={14} />
                                       </button>
 
                                       <button
-                                        className="rounded-xl border border-rose-200 bg-white p-2 text-rose-600 transition hover:bg-rose-50 cursor-pointer"
+                                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                                         disabled={deletingPartId === item.id}
                                         onClick={() => handleDeletePart(item)}
                                         title="Delete part"
                                         type="button"
                                       >
                                         {deletingPartId === item.id ? (
-                                          <LoaderCircle className="animate-spin" size={15} />
+                                          <LoaderCircle className="animate-spin" size={14} />
                                         ) : (
-                                          <Trash2 size={15} />
+                                          <Trash2 size={14} />
                                         )}
                                       </button>
                                     </>
@@ -2501,7 +2362,7 @@ export default function ServicesMaintenancePage({ user }) {
                 </div>
 
                 {/* Mobile Parts View */}
-                <div className="grid gap-3 p-4 lg:hidden">
+                <div className="grid gap-2.5 p-3 lg:hidden">
                   {paginatedPartsItems.map((item) => {
                     const cost = Number(item.costPrice || 0)
                     const markup = Number(item.markupAmount || 0)
@@ -2509,61 +2370,51 @@ export default function ServicesMaintenancePage({ user }) {
 
                     return (
                       <article
-                        className="rounded-2xl border border-[var(--color-border)] bg-white p-4 shadow-card"
+                        className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs space-y-2.5"
                         key={item.id}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <h2 className="font-bold text-[var(--color-text-strong)]">
+                            <h2 className="text-xs font-semibold text-slate-900 truncate">
                               {item.name}
                             </h2>
-                            <p className="mt-1 text-xs text-[var(--color-muted)]">
-                              {item.deviceType} • {item.category}
+                            <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
+                              {item.deviceType} · {item.category}
                             </p>
                           </div>
-
                           <StatusPill status={item.isActive !== false ? "ACTIVE" : "INACTIVE"} />
                         </div>
 
-                        <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                        <div className="grid grid-cols-3 gap-2 text-xs pt-1 border-t border-slate-100">
                           <div>
-                            <p className="font-bold text-[var(--color-muted)]">Part Cost</p>
-                            <p className="font-bold font-mono text-amber-950">
-                              {formatMoney(cost)}
-                            </p>
+                            <span className="text-[10px] text-slate-400 block">Cost</span>
+                            <span className="font-mono font-medium text-slate-700">{formatMoney(cost)}</span>
                           </div>
-
                           <div>
-                            <p className="font-bold text-[var(--color-muted)]">Shop Markup</p>
-                            <p className="font-bold font-mono text-emerald-950">
-                              +{formatMoney(markup)}
-                            </p>
+                            <span className="text-[10px] text-slate-400 block">Markup</span>
+                            <span className="font-mono font-medium text-slate-600">+{formatMoney(markup)}</span>
                           </div>
-
-                          <div>
-                            <p className="font-bold text-[var(--color-muted)]">Suggested SRP</p>
-                            <p className="font-black font-mono text-[var(--color-maroon)]">
-                              {formatMoney(suggestedSrp)}
-                            </p>
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-400 block">SRP</span>
+                            <span className="font-mono font-bold text-[var(--color-maroon)]">{formatMoney(suggestedSrp)}</span>
                           </div>
                         </div>
 
-                        <div className="mt-4 flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 pt-1">
                           <button
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[var(--color-border)] bg-white py-2.5 text-xs font-bold text-[var(--color-text-strong)] cursor-pointer"
+                            className="flex-1 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition"
                             onClick={() => setDetailPartItem(item)}
                             type="button"
                           >
-                            <Eye size={14} /> View
+                            View
                           </button>
-
                           {canManageCatalog ? (
                             <button
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[#7A1F2B] bg-white py-2.5 text-xs font-bold text-[#7A1F2B] cursor-pointer"
+                              className="flex-1 py-1.5 text-xs font-medium text-[var(--color-maroon)] bg-[var(--color-maroon-soft)]/20 hover:bg-[var(--color-maroon-soft)]/40 rounded-lg transition"
                               onClick={() => openPartEditor(item)}
                               type="button"
                             >
-                              <Edit3 size={14} /> Edit
+                              Edit
                             </button>
                           ) : null}
                         </div>
@@ -2573,25 +2424,25 @@ export default function ServicesMaintenancePage({ user }) {
                 </div>
 
                 {/* Parts Pagination Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] px-6 py-4">
-                  <span className="text-xs font-bold text-[var(--color-muted)]">
-                    Showing {paginatedPartsItems.length} of {totalPartsItems} service parts
+                <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-400">
+                  <span>
+                    Showing {paginatedPartsItems.length} of {totalPartsItems} parts
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
-                      className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] disabled:opacity-40"
+                      className="rounded-lg px-2.5 py-1 font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer"
                       disabled={partsPage <= 1}
                       onClick={() => setPartsPage((p) => p - 1)}
                       type="button"
                     >
                       Previous
                     </button>
-                    <span className="text-xs font-bold text-[var(--color-text-strong)]">
-                      {partsPage} of {totalPartsPages}
+                    <span className="font-mono text-slate-700 font-medium">
+                      {partsPage} / {totalPartsPages}
                     </span>
                     <button
-                      className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] disabled:opacity-40"
+                      className="rounded-lg px-2.5 py-1 font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer"
                       disabled={partsPage >= totalPartsPages}
                       onClick={() => setPartsPage((p) => p + 1)}
                       type="button"
