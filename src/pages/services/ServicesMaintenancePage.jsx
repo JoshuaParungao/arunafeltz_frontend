@@ -55,11 +55,15 @@ const PART_CATEGORY_PRESETS = [
   "BATTERY",
   "KEYBOARD",
   "FAN",
-  "IC_CHIP",
+  "IC CHIP",
   "PORT",
   "CONSUMABLE",
   "OTHER",
 ]
+
+function normalizeCategoryName(cat) {
+  return (cat || "").trim().toUpperCase().replace(/\s+/g, " ")
+}
 
 const EMPTY_SERVICE_FORM = {
   name: "",
@@ -422,7 +426,7 @@ function PartDetailModal({ item, onClose }) {
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-slate-900 truncate">{item.name}</h2>
             <p className="text-xs text-slate-500 mt-0.5 font-mono">
-              {item.deviceType || "General"} · {item.category || "OTHER"}
+              {item.deviceType || "General"} · {(item.category || "OTHER").replace(/_/g, " ")}
             </p>
           </div>
           <button
@@ -443,7 +447,7 @@ function PartDetailModal({ item, onClose }) {
 
             <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Category</span>
-              <p className="mt-0.5 font-semibold text-slate-800 truncate font-mono">{item.category || "OTHER"}</p>
+              <p className="mt-0.5 font-semibold text-slate-800 truncate font-mono">{(item.category || "OTHER").replace(/_/g, " ")}</p>
             </div>
 
             <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
@@ -514,9 +518,16 @@ function ManagePartCategoriesModal({
   }, [categories, searchTerm])
 
   const getUsageCount = (cat) => {
-    return partsItems.filter(
-      (item) => (item.category || "").toUpperCase() === cat.toUpperCase(),
-    ).length
+    const cleanCat = normalizeCategoryName(cat)
+    const altCat = cleanCat.replace(/\s+/g, "_")
+    return partsItems.filter((item) => {
+      const itemCat = normalizeCategoryName(item.category)
+      return (
+        itemCat === cleanCat ||
+        itemCat === altCat ||
+        (item.category || "").toUpperCase() === (cat || "").toUpperCase()
+      )
+    }).length
   }
 
   const handleStartRename = (cat) => {
@@ -526,7 +537,7 @@ function ManagePartCategoriesModal({
   }
 
   const handleSaveRename = async (oldCat) => {
-    const clean = renameValue.trim().toUpperCase().replace(/\s+/g, "_")
+    const clean = normalizeCategoryName(renameValue)
     if (!clean || clean === oldCat) {
       setEditingCat(null)
       return
@@ -726,7 +737,7 @@ function PartEditorModal({
   const totalEstimatedPartPrice = cost + markup
 
   const handleApplyCustomCategory = () => {
-    const clean = customCategoryInput.trim().toUpperCase().replace(/\s+/g, "_")
+    const clean = normalizeCategoryName(customCategoryInput)
     if (clean) {
       onChange("category", clean)
       onAddCustomCategory?.(clean)
@@ -1023,12 +1034,13 @@ export default function ServicesMaintenancePage({ user }) {
 
   const handleAddCustomCategory = useCallback((newCat) => {
     if (!newCat || typeof newCat !== "string") return
-    const normalized = newCat.trim().toUpperCase().replace(/\s+/g, "_")
+    const normalized = normalizeCategoryName(newCat)
     if (!normalized) return
 
     setDeletedCategories((prev) => {
-      if (!prev.includes(normalized)) return prev
-      const updated = prev.filter((c) => c !== normalized)
+      const altNorm = normalized.replace(/\s+/g, "_")
+      if (!prev.includes(normalized) && !prev.includes(altNorm)) return prev
+      const updated = prev.filter((c) => c !== normalized && c !== altNorm)
       try {
         localStorage.setItem("arunafeltz_deleted_part_categories", JSON.stringify(updated))
       } catch {
@@ -1038,7 +1050,8 @@ export default function ServicesMaintenancePage({ user }) {
     })
 
     setCustomPartCategories((prev) => {
-      if (prev.includes(normalized) || PART_CATEGORY_PRESETS.includes(normalized)) {
+      const presetsNormalized = PART_CATEGORY_PRESETS.map(normalizeCategoryName)
+      if (prev.some((c) => normalizeCategoryName(c) === normalized) || presetsNormalized.includes(normalized)) {
         return prev
       }
       const updated = [...prev, normalized]
@@ -1052,18 +1065,26 @@ export default function ServicesMaintenancePage({ user }) {
   }, [])
 
   const availablePartCategories = useMemo(() => {
-    const set = new Set(PART_CATEGORY_PRESETS)
+    const set = new Set(PART_CATEGORY_PRESETS.map(normalizeCategoryName))
     partsCatalogItems.forEach((item) => {
       if (item.category && item.category.trim()) {
-        set.add(item.category.trim().toUpperCase().replace(/\s+/g, "_"))
+        const norm = normalizeCategoryName(item.category)
+        const displayNorm = norm.replace(/_/g, " ")
+        set.add(displayNorm)
       }
     })
     customPartCategories.forEach((cat) => {
       if (cat && cat.trim()) {
-        set.add(cat.trim().toUpperCase().replace(/\s+/g, "_"))
+        set.add(normalizeCategoryName(cat))
       }
     })
-    deletedCategories.forEach((del) => set.delete(del))
+    deletedCategories.forEach((del) => {
+      if (!del) return
+      const norm = normalizeCategoryName(del)
+      set.delete(norm)
+      set.delete(norm.replace(/\s+/g, "_"))
+      set.delete(norm.replace(/_/g, " "))
+    })
     return Array.from(set)
   }, [partsCatalogItems, customPartCategories, deletedCategories])
 
@@ -1156,16 +1177,21 @@ export default function ServicesMaintenancePage({ user }) {
 
   const handleRenameCategory = useCallback(
     async (oldCategory, newCategory) => {
-      if (!oldCategory || !newCategory || oldCategory === newCategory) return
-      const normalizedOld = oldCategory.trim().toUpperCase().replace(/\s+/g, "_")
-      const normalizedNew = newCategory.trim().toUpperCase().replace(/\s+/g, "_")
+      if (!oldCategory || !newCategory) return
+      const normalizedOld = normalizeCategoryName(oldCategory)
+      const normalizedNew = normalizeCategoryName(newCategory)
       if (!normalizedNew || normalizedOld === normalizedNew) return
+
+      const altOld = normalizedOld.replace(/\s+/g, "_")
+      const altNew = normalizedNew.replace(/\s+/g, "_")
 
       // Add old to deletedCategories so preset or existing category is hidden
       setDeletedCategories((prev) => {
         const set = new Set(prev)
         set.add(normalizedOld)
+        set.add(altOld)
         set.delete(normalizedNew)
+        set.delete(altNew)
         const updated = Array.from(set)
         try {
           localStorage.setItem("arunafeltz_deleted_part_categories", JSON.stringify(updated))
@@ -1177,7 +1203,9 @@ export default function ServicesMaintenancePage({ user }) {
 
       // Update customPartCategories
       setCustomPartCategories((prev) => {
-        const filtered = prev.filter((c) => c !== normalizedOld)
+        const filtered = prev.filter(
+          (c) => normalizeCategoryName(c) !== normalizedOld && normalizeCategoryName(c) !== altOld
+        )
         const updated = Array.from(new Set([...filtered, normalizedNew]))
         try {
           localStorage.setItem("arunafeltz_custom_part_categories", JSON.stringify(updated))
@@ -1187,26 +1215,37 @@ export default function ServicesMaintenancePage({ user }) {
         return updated
       })
 
-      // Update any parts that use normalizedOld in the database
-      const affectedParts = partsCatalogItems.filter(
-        (p) => (p.category || "").toUpperCase() === normalizedOld
-      )
+      // Update any parts that use oldCategory in the database
+      const affectedParts = partsCatalogItems.filter((p) => {
+        const pCat = normalizeCategoryName(p.category)
+        return (
+          pCat === normalizedOld ||
+          pCat === altOld ||
+          (p.category || "").toUpperCase() === oldCategory.toUpperCase()
+        )
+      })
 
       if (affectedParts.length > 0) {
-        await Promise.all(
-          affectedParts.map((part) =>
-            updateServicePartsCatalogItem(part.id, {
-              category: normalizedNew,
-            })
-          )
-        )
+        for (const part of affectedParts) {
+          await updateServicePartsCatalogItem(part.id, {
+            category: normalizedNew,
+          })
+        }
         await fetchPartsCatalog()
       }
 
-      if (partForm && (partForm.category || "").toUpperCase() === normalizedOld) {
+      if (
+        partForm &&
+        (normalizeCategoryName(partForm.category) === normalizedOld ||
+          (partForm.category || "").toUpperCase() === oldCategory.toUpperCase())
+      ) {
         setPartForm((prev) => (prev ? { ...prev, category: normalizedNew } : prev))
       }
-      if (partsCategoryFilter?.toUpperCase() === normalizedOld) {
+      if (
+        partsCategoryFilter &&
+        (normalizeCategoryName(partsCategoryFilter) === normalizedOld ||
+          partsCategoryFilter.toUpperCase() === oldCategory.toUpperCase())
+      ) {
         setPartsCategoryFilter(normalizedNew)
       }
     },
@@ -1216,12 +1255,15 @@ export default function ServicesMaintenancePage({ user }) {
   const handleDeleteCategory = useCallback(
     async (categoryToDelete) => {
       if (!categoryToDelete) return
-      const normalized = categoryToDelete.trim().toUpperCase().replace(/\s+/g, "_")
+      const normalized = normalizeCategoryName(categoryToDelete)
       if (!normalized) return
+
+      const alt = normalized.replace(/\s+/g, "_")
+      const altSpace = normalized.replace(/_/g, " ")
 
       // Add to deletedCategories
       setDeletedCategories((prev) => {
-        const updated = Array.from(new Set([...prev, normalized]))
+        const updated = Array.from(new Set([...prev, normalized, alt, altSpace]))
         try {
           localStorage.setItem("arunafeltz_deleted_part_categories", JSON.stringify(updated))
         } catch {
@@ -1232,7 +1274,10 @@ export default function ServicesMaintenancePage({ user }) {
 
       // Remove from customPartCategories
       setCustomPartCategories((prev) => {
-        const updated = prev.filter((c) => c !== normalized)
+        const updated = prev.filter((c) => {
+          const cNorm = normalizeCategoryName(c)
+          return cNorm !== normalized && cNorm !== alt && cNorm !== altSpace
+        })
         try {
           localStorage.setItem("arunafeltz_custom_part_categories", JSON.stringify(updated))
         } catch {
@@ -1242,25 +1287,37 @@ export default function ServicesMaintenancePage({ user }) {
       })
 
       // Reassign any parts currently using this category to "OTHER"
-      const affectedParts = partsCatalogItems.filter(
-        (p) => (p.category || "").toUpperCase() === normalized
-      )
+      const affectedParts = partsCatalogItems.filter((p) => {
+        const pCat = normalizeCategoryName(p.category)
+        return (
+          pCat === normalized ||
+          pCat === alt ||
+          pCat === altSpace ||
+          (p.category || "").toUpperCase() === categoryToDelete.toUpperCase()
+        )
+      })
 
       if (affectedParts.length > 0) {
-        await Promise.all(
-          affectedParts.map((part) =>
-            updateServicePartsCatalogItem(part.id, {
-              category: "OTHER",
-            })
-          )
-        )
+        for (const part of affectedParts) {
+          await updateServicePartsCatalogItem(part.id, {
+            category: "OTHER",
+          })
+        }
         await fetchPartsCatalog()
       }
 
-      if (partForm && (partForm.category || "").toUpperCase() === normalized) {
+      if (
+        partForm &&
+        (normalizeCategoryName(partForm.category) === normalized ||
+          (partForm.category || "").toUpperCase() === categoryToDelete.toUpperCase())
+      ) {
         setPartForm((prev) => (prev ? { ...prev, category: "OTHER" } : prev))
       }
-      if (partsCategoryFilter?.toUpperCase() === normalized) {
+      if (
+        partsCategoryFilter &&
+        (normalizeCategoryName(partsCategoryFilter) === normalized ||
+          partsCategoryFilter.toUpperCase() === categoryToDelete.toUpperCase())
+      ) {
         setPartsCategoryFilter("")
       }
     },
@@ -1430,7 +1487,7 @@ export default function ServicesMaintenancePage({ user }) {
     setIsSavingPart(true)
     setPartEditorError("")
 
-    const categoryClean = (partForm.category?.trim() || "OTHER").toUpperCase().replace(/\s+/g, "_")
+    const categoryClean = normalizeCategoryName(partForm.category) || "OTHER"
     handleAddCustomCategory(categoryClean)
 
     const payload = {
@@ -1518,7 +1575,17 @@ export default function ServicesMaintenancePage({ user }) {
     return partsCatalogItems.filter((item) => {
       if (partsStatusFilter === "ACTIVE" && item.isActive === false) return false
       if (partsStatusFilter === "INACTIVE" && item.isActive !== false) return false
-      if (partsCategoryFilter && item.category !== partsCategoryFilter) return false
+      if (partsCategoryFilter) {
+        const filterNorm = normalizeCategoryName(partsCategoryFilter)
+        const itemCatNorm = normalizeCategoryName(item.category)
+        if (
+          filterNorm !== itemCatNorm &&
+          filterNorm !== itemCatNorm.replace(/_/g, " ") &&
+          filterNorm.replace(/_/g, " ") !== itemCatNorm
+        ) {
+          return false
+        }
+      }
       if (
         partsDeviceFilter &&
         !item.deviceType?.toLowerCase().includes(partsDeviceFilter.toLowerCase())
@@ -2294,7 +2361,7 @@ export default function ServicesMaintenancePage({ user }) {
 
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200/50">
-                                  {item.category || "OTHER"}
+                                  {(item.category || "OTHER").replace(/_/g, " ")}
                                 </span>
                               </td>
 
@@ -2379,7 +2446,7 @@ export default function ServicesMaintenancePage({ user }) {
                               {item.name}
                             </h2>
                             <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                              {item.deviceType} · {item.category}
+                              {item.deviceType} · {(item.category || "OTHER").replace(/_/g, " ")}
                             </p>
                           </div>
                           <StatusPill status={item.isActive !== false ? "ACTIVE" : "INACTIVE"} />
