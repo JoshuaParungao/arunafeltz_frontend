@@ -519,12 +519,12 @@ function PartDetailModal({ item, onClose }) {
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Cost & Markup Economics</p>
             <div className="grid gap-2 grid-cols-3 text-xs">
               <div className="rounded-lg bg-amber-50 p-2.5 text-center border border-amber-200/60">
-                <p className="text-[10px] font-bold text-amber-800">Puhunan / Cost (₱)</p>
+                <p className="text-[10px] font-bold text-amber-800">Part Cost (₱)</p>
                 <p className="mt-0.5 font-mono font-bold text-amber-950">{formatMoney(cost)}</p>
               </div>
 
               <div className="rounded-lg bg-emerald-50 p-2.5 text-center border border-emerald-200/60">
-                <p className="text-[10px] font-bold text-emerald-800">Shop Tubo / Markup (₱)</p>
+                <p className="text-[10px] font-bold text-emerald-800">Shop Markup (₱)</p>
                 <p className="mt-0.5 font-mono font-bold text-emerald-950">{formatMoney(markup)}</p>
               </div>
 
@@ -536,7 +536,7 @@ function PartDetailModal({ item, onClose }) {
               </div>
             </div>
             <p className="text-[10px] text-slate-500 italic mt-1">
-              * Note: Sa resibo at claim stub ng customer, hindi makikita ang hiwalay na puhunan o tubo ng piyesa. Isasama ito sa kabuuang service charge kasama ang labor fee ni technician.
+              * Note: Customer receipts and claim stubs will only display the consolidated final service charge without exposing internal part cost or markup.
             </p>
           </div>
 
@@ -676,7 +676,7 @@ function PartEditorModal({
           <section className="space-y-3 pt-2 border-t border-slate-100">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-                Cost Pool & Shop Markup (Puhunan at Tubo)
+                Cost &amp; Shop Markup Economics
               </h3>
               <span className="text-[10px] font-bold text-slate-500">
                 🔒 Shop Internal Only
@@ -685,7 +685,7 @@ function PartEditorModal({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className={`${labelClass} text-amber-800`}>Puhunan sa Piyesa (Cost Price ₱) *</span>
+                <span className={`${labelClass} text-amber-800`}>Part Cost Price (₱) *</span>
                 <input
                   className={`${inputClass} font-mono`}
                   min="0"
@@ -697,12 +697,12 @@ function PartEditorModal({
                   value={form.costPrice}
                 />
                 <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Puhunan sa pagbili ng piyesa (hal. 5,000)
+                  Purchase cost of the replacement part (e.g. 5,000.00)
                 </span>
               </label>
 
               <label className="block">
-                <span className={`${labelClass} text-emerald-800`}>Tubo ng Shop sa Piyesa (Markup Amount ₱)</span>
+                <span className={`${labelClass} text-emerald-800`}>Shop Markup Amount (₱)</span>
                 <input
                   className={`${inputClass} font-mono`}
                   min="0"
@@ -713,7 +713,7 @@ function PartEditorModal({
                   value={form.markupAmount}
                 />
                 <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Porsyento/tubo ng shop sa mismong piyesa (hal. 2,500)
+                  Shop markup/margin on this part (e.g. 2,500.00)
                 </span>
               </label>
             </div>
@@ -726,7 +726,7 @@ function PartEditorModal({
                 </span>
               </div>
               <p className="text-[10px] text-slate-500">
-                Kuwenta: Puhunan ({formatMoney(cost)}) + Tubo ({formatMoney(markup)}) = {formatMoney(totalEstimatedPartPrice)}
+                Formula: Cost ({formatMoney(cost)}) + Markup ({formatMoney(markup)}) = {formatMoney(totalEstimatedPartPrice)}
               </p>
             </div>
           </section>
@@ -1241,7 +1241,7 @@ export default function ServicesMaintenancePage({ user }) {
           type="button"
         >
           <Layers size={15} />
-          <span>Service Parts &amp; Markup (Piyesa at Tubo)</span>
+          <span>Service Parts &amp; Markup Catalog</span>
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
             activeTab === "PARTS" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
           }`}>
@@ -1892,8 +1892,8 @@ export default function ServicesMaintenancePage({ user }) {
                           <th className="whitespace-nowrap px-4 py-3.5">Part / Material Name</th>
                           <th className="whitespace-nowrap px-4 py-3.5">Device</th>
                           <th className="whitespace-nowrap px-4 py-3.5">Category</th>
-                          <th className="whitespace-nowrap px-4 py-3.5 text-amber-900">Puhunan / Cost (₱)</th>
-                          <th className="whitespace-nowrap px-4 py-3.5 text-emerald-900">Shop Tubo / Markup (₱)</th>
+                          <th className="whitespace-nowrap px-4 py-3.5 text-amber-900">Part Cost (₱)</th>
+                          <th className="whitespace-nowrap px-4 py-3.5 text-emerald-900">Shop Markup (₱)</th>
                           <th className="whitespace-nowrap px-4 py-3.5">Suggested Part SRP</th>
                           <th className="whitespace-nowrap px-4 py-3.5">Status</th>
                           <th className="whitespace-nowrap px-4 py-3.5 text-right">Actions</th>
@@ -2019,14 +2019,14 @@ export default function ServicesMaintenancePage({ user }) {
 
                         <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
                           <div>
-                            <p className="font-bold text-[var(--color-muted)]">Puhunan</p>
+                            <p className="font-bold text-[var(--color-muted)]">Part Cost</p>
                             <p className="font-bold font-mono text-amber-950">
                               {formatMoney(cost)}
                             </p>
                           </div>
 
                           <div>
-                            <p className="font-bold text-[var(--color-muted)]">Shop Tubo</p>
+                            <p className="font-bold text-[var(--color-muted)]">Shop Markup</p>
                             <p className="font-bold font-mono text-emerald-950">
                               +{formatMoney(markup)}
                             </p>

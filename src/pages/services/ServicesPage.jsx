@@ -705,7 +705,7 @@ function ServicePricingFields({
               onClick={() => onPricingModeChange("PARTS_BREAKDOWN")}
               type="button"
             >
-              ⚡ With Service Parts &amp; Markup (Piyesa + Tubo)
+              ⚡ With Service Parts &amp; Markup
             </button>
           </div>
         </div>
@@ -716,7 +716,7 @@ function ServicePricingFields({
         <div className="space-y-3">
           {/* Part Selection from Catalog */}
           {servicePartsCatalog.length > 0 && onServicePartChange && (
-            <Field label="Pumili sa Service Parts Catalog (Opsyonal para sa auto-fill ng puhunan at tubo)">
+            <Field label="Select from Service Parts Catalog (Optional auto-fill)">
               <select
                 className={FIELD_CLASS}
                 onChange={(e) => {
@@ -733,7 +733,7 @@ function ServicePricingFields({
                 <option value="">-- Manual Entry / Custom Service Part --</option>
                 {servicePartsCatalog.map((part) => (
                   <option key={part.id} value={part.id}>
-                    [{part.category || "PART"}] {part.name} (Puhunan: {money(part.costPrice)} | Tubo: {money(part.markupAmount)})
+                    [{part.category || "PART"}] {part.name} (Cost: {money(part.costPrice)} | Markup: {money(part.markupAmount)})
                   </option>
                 ))}
               </select>
@@ -741,7 +741,7 @@ function ServicePricingFields({
           )}
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="👨‍🔧 Fee / Labor Rate ni Tech (₱) *">
+            <Field label="👨‍🔧 Technician Labor Fee (₱) *">
               <input
                 className={`${FIELD_CLASS} font-mono`}
                 min="0"
@@ -751,10 +751,10 @@ function ServicePricingFields({
                 type="number"
                 value={technicianFee}
               />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Bayad sa paggawa ng technician</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Technician labor compensation</span>
             </Field>
 
-            <Field label="📦 Puhunan sa Piyesa (Cost ₱) *">
+            <Field label="📦 Part Cost (₱) *">
               <input
                 className={`${FIELD_CLASS} font-mono text-amber-900 font-bold`}
                 min="0"
@@ -764,10 +764,10 @@ function ServicePricingFields({
                 type="number"
                 value={partsCost}
               />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Halaga ng biniling piyesa (LCD, IC, atbp.)</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Purchase cost of the replacement part</span>
             </Field>
 
-            <Field label="🏢 Tubo ng Shop sa Piyesa (Markup ₱)">
+            <Field label="🏢 Shop Markup (₱)">
               <input
                 className={`${FIELD_CLASS} font-mono text-emerald-900 font-bold`}
                 min="0"
@@ -777,7 +777,7 @@ function ServicePricingFields({
                 type="number"
                 value={partsMarkup}
               />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Tubo/patong ng shop sa mismong piyesa</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Shop profit margin on the part</span>
             </Field>
           </div>
 
@@ -788,36 +788,36 @@ function ServicePricingFields({
                 🔒 Shop Internal Breakdown (Hidden from customer receipt):
               </span>
               <span className="text-[10px] font-bold text-slate-500">
-                Piyesa SRP: {money(partsSrpNum)}
+                Part SRP: {money(partsSrpNum)}
               </span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
               <div className="rounded-lg bg-white p-2 border border-amber-200/80">
-                <p className="text-[10px] font-bold text-amber-800">Puhunan sa Piyesa</p>
+                <p className="text-[10px] font-bold text-amber-800">Part Cost</p>
                 <p className="mt-0.5 font-mono font-black text-amber-950">{money(partsCostNum)}</p>
               </div>
 
               <div className="rounded-lg bg-white p-2 border border-blue-200/80">
-                <p className="text-[10px] font-bold text-blue-800">Fee ni Technician</p>
+                <p className="text-[10px] font-bold text-blue-800">Technician Fee</p>
                 <p className="mt-0.5 font-mono font-black text-blue-950">{money(techFeeNum)}</p>
               </div>
 
               <div className="rounded-lg bg-white p-2 border border-emerald-200/80">
-                <p className="text-[10px] font-bold text-emerald-800">Tubo ng Shop</p>
+                <p className="text-[10px] font-bold text-emerald-800">Shop Profit</p>
                 <p className="mt-0.5 font-mono font-black text-emerald-950">{money(partsMarkupNum)}</p>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-1 border-t border-amber-200/70">
-              <span className="font-bold text-slate-700">Kabuuang Singil sa Client (Total Price):</span>
+              <span className="font-bold text-slate-700">Total Customer Price:</span>
               <span className="font-mono font-black text-base text-[var(--color-maroon)]">
                 {money(finalCustomerPrice)}
               </span>
             </div>
 
             <p className="text-[10px] text-slate-500 italic">
-              ℹ️ Point of view ni client: Walang makikitang internal cost breakdown sa claim stub o resibo. Ang kabuuang <strong>{money(finalCustomerPrice)}</strong> lamang ang lalabas.
+              ℹ️ Customer View: Receipts and claim stubs display only the consolidated total of <strong>{money(finalCustomerPrice)}</strong> without internal cost breakdown.
             </p>
           </div>
         </div>
@@ -899,19 +899,19 @@ function FinancialSnapshot({ compact = false, job }) {
       {hasPartsBreakdown && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
           <p className="text-[10px] font-black uppercase tracking-wider text-amber-900 mb-2">
-            📊 Internal Puhunan at Hatian Summary (Shop vs Tech):
+            📊 Internal Cost &amp; Profit Breakdown:
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             <div className="rounded-lg bg-white p-2 border border-amber-200/80">
-              <span className="text-[10px] font-bold text-slate-500 block">📦 Puhunan sa Piyesa</span>
+              <span className="text-[10px] font-bold text-slate-500 block">📦 Part Cost</span>
               <span className="font-mono font-bold text-amber-950">{money(partsCost)}</span>
             </div>
             <div className="rounded-lg bg-white p-2 border border-blue-200/80">
-              <span className="text-[10px] font-bold text-slate-500 block">👨‍🔧 Bayad/Fee ni Tech</span>
+              <span className="text-[10px] font-bold text-slate-500 block">👨‍🔧 Technician Fee</span>
               <span className="font-mono font-bold text-blue-950">{money(techFee)}</span>
             </div>
             <div className="rounded-lg bg-white p-2 border border-emerald-200/80">
-              <span className="text-[10px] font-bold text-slate-500 block">🏢 Tubo ng Shop</span>
+              <span className="text-[10px] font-bold text-slate-500 block">🏢 Shop Markup</span>
               <span className="font-mono font-bold text-emerald-950">{money(shopMarkup)}</span>
             </div>
             <div className="rounded-lg bg-white p-2 border border-rose-200/80">
@@ -3832,7 +3832,7 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
               <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-900 shadow-xs">
                 <AlertCircle className="mt-0.5 shrink-0 text-amber-700" size={17} />
                 <div className="leading-relaxed">
-                  <strong className="font-bold text-amber-950">Paalala sa Incentive Rules:</strong> Siguraduhing naka-configure ang <em>Incentive Program Rules</em> (Repair Cost % at Technician Rates) sa Settings para sa branch na ito upang maging opisyal at tumpak ang commission at company share.
+                  <strong className="font-bold text-amber-950">Incentive Rules Reminder:</strong> Ensure that <em>Incentive Program Rules</em> (Repair Cost % and Technician Rates) are configured in Settings for this branch for accurate commission and company share calculations.
                 </div>
               </div>
 
