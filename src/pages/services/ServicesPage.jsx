@@ -4,14 +4,12 @@ import {
   AlertCircle,
   ArrowRight,
   Banknote,
-  Calendar,
   Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
   Clock3,
-  FileText,
   History,
   Laptop,
   Layers,
@@ -20,13 +18,11 @@ import {
   Printer,
   RefreshCw,
   Search,
-  ShieldCheck,
   User,
   UserRoundCheck,
   Wrench,
   X,
   Zap,
-  ShoppingCart,
 } from "lucide-react"
 
 import { getCustomers } from "../../features/customers/customers.api"
@@ -41,7 +37,6 @@ import {
   getServiceJobById,
   getServiceJobs,
   getServiceTechnicians,
-  releaseServiceJob,
   updateServiceJobAssignment,
   updateServiceJobStatus,
 } from "../../features/service-jobs/serviceJobs.api"
@@ -78,23 +73,6 @@ const STATUSES = ["PENDING", "IN_PROGRESS", "READY_FOR_RELEASE", "COMPLETED", "C
 const REPAIR_TYPES = [
   { value: "ORDINARY_REPAIR", label: "Standard service / repair" },
   { value: "BOARD_LEVEL_REPAIR", label: "Specialized / Advanced repair" },
-]
-const COMPLETED_OUTCOMES = new Set(["REPAIRED", "SERVICE_COMPLETED"])
-const UNREPAIRED_OUTCOMES = new Set([
-  "UNREPAIRED",
-  "CUSTOMER_PULL_OUT",
-  "NO_FAULT_FOUND",
-  "DECLINED",
-  "OTHER",
-])
-const RELEASE_OUTCOMES = [
-  { value: "REPAIRED", label: "Repaired" },
-  { value: "SERVICE_COMPLETED", label: "Service completed" },
-  { value: "UNREPAIRED", label: "Unrepaired" },
-  { value: "CUSTOMER_PULL_OUT", label: "Customer pull-out" },
-  { value: "NO_FAULT_FOUND", label: "No fault found" },
-  { value: "DECLINED", label: "Repair declined" },
-  { value: "OTHER", label: "Other" },
 ]
 const FIELD_CLASS =
   "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
@@ -648,7 +626,6 @@ function ServicePricingFields({
   partsCost = "",
   partsMarkup = "",
   servicePartId = "",
-  partDescription = "",
   onTechnicianFeeChange,
   onPartsCostChange,
   onPartsMarkupChange,
@@ -1163,8 +1140,8 @@ function WorkshopTasksManager({
   isSaving = false,
   onSaveTasks,
   onStatusChange,
-  onOpenRelease,
   onPayInPos,
+  onPullOut,
   canManage = false,
 }) {
   const initialTasks = useMemo(() => extractServiceTasks(job), [job])
@@ -1241,27 +1218,16 @@ function WorkshopTasksManager({
     setIsDirty(true)
   }
 
-  const handleSelectPredefinedPart = (index, item) => {
-    if (!item) return
-    handleUpdatePart(index, {
-      partName: item.name,
-      deviceType: item.deviceType || job.deviceType || "LAPTOP",
-      category: item.category || "OTHER",
-      costPrice: Number(item.costPrice || 0),
-      markupAmount: Number(item.markupAmount || 0),
-    })
-  }
+  const laborTotal = tasks.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+  const partsTotal = parts.reduce((sum, p) => sum + Number(p.quantity || 1) * Number(p.unitPrice || 0), 0)
+  const overallTotal = laborTotal + partsTotal
 
-  const handleSaveAll = () => {
-    onSaveTasks(tasks, parts)
+  const handleSave = () => {
+    if (typeof onSaveTasks === "function") {
+      onSaveTasks(tasks, parts, laborTotal)
+    }
     setIsDirty(false)
   }
-
-  const totalTasksAmount = tasks.reduce((sum, t) => sum + Number(t.amount || 0), 0)
-  const totalPartsCost = parts.reduce((sum, p) => sum + Number(p.costPrice || 0), 0)
-  const totalPartsMarkup = parts.reduce((sum, p) => sum + Number(p.markupAmount || 0), 0)
-  const totalPartsClientPrice = totalPartsCost + totalPartsMarkup
-  const grandTotalEstimate = totalTasksAmount + totalPartsClientPrice
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs">
@@ -1550,7 +1516,7 @@ function WorkshopTasksManager({
                 </div>
 
                 <div className="w-24 text-right font-mono font-black text-slate-700 shrink-0">
-                  ₱{money(Number(part.quantity || 1) * Number(part.unitPrice || 0))}
+                  {money(Number(part.quantity || 1) * Number(part.unitPrice || 0))}
                 </div>
 
                 {canManage && (
@@ -1573,15 +1539,15 @@ function WorkshopTasksManager({
       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
         <div className="flex flex-wrap items-center gap-4 text-xs">
           <span className="text-slate-500">
-            Labor ({tasks.length}): <strong className="font-mono text-slate-800">₱{money(laborTotal)}</strong>
+            Labor ({tasks.length}): <strong className="font-mono text-slate-800">{money(laborTotal)}</strong>
           </span>
           {partsTotal > 0 && (
             <span className="text-slate-500">
-              Parts ({parts.length}): <strong className="font-mono text-slate-800">₱{money(partsTotal)}</strong>
+              Parts ({parts.length}): <strong className="font-mono text-slate-800">{money(partsTotal)}</strong>
             </span>
           )}
           <span className="font-bold text-slate-700">
-            Workshop Quote: <strong className="font-mono text-base font-black text-[var(--color-maroon)]">₱{money(overallTotal)}</strong>
+            Workshop Quote: <strong className="font-mono text-base font-black text-[var(--color-maroon)]">{money(overallTotal)}</strong>
           </span>
         </div>
 
@@ -1613,7 +1579,7 @@ function lifecycleChoices(job) {
   return []
 }
 
-export default function ServicesPage({ initialContext, onNavigate, selectedBranch, user }) {
+export default function ServicesPage({ onNavigate, selectedBranch, user }) {
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const canCreate = CREATE_ROLES.has(user?.role)
   const canUpdateLifecycle = LIFECYCLE_ROLES.has(user?.role)
@@ -3285,7 +3251,6 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
             setSelectedJob(null)
             setActionStatus("")
             setShowPayment(false)
-            setShowRelease(false)
             setShowAssignment(false)
             setPrintPreviewState({ isOpen: false, defaultDoc: "RECEIPT" })
           }}
