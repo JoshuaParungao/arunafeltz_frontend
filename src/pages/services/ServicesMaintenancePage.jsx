@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
+  Check,
   Clock,
   Edit3,
   Eye,
@@ -562,6 +563,216 @@ function PartDetailModal({ item, onClose }) {
   )
 }
 
+function ManagePartCategoriesModal({
+  categories = [],
+  onClose,
+  onDeleteCategory,
+  onRenameCategory,
+  partsItems = [],
+}) {
+  const [editingCat, setEditingCat] = useState(null)
+  const [renameValue, setRenameValue] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [statusMessage, setStatusMessage] = useState("")
+
+  const filteredCategories = useMemo(() => {
+    if (!searchTerm.trim()) return categories
+    const q = searchTerm.trim().toLowerCase()
+    return categories.filter((cat) => cat.toLowerCase().includes(q))
+  }, [categories, searchTerm])
+
+  const getUsageCount = (cat) => {
+    return partsItems.filter(
+      (item) => (item.category || "").toUpperCase() === cat.toUpperCase(),
+    ).length
+  }
+
+  const handleStartRename = (cat) => {
+    setEditingCat(cat)
+    setRenameValue(cat)
+    setStatusMessage("")
+  }
+
+  const handleSaveRename = async (oldCat) => {
+    const clean = renameValue.trim().toUpperCase().replace(/\s+/g, "_")
+    if (!clean || clean === oldCat) {
+      setEditingCat(null)
+      return
+    }
+    setIsProcessing(true)
+    setStatusMessage("")
+    try {
+      await onRenameCategory(oldCat, clean)
+      setEditingCat(null)
+      setStatusMessage(`Renamed "${oldCat}" to "${clean}".`)
+    } catch {
+      setStatusMessage("Failed to rename category.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleDelete = async (cat) => {
+    const usage = getUsageCount(cat)
+    const confirmText =
+      usage > 0
+        ? `Category "${cat}" is currently used by ${usage} part(s). Deleting it will reassign those parts to "OTHER". Do you want to proceed?`
+        : `Are you sure you want to delete category "${cat}"?`
+
+    if (!window.confirm(confirmText)) return
+
+    setIsProcessing(true)
+    setStatusMessage("")
+    try {
+      await onDeleteCategory(cat)
+      setStatusMessage(`Category "${cat}" deleted.`)
+    } catch {
+      setStatusMessage("Failed to delete category.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+      <div className="max-h-[85vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200 flex flex-col">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+          <div className="flex items-center gap-2">
+            <Layers className="text-[var(--color-maroon)]" size={18} />
+            <div>
+              <h2 className="text-sm font-black text-slate-900">Manage Part Categories</h2>
+              <p className="text-[11px] text-slate-500">Edit, rename, or delete categories.</p>
+            </div>
+          </div>
+          <button
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={16} />
+          </button>
+        </header>
+
+        {statusMessage ? (
+          <div className="mx-4 mt-3 rounded-xl bg-sky-50 border border-sky-200 px-3 py-2 text-xs font-semibold text-sky-800 flex items-center justify-between">
+            <span>{statusMessage}</span>
+            <button className="text-sky-600 hover:text-sky-900 cursor-pointer" onClick={() => setStatusMessage("")} type="button">
+              <X size={13} />
+            </button>
+          </div>
+        ) : null}
+
+        <div className="p-3.5 border-b border-slate-100">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-8 pr-3 py-1.5 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:bg-white"
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search category to edit or delete..."
+              type="text"
+              value={searchTerm}
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100 space-y-1">
+          {filteredCategories.length === 0 ? (
+            <div className="text-center py-6 text-xs text-slate-400">
+              No categories found matching &quot;{searchTerm}&quot;.
+            </div>
+          ) : (
+            filteredCategories.map((cat) => {
+              const count = getUsageCount(cat)
+              const isEditingThis = editingCat === cat
+
+              return (
+                <div className="flex items-center justify-between py-2.5 gap-2" key={cat}>
+                  {isEditingThis ? (
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        autoFocus
+                        className="flex-1 rounded-lg border border-[var(--color-maroon)] px-2.5 py-1 text-xs font-mono uppercase font-bold text-slate-900 outline-none focus:ring-1 focus:ring-[var(--color-maroon)]"
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveRename(cat)
+                          if (e.key === "Escape") setEditingCat(null)
+                        }}
+                        type="text"
+                        value={renameValue}
+                      />
+                      <button
+                        className="rounded-lg bg-[var(--color-maroon)] text-white p-1.5 hover:bg-[var(--color-maroon-hover)] transition cursor-pointer"
+                        disabled={isProcessing}
+                        onClick={() => handleSaveRename(cat)}
+                        title="Save rename"
+                        type="button"
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button
+                        className="rounded-lg border border-slate-200 text-slate-500 p-1.5 hover:bg-slate-100 transition cursor-pointer"
+                        disabled={isProcessing}
+                        onClick={() => setEditingCat(null)}
+                        title="Cancel"
+                        type="button"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono font-bold text-xs text-slate-900 truncate">
+                          {cat}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                          {count} {count === 1 ? "part" : "parts"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-[var(--color-maroon)] hover:border-[var(--color-maroon)] transition cursor-pointer"
+                          disabled={isProcessing}
+                          onClick={() => handleStartRename(cat)}
+                          title={`Edit / Rename "${cat}"`}
+                          type="button"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                        <button
+                          className="rounded-lg border border-rose-200 bg-white p-1.5 text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition cursor-pointer"
+                          disabled={isProcessing}
+                          onClick={() => handleDelete(cat)}
+                          title={`Delete category "${cat}"`}
+                          type="button"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        <footer className="border-t border-slate-200 bg-slate-50/75 px-5 py-3 flex justify-end">
+          <button
+            className="rounded-xl border border-slate-300 bg-white px-4 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            onClick={onClose}
+            type="button"
+          >
+            Done
+          </button>
+        </footer>
+      </div>
+    </div>
+  )
+}
+
 function PartEditorModal({
   availableCategories = PART_CATEGORY_PRESETS,
   errorMessage,
@@ -571,6 +782,7 @@ function PartEditorModal({
   onAddCustomCategory,
   onChange,
   onClose,
+  onOpenCategoryManager,
   onSave,
 }) {
   if (!form) return null
@@ -677,30 +889,43 @@ function PartEditorModal({
               <div className="block">
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <span className={labelClass}>Part Category</span>
-                  {!isCustomCategoryMode ? (
-                    <button
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-maroon)] hover:underline cursor-pointer"
-                      onClick={() => {
-                        setIsCustomCategoryMode(true)
-                        setCustomCategoryInput("")
-                      }}
-                      type="button"
-                    >
-                      <Plus size={12} />
-                      Add New Category
-                    </button>
-                  ) : (
-                    <button
-                      className="text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
-                      onClick={() => {
-                        setIsCustomCategoryMode(false)
-                        setCustomCategoryInput("")
-                      }}
-                      type="button"
-                    >
-                      Select from list
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {!isCustomCategoryMode ? (
+                      <>
+                        <button
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-maroon)] hover:underline cursor-pointer"
+                          onClick={() => {
+                            setIsCustomCategoryMode(true)
+                            setCustomCategoryInput("")
+                          }}
+                          type="button"
+                        >
+                          <Plus size={12} />
+                          Add New
+                        </button>
+                        <span className="text-slate-300">·</span>
+                        <button
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                          onClick={() => onOpenCategoryManager?.()}
+                          type="button"
+                        >
+                          <Edit3 size={11} />
+                          Edit / Delete
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                        onClick={() => {
+                          setIsCustomCategoryMode(false)
+                          setCustomCategoryInput("")
+                        }}
+                        type="button"
+                      >
+                        Select from list
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {!isCustomCategoryMode ? (
@@ -710,6 +935,8 @@ function PartEditorModal({
                       if (event.target.value === "__NEW_CUSTOM__") {
                         setIsCustomCategoryMode(true)
                         setCustomCategoryInput("")
+                      } else if (event.target.value === "__MANAGE_CATEGORIES__") {
+                        onOpenCategoryManager?.()
                       } else {
                         onChange("category", event.target.value)
                       }
@@ -722,6 +949,7 @@ function PartEditorModal({
                       </option>
                     ))}
                     <option value="__NEW_CUSTOM__">+ Add Custom Category...</option>
+                    <option value="__MANAGE_CATEGORIES__">⚙️ Edit / Delete Categories...</option>
                   </select>
                 ) : (
                   <div className="space-y-1.5">
@@ -894,11 +1122,31 @@ export default function ServicesMaintenancePage({ user }) {
       return []
     }
   })
+  const [deletedCategories, setDeletedCategories] = useState(() => {
+    try {
+      const raw = localStorage.getItem("arunafeltz_deleted_part_categories")
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false)
 
   const handleAddCustomCategory = useCallback((newCat) => {
     if (!newCat || typeof newCat !== "string") return
     const normalized = newCat.trim().toUpperCase().replace(/\s+/g, "_")
     if (!normalized) return
+
+    setDeletedCategories((prev) => {
+      if (!prev.includes(normalized)) return prev
+      const updated = prev.filter((c) => c !== normalized)
+      try {
+        localStorage.setItem("arunafeltz_deleted_part_categories", JSON.stringify(updated))
+      } catch {
+        // ignore
+      }
+      return updated
+    })
 
     setCustomPartCategories((prev) => {
       if (prev.includes(normalized) || PART_CATEGORY_PRESETS.includes(normalized)) {
@@ -926,8 +1174,9 @@ export default function ServicesMaintenancePage({ user }) {
         set.add(cat.trim().toUpperCase().replace(/\s+/g, "_"))
       }
     })
+    deletedCategories.forEach((del) => set.delete(del))
     return Array.from(set)
-  }, [partsCatalogItems, customPartCategories])
+  }, [partsCatalogItems, customPartCategories, deletedCategories])
 
   // Labor Filter state
   const [searchText, setSearchText] = useState("")
@@ -1015,6 +1264,119 @@ export default function ServicesMaintenancePage({ user }) {
     setPartsStatusFilter("")
     setPartsPage(1)
   }
+
+  const handleRenameCategory = useCallback(
+    async (oldCategory, newCategory) => {
+      if (!oldCategory || !newCategory || oldCategory === newCategory) return
+      const normalizedOld = oldCategory.trim().toUpperCase().replace(/\s+/g, "_")
+      const normalizedNew = newCategory.trim().toUpperCase().replace(/\s+/g, "_")
+      if (!normalizedNew || normalizedOld === normalizedNew) return
+
+      // Add old to deletedCategories so preset or existing category is hidden
+      setDeletedCategories((prev) => {
+        const set = new Set(prev)
+        set.add(normalizedOld)
+        set.delete(normalizedNew)
+        const updated = Array.from(set)
+        try {
+          localStorage.setItem("arunafeltz_deleted_part_categories", JSON.stringify(updated))
+        } catch {
+          // ignore
+        }
+        return updated
+      })
+
+      // Update customPartCategories
+      setCustomPartCategories((prev) => {
+        const filtered = prev.filter((c) => c !== normalizedOld)
+        const updated = Array.from(new Set([...filtered, normalizedNew]))
+        try {
+          localStorage.setItem("arunafeltz_custom_part_categories", JSON.stringify(updated))
+        } catch {
+          // ignore
+        }
+        return updated
+      })
+
+      // Update any parts that use normalizedOld in the database
+      const affectedParts = partsCatalogItems.filter(
+        (p) => (p.category || "").toUpperCase() === normalizedOld
+      )
+
+      if (affectedParts.length > 0) {
+        await Promise.all(
+          affectedParts.map((part) =>
+            updateServicePartsCatalogItem(part.id, {
+              category: normalizedNew,
+            })
+          )
+        )
+        await fetchPartsCatalog()
+      }
+
+      if (partForm && (partForm.category || "").toUpperCase() === normalizedOld) {
+        setPartForm((prev) => (prev ? { ...prev, category: normalizedNew } : prev))
+      }
+      if (partsCategoryFilter?.toUpperCase() === normalizedOld) {
+        setPartsCategoryFilter(normalizedNew)
+      }
+    },
+    [partsCatalogItems, fetchPartsCatalog, partForm, partsCategoryFilter]
+  )
+
+  const handleDeleteCategory = useCallback(
+    async (categoryToDelete) => {
+      if (!categoryToDelete) return
+      const normalized = categoryToDelete.trim().toUpperCase().replace(/\s+/g, "_")
+      if (!normalized) return
+
+      // Add to deletedCategories
+      setDeletedCategories((prev) => {
+        const updated = Array.from(new Set([...prev, normalized]))
+        try {
+          localStorage.setItem("arunafeltz_deleted_part_categories", JSON.stringify(updated))
+        } catch {
+          // ignore
+        }
+        return updated
+      })
+
+      // Remove from customPartCategories
+      setCustomPartCategories((prev) => {
+        const updated = prev.filter((c) => c !== normalized)
+        try {
+          localStorage.setItem("arunafeltz_custom_part_categories", JSON.stringify(updated))
+        } catch {
+          // ignore
+        }
+        return updated
+      })
+
+      // Reassign any parts currently using this category to "OTHER"
+      const affectedParts = partsCatalogItems.filter(
+        (p) => (p.category || "").toUpperCase() === normalized
+      )
+
+      if (affectedParts.length > 0) {
+        await Promise.all(
+          affectedParts.map((part) =>
+            updateServicePartsCatalogItem(part.id, {
+              category: "OTHER",
+            })
+          )
+        )
+        await fetchPartsCatalog()
+      }
+
+      if (partForm && (partForm.category || "").toUpperCase() === normalized) {
+        setPartForm((prev) => (prev ? { ...prev, category: "OTHER" } : prev))
+      }
+      if (partsCategoryFilter?.toUpperCase() === normalized) {
+        setPartsCategoryFilter("")
+      }
+    },
+    [partsCatalogItems, fetchPartsCatalog, partForm, partsCategoryFilter]
+  )
 
   // Labor Catalog actions
   const openNewService = () => {
@@ -1872,18 +2234,31 @@ export default function ServicesMaintenancePage({ user }) {
                   <Layers size={13} className="text-[var(--color-maroon)]" />
                   Quick Filter by Part Category:
                 </span>
-                {partsCategoryFilter ? (
+                <div className="flex items-center gap-2">
                   <button
-                    className="text-[11px] font-bold text-[var(--color-maroon)] hover:underline"
-                    onClick={() => {
-                      setPartsCategoryFilter("")
-                      setPartsPage(1)
-                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                    onClick={() => setIsCategoryManagerOpen(true)}
                     type="button"
                   >
-                    Reset to All ({partsCategoryFilter})
+                    <Edit3 size={11} />
+                    Manage Categories
                   </button>
-                ) : null}
+                  {partsCategoryFilter ? (
+                    <>
+                      <span className="text-slate-300">·</span>
+                      <button
+                        className="text-[11px] font-bold text-[var(--color-maroon)] hover:underline"
+                        onClick={() => {
+                          setPartsCategoryFilter("")
+                          setPartsPage(1)
+                        }}
+                        type="button"
+                      >
+                        Reset to All ({partsCategoryFilter})
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
@@ -2263,7 +2638,19 @@ export default function ServicesMaintenancePage({ user }) {
           onAddCustomCategory={handleAddCustomCategory}
           onChange={updatePartForm}
           onClose={closePartEditor}
+          onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
           onSave={savePart}
+        />
+      ) : null}
+
+      {/* Category Manager Modal */}
+      {isCategoryManagerOpen ? (
+        <ManagePartCategoriesModal
+          categories={availablePartCategories}
+          onClose={() => setIsCategoryManagerOpen(false)}
+          onDeleteCategory={handleDeleteCategory}
+          onRenameCategory={handleRenameCategory}
+          partsItems={partsCatalogItems}
         />
       ) : null}
     </div>
