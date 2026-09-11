@@ -1197,90 +1197,90 @@ function WorkshopTasksManager({
     setTasks((prev) => [...prev, newTask])
     setIsDirty(true)
   }
-
-  const handleUpdateTask = (idx, patch) => {
+  const handleUpdateTask = (index, updates) => {
     setTasks((prev) => {
-      const next = [...prev]
-      next[idx] = { ...next[idx], ...patch }
-      if (patch.technicianId !== undefined) {
-        const found = technicians.find((t) => t.id === patch.technicianId)
-        next[idx].technicianName = found ? (found.fullName || found.username) : ""
-      }
-      return next
+      const copy = [...prev]
+      copy[index] = { ...copy[index], ...updates }
+      return copy
     })
     setIsDirty(true)
   }
 
-  const handleRemoveTask = (idx) => {
-    setTasks((prev) => prev.filter((_, i) => i !== idx))
+  const handleRemoveTask = (index) => {
+    setTasks((prev) => prev.filter((_, idx) => idx !== index))
     setIsDirty(true)
   }
 
   const handleAddPart = () => {
-    const newPart = {
-      id: `part-${Date.now()}`,
-      partName: "",
-      quantity: 1,
-      unitPrice: 0,
-    }
-    setParts((prev) => [...prev, newPart])
+    setParts((prev) => [
+      ...prev,
+      {
+        id: `part-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        partName: "",
+        deviceType: job.deviceType || "LAPTOP",
+        category: "OTHER",
+        costPrice: 0,
+        markupAmount: 0,
+        serialNumber: "",
+      },
+    ])
     setIsDirty(true)
   }
 
-  const handleUpdatePart = (idx, patch) => {
+  const handleUpdatePart = (index, updates) => {
     setParts((prev) => {
-      const next = [...prev]
-      next[idx] = { ...next[idx], ...patch }
-      return next
+      const copy = [...prev]
+      copy[index] = { ...copy[index], ...updates }
+      return copy
     })
     setIsDirty(true)
   }
 
-  const handleRemovePart = (idx) => {
-    setParts((prev) => prev.filter((_, i) => i !== idx))
+  const handleRemovePart = (index) => {
+    setParts((prev) => prev.filter((_, idx) => idx !== index))
     setIsDirty(true)
   }
 
-  const laborTotal = useMemo(
-    () => tasks.reduce((sum, t) => sum + Number(t.amount || 0), 0),
-    [tasks]
-  )
-  const partsTotal = useMemo(
-    () =>
-      parts.reduce(
-        (sum, p) => sum + Number(p.quantity || 1) * Number(p.unitPrice || 0),
-        0
-      ),
-    [parts]
-  )
-  const overallTotal = laborTotal + partsTotal
+  const handleSelectPredefinedPart = (index, item) => {
+    if (!item) return
+    handleUpdatePart(index, {
+      partName: item.name,
+      deviceType: item.deviceType || job.deviceType || "LAPTOP",
+      category: item.category || "OTHER",
+      costPrice: Number(item.costPrice || 0),
+      markupAmount: Number(item.markupAmount || 0),
+    })
+  }
 
-  const handleSave = () => {
-    onSaveTasks(tasks, parts, laborTotal)
+  const handleSaveAll = () => {
+    onSaveTasks(tasks, parts)
     setIsDirty(false)
   }
 
+  const totalTasksAmount = tasks.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+  const totalPartsCost = parts.reduce((sum, p) => sum + Number(p.costPrice || 0), 0)
+  const totalPartsMarkup = parts.reduce((sum, p) => sum + Number(p.markupAmount || 0), 0)
+  const totalPartsClientPrice = totalPartsCost + totalPartsMarkup
+  const grandTotalEstimate = totalTasksAmount + totalPartsClientPrice
+
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
-      {/* 1. Approval Gateway Banner */}
-      {job.status === "PENDING" && (
-        <div className="rounded-xl border-2 border-amber-300 bg-amber-50/80 p-4 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2.5">
-              <CircleAlert className="text-amber-700 shrink-0 mt-0.5" size={18} />
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
-                  Stage 3 Gateway: Waiting for Customer Approval
-                </h4>
-                <p className="mt-1 text-xs text-amber-800 leading-relaxed">
-                  Unit is under diagnosis in the workshop. Formulate the required repair/service tasks below, then contact the customer with the quote.
-                </p>
-              </div>
+    <div className="space-y-4 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs">
+      {/* 1. Approval Gateway Bar */}
+      {job.status === "PENDING_APPROVAL" && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="text-amber-700 shrink-0" size={18} />
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
+                Stage 2: Quotation &amp; Customer Approval Pending
+              </h4>
+              <p className="text-xs text-amber-800">
+                Diagnostic is ready. Confirm customer approval to proceed with repair, or record pull-out if declined.
+              </p>
             </div>
           </div>
-
           {canManage && (
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/80">
+            <div className="flex items-center gap-2">
               <button
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2 text-xs font-black shadow-xs transition"
                 disabled={isSaving}
@@ -1290,9 +1290,9 @@ function WorkshopTasksManager({
                 <Check size={14} /> Customer Approved (Start Work)
               </button>
               <button
-                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 px-3 py-2 text-xs font-black shadow-xs transition"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 px-3 py-2 text-xs font-black shadow-xs transition cursor-pointer"
                 disabled={isSaving}
-                onClick={onOpenRelease}
+                onClick={onPullOut}
                 type="button"
               >
                 <X size={14} /> Customer Declined (Pull-Out)
@@ -1317,7 +1317,7 @@ function WorkshopTasksManager({
           </div>
           {canManage && (
             <button
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:opacity-90 text-white px-3.5 py-2 text-xs font-black shadow-xs transition"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:opacity-90 text-white px-3.5 py-2 text-xs font-black shadow-xs transition cursor-pointer"
               disabled={isSaving}
               onClick={() => onStatusChange("READY_FOR_RELEASE")}
               type="button"
@@ -1329,7 +1329,7 @@ function WorkshopTasksManager({
       )}
 
       {job.status === "READY_FOR_RELEASE" && (
-        <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-4">
+        <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="text-purple-700 shrink-0" size={18} />
             <div>
@@ -1337,7 +1337,7 @@ function WorkshopTasksManager({
                 Stage 4: Service Done &amp; Ready for Cashier
               </h4>
               <p className="text-xs text-purple-800">
-                The unit is ready for release! Cashier can load J.O. #{job.jobCode} in the POS counter to collect payment and release the unit with the official Delivery / Warranty Receipt.
+                The unit is ready for release! Cashier can settle and release J.O. #{job.jobCode} in POS cashiering.
               </p>
               {job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") || job.status === "COMPLETED" || job.releasedAt ? (
                 <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 text-xs font-black text-emerald-800 shadow-xs">
@@ -1346,6 +1346,15 @@ function WorkshopTasksManager({
               ) : null}
             </div>
           </div>
+          {typeof onPayInPos === "function" && job.status !== "COMPLETED" && (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
+              onClick={() => onPayInPos(job)}
+              type="button"
+            >
+              <Banknote size={15} /> Settle &amp; Release in POS Cashiering
+            </button>
+          )}
         </div>
       )}
 
@@ -1689,17 +1698,6 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
   })
   const [showAssignment, setShowAssignment] = useState(false)
   const [assignmentId, setAssignmentId] = useState("")
-  const [showRelease, setShowRelease] = useState(false)
-  const [releaseForm, setReleaseForm] = useState({
-    releaseOutcome: "SERVICE_COMPLETED",
-    releaseNotes: "",
-    repairType: "",
-    serviceDoneById: "",
-    baseServiceCharge: "",
-    markupPercent: "",
-    diagnosis: "",
-    serviceNotes: "",
-  })
   const [showPayment, setShowPayment] = useState(false)
   const [paymentForm, setPaymentForm] = useState({
     arrangement: "CASH",
@@ -2288,114 +2286,16 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
     }
   }
 
-  const openRelease = () => {
-    const completedWork = selectedJob?.status === "READY_FOR_RELEASE"
-    const existingPerformerId =
-      selectedJob?.serviceDoneById || selectedJob?.serviceDoneBy?.id || ""
-    const defaultRepairType = selectedJob?.repairType || "ORDINARY_REPAIR"
-    const fallbackPerformerId =
-      existingPerformerId ||
-      selectedJob?.assignedTechnicianId ||
-      selectedJob?.assignedTechnician?.id ||
-      user?.id ||
-      (technicians?.[0]?.id || "")
-    setErrorMessage("")
-    setReleaseForm({
-      releaseOutcome: completedWork ? "SERVICE_COMPLETED" : "CUSTOMER_PULL_OUT",
-      releaseNotes: "",
-      repairType: defaultRepairType,
-      serviceDoneById:
-        user?.role === "TECHNICIAN" && existingPerformerId !== user.id
-          ? ""
-          : fallbackPerformerId,
-      baseServiceCharge: String(
-        selectedJob?.baseServiceCharge ??
-          selectedJob?.finalServiceCharge ??
-          selectedJob?.estimatedServiceCharge ??
-          0,
-      ),
-      markupPercent: String(selectedJob?.markupPercent ?? 0),
-      diagnosis: selectedJob?.diagnosis || "",
-      serviceNotes: selectedJob?.serviceNotes || "",
-    })
-    setShowRelease(true)
-  }
+  const handleReleaseToCashier = async (targetJob) => {
+    const job = targetJob || selectedJob
+    if (!job || isSaving) return
 
-  const submitRelease = async (event) => {
-    event.preventDefault()
-    if (!selectedJob || isSaving) return
-    const isCompletedRelease = COMPLETED_OUTCOMES.has(releaseForm.releaseOutcome)
-    const repairType = selectedJob.repairType || releaseForm.repairType || "ORDINARY_REPAIR"
-    const selectedPerformer = technicians.find(
-      (technician) => technician.id === releaseForm.serviceDoneById,
-    )
-
-    if (isCompletedRelease && !repairType) {
-      setErrorMessage("Select the repair category before completing this legacy job order.")
+    if (job.status === "READY_FOR_RELEASE") {
+      sendToPosCashiering(job)
       return
     }
 
-    if (isCompletedRelease && !releaseForm.serviceDoneById) {
-      setErrorMessage("Service Done By is required for a completed release.")
-      return
-    }
-    if (
-      isCompletedRelease &&
-      (!selectedPerformer ||
-        !isEligibleForRepairType(selectedPerformer, repairType) ||
-        (user?.role === "TECHNICIAN" && selectedPerformer.id !== user.id))
-    ) {
-      setErrorMessage("Choose an eligible Service Done By performer for this repair category.")
-      return
-    }
-    if (!isValidBaseServiceCharge(releaseForm.baseServiceCharge)) {
-      setErrorMessage("Base service charge must be a valid non-negative amount.")
-      return
-    }
-    if (!isValidMarkup(releaseForm.markupPercent)) {
-      setErrorMessage("Markup must be at least 0% and less than 100%.")
-      return
-    }
-
-    setIsSaving(true)
-    setErrorMessage("")
-    try {
-      const response = await releaseServiceJob(selectedJob.id, {
-        releaseOutcome: releaseForm.releaseOutcome,
-        releaseNotes: releaseForm.releaseNotes.trim() || undefined,
-        ...(repairType ? { repairType } : {}),
-        baseServiceCharge: Number(releaseForm.baseServiceCharge || 0),
-        markupPercent: normalizedMarkup(releaseForm.markupPercent),
-        ...(isCompletedRelease
-          ? {
-              serviceDoneById: releaseForm.serviceDoneById,
-            }
-          : {}),
-        diagnosis: releaseForm.diagnosis.trim() || undefined,
-        serviceNotes: releaseForm.serviceNotes.trim() || undefined,
-      })
-      setShowRelease(false)
-      const releasedJob = response?.data || selectedJob
-      setNotice(`${selectedJob.jobCode} released as ${friendly(releaseForm.releaseOutcome)}.`)
-      await Promise.all([reloadSelected(selectedJob.id), loadJobs()])
-
-      // Automatically trigger POS cashiering if completed and there is a charge to collect
-      const billableAmount = Number(releaseForm.baseServiceCharge || selectedJob?.finalServiceCharge || 0)
-      if (isCompletedRelease && billableAmount > 0) {
-        try {
-          sessionStorage.setItem("pos_load_jo_id", selectedJob.id)
-        } catch {
-          // Ignore
-        }
-        if (typeof onNavigate === "function") {
-          onNavigate("pos", { loadJobId: selectedJob.id, loadJob: releasedJob })
-        }
-      }
-    } catch (error) {
-      setErrorMessage(apiError(error, "Could not release the job order."))
-    } finally {
-      setIsSaving(false)
-    }
+    await handleWorkshopStatusChange("READY_FOR_RELEASE")
   }
 
   const openPayment = () => {
@@ -2527,10 +2427,8 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
   const createTechnicianOptions = technicianOptionsFor()
   const selectedRepairType = selectedJob?.repairType || ""
   const actionRepairType = selectedRepairType || actionForm.repairType
-  const releaseRepairType = selectedRepairType || releaseForm.repairType
   const assignmentTechnicianOptions = technicianOptionsFor()
   const actionPerformerOptions = technicianOptionsFor()
-  const releasePerformerOptions = technicianOptionsFor()
   const technicianCanHandleSelectedRepair = true
   const canActOnSelected =
     canUpdateLifecycle &&
@@ -2552,11 +2450,6 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
     !selectedJob?.creditAccount &&
     Number(selectedJob?.remainingBalance || 0) > 0 &&
     (selectedJob?.status === "COMPLETED" || Boolean(selectedJob?.releasedAt))
-  const allowedReleaseOutcomes =
-    selectedJob?.status === "READY_FOR_RELEASE"
-      ? RELEASE_OUTCOMES
-      : RELEASE_OUTCOMES.filter((outcome) => UNREPAIRED_OUTCOMES.has(outcome.value))
-  const releaseIsCompleted = COMPLETED_OUTCOMES.has(releaseForm.releaseOutcome)
 
   return (
     <div className="space-y-5">
@@ -3585,7 +3478,7 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
                   canManage={canUpdateLifecycle}
                   isSaving={isSaving}
                   job={selectedJob}
-                  onOpenRelease={openRelease}
+                  onPullOut={() => beginLifecycleAction("CANCELLED")}
                   onPayInPos={sendToPosCashiering}
                   onSaveTasks={handleSaveWorkshopTasks}
                   onStatusChange={handleWorkshopStatusChange}
@@ -3718,13 +3611,24 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
                     </span>
                   ) : null}
                   {canActOnSelected && selectedIsActive ? (
-                    <button
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-sky-700 px-4 py-2 text-xs font-black text-white shadow-2xs hover:opacity-90 transition cursor-pointer"
-                      onClick={openRelease}
-                      type="button"
-                    >
-                      <UserRoundCheck size={15} /> Release job
-                    </button>
+                    selectedJob?.status === "READY_FOR_RELEASE" ? (
+                      <button
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
+                        onClick={() => sendToPosCashiering(selectedJob)}
+                        type="button"
+                      >
+                        <Banknote size={15} /> Settle &amp; Release in POS Cashiering
+                      </button>
+                    ) : (
+                      <button
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:opacity-90 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
+                        disabled={isSaving}
+                        onClick={() => handleReleaseToCashier(selectedJob)}
+                        type="button"
+                      >
+                        <CheckCircle2 size={15} /> Ready for Cashier Release
+                      </button>
+                    )
                   ) : null}
                   {canPaySelected ? (
                     <button
@@ -3835,71 +3739,6 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
               {selectedRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists may be assigned to specialized repairs. Backend validation remains authoritative.</p> : null}
             </div>
             <div className="flex justify-end gap-2 border-t border-[var(--color-border)] p-4 sm:px-6"><button className="rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={() => setShowAssignment(false)} type="button">Cancel</button><button className="rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white" disabled={isSaving} type="submit">{isSaving ? "Saving…" : "Save assignment"}</button></div>
-          </form>
-        </Modal>
-      ) : null}
-
-      {showRelease ? (
-        <Modal onClose={() => setShowRelease(false)} title="Release Job Order">
-          <form onSubmit={submitRelease}>
-            <div className="space-y-4 p-5 sm:p-6">
-              <div className="rounded-2xl bg-sky-50 p-4 text-sm text-sky-800">A repaired/service-completed release closes the JO as completed. An unrepaired, pull-out, no-fault, declined, or other release closes it without claiming that a repair was completed.</div>
-
-              {errorMessage ? (
-                <div className="flex items-start gap-2.5 rounded-2xl border border-rose-300 bg-rose-50 p-3.5 text-xs font-bold text-rose-800 shadow-xs">
-                  <CircleAlert className="mt-0.5 shrink-0 text-rose-600" size={17} />
-                  <span className="leading-relaxed">{errorMessage}</span>
-                </div>
-              ) : null}
-
-              <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-900 shadow-xs">
-                <AlertCircle className="mt-0.5 shrink-0 text-amber-700" size={17} />
-                <div className="leading-relaxed">
-                  <strong className="font-bold text-amber-950">Incentive Rules Reminder:</strong> Ensure that <em>Incentive Program Rules</em> (Repair Cost % and Technician Rates) are configured in Settings for this branch for accurate commission and company share calculations.
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Release outcome *"><select className={FIELD_CLASS} onChange={(event) => setReleaseForm((form) => ({ ...form, releaseOutcome: event.target.value }))} value={releaseForm.releaseOutcome}>{allowedReleaseOutcomes.map((outcome) => <option key={outcome.value} value={outcome.value}>{outcome.label}</option>)}</select></Field>
-                <Field label={releaseIsCompleted ? "Repair category *" : "Repair category (optional for legacy pull-out)"}>
-                  <select
-                    className={FIELD_CLASS}
-                    disabled={Boolean(selectedJob?.repairType)}
-                    onChange={(event) => setReleaseForm((form) => ({ ...form, repairType: event.target.value, serviceDoneById: "" }))}
-                    required={releaseIsCompleted}
-                    value={releaseForm.repairType}
-                  >
-                    <option value="">Unknown legacy category</option>
-                    {actionableRepairTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-                  </select>
-                </Field>
-              </div>
-              {releaseIsCompleted ? (
-                <>
-                  <StaffCombobox
-                    label="Service Done By *"
-                    onChange={(id) => setReleaseForm((form) => ({ ...form, serviceDoneById: id }))}
-                    options={releasePerformerOptions}
-                    placeholder="Search or type performer name..."
-                    required
-                    value={releaseForm.serviceDoneById}
-                  />
-                  <p className="text-xs text-[var(--color-muted)]">Service Done By must be confirmed explicitly and is never copied from Assigned Technician. Technician accounts may select only themselves.</p>
-                  {releaseRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists are available for specialized work. Backend eligibility checks remain authoritative.</p> : null}
-                </>
-              ) : (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>No repair incentive will be recorded.</strong> Keep the charge at zero for a no-charge pull-out, or retain an actual diagnostic/service charge where applicable.</div>
-              )}
-              <ServicePricingFields
-                baseServiceCharge={releaseForm.baseServiceCharge}
-                markupPercent={releaseForm.markupPercent}
-                onBaseChange={(value) => setReleaseForm((form) => ({ ...form, baseServiceCharge: value }))}
-                onMarkupChange={(value) => setReleaseForm((form) => ({ ...form, markupPercent: value }))}
-              />
-              <Field label={releaseForm.releaseOutcome === "OTHER" ? "Release notes *" : "Release notes"}><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setReleaseForm((form) => ({ ...form, releaseNotes: event.target.value }))} required={releaseForm.releaseOutcome === "OTHER"} rows="3" value={releaseForm.releaseNotes} /></Field>
-              <div className="grid gap-4 sm:grid-cols-2"><Field label="Diagnosis"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setReleaseForm((form) => ({ ...form, diagnosis: event.target.value }))} rows="3" value={releaseForm.diagnosis} /></Field><Field label="Service performed / notes"><textarea className={FIELD_CLASS} maxLength="3000" onChange={(event) => setReleaseForm((form) => ({ ...form, serviceNotes: event.target.value }))} rows="3" value={releaseForm.serviceNotes} /></Field></div>
-            </div>
-            <div className="flex justify-end gap-2 border-t border-[var(--color-border)] p-4 sm:px-6"><button className="rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={() => setShowRelease(false)} type="button">Back</button><button className="rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-bold text-white" disabled={isSaving} type="submit">{isSaving ? "Releasing…" : "Confirm release"}</button></div>
           </form>
         </Modal>
       ) : null}
