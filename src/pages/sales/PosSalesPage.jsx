@@ -3871,78 +3871,104 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       if (joIds.length > 0) {
         for (const joId of joIds) {
           try {
-            const cartLine = cart.find((l) => l.jobOrderId === joId)
-            const staffId = cartLine?.serviceStaffId || undefined
+            const joLines = cart.filter((l) => l.isJobOrder && l.jobOrderId === joId)
+            const staffWithId = joLines.find((l) => l.serviceStaffId)
+            const staffId = staffWithId?.serviceStaffId || undefined
 
             const jobRes = await getServiceJobById(joId).catch(() => null)
             const currentJob = jobRes?.data || jobRes
+
+            const tasks = extractServiceTasks(currentJob)
+            const taskTech = tasks.find((t) => t.technicianId)
+            const taskTechId = taskTech?.technicianId || undefined
+
+            const branchTech =
+              serviceStaffList.find((s) => s.role === "TECHNICIAN" && s.id !== user?.id) ||
+              serviceStaffList.find((s) => s.role === "TECHNICIAN") ||
+              serviceStaffList[0]
+
             const effectiveDoneBy =
               staffId ||
               currentJob?.serviceDoneById ||
+              taskTechId ||
               currentJob?.assignedTechnicianId ||
               selectedServiceStaffId ||
+              branchTech?.id ||
               user?.id ||
               undefined
 
+            const totalJoAmount = joLines.reduce(
+              (sum, l) => sum + Number(l.unitPrice || 0) * Number(l.quantity || 1),
+              0,
+            )
+            const finalCharge =
+              totalJoAmount > 0
+                ? totalJoAmount
+                : Number(
+                    currentJob?.finalServiceCharge ??
+                    currentJob?.baseServiceCharge ??
+                    currentJob?.estimatedServiceCharge ??
+                    0,
+                  )
+
+            const repairType = currentJob?.repairType || "ORDINARY_REPAIR"
+
+            // 1. Ensure Job Order is in a valid state for release (IN_PROGRESS / READY_FOR_RELEASE)
             if (currentJob && currentJob.status === "PENDING") {
               await updateServiceJobStatus(joId, {
                 status: "IN_PROGRESS",
+                repairType,
                 ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
               }).catch(() => null)
               await updateServiceJobStatus(joId, {
                 status: "READY_FOR_RELEASE",
+                repairType,
                 ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
               }).catch(() => null)
             } else if (currentJob && currentJob.status === "IN_PROGRESS") {
               await updateServiceJobStatus(joId, {
                 status: "READY_FOR_RELEASE",
+                repairType,
                 ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
               }).catch(() => null)
             }
 
-            const releasePayload = {
-              releaseOutcome: "SERVICE_COMPLETED",
-              repairType: currentJob?.repairType || "ORDINARY_REPAIR",
-              baseServiceCharge: Number(
-                cartLine?.unitPrice ??
-                  currentJob?.finalServiceCharge ??
-                  currentJob?.baseServiceCharge ??
-                  0,
-              ),
-              markupPercent: 0,
-              ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
-              releaseNotes: `Settled and released via POS invoice ${sale.receiptCode}`,
-              serviceNotes: [
-                currentJob?.serviceNotes?.trim() || "",
-                `[BILLED IN POS: Invoice ${sale.receiptCode}]`,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            }
+            const cleanNotes = (currentJob?.serviceNotes || "")
+              .replace(/\[BILLED IN POS:.*?\]/g, "")
+              .trim()
+            const invoiceTag = `[BILLED IN POS: Invoice ${sale.receiptCode}]`
+            const combinedNotes = cleanNotes ? `${cleanNotes}\n\n${invoiceTag}` : invoiceTag
 
             const isAlreadyReleased = Boolean(currentJob?.releasedAt || currentJob?.status === "COMPLETED")
-            const newServiceNotes = [
-              currentJob?.serviceNotes?.trim() || "",
-              `[BILLED IN POS: Invoice ${sale.receiptCode}]`,
-            ]
-              .filter(Boolean)
-              .join(" ")
 
             if (isAlreadyReleased) {
               await updateServiceJobStatus(joId, {
-                serviceNotes: newServiceNotes,
+                serviceNotes: combinedNotes,
               }).catch((err) => {
                 console.warn(`Could not update service notes for completed Job Order ${joId}:`, err)
               })
             } else {
+              const releasePayload = {
+                releaseOutcome: "SERVICE_COMPLETED",
+                repairType,
+                baseServiceCharge: finalCharge,
+                finalServiceCharge: finalCharge,
+                markupPercent: 0,
+                ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
+                releaseNotes: `Settled and released via POS invoice ${sale.receiptCode}`,
+                serviceNotes: combinedNotes,
+              }
+
               const releaseResult = await releaseServiceJob(joId, releasePayload).catch((err) => {
                 console.warn(`Primary auto-release failed for Job Order ${joId}:`, err)
                 return null
               })
 
               if (!releaseResult) {
+                // Secondary fallback attempt with branch technician or current user
                 const fallbackDoneBy =
                   effectiveDoneBy ||
+                  branchTech?.id ||
                   currentJob?.assignedTechnicianId ||
                   currentJob?.serviceDoneById ||
                   user?.id ||
@@ -3953,11 +3979,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
                 }).catch(async (fallbackErr) => {
                   console.warn(`Fallback auto-release failed for Job Order ${joId}:`, fallbackErr)
+                  // If release endpoint still failed, save the billing note and mark ready for immediate claim
                   await updateServiceJobStatus(joId, {
-                    status: "READY_FOR_RELEASE",
-                    repairType: currentJob?.repairType || "ORDINARY_REPAIR",
+                    repairType,
                     ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
-                    serviceNotes: newServiceNotes,
+                    serviceNotes: combinedNotes,
                   }).catch(() => null)
                 })
               }

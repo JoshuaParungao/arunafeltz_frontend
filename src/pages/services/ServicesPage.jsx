@@ -37,6 +37,7 @@ import {
   getServiceJobById,
   getServiceJobs,
   getServiceTechnicians,
+  releaseServiceJob,
   updateServiceJobAssignment,
   updateServiceJobStatus,
 } from "../../features/service-jobs/serviceJobs.api"
@@ -1141,6 +1142,7 @@ function WorkshopTasksManager({
   onSaveTasks,
   onStatusChange,
   onPayInPos,
+  onCompleteRelease,
   onPullOut,
   canManage = false,
 }) {
@@ -1312,14 +1314,27 @@ function WorkshopTasksManager({
               ) : null}
             </div>
           </div>
-          {typeof onPayInPos === "function" && job.status !== "COMPLETED" && (
-            <button
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
-              onClick={() => onPayInPos(job)}
-              type="button"
-            >
-              <Banknote size={15} /> Settle &amp; Release in POS Cashiering
-            </button>
+          {job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") ? (
+            typeof onCompleteRelease === "function" && (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
+                disabled={isSaving}
+                onClick={() => onCompleteRelease(job)}
+                type="button"
+              >
+                <CheckCircle2 size={15} /> Mark Released &amp; Completed
+              </button>
+            )
+          ) : (
+            typeof onPayInPos === "function" && job.status !== "COMPLETED" && (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
+                onClick={() => onPayInPos(job)}
+                type="button"
+              >
+                <Banknote size={15} /> Settle &amp; Release in POS Cashiering
+              </button>
+            )
           )}
         </div>
       )}
@@ -2252,11 +2267,58 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     }
   }
 
+  const handleCompleteRelease = async (targetJob) => {
+    const job = targetJob || selectedJob
+    if (!job || isSaving) return
+    setIsSaving(true)
+    setErrorMessage("")
+    try {
+      const finalPrice = Number(job.finalServiceCharge ?? job.baseServiceCharge ?? 0)
+      const tasks = extractServiceTasks(job)
+      const taskTech = tasks.find((t) => t.technicianId)
+      const primaryTechId =
+        job.serviceDoneById ||
+        taskTech?.technicianId ||
+        job.assignedTechnicianId ||
+        technicians.find((t) => t.role === "TECHNICIAN")?.id ||
+        technicians[0]?.id ||
+        user?.id
+
+      const invoiceMatch = job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1]
+      const releaseNotes = invoiceMatch
+        ? `Settled in POS cashiering (Invoice #${invoiceMatch}) & released to customer.`
+        : (job.releaseNotes || "Settled in POS cashiering & released to customer.")
+
+      await releaseServiceJob(job.id, {
+        releaseOutcome: "SERVICE_COMPLETED",
+        repairType: job.repairType || "ORDINARY_REPAIR",
+        baseServiceCharge: finalPrice,
+        finalServiceCharge: finalPrice,
+        markupPercent: 0,
+        ...(primaryTechId ? { serviceDoneById: primaryTechId } : {}),
+        releaseNotes,
+      })
+      setNotice(`Job Order ${job.jobCode} marked COMPLETED & released to customer.`)
+      await Promise.all([reloadSelected(job.id), loadJobs()])
+    } catch (err) {
+      setErrorMessage(apiError(err, "Could not mark job order as released."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleReleaseToCashier = async (targetJob) => {
     const job = targetJob || selectedJob
     if (!job || isSaving) return
 
     if (job.status === "READY_FOR_RELEASE") {
+      if (
+        job.serviceNotes?.includes("[BILLED IN POS") ||
+        job.releaseNotes?.includes("Settled and released via POS invoice")
+      ) {
+        await handleCompleteRelease(job)
+        return
+      }
       sendToPosCashiering(job)
       return
     }
@@ -3443,6 +3505,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   canManage={canUpdateLifecycle}
                   isSaving={isSaving}
                   job={selectedJob}
+                  onCompleteRelease={handleCompleteRelease}
                   onPullOut={() => beginLifecycleAction("CANCELLED")}
                   onPayInPos={sendToPosCashiering}
                   onSaveTasks={handleSaveWorkshopTasks}
@@ -3577,13 +3640,25 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   ) : null}
                   {canActOnSelected && selectedIsActive ? (
                     selectedJob?.status === "READY_FOR_RELEASE" ? (
-                      <button
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
-                        onClick={() => sendToPosCashiering(selectedJob)}
-                        type="button"
-                      >
-                        <Banknote size={15} /> Settle &amp; Release in POS Cashiering
-                      </button>
+                      selectedJob?.serviceNotes?.includes("[BILLED IN POS") ||
+                      selectedJob?.releaseNotes?.includes("Settled and released via POS invoice") ? (
+                        <button
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
+                          disabled={isSaving}
+                          onClick={() => handleCompleteRelease(selectedJob)}
+                          type="button"
+                        >
+                          <CheckCircle2 size={15} /> Mark Released &amp; Completed
+                        </button>
+                      ) : (
+                        <button
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
+                          onClick={() => sendToPosCashiering(selectedJob)}
+                          type="button"
+                        >
+                          <Banknote size={15} /> Settle &amp; Release in POS Cashiering
+                        </button>
+                      )
                     ) : (
                       <button
                         className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:opacity-90 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
