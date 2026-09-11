@@ -563,22 +563,40 @@ function PartDetailModal({ item, onClose }) {
 }
 
 function PartEditorModal({
+  availableCategories = PART_CATEGORY_PRESETS,
   errorMessage,
   form,
   isEditing,
   isSaving,
+  onAddCustomCategory,
   onChange,
   onClose,
   onSave,
 }) {
   if (!form) return null
 
+  const [isCustomCategoryMode, setIsCustomCategoryMode] = useState(false)
+  const [customCategoryInput, setCustomCategoryInput] = useState("")
+
   const cost = Number(form.costPrice || 0)
   const markup = Number(form.markupAmount || 0)
   const totalEstimatedPartPrice = cost + markup
 
+  const handleApplyCustomCategory = () => {
+    const clean = customCategoryInput.trim().toUpperCase().replace(/\s+/g, "_")
+    if (clean) {
+      onChange("category", clean)
+      onAddCustomCategory?.(clean)
+      setIsCustomCategoryMode(false)
+      setCustomCategoryInput("")
+    }
+  }
+
   const handleSubmit = (event) => {
     event.preventDefault()
+    if (isCustomCategoryMode && customCategoryInput.trim()) {
+      handleApplyCustomCategory()
+    }
     onSave()
   }
 
@@ -606,7 +624,7 @@ function PartEditorModal({
           </div>
 
           <button
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -656,20 +674,90 @@ function PartEditorModal({
                 </select>
               </label>
 
-              <label className="block">
-                <span className={labelClass}>Part Category</span>
-                <select
-                  className={inputClass}
-                  onChange={(event) => onChange("category", event.target.value)}
-                  value={form.category}
-                >
-                  {PART_CATEGORY_PRESETS.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="block">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className={labelClass}>Part Category</span>
+                  {!isCustomCategoryMode ? (
+                    <button
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-maroon)] hover:underline cursor-pointer"
+                      onClick={() => {
+                        setIsCustomCategoryMode(true)
+                        setCustomCategoryInput("")
+                      }}
+                      type="button"
+                    >
+                      <Plus size={12} />
+                      Add New Category
+                    </button>
+                  ) : (
+                    <button
+                      className="text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                      onClick={() => {
+                        setIsCustomCategoryMode(false)
+                        setCustomCategoryInput("")
+                      }}
+                      type="button"
+                    >
+                      Select from list
+                    </button>
+                  )}
+                </div>
+
+                {!isCustomCategoryMode ? (
+                  <select
+                    className={inputClass}
+                    onChange={(event) => {
+                      if (event.target.value === "__NEW_CUSTOM__") {
+                        setIsCustomCategoryMode(true)
+                        setCustomCategoryInput("")
+                      } else {
+                        onChange("category", event.target.value)
+                      }
+                    }}
+                    value={form.category}
+                  >
+                    {availableCategories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                    <option value="__NEW_CUSTOM__">+ Add Custom Category...</option>
+                  </select>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        className={`${inputClass} mt-0 font-mono uppercase tracking-wider`}
+                        maxLength="50"
+                        onChange={(event) => setCustomCategoryInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault()
+                            handleApplyCustomCategory()
+                          } else if (event.key === "Escape") {
+                            setIsCustomCategoryMode(false)
+                          }
+                        }}
+                        placeholder="e.g. CHARGER, TRACKPAD, HOUSING..."
+                        type="text"
+                        value={customCategoryInput}
+                      />
+                      <button
+                        className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] px-3 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition shrink-0 cursor-pointer disabled:opacity-50"
+                        disabled={!customCategoryInput.trim()}
+                        onClick={handleApplyCustomCategory}
+                        type="button"
+                      >
+                        Use
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Enter a custom part category name and click &quot;Use&quot; or press Enter.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
@@ -798,6 +886,48 @@ export default function ServicesMaintenancePage({ user }) {
   const [partsCatalogItems, setPartsCatalogItems] = useState([])
   const [isPartsLoading, setIsPartsLoading] = useState(true)
   const [partsErrorMessage, setPartsErrorMessage] = useState("")
+  const [customPartCategories, setCustomPartCategories] = useState(() => {
+    try {
+      const raw = localStorage.getItem("arunafeltz_custom_part_categories")
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+
+  const handleAddCustomCategory = useCallback((newCat) => {
+    if (!newCat || typeof newCat !== "string") return
+    const normalized = newCat.trim().toUpperCase().replace(/\s+/g, "_")
+    if (!normalized) return
+
+    setCustomPartCategories((prev) => {
+      if (prev.includes(normalized) || PART_CATEGORY_PRESETS.includes(normalized)) {
+        return prev
+      }
+      const updated = [...prev, normalized]
+      try {
+        localStorage.setItem("arunafeltz_custom_part_categories", JSON.stringify(updated))
+      } catch {
+        // ignore
+      }
+      return updated
+    })
+  }, [])
+
+  const availablePartCategories = useMemo(() => {
+    const set = new Set(PART_CATEGORY_PRESETS)
+    partsCatalogItems.forEach((item) => {
+      if (item.category && item.category.trim()) {
+        set.add(item.category.trim().toUpperCase().replace(/\s+/g, "_"))
+      }
+    })
+    customPartCategories.forEach((cat) => {
+      if (cat && cat.trim()) {
+        set.add(cat.trim().toUpperCase().replace(/\s+/g, "_"))
+      }
+    })
+    return Array.from(set)
+  }, [partsCatalogItems, customPartCategories])
 
   // Labor Filter state
   const [searchText, setSearchText] = useState("")
@@ -1049,10 +1179,13 @@ export default function ServicesMaintenancePage({ user }) {
     setIsSavingPart(true)
     setPartEditorError("")
 
+    const categoryClean = (partForm.category?.trim() || "OTHER").toUpperCase().replace(/\s+/g, "_")
+    handleAddCustomCategory(categoryClean)
+
     const payload = {
       name: partForm.name.trim(),
       deviceType: partForm.deviceType?.trim() || "LAPTOP",
-      category: partForm.category || "SCREEN",
+      category: categoryClean,
       costPrice: costNum,
       markupAmount: markupNum,
       description: partForm.description?.trim() || "",
@@ -1769,7 +1902,7 @@ export default function ServicesMaintenancePage({ user }) {
                   All Categories
                 </button>
 
-                {PART_CATEGORY_PRESETS.map((cat) => {
+                {availablePartCategories.map((cat) => {
                   const isActive = partsCategoryFilter === cat
                   return (
                     <button
@@ -1831,7 +1964,7 @@ export default function ServicesMaintenancePage({ user }) {
                   value={partsCategoryFilter}
                 >
                   <option value="">All categories</option>
-                  {PART_CATEGORY_PRESETS.map((cat) => (
+                  {availablePartCategories.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
                     </option>
@@ -2122,10 +2255,12 @@ export default function ServicesMaintenancePage({ user }) {
 
       {partForm ? (
         <PartEditorModal
+          availableCategories={availablePartCategories}
           errorMessage={partEditorError}
           form={partForm}
           isEditing={Boolean(editingPartItem?.id)}
           isSaving={isSavingPart}
+          onAddCustomCategory={handleAddCustomCategory}
           onChange={updatePartForm}
           onClose={closePartEditor}
           onSave={savePart}
