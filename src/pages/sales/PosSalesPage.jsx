@@ -3074,8 +3074,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       return
     }
 
-    if (job.status === "COMPLETED" || job.status === "CANCELLED") {
-      setCartMessage(`Job Order ${job.jobCode} is already ${job.status.toLowerCase().replace(/_/g, " ")} and cannot be loaded.`)
+    if (job.status === "CANCELLED") {
+      setCartMessage(`Job Order ${job.jobCode} is cancelled and cannot be loaded.`)
       setShowJobOrderLookup(false)
       return
     }
@@ -3920,36 +3920,47 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 .join(" "),
             }
 
-            const releaseResult = await releaseServiceJob(joId, releasePayload).catch((err) => {
-              console.warn(`Primary auto-release failed for Job Order ${joId}:`, err)
-              return null
-            })
+            const isAlreadyReleased = Boolean(currentJob?.releasedAt || currentJob?.status === "COMPLETED")
+            const newServiceNotes = [
+              currentJob?.serviceNotes?.trim() || "",
+              `[BILLED IN POS: Invoice ${sale.receiptCode}]`,
+            ]
+              .filter(Boolean)
+              .join(" ")
 
-            if (!releaseResult) {
-              const fallbackDoneBy =
-                effectiveDoneBy ||
-                currentJob?.assignedTechnicianId ||
-                currentJob?.serviceDoneById ||
-                user?.id ||
-                undefined
-
-              await releaseServiceJob(joId, {
-                ...releasePayload,
-                ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
-              }).catch(async (fallbackErr) => {
-                console.warn(`Fallback auto-release failed for Job Order ${joId}:`, fallbackErr)
-                await updateServiceJobStatus(joId, {
-                  status: "READY_FOR_RELEASE",
-                  repairType: currentJob?.repairType || "ORDINARY_REPAIR",
-                  ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
-                  serviceNotes: [
-                    currentJob?.serviceNotes?.trim() || "",
-                    `[BILLED IN POS: Invoice ${sale.receiptCode}]`,
-                  ]
-                    .filter(Boolean)
-                    .join(" "),
-                }).catch(() => null)
+            if (isAlreadyReleased) {
+              await updateServiceJobStatus(joId, {
+                serviceNotes: newServiceNotes,
+              }).catch((err) => {
+                console.warn(`Could not update service notes for completed Job Order ${joId}:`, err)
               })
+            } else {
+              const releaseResult = await releaseServiceJob(joId, releasePayload).catch((err) => {
+                console.warn(`Primary auto-release failed for Job Order ${joId}:`, err)
+                return null
+              })
+
+              if (!releaseResult) {
+                const fallbackDoneBy =
+                  effectiveDoneBy ||
+                  currentJob?.assignedTechnicianId ||
+                  currentJob?.serviceDoneById ||
+                  user?.id ||
+                  undefined
+
+                await releaseServiceJob(joId, {
+                  ...releasePayload,
+                  ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
+                }).catch(async (fallbackErr) => {
+                  console.warn(`Fallback auto-release failed for Job Order ${joId}:`, fallbackErr)
+                  await updateServiceJobStatus(joId, {
+                    status: "READY_FOR_RELEASE",
+                    repairType: currentJob?.repairType || "ORDINARY_REPAIR",
+                    ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
+                    serviceNotes: newServiceNotes,
+                  }).catch(() => null)
+                })
+              }
             }
           } catch (releaseErr) {
             console.warn(`Could not auto-release Job Order ${joId}:`, releaseErr)

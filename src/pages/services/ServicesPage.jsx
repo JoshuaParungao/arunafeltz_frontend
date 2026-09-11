@@ -1343,14 +1343,6 @@ function WorkshopTasksManager({
                 <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 text-xs font-black text-emerald-800 shadow-xs">
                   <CheckCircle2 size={14} /> Billed in POS Cashiering {job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(Invoice #${job.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
                 </div>
-              ) : onPayInPos ? (
-                <button
-                  type="button"
-                  onClick={() => onPayInPos(job)}
-                  className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-black shadow-xs transition cursor-pointer"
-                >
-                  <ShoppingCart size={14} /> Open &amp; Pay in POS Cashiering &rarr;
-                </button>
               ) : null}
             </div>
           </div>
@@ -2148,11 +2140,21 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
   const beginLifecycleAction = (status) => {
     const existingPerformerId =
       selectedJob?.serviceDoneById || selectedJob?.serviceDoneBy?.id || ""
+    const isPullOut = status === "CANCELLED"
     setActionStatus(status)
     setActionForm({
       diagnosis: selectedJob?.diagnosis || "",
-      serviceNotes: selectedJob?.serviceNotes || "",
-      cancellationReason: "",
+      serviceNotes: isPullOut
+        ? [
+            selectedJob?.serviceNotes?.trim() || "",
+            "[CLIENT PULL-OUT]: Unit released unrepaired / pulled out by client.",
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : selectedJob?.serviceNotes || "",
+      cancellationReason: isPullOut
+        ? "Client pull-out / Unit unrepairable (Client opted for pull-out without repair)."
+        : "",
       repairType: selectedJob?.repairType || "",
       serviceDoneById:
         user?.role === "TECHNICIAN" && existingPerformerId !== user.id
@@ -2219,7 +2221,11 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
           : {}),
       })
       setActionStatus("")
-      setNotice(`${selectedJob.jobCode} moved to ${friendly(actionStatus)}.`)
+      setNotice(
+        actionStatus === "CANCELLED"
+          ? `${selectedJob.jobCode} released as client pull-out / unit unrepairable.`
+          : `${selectedJob.jobCode} moved to ${friendly(actionStatus)}.`
+      )
       await Promise.all([reloadSelected(selectedJob.id), loadJobs()])
     } catch (error) {
       setErrorMessage(apiError(error, "Could not update the job order status."))
@@ -2291,7 +2297,9 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
       existingPerformerId ||
       selectedJob?.assignedTechnicianId ||
       selectedJob?.assignedTechnician?.id ||
+      user?.id ||
       (technicians?.[0]?.id || "")
+    setErrorMessage("")
     setReleaseForm({
       releaseOutcome: completedWork ? "SERVICE_COMPLETED" : "CUSTOMER_PULL_OUT",
       releaseNotes: "",
@@ -2352,7 +2360,7 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
     setIsSaving(true)
     setErrorMessage("")
     try {
-      await releaseServiceJob(selectedJob.id, {
+      const response = await releaseServiceJob(selectedJob.id, {
         releaseOutcome: releaseForm.releaseOutcome,
         releaseNotes: releaseForm.releaseNotes.trim() || undefined,
         ...(repairType ? { repairType } : {}),
@@ -2367,8 +2375,22 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
         serviceNotes: releaseForm.serviceNotes.trim() || undefined,
       })
       setShowRelease(false)
+      const releasedJob = response?.data || selectedJob
       setNotice(`${selectedJob.jobCode} released as ${friendly(releaseForm.releaseOutcome)}.`)
       await Promise.all([reloadSelected(selectedJob.id), loadJobs()])
+
+      // Automatically trigger POS cashiering if completed and there is a charge to collect
+      const billableAmount = Number(releaseForm.baseServiceCharge || selectedJob?.finalServiceCharge || 0)
+      if (isCompletedRelease && billableAmount > 0) {
+        try {
+          sessionStorage.setItem("pos_load_jo_id", selectedJob.id)
+        } catch {
+          // Ignore
+        }
+        if (typeof onNavigate === "function") {
+          onNavigate("pos", { loadJobId: selectedJob.id, loadJob: releasedJob })
+        }
+      }
     } catch (error) {
       setErrorMessage(apiError(error, "Could not release the job order."))
     } finally {
@@ -3667,8 +3689,8 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
                         <button
                           className={
                             status === "CANCELLED"
-                              ? "inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition shadow-2xs"
-                              : "inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-black text-white shadow-2xs hover:opacity-90 transition"
+                              ? "inline-flex items-center gap-1.5 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40 px-3.5 py-2 text-xs font-bold text-amber-900 dark:text-amber-200 hover:bg-amber-100 transition shadow-2xs cursor-pointer"
+                              : "inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-black text-white shadow-2xs hover:opacity-90 transition cursor-pointer"
                           }
                           key={status}
                           onClick={() => beginLifecycleAction(status)}
@@ -3683,25 +3705,17 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
                               <CheckCircle2 size={14} /> Mark service performed
                             </>
                           ) : (
-                            "Cancel without release"
+                            <>
+                              <ArrowRight size={14} /> Released – Client Pull-Out / Unit Unrepairable
+                            </>
                           )}
                         </button>
                       ))
                     : null}
-                  {selectedIsActive && selectedJob?.status !== "CANCELLED" ? (
-                    selectedJob?.serviceNotes?.includes("[BILLED IN POS") || selectedJob?.releaseNotes?.includes("Settled and released via POS invoice") || selectedJob?.status === "COMPLETED" || selectedJob?.releasedAt ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-300 px-3.5 py-2 text-xs font-black text-emerald-700 shadow-2xs">
-                        <CheckCircle2 size={14} /> Billed in POS {selectedJob?.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(#${selectedJob.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
-                      </span>
-                    ) : (
-                      <button
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
-                        onClick={() => sendToPosCashiering(selectedJob)}
-                        type="button"
-                      >
-                        <ShoppingCart size={15} /> Pay in POS Cashiering
-                      </button>
-                    )
+                  {selectedJob?.serviceNotes?.includes("[BILLED IN POS") || selectedJob?.releaseNotes?.includes("Settled and released via POS invoice") || selectedJob?.status === "COMPLETED" || selectedJob?.releasedAt ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-300 px-3.5 py-2 text-xs font-black text-emerald-700 shadow-2xs">
+                      <CheckCircle2 size={14} /> Billed in POS {selectedJob?.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(#${selectedJob.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
+                    </span>
                   ) : null}
                   {canActOnSelected && selectedIsActive ? (
                     <button
@@ -3745,10 +3759,14 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
       ) : null}
 
       {actionStatus ? (
-        <Modal onClose={() => setActionStatus("")} title={actionStatus === "CANCELLED" ? "Cancel job without release" : "Update Job Order status"}>
+        <Modal onClose={() => setActionStatus("")} title={actionStatus === "CANCELLED" ? "Released – Client Pull-Out / Unit Unrepairable" : "Update Job Order status"}>
           <form onSubmit={submitLifecycleAction}>
             <div className="space-y-4 p-5 sm:p-6">
-              {actionStatus === "CANCELLED" ? <div className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700"><strong>This closes the workflow without recording customer release.</strong> Use “Release job” for pull-outs, declines, no-fault, or unrepaired returns.</div> : null}
+              {actionStatus === "CANCELLED" ? (
+                <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs font-semibold text-amber-900 leading-relaxed shadow-2xs">
+                  <strong>Unit Pull-Out / Unrepairable Release:</strong> Release the device back to the customer without completing repair (e.g. client is in a rush and opted to pull out instead of waiting in the diagnostics queue, or unit is deemed unrepairable). Default notes and reasons are pre-filled automatically below.
+                </div>
+              ) : null}
               {actionStatus !== "CANCELLED" ? (
                 <Field label="Repair category *">
                   <select
@@ -3789,9 +3807,14 @@ export default function ServicesPage({ initialContext, onNavigate, selectedBranc
               ) : null}
               <Field label="Diagnosis"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setActionForm((form) => ({ ...form, diagnosis: event.target.value }))} rows="3" value={actionForm.diagnosis} /></Field>
               <Field label="Service performed / notes"><textarea className={FIELD_CLASS} maxLength="3000" onChange={(event) => setActionForm((form) => ({ ...form, serviceNotes: event.target.value }))} rows="3" value={actionForm.serviceNotes} /></Field>
-              {actionStatus === "CANCELLED" ? <Field label="Cancellation reason *"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setActionForm((form) => ({ ...form, cancellationReason: event.target.value }))} required rows="3" value={actionForm.cancellationReason} /></Field> : null}
+              {actionStatus === "CANCELLED" ? <Field label="Pull-Out / Unrepairable Reason *"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setActionForm((form) => ({ ...form, cancellationReason: event.target.value }))} required rows="3" value={actionForm.cancellationReason} /></Field> : null}
             </div>
-            <div className="flex justify-end gap-2 border-t border-[var(--color-border)] p-4 sm:px-6"><button className="rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={() => setActionStatus("")} type="button">Back</button><button className={actionStatus === "CANCELLED" ? "rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-bold text-white" : "rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white"} disabled={isSaving} type="submit">{isSaving ? "Saving…" : "Save status"}</button></div>
+            <div className="flex justify-end gap-2 border-t border-[var(--color-border)] p-4 sm:px-6">
+              <button className="rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={() => setActionStatus("")} type="button">Back</button>
+              <button className={actionStatus === "CANCELLED" ? "rounded-xl bg-amber-700 hover:bg-amber-800 px-4 py-2.5 text-sm font-bold text-white shadow-2xs transition cursor-pointer" : "rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white"} disabled={isSaving} type="submit">
+                {isSaving ? "Saving…" : actionStatus === "CANCELLED" ? "Confirm Pull-Out & Release" : "Save status"}
+              </button>
+            </div>
           </form>
         </Modal>
       ) : null}
