@@ -964,7 +964,7 @@ function ItemEditorModal({
               ))}
 
               <label className="block">
-                <span className={labelClass}>Min Stock</span>
+                <span className={labelClass}>Minimum Stock</span>
                 <input
                   className={`${inputClass} font-mono`}
                   min="0"
