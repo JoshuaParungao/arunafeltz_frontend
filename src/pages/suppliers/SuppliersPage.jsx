@@ -37,6 +37,7 @@ import {
   Truck,
   User,
   UsersRound,
+  ReceiptText,
   X,
 } from "lucide-react"
 
@@ -58,6 +59,7 @@ import {
   exportReportExcel,
 } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import AccountsPayableModal from "./AccountsPayableModal"
 
 const EMPTY_FORM = {
   supplierCode: "",
@@ -697,6 +699,7 @@ function SupplierLedgerModal({
   onClose,
   onEdit,
   onNavigate,
+  onOpenAp,
   selectedBranch,
   supplier,
   user,
@@ -837,6 +840,15 @@ function SupplierLedgerModal({
           </div>
 
           <div className="flex items-center gap-2">
+            {onOpenAp ? (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-100 shadow-2xs transition"
+                onClick={() => onOpenAp(supplier)}
+                type="button"
+              >
+                <ReceiptText size={13} className="text-amber-700" /> Accounts Payable
+              </button>
+            ) : null}
             <button
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 shadow-2xs transition"
               onClick={() => onEdit(supplier)}
@@ -1599,6 +1611,8 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
   const [selectedSupplier, setSelectedSupplier] = useState(null)
   const [historyData, setHistoryData] = useState(null)
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
+  const [isApModalOpen, setIsApModalOpen] = useState(false)
+  const [apSupplierId, setApSupplierId] = useState(null)
 
   const load = useCallback(async () => {
     setIsLoading(true)
@@ -1796,6 +1810,17 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
               type="button"
             >
               <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} /> Refresh
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs font-bold text-amber-900 shadow-xs transition hover:bg-amber-100 hover:border-amber-300"
+              onClick={() => {
+                setApSupplierId(null)
+                setIsApModalOpen(true)
+              }}
+              type="button"
+            >
+              <ReceiptText size={14} className="text-amber-700" />
+              <span>Accounts Payable</span>
             </button>
             <ExportExcelButton
               count={pagination?.total || suppliers.length}
@@ -2082,8 +2107,26 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
           }}
           onEdit={(sup) => setEditing(sup)}
           onNavigate={onNavigate}
+          onOpenAp={(sup) => {
+            setApSupplierId(sup.id)
+            setIsApModalOpen(true)
+          }}
           selectedBranch={selectedBranch}
           supplier={selectedSupplier}
+          user={user}
+        />
+      ) : null}
+
+      {/* Outstanding Accounts Payable Modal */}
+      {isApModalOpen ? (
+        <AccountsPayableModal
+          initialSupplierId={apSupplierId}
+          onClose={() => {
+            setIsApModalOpen(false)
+            setApSupplierId(null)
+          }}
+          selectedBranch={selectedBranch}
+          suppliers={suppliers}
           user={user}
         />
       ) : null}

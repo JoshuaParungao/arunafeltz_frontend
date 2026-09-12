@@ -29,3 +29,8 @@ export async function updateSupplierStatus(id, status) {
   const response = await apiClient.patch(`/suppliers/${id}/status`, { status })
   return response.data
 }
+
+export async function getAccountsPayable(params = {}) {
+  const response = await apiClient.get("/suppliers/accounts-payable", { params })
+  return response.data
+}
