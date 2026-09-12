@@ -1385,6 +1385,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                     <select
                       className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none"
                       onChange={(e) => setSelectedServiceStaffId(e.target.value)}
+                      onFocus={loadServiceStaff}
                       value={selectedServiceStaffId}
                     >
                       <option value="">No specific staff assigned</option>

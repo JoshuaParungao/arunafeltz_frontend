@@ -5094,7 +5094,20 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </div>
                 <button
                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-                  onClick={() => setShowServiceForm((current) => !current)}
+                  onClick={() => {
+                    setShowServiceForm((current) => {
+                      const next = !current
+                      if (next && branchId) {
+                        getQuotationServiceStaff({ branchId })
+                          .then((response) => {
+                            const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []
+                            setServiceStaffList(rows)
+                          })
+                          .catch(() => {})
+                      }
+                      return next
+                    })
+                  }}
                   type="button"
                 >
                   {showServiceForm ? "Close" : "+ Add Service"}
@@ -5147,7 +5160,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                 setServiceStaffSearch(e.target.value)
                                 setIsServiceStaffDropdownOpen(true)
                               }}
-                              onFocus={() => setIsServiceStaffDropdownOpen(true)}
+                              onFocus={() => {
+                                setIsServiceStaffDropdownOpen(true)
+                                if (branchId) {
+                                  getQuotationServiceStaff({ branchId })
+                                    .then((response) => {
+                                      const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []
+                                      setServiceStaffList(rows)
+                                    })
+                                    .catch(() => {})
+                                }
+                              }}
                             />
 
                             {isServiceStaffDropdownOpen && (
