@@ -928,23 +928,15 @@ function ItemEditorModal({
 
           {/* 4. Pricing & Stock Thresholds */}
           <section className="space-y-2 pt-2 border-t border-slate-100">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Prices & Stock Thresholds
-              </span>
-              {!canAdjustPrices ? (
-                <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                  Prices restricted to Admins
-                </span>
-              ) : null}
-            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Prices & Stock Thresholds
+            </span>
 
             <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-4">
               <label className="block">
                 <span className={`${labelClass} text-slate-600 font-semibold`}>Cost Price</span>
                 <input
-                  className={`${inputClass} font-mono ${!canAdjustPrices ? "bg-slate-50 text-slate-400 cursor-not-allowed" : ""}`}
-                  disabled={!canAdjustPrices}
+                  className={`${inputClass} font-mono`}
                   min="0"
                   onChange={(event) =>
                     onChange("costPrice", event.target.value)
@@ -959,8 +951,7 @@ function ItemEditorModal({
                 <label className="block" key={field.key}>
                   <span className={labelClass}>{field.label}</span>
                   <input
-                    className={`${inputClass} font-mono ${!canAdjustPrices ? "bg-slate-50 text-slate-400 cursor-not-allowed" : ""}`}
-                    disabled={!canAdjustPrices}
+                    className={`${inputClass} font-mono`}
                     min="0"
                     onChange={(event) =>
                       onChange(field.key, event.target.value)
@@ -1276,8 +1267,8 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
   const [isSavingItem, setIsSavingItem] = useState(false)
 
   const canManageCatalog = useMemo(() => OWNER_ROLES.has(user?.role), [user?.role])
-  const canAdjustPrices = useMemo(() => PRICE_ADMIN_ROLES.has(user?.role), [user?.role])
-  const canManagePrices = canAdjustPrices
+  const canAdjustPrices = true
+  const canManagePrices = true
   const canViewCost = true
 
   const mainCategories = useMemo(() => {
