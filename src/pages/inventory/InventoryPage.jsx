@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
-import { AlertCircle, CheckCircle2, PackagePlus, PackageSearch, Plus, RefreshCw, Search, X } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { AlertCircle, CheckCircle2, PackageSearch, Plus, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { getBranches } from "../../features/branches/branches.api"
+import { getItemCategories } from "../../features/items/items.api"
 import StockAdjustmentPanel from "./StockAdjustmentPanel"
 import InventoryDetailModal from "./InventoryDetailModal"
 import AddStockModal from "./AddStockModal"
@@ -18,16 +19,16 @@ import {
 
 import { exportInventoryPdf, exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import {
+  CAPACITY_PRESETS,
+  matchesItemAttributes,
+  POPULAR_BRANDS,
+  SPEED_PRESETS,
+  TYPE_PRESETS,
+} from "../../utils/attributeFilter"
 function formatNumber(value) {
   const number = Number(value || 0)
   return number.toLocaleString("en-PH")
-}
-
-function formatMoney(value) {
-  return Number(value || 0).toLocaleString("en-PH", {
-    style: "currency",
-    currency: "PHP",
-  })
 }
 
 function StockBadge({ item }) {
@@ -139,14 +140,24 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
   const [searchText, setSearchText] = useState(initialContext?.search || "")
+  const [mainCatFilter, setMainCatFilter] = useState("")
+  const [subCatFilter, setSubCatFilter] = useState("")
+  const [brandFilter, setBrandFilter] = useState("")
+  const [capacityFilter, setCapacityFilter] = useState("")
+  const [speedFilter, setSpeedFilter] = useState("")
+  const [typeFilter, setTypeFilter] = useState("")
+  const [specSearch, setSpecSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState("")
+  const [categoryOptions, setCategoryOptions] = useState([])
+  const [isDetailedFiltersOpen, setIsDetailedFiltersOpen] = useState(false)
   const [branchOptions, setBranchOptions] = useState([])
   const [viewingBranchId, setViewingBranchId] = useState(selectedBranch?.id || "")
   const [page, setPage] = useState(1)
 
   useEffect(() => {
     if (initialContext?.search) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchText(initialContext.search)
       setPage(1)
     }
@@ -156,6 +167,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [bulkRequestItems, setBulkRequestItems] = useState([])
   const [requestSourceBranchId, setRequestSourceBranchId] = useState("")
   const [requestCatalogItems, setRequestCatalogItems] = useState([])
+  const [isLoadingRequestCatalog, setIsLoadingRequestCatalog] = useState(false)
   const [adjustItem, setAdjustItem] = useState(null)
   const [adjustMode, setAdjustMode] = useState("ADJUST")
   const [adjustBatches, setAdjustBatches] = useState([])
@@ -173,7 +185,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [stockMovements, setStockMovements] = useState([])
   const [isLoadingMovements, setIsLoadingMovements] = useState(false)
   const [movementMessage, setMovementMessage] = useState("")
-  const pageSize = 10
+  const pageSize = 25
   const viewingBranch = branchOptions.find((branch) => branch.id === viewingBranchId)
   const requestSourceOptions = branchOptions.filter(
     (branch) => branch.status === "ACTIVE" && branch.id !== selectedBranch?.id
@@ -192,6 +204,55 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [requestNotes, setRequestNotes] = useState("")
   const [requestMessage, setRequestMessage] = useState("")
   const [isRequesting, setIsRequesting] = useState(false)
+
+  const mainCategories = useMemo(() => {
+    return categoryOptions.filter((c) => !c.parentId || c.parentId === "")
+  }, [categoryOptions])
+
+  const subcategoryOptions = useMemo(() => {
+    if (!mainCatFilter) {
+      return categoryOptions.filter((c) => Boolean(c.parentId))
+    }
+    return categoryOptions.filter((c) => c.parentId === mainCatFilter)
+  }, [categoryOptions, mainCatFilter])
+
+  const effectiveCategoryId = subCatFilter || mainCatFilter || ""
+
+  const activeDetailedFilterCount = useMemo(() => {
+    let count = 0
+    if (brandFilter.trim()) count++
+    if (capacityFilter) count++
+    if (speedFilter) count++
+    if (typeFilter) count++
+    if (specSearch.trim()) count++
+    if (statusFilter) count++
+    if (lowStockOnly) count++
+    return count
+  }, [brandFilter, capacityFilter, speedFilter, typeFilter, specSearch, statusFilter, lowStockOnly])
+
+  const displayedItems = useMemo(() => {
+    return items.filter((item) =>
+      matchesItemAttributes(item, {
+        capacity: capacityFilter,
+        speed: speedFilter,
+        type: typeFilter,
+        specSearch: specSearch,
+      })
+    )
+  }, [items, capacityFilter, speedFilter, typeFilter, specSearch])
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await getItemCategories({
+        limit: 250,
+        ...(viewingBranchId ? { branchId: viewingBranchId } : {}),
+      })
+      const list = response?.data?.items
+      setCategoryOptions(Array.isArray(list) ? list : [])
+    } catch {
+      setCategoryOptions([])
+    }
+  }, [viewingBranchId])
 
   const loadBranches = useCallback(async () => {
     try {
@@ -231,6 +292,14 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         params.lowStockOnly = lowStockOnly
       }
 
+      if (effectiveCategoryId) {
+        params.categoryId = effectiveCategoryId
+      }
+
+      if (brandFilter.trim()) {
+        params.brand = brandFilter.trim()
+      }
+
       const response = await getInventoryOverview(params)
       const result = response?.data || {}
 
@@ -243,7 +312,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     } finally {
       setIsLoading(false)
     }
-  }, [lowStockOnly, page, pageSize, searchText, statusFilter, viewingBranchId])
+  }, [effectiveCategoryId, brandFilter, lowStockOnly, page, pageSize, searchText, statusFilter, viewingBranchId])
 
   const loadRequestCatalog = useCallback(async () => {
     if (!isBulkRequestOpen || !requestSourceBranchId) {
@@ -273,6 +342,13 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
 
   const clearFilters = () => {
     setSearchText("")
+    setMainCatFilter("")
+    setSubCatFilter("")
+    setBrandFilter("")
+    setCapacityFilter("")
+    setSpeedFilter("")
+    setTypeFilter("")
+    setSpecSearch("")
     setStatusFilter("")
     setLowStockOnly("")
     setPage(1)
@@ -540,6 +616,14 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         params.lowStockOnly = lowStockOnly
       }
 
+      if (effectiveCategoryId) {
+        params.categoryId = effectiveCategoryId
+      }
+
+      if (brandFilter.trim()) {
+        params.brand = brandFilter.trim()
+      }
+
       const exportItems = []
       let exportPage = 1
       let totalPages = 1
@@ -574,6 +658,14 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
             searchText.trim() || "All inventory items",
           ],
           [
+            "Category",
+            categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
+          ],
+          [
+            "Brand",
+            brandFilter.trim() || "All brands",
+          ],
+          [
             "Status",
             statusFilter || "All statuses",
           ],
@@ -606,6 +698,12 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
       }
       if (lowStockOnly) {
         params.lowStockOnly = lowStockOnly
+      }
+      if (effectiveCategoryId) {
+        params.categoryId = effectiveCategoryId
+      }
+      if (brandFilter.trim()) {
+        params.brand = brandFilter.trim()
       }
 
       const exportItems = []
@@ -822,10 +920,11 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
 
 
   useEffect(() => {
-    // Load branch options when the inventory view mounts.
+    // Load branch options and categories when the inventory view mounts.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadBranches()
-  }, [loadBranches])
+    loadCategories()
+  }, [loadBranches, loadCategories])
 
   useEffect(() => {
     if (selectedBranch?.id && !viewingBranchId) {
@@ -914,7 +1013,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card">
+      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card space-y-3.5">
+        {/* Row 1: Search, result count, toggle detailed filters, clear filters */}
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative min-w-0 flex-1">
             <Search
@@ -934,8 +1034,26 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="rounded-2xl bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-muted)]">
-              {pagination?.totalItems ?? items.length} item(s)
+              Showing {displayedItems.length} of {pagination?.totalItems ?? items.length} item(s)
             </div>
+
+            <button
+              className={`rounded-2xl border px-4 py-3 text-sm font-bold transition inline-flex items-center gap-2 ${
+                isDetailedFiltersOpen || activeDetailedFilterCount > 0
+                  ? "border-[var(--color-maroon)] bg-[var(--color-maroon)]/5 text-[var(--color-maroon)]"
+                  : "border-[var(--color-border)] bg-white text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+              }`}
+              onClick={() => setIsDetailedFiltersOpen((prev) => !prev)}
+              type="button"
+            >
+              <SlidersHorizontal size={15} />
+              Detailed Filters
+              {activeDetailedFilterCount > 0 ? (
+                <span className="rounded-full bg-[var(--color-maroon)] text-white text-[10px] font-black px-1.5 py-0.2">
+                  {activeDetailedFilterCount}
+                </span>
+              ) : null}
+            </button>
 
             <button
               className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
@@ -947,13 +1065,85 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {/* Row 2: Category Drilldown & Brand Selectors */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Viewing branch
+              Main Category
             </span>
             <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+              className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+              onChange={(event) => {
+                setMainCatFilter(event.target.value)
+                setSubCatFilter("")
+                setPage(1)
+              }}
+              value={mainCatFilter}
+            >
+              <option value="">All Main Categories</option>
+              {mainCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+              Subcategory / Product Type
+            </span>
+            <select
+              className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white disabled:opacity-50"
+              disabled={subcategoryOptions.length === 0}
+              onChange={(event) => {
+                setSubCatFilter(event.target.value)
+                setPage(1)
+              }}
+              value={subCatFilter}
+            >
+              <option value="">
+                {mainCatFilter
+                  ? `All Subcategories in ${mainCategories.find((c) => c.id === mainCatFilter)?.name || ""}`
+                  : "All Subcategories"}
+              </option>
+              {subcategoryOptions.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+              Brand
+            </span>
+            <div className="relative mt-1.5">
+              <input
+                list="brand-suggestions-inventory"
+                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white placeholder:text-slate-400 placeholder:font-normal"
+                onChange={(event) => {
+                  setBrandFilter(event.target.value)
+                  setPage(1)
+                }}
+                placeholder="All Brands or type brand..."
+                value={brandFilter}
+              />
+              <datalist id="brand-suggestions-inventory">
+                {POPULAR_BRANDS.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+              Viewing Branch
+            </span>
+            <select
+              className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
               onChange={(event) => {
                 setViewingBranchId(event.target.value)
                 setPage(1)
@@ -966,45 +1156,213 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                 </option>
               ))}
             </select>
-            <p className="mt-2 text-xs font-semibold text-[var(--color-muted)]">
-              Viewing only. This does not switch your whole app branch.
-            </p>
-          </label>
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Status
-            </span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-              onChange={(event) => {
-                setStatusFilter(event.target.value)
-                setPage(1)
-              }}
-              value={statusFilter}
-            >
-              <option value="">All status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Stock level
-            </span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-              onChange={(event) => {
-                setLowStockOnly(event.target.value)
-                setPage(1)
-              }}
-              value={lowStockOnly}
-            >
-              <option value="">All stock levels</option>
-              <option value="true">Low stock only</option>
-            </select>
           </label>
         </div>
+
+        {/* Detailed Specification & Attribute Shelf (Collapsible) */}
+        {isDetailedFiltersOpen ? (
+          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
+                <SlidersHorizontal size={14} />
+                Specification & Attribute Filters
+              </span>
+              <span className="text-[11px] font-semibold text-indigo-700">
+                Drill down by GB capacity, speed, generation/socket, or custom attributes
+              </span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Capacity / Storage / RAM
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => setCapacityFilter(event.target.value)}
+                  value={capacityFilter}
+                >
+                  <option value="">Any Capacity</option>
+                  {CAPACITY_PRESETS.map((cap) => (
+                    <option key={cap} value={cap}>
+                      {cap}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Speed / Frequency / Hz
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => setSpeedFilter(event.target.value)}
+                  value={speedFilter}
+                >
+                  <option value="">Any Speed</option>
+                  {SPEED_PRESETS.map((spd) => (
+                    <option key={spd} value={spd}>
+                      {spd}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Type / Generation / Socket
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => setTypeFilter(event.target.value)}
+                  value={typeFilter}
+                >
+                  <option value="">Any Type / Socket</option>
+                  {TYPE_PRESETS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Custom Attribute Search
+                </span>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                  onChange={(event) => setSpecSearch(event.target.value)}
+                  placeholder="e.g. Gold, White, ATX, 750W, CL16..."
+                  value={specSearch}
+                />
+              </label>
+            </div>
+
+            {/* Standard Inventory Status & Stock Level Filters */}
+            <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-indigo-100/70">
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Status
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => {
+                    setStatusFilter(event.target.value)
+                    setPage(1)
+                  }}
+                  value={statusFilter}
+                >
+                  <option value="">All status</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Stock level
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => {
+                    setLowStockOnly(event.target.value)
+                    setPage(1)
+                  }}
+                  value={lowStockOnly}
+                >
+                  <option value="">All stock levels</option>
+                  <option value="true">Low stock only</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Active Filter Chips */}
+        {mainCatFilter || subCatFilter || brandFilter || capacityFilter || speedFilter || typeFilter || specSearch || statusFilter || lowStockOnly ? (
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+              Active Filters:
+            </span>
+            {mainCatFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Main: {categoryOptions.find((c) => c.id === mainCatFilter)?.name || "Main Category"}
+                <button onClick={() => { setMainCatFilter(""); setSubCatFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {subCatFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Sub: {categoryOptions.find((c) => c.id === subCatFilter)?.name || "Subcategory"}
+                <button onClick={() => { setSubCatFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {brandFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-800">
+                Brand: {brandFilter}
+                <button onClick={() => { setBrandFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {capacityFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-800">
+                Capacity: {capacityFilter}
+                <button onClick={() => setCapacityFilter("")} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {speedFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                Speed: {speedFilter}
+                <button onClick={() => setSpeedFilter("")} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {typeFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2.5 py-1 text-xs font-semibold text-purple-800">
+                Type/Socket: {typeFilter}
+                <button onClick={() => setTypeFilter("")} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {specSearch ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                Spec: "{specSearch}"
+                <button onClick={() => setSpecSearch("")} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {statusFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Status: {statusFilter}
+                <button onClick={() => { setStatusFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {lowStockOnly ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                Low stock only
+                <button onClick={() => { setLowStockOnly(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            <button onClick={clearFilters} className="text-xs font-bold text-[var(--color-maroon)] hover:underline ml-1">
+              Reset all
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {noticeMessage ? (
@@ -1037,7 +1395,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           movementMessage={movementMessage}
           canAdjust={canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id)}
           canViewCost={canViewInventoryCosts}
-          onAdjust={(targetItem) => setAdjustMode("ADJUST")}
+          onAdjust={() => setAdjustMode("ADJUST")}
           onClose={closeAdjustModal}
         />
       ) : null}
@@ -1072,7 +1430,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           <div className="p-6 text-sm font-semibold text-[var(--color-muted)]">
             Loading inventory... Please wait.
           </div>
-        ) : items.length === 0 ? (
+        ) : displayedItems.length === 0 ? (
           <div className="grid place-items-center p-8 text-center">
             <PackageSearch className="text-[var(--color-muted)]" size={38} />
             <p className="mt-3 font-bold text-[var(--color-text-strong)]">
@@ -1102,7 +1460,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                 </thead>
 
                 <tbody className="divide-y divide-[var(--color-border)]">
-                  {items.map((item) => (
+                  {displayedItems.map((item) => (
                     <tr key={item.id} className="align-top transition hover:bg-[var(--color-soft)]">
                       <td className="min-w-[260px] px-4 py-4">
                         <p className="font-bold text-[var(--color-text-strong)]">
@@ -1158,7 +1516,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
             </div>
 
             <div className="grid gap-4 p-4 xl:hidden">
-              {items.map((item) => (
+              {displayedItems.map((item) => (
                 <InventoryMobileCard
                   item={item}
                   key={item.id}

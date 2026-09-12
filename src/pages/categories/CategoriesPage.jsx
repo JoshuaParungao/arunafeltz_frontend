@@ -365,7 +365,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
     setFormError("")
 
     if (!catForm.name.trim()) {
-      setFormError("Kailangan pong lagyan ng Pangalan ang Category.")
+      setFormError("Category name is required.")
       nameInputRef.current?.focus()
       nameInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
       return
@@ -407,7 +407,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
       console.error("Save category error:", err)
       const rawMsg = err?.response?.data?.message || err?.message || ""
       if (rawMsg.includes("already exists") || rawMsg.includes("ALREADY_EXISTS")) {
-        setFormError(`Mayroon nang category na may ganitong pangalan ("${catForm.name.trim()}"). Pakilagyan po ng ibang pangalan.`)
+        setFormError(`A category with this name ("${catForm.name.trim()}") already exists. Please choose a different name.`)
       } else {
         setFormError(rawMsg || "Failed to save category. Please check your inputs.")
       }
@@ -1214,7 +1214,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                     {editingCategory ? "Edit Category" : "Add New Category"}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    Ayusin ang classification at mga required attributes para sa mga produkto.
+                    Configure classification and required product specifications.
                   </p>
                 </div>
               </div>
@@ -1239,7 +1239,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
               {/* Step 1: Category Type / Classification */}
               <div className="space-y-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                  1. Uri ng Category (Classification)
+                  1. Category Classification
                 </span>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -1263,7 +1263,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                     <div>
                       <p className="text-xs font-bold text-slate-900">Main Category</p>
                       <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                        Pangunahing grupo (hal. RAM / Memory, CPU, Storage)
+                        Top-level umbrella group (e.g. RAM / Memory, CPU, Storage)
                       </p>
                     </div>
                   </button>
@@ -1293,7 +1293,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                     <div>
                       <p className="text-xs font-bold text-slate-900">Subcategory</p>
                       <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                        Nakasailalim sa Main Category (hal. Desktop RAM)
+                        Child category under a Main Category (e.g. Desktop RAM)
                       </p>
                     </div>
                   </button>
@@ -1304,7 +1304,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   <div className="flex items-start gap-2 rounded-xl bg-blue-50 border border-blue-200 p-2.5 text-[11px] text-blue-900 leading-snug">
                     <GitBranch size={15} className="text-blue-700 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold">Mga Nakapaloob na Subcategories ({subcategoriesOfEditingCategory.length}): </span>
+                      <span className="font-bold">Configured Subcategories ({subcategoriesOfEditingCategory.length}): </span>
                       {subcategoriesOfEditingCategory.map((s) => s.name).join(", ")}
                     </div>
                   </div>
@@ -1315,7 +1315,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5 space-y-1.5 animate-in fade-in">
                     <label className="text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
                       <GitBranch size={13} className="text-blue-700" />
-                      Pumili ng Main Category kung saan ito nakapaloob:
+                      Select Parent Main Category:
                     </label>
                     <select
                       className="w-full rounded-xl border border-blue-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B]"
@@ -1335,12 +1335,12 @@ export default function CategoriesPage({ selectedBranch, user }) {
               {/* Step 2: Category Details */}
               <div className="space-y-3 pt-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                  2. Pangalan at Detalye
+                  2. Category Details
                 </span>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-xs font-bold text-slate-800 block mb-1">
-                      Pangalan ng Category <span className="text-red-500">*</span>
+                      Category Name <span className="text-red-500">*</span>
                     </span>
                     <input
                       ref={nameInputRef}
@@ -1354,18 +1354,18 @@ export default function CategoriesPage({ selectedBranch, user }) {
                         setCatForm({ ...catForm, name: e.target.value })
                         if (formError) setFormError("")
                       }}
-                      placeholder="I-type dito ang pangalan (hal. Desktop RAM)"
+                      placeholder="e.g. Desktop RAM"
                       type="text"
                       value={catForm.name}
                     />
                     {formError && !catForm.name.trim() ? (
                       <p className="mt-1.5 text-xs font-bold text-red-600 flex items-center gap-1 animate-in fade-in">
                         <AlertCircle size={13} />
-                        Kailangan pong i-type ang pangalan ng category dito bago i-save.
+                        Category name is required before saving.
                       </p>
                     ) : (
                       <span className="text-[10px] text-slate-400 mt-0.5 block">
-                        Ilagay ang malinaw na pangalan (hal. Desktop RAM DDR4 / DDR5)
+                        Enter a clear, descriptive name (e.g. Desktop RAM, NVMe SSD)
                       </span>
                     )}
                   </label>
@@ -1380,8 +1380,8 @@ export default function CategoriesPage({ selectedBranch, user }) {
                         onChange={(e) => setCatForm({ ...catForm, status: e.target.value })}
                         value={catForm.status}
                       >
-                        <option value="ACTIVE">ACTIVE (Maaaring gamitin)</option>
-                        <option value="INACTIVE">INACTIVE (Nakatago)</option>
+                        <option value="ACTIVE">ACTIVE (Available in catalog)</option>
+                        <option value="INACTIVE">INACTIVE (Hidden)</option>
                       </select>
                     </label>
                   ) : (
@@ -1394,7 +1394,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                         onChange={(e) =>
                           setCatForm({ ...catForm, categoryCode: e.target.value })
                         }
-                        placeholder="Auto-generated kung walang ilagay"
+                        placeholder="Auto-generated if left blank"
                         type="text"
                         value={catForm.categoryCode}
                       />
@@ -1404,14 +1404,14 @@ export default function CategoriesPage({ selectedBranch, user }) {
 
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-700 block mb-1">
-                    Maikling Deskripsyon <span className="text-slate-400 font-normal">(Optional)</span>
+                    Description <span className="text-slate-400 font-normal">(Optional)</span>
                   </span>
                   <input
                     className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B] hover:border-slate-400"
                     onChange={(e) =>
                       setCatForm({ ...catForm, description: e.target.value })
                     }
-                    placeholder="hal. Desktop memory sticks and high-performance modules."
+                    placeholder="e.g. Desktop memory sticks and high-performance modules."
                     type="text"
                     value={catForm.description}
                   />
@@ -1427,7 +1427,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                       3. Product Specifications / Attributes
                     </span>
                     <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                      Ito ang mga technical specifications na kailangang punan kapag nag-eencode ng item sa category na ito.
+                      Required technical specifications enforced when encoding items under this category.
                     </p>
                   </div>
                   <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
@@ -1440,8 +1440,8 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 leading-snug">
                     <HelpCircle size={15} className="text-amber-700 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold">Paano gumagana ang Main Category? </span>
-                      Kadalasan, ang mga specific attributes tulad ng <em>Capacity</em> o <em>Speed</em> ay inilalagay sa mga <strong>Subcategory</strong> (tulad ng <em>Desktop RAM</em>). Pwede ka pa ring maglagay ng attributes dito kung nais mo, o iwanan itong blangko kung sa Subcategory ito ilalagay.
+                      <span className="font-bold">How do Main Categories work? </span>
+                      Specific attributes like <em>Capacity</em> or <em>Speed</em> are typically configured on <strong>Subcategories</strong> (e.g. <em>Desktop RAM</em>). You may also define attributes here if applicable, or leave empty.
                     </div>
                   </div>
                 ) : null}
@@ -1479,7 +1479,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                             </div>
                           ) : (
                             <p className="text-[10px] text-slate-400 italic mt-0.5">
-                              Free text (malayang itatype ng encoder)
+                              Free text (Encoder enters value freely)
                             </p>
                           )}
                         </div>
@@ -1487,7 +1487,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                           type="button"
                           onClick={() => handleRemoveSpecField(idx)}
                           className="rounded-lg p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                          title={`Alisin ang ${spec.name}`}
+                          title={`Remove ${spec.name}`}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -1497,10 +1497,10 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 ) : (
                   <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-4 text-center">
                     <p className="text-xs font-semibold text-slate-600">
-                      Wala pang attributes na nakatakda sa category na ito.
+                      No specifications defined for this category yet.
                     </p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      I-click ang alinman sa 1-Click Quick Presets sa ibaba o mag-type ng sariling attribute name.
+                      Click any 1-Click Quick Preset below or type a custom specification name.
                     </p>
                   </div>
                 )}
@@ -1508,7 +1508,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 {/* 1-Click Popular Presets */}
                 <div className="space-y-1.5 pt-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    ⚡ 1-Click Quick Presets (Pindutin para maidagdag agad):
+                    ⚡ 1-Click Quick Presets (Click to add):
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {POPULAR_ATTRIBUTE_PRESETS.map((preset) => {
@@ -1538,7 +1538,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 {/* Add Custom Attribute Card */}
                 <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 block">
-                    + Magdagdag ng Custom Attribute
+                    + Add Custom Specification
                   </span>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input
@@ -1550,7 +1550,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                           handleAddSpecField()
                         }
                       }}
-                      placeholder="Attribute Name (hal. Latency, Heatsink)"
+                      placeholder="Specification Name (e.g. CAS Latency, Heatsink)"
                       type="text"
                       value={newSpecName}
                     />
@@ -1563,14 +1563,14 @@ export default function CategoriesPage({ selectedBranch, user }) {
                           handleAddSpecField()
                         }
                       }}
-                      placeholder="Mga Pagpipilian (hal. CL16, CL18, CL30)"
+                      placeholder="Suggested Values (comma-separated, e.g. CL16, CL18)"
                       type="text"
                       value={newSpecSuggestions}
                     />
                   </div>
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[10px] text-slate-400">
-                      Pindutin ang Enter o i-click ang button para maidagdag.
+                      Press Enter or click Add to append to specification schema.
                     </span>
                     <button
                       type="button"
@@ -1579,7 +1579,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                       className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 disabled:opacity-40 transition"
                     >
                       <Plus size={12} />
-                      Idagdag
+                      Add Spec
                     </button>
                   </div>
                 </div>
@@ -1610,7 +1610,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                     {isSaving ? (
                       <LoaderCircle className="animate-spin" size={14} />
                     ) : null}
-                    {editingCategory ? "I-save ang Pagbabago" : "Lumikha ng Category"}
+                    {editingCategory ? "Save Changes" : "Create Category"}
                   </button>
                 </div>
               </footer>

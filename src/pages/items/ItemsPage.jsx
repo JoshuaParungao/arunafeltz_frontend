@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, AlertTriangle, CheckCircle2, Edit3, Layers, PackageSearch, Plus, RefreshCw, Save, Search, Sparkles, Tag, X } from "lucide-react"
+import { AlertCircle, AlertTriangle, CheckCircle2, Edit3, Layers, PackageSearch, Plus, RefreshCw, Save, Search, SlidersHorizontal, Sparkles, Tag, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { USER_ROLES } from "../../constants/roles"
 import { createItem, getItemCategories, getItems, getUnits, updateItemById } from "../../features/items/items.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import {
+  CAPACITY_PRESETS,
+  matchesItemAttributes,
+  POPULAR_BRANDS,
+  SPEED_PRESETS,
+  TYPE_PRESETS,
+} from "../../utils/attributeFilter"
 
 const OWNER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -600,14 +607,14 @@ function ItemEditorModal({
     })
     const count = Object.keys(detected).length
     if (count === 0) {
-      setAutoFillNotice("Walang natukoy na specs mula sa Product Name o Brand. Maaari mong piliin o manu-manong i-type ang mga ito.")
+      setAutoFillNotice("No specifications detected from Product Name or Brand. You can select or manually enter attributes below.")
       return
     }
     onChange("attributes", {
       ...(form.attributes || {}),
       ...detected,
     })
-    setAutoFillNotice(`✨ Tagumpay! ${count} specifications ang awtomatikong natukoy at napunan mula sa detalye ng produkto.`)
+    setAutoFillNotice(`✨ Success! ${count} specifications automatically detected and populated from item details.`)
   }
 
   const handleAddCustomSpec = () => {
@@ -776,15 +783,15 @@ function ItemEditorModal({
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center justify-between flex-wrap gap-1">
                       <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
-                        Kailangang I-align sa Subcategory
+                        Subcategory Alignment Required
                       </h4>
                       <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[9px] font-black uppercase text-amber-900">
                         Legacy Main Category
                       </span>
                     </div>
                     <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
-                      Ang item na ito ay kasalukuyang nakatali sa Main Category (<strong>{selectedCategory?.name}</strong>).
-                      Pumili ng partikular na <strong>Subcategory</strong> sa ibaba (hal. {subcategoryOptions.map((s) => s.name).slice(0, 3).join(", ")}) upang ma-align at lumabas ang Technical Specifications.
+                      This product is currently assigned to the top-level Main Category (<strong>{selectedCategory?.name}</strong>).
+                      Please select a specific <strong>Subcategory</strong> below (e.g. {subcategoryOptions.map((s) => s.name).slice(0, 3).join(", ")}) to align and enable technical specifications.
                     </p>
                   </div>
                 </div>
@@ -827,7 +834,7 @@ function ItemEditorModal({
                   >
                     <option value="">
                       {isUnalignedLegacyItem
-                        ? `⚠️ Pumili ng Subcategory (hal. ${subcategoryOptions[0]?.name})`
+                        ? `⚠️ Select Subcategory to Align (e.g. ${subcategoryOptions[0]?.name})`
                         : "Select subcategory"}
                     </option>
                     {subcategoryOptions.map((subCat) => (
@@ -986,11 +993,11 @@ function ItemEditorModal({
                 </div>
                 <div>
                   <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
-                    Naka-assign sa Main Category ({selectedCategory?.name})
+                    Assigned to Main Category ({selectedCategory?.name})
                   </h4>
                   <p className="max-w-md mx-auto text-xs text-amber-800 font-medium mt-1">
-                    Upang lumabas ang kumpletong <strong>Technical Specifications</strong> at magamit ang <strong>✨ Auto-Fill</strong>,
-                    piliin ang tamang subcategory sa ibaba upang ma-align agad:
+                    To unlock complete <strong>Technical Specifications</strong> and use <strong>✨ Auto-Fill</strong>,
+                    select the appropriate subcategory below to align immediately:
                   </p>
                 </div>
                 <div className="flex justify-center gap-2 pt-1 flex-wrap">
@@ -1001,7 +1008,7 @@ function ItemEditorModal({
                       onClick={() => onChange("categoryId", sub.id)}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-amber-300 px-3.5 py-2 text-xs font-bold text-amber-900 shadow-2xs hover:bg-amber-100 hover:border-amber-400 transition"
                     >
-                      <span>I-align sa</span>
+                      <span>Align to</span>
                       <strong>{sub.name}</strong> ➔
                     </button>
                   ))}
@@ -1030,10 +1037,10 @@ function ItemEditorModal({
                       type="button"
                       onClick={handleAutoFillSpecs}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/90 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition shadow-2xs"
-                      title="Awtomatikong basahin at punan ang specs mula sa Product Name, Brand, at Model"
+                      title="Automatically detect and fill specifications from Product Name, Brand, and Model"
                     >
                       <Sparkles size={13} className="text-indigo-600" />
-                      Auto-Fill Mula sa Item Name
+                      Auto-Fill Specs from Item Name
                     </button>
                   ) : null}
 
@@ -1556,15 +1563,22 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
   const [searchText, setSearchText] = useState("")
+  const [mainCatFilter, setMainCatFilter] = useState("")
+  const [subCatFilter, setSubCatFilter] = useState("")
+  const [brandFilter, setBrandFilter] = useState("")
+  const [capacityFilter, setCapacityFilter] = useState("")
+  const [speedFilter, setSpeedFilter] = useState("")
+  const [typeFilter, setTypeFilter] = useState("")
+  const [specSearch, setSpecSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [serializedFilter, setSerializedFilter] = useState("")
   const [warrantyFilter, setWarrantyFilter] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("")
   const [unitFilter, setUnitFilter] = useState("")
   const [categoryOptions, setCategoryOptions] = useState([])
   const [unitOptions, setUnitOptions] = useState([])
+  const [isDetailedFiltersOpen, setIsDetailedFiltersOpen] = useState(false)
   const [page, setPage] = useState(1)
-  const pageSize = 10
+  const pageSize = 25
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const [selectedItem, setSelectedItem] = useState(null)
@@ -1588,6 +1602,44 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
   const canAdjustPrices = useMemo(() => PRICE_ADMIN_ROLES.has(user?.role), [user?.role])
   const canManagePrices = canAdjustPrices
   const canViewCost = true
+
+  const mainCategories = useMemo(() => {
+    return categoryOptions.filter((c) => !c.parentId || c.parentId === "")
+  }, [categoryOptions])
+
+  const subcategoryOptions = useMemo(() => {
+    if (!mainCatFilter) {
+      return categoryOptions.filter((c) => Boolean(c.parentId))
+    }
+    return categoryOptions.filter((c) => c.parentId === mainCatFilter)
+  }, [categoryOptions, mainCatFilter])
+
+  const effectiveCategoryId = subCatFilter || mainCatFilter || ""
+
+  const activeDetailedFilterCount = useMemo(() => {
+    let count = 0
+    if (brandFilter.trim()) count++
+    if (capacityFilter) count++
+    if (speedFilter) count++
+    if (typeFilter) count++
+    if (specSearch.trim()) count++
+    if (unitFilter) count++
+    if (statusFilter) count++
+    if (serializedFilter) count++
+    if (warrantyFilter) count++
+    return count
+  }, [brandFilter, capacityFilter, speedFilter, typeFilter, specSearch, unitFilter, statusFilter, serializedFilter, warrantyFilter])
+
+  const displayedItems = useMemo(() => {
+    return items.filter((item) =>
+      matchesItemAttributes(item, {
+        capacity: capacityFilter,
+        speed: speedFilter,
+        type: typeFilter,
+        specSearch: specSearch,
+      })
+    )
+  }, [items, capacityFilter, speedFilter, typeFilter, specSearch])
 
   const loadFilterOptions = useCallback(async () => {
     try {
@@ -1614,6 +1666,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
       setUnitOptions([])
     }
   }, [selectedBranchId])
+
   const loadItems = useCallback(async () => {
     setIsLoading(true)
     setErrorMessage("")
@@ -1644,8 +1697,12 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
         params.hasWarranty = warrantyFilter
       }
 
-      if (categoryFilter) {
-        params.categoryId = categoryFilter
+      if (effectiveCategoryId) {
+        params.categoryId = effectiveCategoryId
+      }
+
+      if (brandFilter.trim()) {
+        params.brand = brandFilter.trim()
       }
 
       if (unitFilter) {
@@ -1664,7 +1721,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
     } finally {
       setIsLoading(false)
     }
-  }, [categoryFilter, page, pageSize, searchText, selectedBranchId, serializedFilter, statusFilter, unitFilter, warrantyFilter])
+  }, [effectiveCategoryId, brandFilter, page, pageSize, searchText, selectedBranchId, serializedFilter, statusFilter, unitFilter, warrantyFilter])
 
   const openDetailModal = (item) => {
     setDetailItem(item)
@@ -1676,7 +1733,13 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
 
   const clearFilters = () => {
     setSearchText("")
-    setCategoryFilter("")
+    setMainCatFilter("")
+    setSubCatFilter("")
+    setBrandFilter("")
+    setCapacityFilter("")
+    setSpeedFilter("")
+    setTypeFilter("")
+    setSpecSearch("")
     setUnitFilter("")
     setStatusFilter("")
     setSerializedFilter("")
@@ -1692,7 +1755,8 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
       if (searchText.trim()) params.search = searchText.trim()
       if (statusFilter) params.status = statusFilter
       if (serializedFilter) params.isSerialized = serializedFilter
-      if (categoryFilter) params.categoryId = categoryFilter
+      if (effectiveCategoryId) params.categoryId = effectiveCategoryId
+      if (brandFilter.trim()) params.brand = brandFilter.trim()
       if (unitFilter) params.unitId = unitFilter
 
       const exportItems = []
@@ -1739,7 +1803,11 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
         generatedBy: user,
         filters: [
           ["Search Query", searchText.trim() || "All items"],
-          ["Category Filter", categoryFilter || "All categories"],
+          [
+            "Category Filter",
+            categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
+          ],
+          ["Brand Filter", brandFilter.trim() || "All brands"],
           ["Status Filter", statusFilter || "All statuses"],
           ["Serialized Only", serializedFilter ? "Yes" : "All"],
         ],
@@ -1806,7 +1874,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
     const hasChildSubcategories = categoryOptions.some((c) => c.parentId === itemForm.categoryId)
     if (hasChildSubcategories) {
       setItemEditorError(
-        `Kailangang i-align ang kategorya: Pumili ng partikular na Subcategory para sa "${targetCategory?.name || "Main Category"}" bago i-save.`
+        `Category alignment required: Please select a specific Subcategory for "${targetCategory?.name || "Main Category"}" before saving.`
       )
       return
     }
@@ -1978,7 +2046,8 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
   useEffect(() => {
     // Branch changes intentionally reset branch-specific filters and pagination.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCategoryFilter("")
+    setMainCatFilter("")
+    setSubCatFilter("")
     setPage(1)
     loadFilterOptions()
   }, [loadFilterOptions])
@@ -2035,7 +2104,8 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
         </div>
       </div>
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card">
+      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card space-y-3.5">
+        {/* Row 1: Search, result count, and reset */}
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative min-w-0 flex-1">
             <Search
@@ -2048,15 +2118,33 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
                 setSearchText(event.target.value)
                 setPage(1)
               }}
-              placeholder="Scan barcode / Search Item Code / Product Name"
+              placeholder="Scan barcode / Search Item Code / Product Name / Model"
               value={searchText}
             />
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="rounded-2xl bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-muted)]">
-              {pagination?.totalItems ?? items.length} item(s)
+              Showing {displayedItems.length} of {pagination?.totalItems ?? items.length} item(s)
             </div>
+
+            <button
+              className={`rounded-2xl border px-4 py-3 text-sm font-bold transition inline-flex items-center gap-2 ${
+                isDetailedFiltersOpen || activeDetailedFilterCount > 0
+                  ? "border-[var(--color-maroon)] bg-[var(--color-maroon)]/5 text-[var(--color-maroon)]"
+                  : "border-[var(--color-border)] bg-white text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+              }`}
+              onClick={() => setIsDetailedFiltersOpen((prev) => !prev)}
+              type="button"
+            >
+              <SlidersHorizontal size={15} />
+              Detailed Filters
+              {activeDetailedFilterCount > 0 ? (
+                <span className="rounded-full bg-[var(--color-maroon)] text-white text-[10px] font-black px-1.5 py-0.2">
+                  {activeDetailedFilterCount}
+                </span>
+              ) : null}
+            </button>
 
             <button
               className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
@@ -2068,11 +2156,12 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {/* Row 2: Category Hierarchy & Brand Selectors */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <label className="block">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                Category
+                Main Category
               </span>
               {onNavigate ? (
                 <button
@@ -2086,15 +2175,16 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
               ) : null}
             </div>
             <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+              className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
               onChange={(event) => {
-                setCategoryFilter(event.target.value)
+                setMainCatFilter(event.target.value)
+                setSubCatFilter("")
                 setPage(1)
               }}
-              value={categoryFilter}
+              value={mainCatFilter}
             >
-              <option value="">All categories</option>
-              {categoryOptions.map((category) => (
+              <option value="">All Main Categories</option>
+              {mainCategories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>
@@ -2104,78 +2194,314 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
 
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Unit
+              Subcategory / Product Type
             </span>
             <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+              className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white disabled:opacity-50"
+              disabled={subcategoryOptions.length === 0}
               onChange={(event) => {
-                setUnitFilter(event.target.value)
+                setSubCatFilter(event.target.value)
                 setPage(1)
               }}
-              value={unitFilter}
+              value={subCatFilter}
             >
-              <option value="">All units</option>
-              {unitOptions.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
+              <option value="">
+                {mainCatFilter
+                  ? `All Subcategories in ${mainCategories.find((c) => c.id === mainCatFilter)?.name || ""}`
+                  : "All Subcategories"}
+              </option>
+              {subcategoryOptions.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name}
                 </option>
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Status
-            </span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-              onChange={(event) => {
-                setStatusFilter(event.target.value)
-                setPage(1)
-              }}
-              value={statusFilter}
-            >
-              <option value="">All status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </label>
 
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Tracking
+              Brand
             </span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-              onChange={(event) => {
-                setSerializedFilter(event.target.value)
-                setPage(1)
-              }}
-              value={serializedFilter}
-            >
-              <option value="">All tracking</option>
-              <option value="true">Serialized</option>
-              <option value="false">Non-serialized</option>
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Warranty
-            </span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-              onChange={(event) => {
-                setWarrantyFilter(event.target.value)
-                setPage(1)
-              }}
-              value={warrantyFilter}
-            >
-              <option value="">All warranty</option>
-              <option value="true">With warranty</option>
-              <option value="false">No warranty</option>
-            </select>
+            <div className="relative mt-1.5">
+              <input
+                list="brand-suggestions-items"
+                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white placeholder:text-slate-400 placeholder:font-normal"
+                onChange={(event) => {
+                  setBrandFilter(event.target.value)
+                  setPage(1)
+                }}
+                placeholder="All Brands or type brand..."
+                value={brandFilter}
+              />
+              <datalist id="brand-suggestions-items">
+                {POPULAR_BRANDS.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </div>
           </label>
         </div>
+
+        {/* Detailed Specification & Attribute Shelf (Collapsible) */}
+        {isDetailedFiltersOpen ? (
+          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
+                <SlidersHorizontal size={14} />
+                Specification & Attribute Filters
+              </span>
+              <span className="text-[11px] font-semibold text-indigo-700">
+                Filter precisely by GB capacity, speed, socket/generation, or custom attributes
+              </span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Capacity / Storage / RAM
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => setCapacityFilter(event.target.value)}
+                  value={capacityFilter}
+                >
+                  <option value="">Any Capacity</option>
+                  {CAPACITY_PRESETS.map((cap) => (
+                    <option key={cap} value={cap}>
+                      {cap}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Speed / Frequency / Hz
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => setSpeedFilter(event.target.value)}
+                  value={speedFilter}
+                >
+                  <option value="">Any Speed</option>
+                  {SPEED_PRESETS.map((spd) => (
+                    <option key={spd} value={spd}>
+                      {spd}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Type / Generation / Socket
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => setTypeFilter(event.target.value)}
+                  value={typeFilter}
+                >
+                  <option value="">Any Type / Socket</option>
+                  {TYPE_PRESETS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Custom Attribute Search
+                </span>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+                  onChange={(event) => setSpecSearch(event.target.value)}
+                  placeholder="e.g. Gold, White, ATX, 750W, CL16..."
+                  value={specSearch}
+                />
+              </label>
+            </div>
+
+            {/* Standard Catalog Filters */}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 pt-2 border-t border-indigo-100/70">
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Unit
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => {
+                    setUnitFilter(event.target.value)
+                    setPage(1)
+                  }}
+                  value={unitFilter}
+                >
+                  <option value="">All units</option>
+                  {unitOptions.map((unit) => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Status
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => {
+                    setStatusFilter(event.target.value)
+                    setPage(1)
+                  }}
+                  value={statusFilter}
+                >
+                  <option value="">All status</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Tracking
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => {
+                    setSerializedFilter(event.target.value)
+                    setPage(1)
+                  }}
+                  value={serializedFilter}
+                >
+                  <option value="">All tracking</option>
+                  <option value="true">Serialized</option>
+                  <option value="false">Non-serialized</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Warranty
+                </span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                  onChange={(event) => {
+                    setWarrantyFilter(event.target.value)
+                    setPage(1)
+                  }}
+                  value={warrantyFilter}
+                >
+                  <option value="">All warranty</option>
+                  <option value="true">With warranty</option>
+                  <option value="false">No warranty</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Active Filter Chips */}
+        {mainCatFilter || subCatFilter || brandFilter || capacityFilter || speedFilter || typeFilter || specSearch || unitFilter || statusFilter || serializedFilter || warrantyFilter ? (
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+              Active Filters:
+            </span>
+            {mainCatFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Main: {categoryOptions.find((c) => c.id === mainCatFilter)?.name || "Main Category"}
+                <button onClick={() => { setMainCatFilter(""); setSubCatFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {subCatFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Sub: {categoryOptions.find((c) => c.id === subCatFilter)?.name || "Subcategory"}
+                <button onClick={() => { setSubCatFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {brandFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-800">
+                Brand: {brandFilter}
+                <button onClick={() => { setBrandFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {capacityFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-800">
+                Capacity: {capacityFilter}
+                <button onClick={() => setCapacityFilter("")} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {speedFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                Speed: {speedFilter}
+                <button onClick={() => setSpeedFilter("")} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {typeFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2.5 py-1 text-xs font-semibold text-purple-800">
+                Type/Socket: {typeFilter}
+                <button onClick={() => setTypeFilter("")} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {specSearch ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                Spec: "{specSearch}"
+                <button onClick={() => setSpecSearch("")} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {unitFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Unit: {unitOptions.find((u) => u.id === unitFilter)?.name || "Unit"}
+                <button onClick={() => { setUnitFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {statusFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                Status: {statusFilter}
+                <button onClick={() => { setStatusFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {serializedFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                {serializedFilter === "true" ? "Serialized" : "Non-serialized"}
+                <button onClick={() => { setSerializedFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            {warrantyFilter ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                {warrantyFilter === "true" ? "With warranty" : "No warranty"}
+                <button onClick={() => { setWarrantyFilter(""); setPage(1) }} className="hover:text-red-600">
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
+            <button onClick={clearFilters} className="text-xs font-bold text-[var(--color-maroon)] hover:underline ml-1">
+              Reset all
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {errorMessage ? (
@@ -2190,7 +2516,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
           <div className="p-6 text-sm font-semibold text-[var(--color-muted)]">
             Loading items... Please wait.
           </div>
-        ) : items.length === 0 ? (
+        ) : displayedItems.length === 0 ? (
           <div className="grid place-items-center p-8 text-center">
             <PackageSearch className="text-[var(--color-muted)]" size={38} />
             <p className="mt-3 font-bold text-[var(--color-text-strong)]">
@@ -2224,7 +2550,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
                   </thead>
 
                   <tbody className="divide-y divide-[var(--color-border)]">
-                    {items.map((item) => (
+                    {displayedItems.map((item) => (
                       <tr key={item.id} className="align-top transition hover:bg-[var(--color-soft)]">
                         <td className="min-w-[220px] px-3 py-4">
                           <p className="font-bold text-[var(--color-text-strong)]">
@@ -2349,7 +2675,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
             </div>
 
             <div className="grid gap-4 p-4 lg:hidden">
-              {items.map((item) => (
+              {displayedItems.map((item) => (
                 <ItemMobileCard
                   canManagePrices={canManagePrices}
                   canViewCost={canViewCost}
