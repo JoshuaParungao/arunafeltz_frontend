@@ -1308,7 +1308,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
                                   : "bg-emerald-500"
                               }`}
                             />
-                            {isOutOfStock ? "Out of stock" : `${stock} in stock`}
+                            <span>Stock: <strong className="font-mono font-black">{stock}</strong></span>
+                            {isOutOfStock ? <span className="font-normal opacity-80">(Out of stock)</span> : null}
                           </span>
                         </span>
                       </span>
