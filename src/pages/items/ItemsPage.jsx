@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, CheckCircle2, Edit3, Layers, PackageSearch, Plus, RefreshCw, Save, Search, Tag, X } from "lucide-react"
+import { AlertCircle, AlertTriangle, CheckCircle2, Edit3, Layers, PackageSearch, Plus, RefreshCw, Save, Search, Sparkles, Tag, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { USER_ROLES } from "../../constants/roles"
@@ -56,6 +56,214 @@ export function parseItemWarranty(item) {
 export function stripWarrantyTag(description) {
   if (!description) return ""
   return description.replace(/\[WARRANTY:\s*[^\]]+\]/gi, "").trim()
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function autoDetectSpecsFromItem({ itemName = "", brand = "", modelName = "", schema = [] }) {
+  if (!itemName || !Array.isArray(schema) || schema.length === 0) return {}
+
+  const text = `${brand || ""} ${modelName || ""} ${itemName}`.trim()
+  const detected = {}
+
+  for (const field of schema) {
+    const nameLower = field.name.toLowerCase()
+    const options = Array.isArray(field.options) ? field.options : []
+
+    // 1. Try matching predefined options (longest first)
+    if (options.length > 0) {
+      const sorted = [...options].sort((a, b) => b.length - a.length)
+      for (const opt of sorted) {
+        const escaped = opt.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")
+        const regex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}([^a-zA-Z0-9]|$)`, "i")
+        if (regex.test(text)) {
+          detected[field.name] = opt
+          break
+        }
+      }
+    }
+
+    if (detected[field.name]) continue
+
+    // 2. Specialized Regex Patterns
+    // Capacity / Storage / VRAM
+    if (nameLower.includes("capacity") || nameLower.includes("size") || nameLower.includes("vram")) {
+      const match = text.match(/\b(\d+)\s*(GB|TB|MB)\b/i)
+      if (match) {
+        detected[field.name] = `${match[1]}${match[2].toUpperCase()}`
+        continue
+      }
+    }
+
+    // Speed / Frequency
+    if (nameLower.includes("speed") || nameLower.includes("frequency")) {
+      const match = text.match(/\b(\d{3,5})\s*(MHz|MT\/s|GHz)\b/i)
+      if (match) {
+        const unit = match[2].toUpperCase() === "MT/S" ? " MT/s" : match[2].toUpperCase() === "GHZ" ? " GHz" : "MHz"
+        detected[field.name] = `${match[1]}${unit}`
+        continue
+      }
+    }
+
+    // Refresh Rate
+    if (nameLower.includes("refresh rate")) {
+      const match = text.match(/\b(\d{2,3})\s*Hz\b/i)
+      if (match) {
+        detected[field.name] = `${match[1]}Hz`
+        continue
+      }
+    }
+
+    // Memory Type
+    if (nameLower.includes("memory type")) {
+      const match = text.match(/\b(DDR5|DDR4|DDR3L?|GDDR6X?|GDDR5)\b/i)
+      if (match) {
+        detected[field.name] = match[1].toUpperCase()
+        continue
+      }
+    }
+
+    // Color
+    if (nameLower.includes("color")) {
+      const match = text.match(/\b(Black|White|Silver|Grey|Gray|Red|Blue|Pink|Green|Yellow|Gold)\b/i)
+      if (match) {
+        const c = match[1].toLowerCase()
+        detected[field.name] = c.charAt(0).toUpperCase() + c.slice(1)
+        continue
+      }
+    }
+
+    // RGB Lighting
+    if (nameLower.includes("rgb") || nameLower.includes("lighting")) {
+      if (/\b(Non-RGB|Without RGB|No RGB|None)\b/i.test(text)) {
+        detected[field.name] = "Non-RGB"
+        continue
+      } else if (/\b(ARGB|Addressable RGB|A-RGB)\b/i.test(text)) {
+        detected[field.name] = "ARGB"
+        continue
+      } else if (/\b(RGB)\b/i.test(text)) {
+        detected[field.name] = "RGB"
+        continue
+      }
+    }
+
+    // Pin Count (for RAM)
+    if (nameLower.includes("pin count") || nameLower.includes("pins")) {
+      if (/\bDDR5\b/i.test(text)) {
+        detected[field.name] = "288-Pin"
+        continue
+      } else if (/\bDDR4\b/i.test(text)) {
+        detected[field.name] = "288-Pin"
+        continue
+      } else if (/\bDDR3\b/i.test(text)) {
+        detected[field.name] = "240-Pin"
+        continue
+      }
+    }
+
+    // Form Factor
+    if (nameLower.includes("form factor")) {
+      if (/\b(SO-DIMM|SODIMM|Laptop)\b/i.test(text)) {
+        detected[field.name] = "SO-DIMM"
+        continue
+      } else if (/\b(DIMM|Desktop|UDIMM|U-DIMM)\b/i.test(text) || (nameLower.includes("ram") || text.includes("RAM"))) {
+        detected[field.name] = "DIMM"
+        continue
+      } else if (/\b(Micro-ATX|M-ATX|Micro ATX|mATX)\b/i.test(text)) {
+        detected[field.name] = "Micro-ATX"
+        continue
+      } else if (/\b(Mini-ITX|Mini ITX|ITX)\b/i.test(text)) {
+        detected[field.name] = "Mini-ITX"
+        continue
+      } else if (/\b(ATX)\b/i.test(text)) {
+        detected[field.name] = "ATX"
+        continue
+      } else if (/\b(M\.2\s*2280)\b/i.test(text)) {
+        detected[field.name] = "M.2 2280"
+        continue
+      } else if (/\b(2\.5["']?)\b/i.test(text)) {
+        detected[field.name] = '2.5"'
+        continue
+      } else if (/\b(3\.5["']?)\b/i.test(text)) {
+        detected[field.name] = '3.5"'
+        continue
+      }
+    }
+
+    // Wattage / Power
+    if (nameLower.includes("wattage") || nameLower.includes("power")) {
+      const match = text.match(/\b(\d{3,4})\s*W\b/i)
+      if (match) {
+        detected[field.name] = `${match[1]}W`
+        continue
+      }
+    }
+
+    // Efficiency Rating / 80 Plus
+    if (nameLower.includes("efficiency") || nameLower.includes("rating")) {
+      const match = text.match(/\b(80\s*Plus\s*(Titanium|Platinum|Gold|Silver|Bronze|White|Standard))\b/i)
+      if (match) {
+        detected[field.name] = match[1]
+        continue
+      }
+    }
+
+    // Socket
+    if (nameLower.includes("socket")) {
+      const match = text.match(/\b(AM4|AM5|LGA\s*1700|LGA\s*1851|LGA\s*1200|sTR5)\b/i)
+      if (match) {
+        detected[field.name] = match[1].toUpperCase()
+        continue
+      }
+    }
+
+    // Chipset
+    if (nameLower.includes("chipset")) {
+      const match = text.match(/\b(B450|B550|X570|A520|B650|X670|X870|H610|B660|B760|Z690|Z790)\b/i)
+      if (match) {
+        detected[field.name] = match[1].toUpperCase()
+        continue
+      }
+    }
+
+    // Resolution
+    if (nameLower.includes("resolution")) {
+      if (/\b(1920\s*x\s*1080|1080p|FHD)\b/i.test(text)) {
+        detected[field.name] = "1920 x 1080 (FHD)"
+        continue
+      } else if (/\b(2560\s*x\s*1440|1440p|2K|QHD)\b/i.test(text)) {
+        detected[field.name] = "2560 x 1440 (QHD)"
+        continue
+      } else if (/\b(3840\s*x\s*2160|4K|UHD)\b/i.test(text)) {
+        detected[field.name] = "3840 x 2160 (4K UHD)"
+        continue
+      }
+    }
+
+    // Brand
+    if (nameLower.includes("brand")) {
+      if (brand && brand.trim()) {
+        detected[field.name] = brand.trim()
+        continue
+      }
+      const knownBrands = [
+        "Kingston", "Corsair", "G.Skill", "TeamGroup", "Crucial", "Adata", "Samsung",
+        "Seagate", "Western Digital", "WD", "Asus", "MSI", "Gigabyte", "ASRock", "Palit",
+        "Zotac", "Galax", "Inno3D", "PowerColor", "Sapphire", "XFX", "AMD", "Intel",
+        "DeepCool", "Thermaltake", "NZXT", "Cooler Master", "SilverStone", "Seasonic",
+        "FSP", "Montech", "DarkFlash", "Lian Li", "Keychron", "Royal Kludge", "Logitech",
+        "Razer", "Redragon", "SteelSeries", "AOC", "ViewSonic", "BenQ", "LG", "Philips"
+      ]
+      for (const b of knownBrands) {
+        const regex = new RegExp(`(^|[^a-zA-Z0-9])${b}([^a-zA-Z0-9]|$)`, "i")
+        if (regex.test(text)) {
+          detected[field.name] = b
+          break
+        }
+      }
+    }
+  }
+
+  return detected
 }
 
 const EMPTY_ITEM_FORM = {
@@ -310,6 +518,7 @@ function ItemEditorModal({
   const [customSpecKey, setCustomSpecKey] = useState("")
   const [customSpecVal, setCustomSpecVal] = useState("")
   const [isAddingCustom, setIsAddingCustom] = useState(false)
+  const [autoFillNotice, setAutoFillNotice] = useState("")
 
   const formCategoryId = form?.categoryId
   const formAttributes = form?.attributes
@@ -332,6 +541,10 @@ function ItemEditorModal({
     if (!effectiveMainCatId) return []
     return categories.filter((c) => c.parentId === effectiveMainCatId)
   }, [categories, effectiveMainCatId])
+
+  const isUnalignedLegacyItem = Boolean(
+    selectedCategory && !selectedCategory.parentId && subcategoryOptions.length > 0
+  )
 
   const currentSchema = useMemo(() => {
     return Array.isArray(selectedCategory?.attributeSchema) ? selectedCategory.attributeSchema : []
@@ -375,6 +588,26 @@ function ItemEditorModal({
     } else {
       onChange("categoryId", mainId)
     }
+  }
+
+  const handleAutoFillSpecs = () => {
+    if (!currentSchema.length) return
+    const detected = autoDetectSpecsFromItem({
+      itemName: form.itemName,
+      brand: form.brand,
+      modelName: form.modelName,
+      schema: currentSchema,
+    })
+    const count = Object.keys(detected).length
+    if (count === 0) {
+      setAutoFillNotice("Walang natukoy na specs mula sa Product Name o Brand. Maaari mong piliin o manu-manong i-type ang mga ito.")
+      return
+    }
+    onChange("attributes", {
+      ...(form.attributes || {}),
+      ...detected,
+    })
+    setAutoFillNotice(`✨ Tagumpay! ${count} specifications ang awtomatikong natukoy at napunan mula sa detalye ng produkto.`)
   }
 
   const handleAddCustomSpec = () => {
@@ -535,6 +768,29 @@ function ItemEditorModal({
               ) : null}
             </div>
 
+            {/* Alignment Warning Banner for Legacy Items */}
+            {isUnalignedLegacyItem ? (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50/95 p-3.5 shadow-2xs space-y-1.5">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
+                        Kailangang I-align sa Subcategory
+                      </h4>
+                      <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[9px] font-black uppercase text-amber-900">
+                        Legacy Main Category
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                      Ang item na ito ay kasalukuyang nakatali sa Main Category (<strong>{selectedCategory?.name}</strong>).
+                      Pumili ng partikular na <strong>Subcategory</strong> sa ibaba (hal. {subcategoryOptions.map((s) => s.name).slice(0, 3).join(", ")}) upang ma-align at lumabas ang Technical Specifications.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className={labelClass}>Main Category</span>
@@ -558,14 +814,22 @@ function ItemEditorModal({
                 </span>
                 {subcategoryOptions.length > 0 ? (
                   <select
-                    className={inputClass}
+                    className={`${inputClass} ${
+                      isUnalignedLegacyItem
+                        ? "border-amber-400 ring-2 ring-amber-300/40 bg-amber-50/30"
+                        : ""
+                    }`}
                     onChange={(event) =>
                       onChange("categoryId", event.target.value)
                     }
                     required
-                    value={form.categoryId}
+                    value={isUnalignedLegacyItem ? "" : form.categoryId}
                   >
-                    <option value="">Select subcategory</option>
+                    <option value="">
+                      {isUnalignedLegacyItem
+                        ? `⚠️ Pumili ng Subcategory (hal. ${subcategoryOptions[0]?.name})`
+                        : "Select subcategory"}
+                    </option>
                     {subcategoryOptions.map((subCat) => (
                       <option key={subCat.id} value={subCat.id}>
                         {subCat.name}
@@ -573,11 +837,23 @@ function ItemEditorModal({
                     ))}
                   </select>
                 ) : (
-                  <input
-                    className={`${inputClass} bg-slate-50 text-slate-500 cursor-not-allowed`}
-                    disabled
-                    value={selectedCategory?.name || "Direct Category (No subcategories)"}
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      className={`${inputClass} bg-slate-50 text-slate-500 cursor-not-allowed`}
+                      disabled
+                      value={selectedCategory?.name || "Direct Category (No subcategories)"}
+                    />
+                    {onNavigate ? (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate("categories")}
+                        className="shrink-0 mt-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-[var(--color-maroon)] hover:bg-slate-50"
+                        title="Manage or add subcategories in File Maintenance"
+                      >
+                        + Add Subcategory
+                      </button>
+                    ) : null}
+                  </div>
                 )}
               </label>
 
@@ -701,10 +977,43 @@ function ItemEditorModal({
             ) : null}
           </section>
 
+          {/* Quick-Alignment Helper Card for Legacy Items */}
+          {isUnalignedLegacyItem ? (
+            <section className="space-y-3 pt-2 border-t border-slate-200">
+              <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/70 p-4 text-center space-y-2.5">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
+                    Naka-assign sa Main Category ({selectedCategory?.name})
+                  </h4>
+                  <p className="max-w-md mx-auto text-xs text-amber-800 font-medium mt-1">
+                    Upang lumabas ang kumpletong <strong>Technical Specifications</strong> at magamit ang <strong>✨ Auto-Fill</strong>,
+                    piliin ang tamang subcategory sa ibaba upang ma-align agad:
+                  </p>
+                </div>
+                <div className="flex justify-center gap-2 pt-1 flex-wrap">
+                  {subcategoryOptions.map((sub) => (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => onChange("categoryId", sub.id)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-amber-300 px-3.5 py-2 text-xs font-bold text-amber-900 shadow-2xs hover:bg-amber-100 hover:border-amber-400 transition"
+                    >
+                      <span>I-align sa</span>
+                      <strong>{sub.name}</strong> ➔
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           {/* Section 3: Hardware Technical Specifications */}
           {currentSchema.length > 0 || customSpecs.length > 0 ? (
             <section className="space-y-3 pt-2 border-t border-slate-200">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)] flex items-center gap-1.5">
                     <Layers size={14} />
@@ -714,21 +1023,49 @@ function ItemEditorModal({
                     All specifications are strictly required. Click suggestion buttons or type custom values.
                   </p>
                 </div>
-                {currentSchema.length > 0 ? (
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold shrink-0 self-start sm:self-auto ${
-                      completedSchemaCount === currentSchema.length
-                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                        : "bg-amber-100 text-amber-800 border border-amber-200"
-                    }`}
-                  >
-                    {completedSchemaCount === currentSchema.length ? (
-                      <CheckCircle2 size={12} className="text-emerald-700" />
-                    ) : null}
-                    {completedSchemaCount} of {currentSchema.length} Specs Filled
-                  </span>
-                ) : null}
+
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  {currentSchema.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleAutoFillSpecs}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/90 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition shadow-2xs"
+                      title="Awtomatikong basahin at punan ang specs mula sa Product Name, Brand, at Model"
+                    >
+                      <Sparkles size={13} className="text-indigo-600" />
+                      Auto-Fill Mula sa Item Name
+                    </button>
+                  ) : null}
+
+                  {currentSchema.length > 0 ? (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold shrink-0 ${
+                        completedSchemaCount === currentSchema.length
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          : "bg-amber-100 text-amber-800 border border-amber-200"
+                      }`}
+                    >
+                      {completedSchemaCount === currentSchema.length ? (
+                        <CheckCircle2 size={12} className="text-emerald-700" />
+                      ) : null}
+                      {completedSchemaCount} of {currentSchema.length} Specs Filled
+                    </span>
+                  ) : null}
+                </div>
               </div>
+
+              {autoFillNotice ? (
+                <div className="flex items-center justify-between rounded-xl bg-indigo-50 border border-indigo-200 px-3.5 py-2 text-xs font-bold text-indigo-900">
+                  <span>{autoFillNotice}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAutoFillNotice("")}
+                    className="text-indigo-400 hover:text-indigo-700 p-0.5"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : null}
 
               {/* Standard Attributes from Schema */}
               {currentSchema.length > 0 ? (
@@ -1162,7 +1499,11 @@ function ItemMobileCard({ canManagePrices, canViewCost, item, onEditPrices }) {
               <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-[#7A1F2B]/10 px-2 py-0.5 text-[11px] font-semibold text-[#7A1F2B]">
                 <Tag size={11} /> {Object.keys(item.attributes).length} specs
               </span>
-            ) : null}
+            ) : (!item.category?.parentId ? (
+              <span className="ml-auto inline-flex items-center gap-1 rounded bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold" title="Main Category (Needs Subcategory Alignment)">
+                ⚠️ Needs Subcategory
+              </span>
+            ) : null)}
           </div>
         </div>
       </div>
@@ -1462,6 +1803,14 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
 
     // Completeness check against category specification schema
     const targetCategory = categoryOptions.find((c) => c.id === itemForm.categoryId)
+    const hasChildSubcategories = categoryOptions.some((c) => c.parentId === itemForm.categoryId)
+    if (hasChildSubcategories) {
+      setItemEditorError(
+        `Kailangang i-align ang kategorya: Pumili ng partikular na Subcategory para sa "${targetCategory?.name || "Main Category"}" bago i-save.`
+      )
+      return
+    }
+
     const requiredSpecs = Array.isArray(targetCategory?.attributeSchema) ? targetCategory.attributeSchema : []
     if (requiredSpecs.length > 0) {
       const missing = requiredSpecs.filter((spec) => {
@@ -1910,7 +2259,13 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
                                   {Object.keys(item.attributes).length} specs
                                 </span>
                               </div>
-                            ) : null}
+                            ) : (!item.category?.parentId ? (
+                              <div className="mt-1 flex items-center">
+                                <span className="inline-flex items-center gap-1 rounded bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold" title="Main Category (Needs Subcategory Alignment)">
+                                  ⚠️ Needs Subcategory
+                                </span>
+                              </div>
+                            ) : null)}
                           </div>
                         </td>
 
