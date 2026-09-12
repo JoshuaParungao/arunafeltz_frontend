@@ -510,6 +510,7 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
     </div>
   )
 }
+
 function ItemEditorModal({
   canAdjustPrices,
   categories,
@@ -523,13 +524,7 @@ function ItemEditorModal({
   onSave,
   units,
 }) {
-  const [customSpecKey, setCustomSpecKey] = useState("")
-  const [customSpecVal, setCustomSpecVal] = useState("")
-  const [isAddingCustom, setIsAddingCustom] = useState(false)
-  const [autoFillNotice, setAutoFillNotice] = useState("")
-
   const formCategoryId = form?.categoryId
-  const formAttributes = form?.attributes
 
   const selectedCategory = useMemo(() => {
     if (!formCategoryId) return null
@@ -554,34 +549,10 @@ function ItemEditorModal({
     selectedCategory && !selectedCategory.parentId && subcategoryOptions.length > 0
   )
 
-  const currentSchema = useMemo(() => {
-    return Array.isArray(selectedCategory?.attributeSchema) ? selectedCategory.attributeSchema : []
-  }, [selectedCategory])
-
-  const schemaFieldNames = useMemo(() => {
-    return new Set(currentSchema.map((s) => s.name))
-  }, [currentSchema])
-
-  const customSpecs = useMemo(() => {
-    const attrs = formAttributes || {}
-    return Object.entries(attrs).filter(([k]) => !schemaFieldNames.has(k))
-  }, [formAttributes, schemaFieldNames])
-
-  const completedSchemaCount = useMemo(() => {
-    if (!currentSchema.length) return 0
-    const attrs = formAttributes || {}
-    return currentSchema.filter(
-      (s) =>
-        attrs[s.name] !== undefined &&
-        attrs[s.name] !== null &&
-        String(attrs[s.name]).trim() !== ""
-    ).length
-  }, [currentSchema, formAttributes])
-
   if (!form) return null
 
   const inputClass =
-    "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
+    "mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
 
   const labelClass = "text-[11px] font-bold uppercase tracking-wider text-slate-600"
 
@@ -598,64 +569,39 @@ function ItemEditorModal({
     }
   }
 
-  const handleAutoFillSpecs = () => {
-    if (!currentSchema.length) return
-    const detected = autoDetectSpecsFromItem({
-      itemName: form.itemName,
-      brand: form.brand,
-      modelName: form.modelName,
-      schema: currentSchema,
-    })
-    const count = Object.keys(detected).length
-    if (count === 0) {
-      setAutoFillNotice("No specifications detected from Product Name or Brand. You can select or manually enter attributes below.")
-      return
-    }
-    onChange("attributes", {
-      ...(form.attributes || {}),
-      ...detected,
-    })
-    setAutoFillNotice(`✨ Success! ${count} specifications automatically detected and populated from item details.`)
-  }
-
-  const handleAddCustomSpec = () => {
-    if (!customSpecKey.trim() || !customSpecVal.trim()) return
-    onChange("attributes", {
-      ...(form.attributes || {}),
-      [customSpecKey.trim()]: customSpecVal.trim(),
-    })
-    setCustomSpecKey("")
-    setCustomSpecVal("")
-    setIsAddingCustom(false)
-  }
-
-  const handleRemoveCustomSpec = (keyToRemove) => {
-    const newAttrs = { ...(form.attributes || {}) }
-    delete newAttrs[keyToRemove]
-    onChange("attributes", newAttrs)
-  }
+  const WARRANTY_PRESETS = [
+    { label: "1 Year", duration: "1 YEAR WARRANTY" },
+    { label: "2 Years", duration: "2 YEARS WARRANTY" },
+    { label: "6 Mos", duration: "6 MONTHS WARRANTY" },
+    { label: "1 Mo", duration: "1 MONTH WARRANTY" },
+    { label: "7 Days", duration: "7 DAYS REPLACEMENT" },
+    { label: "No Warranty", duration: "NO WARRANTY" },
+  ]
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/60 p-3 sm:p-6 grid place-items-center backdrop-blur-xs">
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/40 backdrop-blur-xs p-3 sm:p-6 grid place-items-center">
       <form
-        className="my-auto w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200"
+        className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-xl border border-slate-200/80"
         onSubmit={(event) => {
           event.preventDefault()
           onSave()
         }}
       >
-        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+        {/* Minimalist Header */}
+        <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Item Catalog
-            </span>
-            <h2 className="text-base font-black text-slate-900 leading-tight">
-              {isEditing ? "Edit Item" : "New Item"}
+            <h2 className="text-sm font-bold text-slate-900 leading-tight">
+              {isEditing ? "Edit Product" : "New Product"}
             </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {isEditing && form.itemCode
+                ? `Item Code: ${form.itemCode}`
+                : "Fill in product specifications and pricing"}
+            </p>
           </div>
 
           <button
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -664,56 +610,42 @@ function ItemEditorModal({
           </button>
         </header>
 
-        <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+        <div className="max-h-[75vh] overflow-y-auto p-6 space-y-4">
           {errorMessage ? (
-            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
               <AlertCircle className="mt-0.5 shrink-0" size={15} />
               <span>{errorMessage}</span>
             </div>
           ) : null}
 
-          {/* Section 1: Classification & Category */}
-          <section className="space-y-2.5">
+          {/* 1. Category & Classification */}
+          <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 1. Category & Classification
-              </h3>
+              </span>
               {onNavigate ? (
                 <button
-                  className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline flex items-center gap-1"
+                  className="text-[11px] font-semibold text-[var(--color-maroon)] hover:underline"
                   onClick={() => onNavigate("categories")}
                   type="button"
                 >
-                  Manage Categories in File Maintenance ↗
+                  Manage Categories ↗
                 </button>
               ) : null}
             </div>
 
-            {/* Alignment Warning Banner for Legacy Items */}
             {isUnalignedLegacyItem ? (
-              <div className="rounded-2xl border border-amber-300 bg-amber-50/95 p-3.5 shadow-2xs space-y-1.5">
-                <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center justify-between flex-wrap gap-1">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
-                        Subcategory Alignment Required
-                      </h4>
-                      <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[9px] font-black uppercase text-amber-900">
-                        Legacy Main Category
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
-                      This product is currently assigned to the top-level Main Category (<strong>{selectedCategory?.name}</strong>).
-                      Please select a specific <strong>Subcategory</strong> below (e.g. {subcategoryOptions.map((s) => s.name).slice(0, 3).join(", ")}) to align and enable technical specifications.
-                    </p>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span>
+                  Currently assigned to top-level category (<strong>{selectedCategory?.name}</strong>). Please select a <strong>Subcategory</strong> below.
+                </span>
               </div>
             ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {/* 1. MAIN CATEGORY */}
+              {/* MAIN CATEGORY */}
               <label className="block">
                 <span className={labelClass}>Main Category</span>
                 <select
@@ -730,16 +662,16 @@ function ItemEditorModal({
                 </select>
               </label>
 
-              {/* 2. SUBCATEGORY */}
+              {/* SUBCATEGORY */}
               <label className="block">
                 <span className={labelClass}>
-                  Subcategory / Product Type <span className="text-red-500">*</span>
+                  Subcategory <span className="text-red-500">*</span>
                 </span>
                 {subcategoryOptions.length > 0 ? (
                   <select
                     className={`${inputClass} ${
                       isUnalignedLegacyItem
-                        ? "border-amber-400 ring-2 ring-amber-300/40 bg-amber-50/30"
+                        ? "border-amber-400 bg-amber-50/30"
                         : ""
                     }`}
                     onChange={(event) =>
@@ -750,7 +682,7 @@ function ItemEditorModal({
                   >
                     <option value="">
                       {isUnalignedLegacyItem
-                        ? `⚠️ Select Subcategory to Align (e.g. ${subcategoryOptions[0]?.name})`
+                        ? `Select subcategory (e.g. ${subcategoryOptions[0]?.name})`
                         : "Select subcategory"}
                     </option>
                     {subcategoryOptions.map((subCat) => (
@@ -764,16 +696,16 @@ function ItemEditorModal({
                     <input
                       className={`${inputClass} bg-slate-50 text-slate-500 cursor-not-allowed`}
                       disabled
-                      value={selectedCategory?.name || "Direct Category (No subcategories)"}
+                      value={selectedCategory?.name || "No subcategories"}
                     />
                     {onNavigate ? (
                       <button
                         type="button"
                         onClick={() => onNavigate("categories")}
-                        className="shrink-0 mt-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-[var(--color-maroon)] hover:bg-slate-50"
-                        title="Manage or add subcategories in File Maintenance"
+                        className="shrink-0 mt-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-maroon)] hover:bg-slate-50"
+                        title="Manage in File Maintenance"
                       >
-                        + Add Subcategory
+                        + Add
                       </button>
                     ) : null}
                   </div>
@@ -782,14 +714,14 @@ function ItemEditorModal({
             </div>
           </section>
 
-          {/* Section 2: Product Identity & Details */}
-          <section className="space-y-2.5 pt-1 border-t border-slate-100">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+          {/* 2. Product Identity & Details */}
+          <section className="space-y-2.5 pt-2 border-t border-slate-100">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               2. Product Identity & Details
-            </h3>
+            </span>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {/* 3. ITEM CODE */}
+              {/* ITEM CODE */}
               <label className="block">
                 <span className={labelClass}>Item Code</span>
                 <input
@@ -797,16 +729,12 @@ function ItemEditorModal({
                   onChange={(event) =>
                     onChange("itemCode", event.target.value.toUpperCase())
                   }
-                  placeholder={
-                    isEditing
-                      ? "Item Code"
-                      : "Auto-generated (e.g. 00001)"
-                  }
+                  placeholder={isEditing ? "Item Code" : "Auto-generated"}
                   value={form.itemCode}
                 />
               </label>
 
-              {/* 4. BARCODE */}
+              {/* BARCODE */}
               <label className="block">
                 <span className={labelClass}>Barcode</span>
                 <input
@@ -819,22 +747,26 @@ function ItemEditorModal({
                   value={form.barcode}
                 />
               </label>
+            </div>
 
-              {/* 5. PRODUCT NAME */}
-              <label className="block sm:col-span-2">
-                <span className={labelClass}>Product Name</span>
-                <input
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("itemName", event.target.value)
-                  }
-                  placeholder="e.g. Intel Core i5-12400F Processor"
-                  required
-                  value={form.itemName}
-                />
-              </label>
+            {/* PRODUCT NAME */}
+            <label className="block">
+              <span className={labelClass}>
+                Product Name <span className="text-red-500">*</span>
+              </span>
+              <input
+                className={inputClass}
+                onChange={(event) =>
+                  onChange("itemName", event.target.value)
+                }
+                placeholder="e.g. Intel Core i5-12400F Processor"
+                required
+                value={form.itemName}
+              />
+            </label>
 
-              {/* 6. BRAND */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* BRAND */}
               <label className="block">
                 <span className={labelClass}>Brand</span>
                 <input
@@ -842,12 +774,12 @@ function ItemEditorModal({
                   onChange={(event) =>
                     onChange("brand", event.target.value)
                   }
-                  placeholder="e.g. Intel, Kingston, Asus"
+                  placeholder="e.g. Intel, Asus, Kingston"
                   value={form.brand}
                 />
               </label>
 
-              {/* 7. MODEL */}
+              {/* MODEL */}
               <label className="block">
                 <span className={labelClass}>Model</span>
                 <input
@@ -855,14 +787,18 @@ function ItemEditorModal({
                   onChange={(event) =>
                     onChange("modelName", event.target.value)
                   }
-                  placeholder="e.g. DDR4 3200MHz, Prime B660M"
+                  placeholder="e.g. B660M, 3200MHz"
                   value={form.modelName}
                 />
               </label>
+            </div>
 
-              {/* 8. UNIT */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* UNIT */}
               <label className="block">
-                <span className={labelClass}>Unit</span>
+                <span className={labelClass}>
+                  Unit <span className="text-red-500">*</span>
+                </span>
                 <select
                   className={inputClass}
                   onChange={(event) =>
@@ -880,66 +816,45 @@ function ItemEditorModal({
                 </select>
               </label>
 
+              {/* OPTIONAL NOTES / DESCRIPTION */}
               <label className="block">
-                <span className={labelClass}>Description</span>
-                <textarea
-                  className={`${inputClass} min-h-[38px] h-[38px] resize-none`}
+                <span className={labelClass}>Item Notes (Optional)</span>
+                <input
+                  className={inputClass}
                   onChange={(event) =>
                     onChange("description", event.target.value)
                   }
-                  placeholder="Optional item notes or description…"
-                  value={form.description}
+                  placeholder="Optional notes or remarks…"
+                  value={form.description || ""}
                 />
               </label>
             </div>
           </section>
 
-          {/* Section 3: Tracking, Warranty & Status */}
-          <section className="space-y-2.5 pt-1 border-t border-slate-100">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+          {/* 3. Tracking, Warranty & Status */}
+          <section className="space-y-2.5 pt-2 border-t border-slate-100">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               3. Tracking, Warranty & Status
-            </h3>
+            </span>
 
-            <div className="grid gap-3 sm:grid-cols-3 items-center">
-              {/* 9. SERIALIZED */}
-              <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-xs hover:bg-slate-50 transition cursor-pointer">
-                <input
-                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
-                  checked={form.isSerialized}
-                  onChange={(event) =>
-                    onChange("isSerialized", event.target.checked)
-                  }
-                  type="checkbox"
-                />
-                <div>
-                  <strong className="block text-slate-800 font-bold">Serialized</strong>
-                  <span className="text-[10px] text-slate-500">Unique barcode</span>
-                </div>
-              </label>
-
-              {/* 10. WARRANTY TOGGLE */}
-              <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-xs hover:bg-slate-50 transition cursor-pointer">
-                <input
-                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
-                  checked={form.hasWarranty}
-                  onChange={(event) => {
-                    const checked = event.target.checked
-                    onChange("hasWarranty", checked)
-                    if (!checked) {
-                      onChange("warrantyDuration", "NO WARRANTY")
-                    } else if (form.warrantyDuration === "NO WARRANTY") {
-                      onChange("warrantyDuration", "1 YEAR WARRANTY")
+            <div className="grid gap-3 sm:grid-cols-2 items-start">
+              {/* SERIALIZED */}
+              <div>
+                <span className={labelClass}>Tracking</span>
+                <label className="mt-1 flex h-[38px] items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/50 px-3 text-xs font-medium text-slate-700 cursor-pointer hover:bg-slate-50 transition">
+                  <input
+                    type="checkbox"
+                    className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                    checked={Boolean(form.isSerialized)}
+                    onChange={(event) =>
+                      onChange("isSerialized", event.target.checked)
                     }
-                  }}
-                  type="checkbox"
-                />
-                <div>
-                  <strong className="block text-slate-800 font-bold">Warranty</strong>
-                  <span className="text-[10px] text-slate-500">Track coverage</span>
-                </div>
-              </label>
+                  />
+                  <span>Serialized item (scans serials)</span>
+                </label>
+              </div>
 
-              {/* 11. STATUS */}
+              {/* STATUS */}
               <label className="block">
                 <span className={labelClass}>Status</span>
                 <select
@@ -955,21 +870,30 @@ function ItemEditorModal({
               </label>
             </div>
 
-            {/* Warranty Coverage Presets & Detail */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+            {/* WARRANTY */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  🛡️ Warranty Coverage
-                </span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                    checked={Boolean(form.hasWarranty)}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      onChange("hasWarranty", checked)
+                      if (!checked) {
+                        onChange("warrantyDuration", "NO WARRANTY")
+                      } else if (form.warrantyDuration === "NO WARRANTY") {
+                        onChange("warrantyDuration", "1 YEAR WARRANTY")
+                      }
+                    }}
+                  />
+                  <span className="text-xs font-bold text-slate-700">Warranty Coverage</span>
+                </label>
+
+                {/* 1-click quick presets */}
                 <div className="flex gap-1 flex-wrap">
-                  {[
-                    { label: "1 Year", duration: "1 YEAR WARRANTY" },
-                    { label: "2 Years", duration: "2 YEARS WARRANTY" },
-                    { label: "6 Mos", duration: "6 MONTHS WARRANTY" },
-                    { label: "1 Mo", duration: "1 MONTH WARRANTY" },
-                    { label: "7 Days", duration: "7 DAYS REPLACEMENT" },
-                    { label: "No Warranty", duration: "NO WARRANTY" },
-                  ].map((preset) => (
+                  {WARRANTY_PRESETS.map((preset) => (
                     <button
                       key={preset.duration}
                       type="button"
@@ -977,10 +901,10 @@ function ItemEditorModal({
                         onChange("warrantyDuration", preset.duration)
                         onChange("hasWarranty", preset.duration !== "NO WARRANTY")
                       }}
-                      className={`rounded-lg px-2 py-0.5 text-[11px] font-bold transition ${
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-semibold transition ${
                         (form.warrantyDuration || "").trim().toUpperCase() === preset.duration
                           ? "bg-[var(--color-maroon)] text-white shadow-2xs"
-                          : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                          : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                       }`}
                     >
                       {preset.label}
@@ -988,8 +912,9 @@ function ItemEditorModal({
                   ))}
                 </div>
               </div>
+
               <input
-                className={`${inputClass} bg-white`}
+                className={`${inputClass} bg-white mt-0`}
                 placeholder="e.g. 1 YEAR WARRANTY, 3 YEARS DISTRO WARRANTY"
                 value={form.warrantyDuration || ""}
                 onChange={(event) => {
@@ -1001,281 +926,24 @@ function ItemEditorModal({
             </div>
           </section>
 
-          {/* Quick-Alignment Helper Card for Legacy Items */}
-          {isUnalignedLegacyItem ? (
-            <section className="space-y-3 pt-2 border-t border-slate-200">
-              <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/70 p-4 text-center space-y-2.5">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                  <AlertTriangle size={20} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
-                    Assigned to Main Category ({selectedCategory?.name})
-                  </h4>
-                  <p className="max-w-md mx-auto text-xs text-amber-800 font-medium mt-1">
-                    To unlock complete <strong>Technical Specifications</strong> and use <strong>✨ Auto-Fill</strong>,
-                    select the appropriate subcategory below to align immediately:
-                  </p>
-                </div>
-                <div className="flex justify-center gap-2 pt-1 flex-wrap">
-                  {subcategoryOptions.map((sub) => (
-                    <button
-                      key={sub.id}
-                      type="button"
-                      onClick={() => onChange("categoryId", sub.id)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-amber-300 px-3.5 py-2 text-xs font-bold text-amber-900 shadow-2xs hover:bg-amber-100 hover:border-amber-400 transition"
-                    >
-                      <span>Align to</span>
-                      <strong>{sub.name}</strong> ➔
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {/* Section 3: Hardware Technical Specifications */}
-          {currentSchema.length > 0 || customSpecs.length > 0 ? (
-            <section className="space-y-3 pt-2 border-t border-slate-200">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)] flex items-center gap-1.5">
-                    <Layers size={14} />
-                    {selectedCategory?.name || "Product"} — Technical Specifications
-                  </h3>
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    All specifications are strictly required. Click suggestion buttons or type custom values.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap shrink-0">
-                  {currentSchema.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={handleAutoFillSpecs}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/90 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition shadow-2xs"
-                      title="Automatically detect and fill specifications from Product Name, Brand, and Model"
-                    >
-                      <Sparkles size={13} className="text-indigo-600" />
-                      Auto-Fill Specs from Item Name
-                    </button>
-                  ) : null}
-
-                  {currentSchema.length > 0 ? (
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold shrink-0 ${
-                        completedSchemaCount === currentSchema.length
-                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                          : "bg-amber-100 text-amber-800 border border-amber-200"
-                      }`}
-                    >
-                      {completedSchemaCount === currentSchema.length ? (
-                        <CheckCircle2 size={12} className="text-emerald-700" />
-                      ) : null}
-                      {completedSchemaCount} of {currentSchema.length} Specs Filled
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {autoFillNotice ? (
-                <div className="flex items-center justify-between rounded-xl bg-indigo-50 border border-indigo-200 px-3.5 py-2 text-xs font-bold text-indigo-900">
-                  <span>{autoFillNotice}</span>
-                  <button
-                    type="button"
-                    onClick={() => setAutoFillNotice("")}
-                    className="text-indigo-400 hover:text-indigo-700 p-0.5"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              ) : null}
-
-              {/* Standard Attributes from Schema */}
-              {currentSchema.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {currentSchema.map((field) => {
-                    const datalistId = `spec-datalist-${field.name.replace(/[^a-zA-Z0-9]/g, "_")}`
-                    const val = form.attributes?.[field.name] || ""
-                    const isFilled = Boolean(val && String(val).trim())
-
-                    return (
-                      <div key={field.name} className="space-y-1 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
-                        <label className="block">
-                          <div className="flex items-center justify-between">
-                            <span className={labelClass}>
-                              {field.name} <span className="text-red-500">*</span>
-                            </span>
-                            {isFilled ? (
-                              <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                                ✓ Done
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-amber-600 font-bold">Required</span>
-                            )}
-                          </div>
-                          <input
-                            list={datalistId}
-                            className={`${inputClass} bg-white`}
-                            placeholder={field.suggestions?.[0] ? `e.g. ${field.suggestions[0]}` : `Enter ${field.name}`}
-                            value={val}
-                            onChange={(e) => {
-                              onChange("attributes", {
-                                ...(form.attributes || {}),
-                                [field.name]: e.target.value,
-                              })
-                            }}
-                          />
-                          {field.suggestions?.length > 0 ? (
-                            <datalist id={datalistId}>
-                              {field.suggestions.map((sug) => (
-                                <option key={sug} value={sug} />
-                              ))}
-                            </datalist>
-                          ) : null}
-                        </label>
-
-                        {/* Suggestion Pills */}
-                        {field.suggestions?.length > 0 ? (
-                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Quick:</span>
-                            {field.suggestions.slice(0, 4).map((sug) => (
-                              <button
-                                key={sug}
-                                type="button"
-                                onClick={() => {
-                                  onChange("attributes", {
-                                    ...(form.attributes || {}),
-                                    [field.name]: sug,
-                                  })
-                                }}
-                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition ${
-                                  val === sug
-                                    ? "bg-[var(--color-maroon)] text-white font-bold shadow-2xs"
-                                    : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-200"
-                                }`}
-                              >
-                                {sug}
-                              </button>
-                            ))}
-                            {val && !field.suggestions.includes(val) ? (
-                              <span className="rounded bg-indigo-100 text-indigo-800 px-1.5 py-0.5 text-[10px] font-bold">
-                                Custom: {val}
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : null}
-
-              {/* Custom Specifications Added by User */}
-              {customSpecs.length > 0 ? (
-                <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Custom Specifications
-                  </span>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {customSpecs.map(([specKey, specVal]) => (
-                      <div
-                        key={specKey}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/40 px-3 py-2 text-xs"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-900">{specKey}</p>
-                          <p className="font-semibold text-slate-900 truncate">{specVal}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCustomSpec(specKey)}
-                          className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                          title="Remove custom specification"
-                        >
-                          <X size={13} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Add Custom Spec Button / Inline Box */}
-              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-3">
-                {!isAddingCustom ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingCustom(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-maroon)] hover:underline"
-                  >
-                    <Plus size={13} />
-                    + Add Custom Specification Field
-                  </button>
-                ) : (
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
-                      Add Custom Specification
-                    </span>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <input
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                        placeholder="Attribute Name (e.g. Heatsink Color, Special Edition)"
-                        value={customSpecKey}
-                        onChange={(e) => setCustomSpecKey(e.target.value)}
-                      />
-                      <input
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                        placeholder="Attribute Value"
-                        value={customSpecVal}
-                        onChange={(e) => setCustomSpecVal(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsAddingCustom(false)
-                          setCustomSpecKey("")
-                          setCustomSpecVal("")
-                        }}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAddCustomSpec}
-                        disabled={!customSpecKey.trim() || !customSpecVal.trim()}
-                        className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-bold text-white hover:bg-slate-900 disabled:opacity-40"
-                      >
-                        Add Spec
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
-          ) : null}
-
-          {/* Section 3: Pricing (Cost & Selling Prices 1 to 5) */}
-          <section className="space-y-2.5 pt-1 border-t border-slate-100">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-                Prices
-              </h3>
+          {/* 4. Pricing & Stock Thresholds */}
+          <section className="space-y-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Prices & Stock Thresholds
+              </span>
               {!canAdjustPrices ? (
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                  Adjustment restricted to Main Admin & Admin
+                <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  Prices restricted to Admins
                 </span>
               ) : null}
             </div>
 
-            <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3">
+            <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-4">
               <label className="block">
-                <span className={`${labelClass} text-amber-900`}>Cost Price</span>
+                <span className={`${labelClass} text-slate-600 font-semibold`}>Cost Price</span>
                 <input
-                  className={`${inputClass} font-mono ${!canAdjustPrices ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
+                  className={`${inputClass} font-mono ${!canAdjustPrices ? "bg-slate-50 text-slate-400 cursor-not-allowed" : ""}`}
                   disabled={!canAdjustPrices}
                   min="0"
                   onChange={(event) =>
@@ -1291,7 +959,7 @@ function ItemEditorModal({
                 <label className="block" key={field.key}>
                   <span className={labelClass}>{field.label}</span>
                   <input
-                    className={`${inputClass} font-mono ${!canAdjustPrices ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
+                    className={`${inputClass} font-mono ${!canAdjustPrices ? "bg-slate-50 text-slate-400 cursor-not-allowed" : ""}`}
                     disabled={!canAdjustPrices}
                     min="0"
                     onChange={(event) =>
@@ -1303,18 +971,9 @@ function ItemEditorModal({
                   />
                 </label>
               ))}
-            </div>
-          </section>
 
-          {/* Section 4: Stock Thresholds */}
-          <section className="space-y-2.5 pt-1 border-t border-slate-100">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Stock Thresholds
-            </h3>
-
-            <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className={labelClass}>Minimum Stock</span>
+                <span className={labelClass}>Min Stock</span>
                 <input
                   className={`${inputClass} font-mono`}
                   min="0"
@@ -1344,9 +1003,10 @@ function ItemEditorModal({
           </section>
         </div>
 
-        <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+        {/* Minimalist Footer */}
+        <footer className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/50 px-6 py-3">
           <button
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+            className="rounded-lg px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
             disabled={isSaving}
             onClick={onClose}
             type="button"
@@ -1355,16 +1015,16 @@ function ItemEditorModal({
           </button>
 
           <button
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--color-maroon)] px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
             disabled={isSaving}
             type="submit"
           >
-            <Save size={14} />
+            <Save size={13} />
             {isSaving
               ? "Saving…"
               : isEditing
-                ? "Save item"
-                : "Create item"}
+                ? "Save Changes"
+                : "Create Item"}
           </button>
         </footer>
       </form>
