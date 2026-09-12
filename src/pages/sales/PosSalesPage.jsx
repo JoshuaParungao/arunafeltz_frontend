@@ -1617,7 +1617,7 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
                       </div>
                       <div className="text-right">
                         <p className="font-mono font-bold text-emerald-700">₱{formatMoney(item.price1)}</p>
-                        <p className="text-[10px] text-slate-500">{Number(item.totalStock || item.stockQuantity || 0)} available</p>
+                        <p className="text-[10px] text-slate-500">{Number(item.quantityAvailable ?? item.totalStock ?? item.stockQuantity ?? 0)} available</p>
                       </div>
                     </button>
                   ))}
@@ -4955,30 +4955,58 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 })}
 
                 {/* 2. Show Matching Products */}
-                {itemResults.map((item) => (
-                  <button
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-50/20 disabled:opacity-50 shadow-2xs"
-                    disabled={Boolean(addingItemId)}
-                    key={item.id}
-                    onClick={() => addProduct(item)}
-                    type="button"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-xs font-bold text-slate-900">{item.itemName}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
-                        <span>{item.itemCode}</span>
-                        {item.barcode ? <span>· {item.barcode}</span> : null}
-                        {item.isSerialized ? <span className="rounded bg-slate-100 text-slate-600 px-1 py-0.2 font-sans font-bold">Serial</span> : null}
+                {itemResults.map((item) => {
+                  const stock = Number(item.quantityAvailable ?? item.totalStock ?? item.stockQuantity ?? 0)
+                  const isOutOfStock = stock <= 0
+                  const isLowStock = !isOutOfStock && stock <= (Number(item.reorderLevel) || 5)
+
+                  return (
+                    <button
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-[var(--color-maroon)] hover:bg-rose-50/20 disabled:opacity-50 shadow-2xs group"
+                      disabled={Boolean(addingItemId)}
+                      key={item.id}
+                      onClick={() => addProduct(item)}
+                      type="button"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-bold text-slate-900">{item.itemName}</span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+                          <span>{item.itemCode}</span>
+                          {item.barcode ? <span>· {item.barcode}</span> : null}
+                          {item.isSerialized ? <span className="rounded bg-slate-100 text-slate-600 px-1 py-0.2 font-sans font-bold">Serial</span> : null}
+                        </span>
+                        <span className="mt-1 flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-[var(--color-maroon)]">
+                            From ₱{formatMoney(item[`price${defaultPriceTier(item)}`])}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                              isOutOfStock
+                                ? "bg-red-50 text-red-700 border border-red-200"
+                                : isLowStock
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}
+                          >
+                            <span
+                              className={`size-1.5 rounded-full ${
+                                isOutOfStock
+                                  ? "bg-red-500"
+                                  : isLowStock
+                                  ? "bg-amber-500"
+                                  : "bg-emerald-500"
+                              }`}
+                            />
+                            {isOutOfStock ? "Out of stock" : `${stock} in stock`}
+                          </span>
+                        </span>
                       </span>
-                      <span className="mt-0.5 block text-xs font-mono font-bold text-[var(--color-maroon)]">
-                        From {formatMoney(item[`price${defaultPriceTier(item)}`])}
+                      <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-700 group-hover:bg-[var(--color-maroon)] group-hover:text-white transition">
+                        {addingItemId === item.id ? <LoaderCircle className="animate-spin" size={14} /> : <Plus size={14} />}
                       </span>
-                    </span>
-                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-[var(--color-maroon)] hover:text-white transition">
-                      {addingItemId === item.id ? <LoaderCircle className="animate-spin" size={14} /> : <Plus size={14} />}
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  )
+                })}
               </div>
             </section>
 
@@ -5202,7 +5230,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                             ) : null}
                           </div>
                           <h3 className="truncate font-bold text-slate-900">{line.item?.itemName || line.description}</h3>
-                          {line.item ? <p className="text-[10px] font-mono text-slate-400">{line.item.itemCode}{line.item.isSerialized ? " · Serialized" : ""}</p> : null}
+                          {line.item ? (
+                            <div className="mt-0.5 flex items-center gap-2 text-[10px] font-mono text-slate-400">
+                              <span>{line.item.itemCode}</span>
+                              {line.item.isSerialized ? <span className="font-sans font-bold text-slate-500">· Serialized</span> : null}
+                              <span className="text-slate-500">· Stock: <strong className="text-slate-700">{Number(line.item.quantityAvailable ?? line.item.totalStock ?? line.item.stockQuantity ?? 0)}</strong></span>
+                            </div>
+                          ) : null}
                           {line.type === "SERVICE" && line.serviceStaffName ? (
                             <p className="text-[10px] font-semibold text-rose-800">👤 {line.serviceStaffName}</p>
                           ) : null}
