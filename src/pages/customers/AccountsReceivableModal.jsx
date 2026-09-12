@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react"
 import { getAccountsReceivable } from "../../features/customers/customers.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import CustomerStatementOfAccountModal from "./CustomerStatementOfAccountModal"
 
 function formatMoney(value) {
@@ -148,9 +148,37 @@ export default function AccountsReceivableModal({
     }
   }, [filteredItems])
 
-  // Print function
+  // Print function using clean report popup (never blank)
   const handlePrint = () => {
-    window.print()
+    const targetItems = selectedCustomerId
+      ? (data?.items || []).filter((it) => it.customerId === selectedCustomerId)
+      : filteredItems
+
+    const targetCustomer = customers.find((c) => c.id === selectedCustomerId)
+    const customerName = targetCustomer?.fullName
+
+    printReport({
+      label: selectedCustomerId
+        ? `Outstanding Accounts Receivable — ${customerName?.toUpperCase() || ""}`
+        : "Outstanding Accounts Receivable",
+      columns: [
+        ["Transaction No", (it) => it.transactionNo || it.creditCode || "-"],
+        ["Date", (it) => formatDate(it.date)],
+        ["Customer", (it) => it.customerName || "-"],
+        ["Total Amount", (it) => `PHP ${formatMoney(it.amount)}`],
+        ["Outstanding Balance", (it) => `PHP ${formatMoney(it.balance)}`],
+        ["Due Date", (it) => formatDate(it.dueDate)],
+        ["Aging Status", (it) => (it.isOverdue ? `Overdue (${it.daysOverdue}d)` : "Current")],
+      ],
+      records: targetItems,
+      totals: [
+        ["Total Records", String(targetItems.length)],
+        ["Total Balance", `PHP ${formatMoney(totals.totalBalance)}`],
+        ["Total Overdue", `PHP ${formatMoney(totals.overdueAmount)}`],
+      ],
+      branch: selectedBranch || user?.branch,
+      generatedBy: user,
+    })
   }
 
   // Export to Excel (supports Summary 5-column or Detailed 17-column, single account or all)

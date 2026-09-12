@@ -8,7 +8,11 @@ import {
   X,
 } from "lucide-react"
 import { getAccountsReceivable } from "../../features/customers/customers.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import {
+  exportReportExcel,
+  exportStatementOfAccountPdf,
+  printBusinessHtml,
+} from "../../utils/businessDocumentExport"
 
 function formatMoney(value) {
   if (value === null || value === undefined || value === 0) return ""
@@ -42,9 +46,9 @@ export default function CustomerStatementOfAccountModal({
   selectedBranch,
   user,
 }) {
-  const [items, setItems] = useState(initialItems || null)
+  const [items, setItems] = useState(initialItems && initialItems.length > 0 ? initialItems : null)
   const [customerInfo, setCustomerInfo] = useState(initialCustomer || null)
-  const [isLoading, setIsLoading] = useState(!initialItems)
+  const [isLoading, setIsLoading] = useState(!initialItems || initialItems.length === 0)
   const [errorMessage, setErrorMessage] = useState("")
 
   const loadData = useCallback(async () => {
@@ -55,15 +59,15 @@ export default function CustomerStatementOfAccountModal({
       const res = await getAccountsReceivable({ customerId, limit: 500 })
       const fetchedItems = res?.data?.items || []
       setItems(fetchedItems)
-      if (fetchedItems.length > 0 && !customerInfo) {
+      if (fetchedItems.length > 0) {
         const first = fetchedItems[0]
-        setCustomerInfo({
+        setCustomerInfo((prev) => ({
           id: first.customerId,
-          fullName: first.customerName,
-          address: first.customerAddress,
-          mobileNumber: first.customerMobile,
-          companyName: first.companyName,
-        })
+          fullName: prev?.fullName || first.customerName,
+          address: prev?.address || first.customerAddress,
+          mobileNumber: prev?.mobileNumber || first.customerMobile,
+          companyName: prev?.companyName || first.companyName,
+        }))
       }
     } catch (err) {
       setErrorMessage(
@@ -72,13 +76,13 @@ export default function CustomerStatementOfAccountModal({
     } finally {
       setIsLoading(false)
     }
-  }, [customerId, customerInfo])
+  }, [customerId])
 
   useEffect(() => {
-    if (!initialItems) {
+    if (!items || items.length === 0) {
       loadData()
     }
-  }, [initialItems, loadData])
+  }, [items, loadData])
 
   // Aging Bucket Calculations based on As-Of Date
   const asOfDate = useMemo(() => new Date(), [])
@@ -158,8 +162,28 @@ export default function CustomerStatementOfAccountModal({
     }
   }, [rows])
 
+  const handleSavePdf = () => {
+    exportStatementOfAccountPdf({
+      customer: customerInfo,
+      rows,
+      totals,
+      asOfDate,
+      branch: selectedBranch,
+      user,
+      autoPrint: false,
+    })
+  }
+
   const handlePrint = () => {
-    window.print()
+    exportStatementOfAccountPdf({
+      customer: customerInfo,
+      rows,
+      totals,
+      asOfDate,
+      branch: selectedBranch,
+      user,
+      autoPrint: true,
+    })
   }
 
   const handleExportExcel = () => {
@@ -230,38 +254,12 @@ export default function CustomerStatementOfAccountModal({
 
   return (
     <div className="fixed inset-0 z-70 grid place-items-center overflow-y-auto bg-slate-950/70 p-2 sm:p-4 backdrop-blur-xs">
-      {/* Print Specific CSS to replicate the exact paper SOA */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #customer-soa-printable, #customer-soa-printable * {
-            visibility: visible;
-          }
-          #customer-soa-printable {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 30px 40px !important;
-            background: white !important;
-            box-shadow: none !important;
-            border: none !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
-
       <section
         id="customer-soa-printable"
         className="my-auto flex flex-col max-h-[94vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all"
       >
-        {/* Top Minimalist Action Bar (hidden in print) */}
-        <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 px-5 py-3">
+        {/* Top Minimalist Action Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 px-5 py-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-800">
               Customer Statement of Account (SOA)
@@ -273,14 +271,25 @@ export default function CustomerStatementOfAccountModal({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleSavePdf}
+              disabled={isLoading || rows.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 hover:bg-blue-100 shadow-2xs transition disabled:opacity-50"
+              type="button"
+              title="Download official Statement of Account as PDF file"
+            >
+              <Download size={14} className="text-blue-700" />
+              <span>Save as PDF</span>
+            </button>
+
+            <button
               onClick={handlePrint}
               disabled={isLoading || rows.length === 0}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 shadow-2xs transition disabled:opacity-50"
               type="button"
-              title="Print official Statement of Account or Save as PDF"
+              title="Print official Statement of Account"
             >
               <Printer size={14} className="text-slate-600" />
-              <span>Print / Save as PDF</span>
+              <span>Print</span>
             </button>
 
             <button

@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react"
 import { getAccountsPayable } from "../../features/suppliers/suppliers.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 
 function formatMoney(value) {
   const n = Number(value || 0)
@@ -140,9 +140,37 @@ export default function AccountsPayableModal({
     }
   }, [filteredItems])
 
-  // Print function
+  // Print function using clean report popup (never blank)
   const handlePrint = () => {
-    window.print()
+    const targetItems = selectedSupplierId
+      ? (data?.items || []).filter((it) => it.supplierId === selectedSupplierId)
+      : filteredItems
+
+    const targetSupplier = suppliers.find((s) => s.id === selectedSupplierId)
+    const supplierName = targetSupplier?.name
+
+    printReport({
+      label: selectedSupplierId
+        ? `Outstanding Accounts Payable — ${supplierName?.toUpperCase() || ""}`
+        : "Outstanding Accounts Payable",
+      columns: [
+        ["Transaction No", (it) => it.transactionNo || it.receivingCode || "-"],
+        ["Date", (it) => formatDate(it.date)],
+        ["Supplier", (it) => it.supplierName || "-"],
+        ["Invoice Amount", (it) => `PHP ${formatMoney(it.amount)}`],
+        ["Outstanding Balance", (it) => `PHP ${formatMoney(it.balance)}`],
+        ["Due Date", (it) => formatDate(it.dueDate)],
+        ["Aging Status", (it) => (it.isOverdue ? `Overdue (${it.daysOverdue}d)` : "Current")],
+      ],
+      records: targetItems,
+      totals: [
+        ["Total Records", String(targetItems.length)],
+        ["Total Balance", `PHP ${formatMoney(totals.totalBalance)}`],
+        ["Total Overdue", `PHP ${formatMoney(totals.overdueAmount)}`],
+      ],
+      branch: selectedBranch || user?.branch,
+      generatedBy: user,
+    })
   }
 
   // Export to Excel (supports summary and detailed, all or single supplier)
