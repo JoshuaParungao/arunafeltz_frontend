@@ -65,6 +65,7 @@ const EMPTY_FORM = {
   contactPerson: "",
   contactNo: "",
   email: "",
+  paymentTerms: "",
   address: "",
   tin: "",
   notes: "",
@@ -252,6 +253,36 @@ function SupplierFormModal({ initial, isSaving, onClose, onSave }) {
                   value={form.tin || ""}
                 />
               </label>
+
+              <div className="sm:col-span-2 space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Terms of Payment
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {["COD", "Net 7 Days", "Net 15 Days", "Net 30 Days", "Net 60 Days", "PDC"].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => set("paymentTerms", preset)}
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition ${
+                          form.paymentTerms === preset
+                            ? "bg-[var(--color-maroon)] text-white"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <input
+                  className={inputClass}
+                  onChange={(event) => set("paymentTerms", event.target.value)}
+                  placeholder="e.g. COD, Net 30 Days, 15 Days PDC, 50% DP / 50% Upon Delivery"
+                  value={form.paymentTerms || ""}
+                />
+              </div>
 
               <label className={`${labelClass} sm:col-span-2`}>
                 Address
@@ -793,6 +824,11 @@ function SupplierLedgerModal({
                 <span className="rounded-md bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
                   {supplier.branch?.code || "GLOBAL"}
                 </span>
+                {supplier.paymentTerms ? (
+                  <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 text-[10px] font-bold">
+                    Terms: {supplier.paymentTerms}
+                  </span>
+                ) : null}
               </div>
               <h2 className="text-lg font-black text-slate-900 leading-tight">
                 {supplier.name}
@@ -869,7 +905,7 @@ function SupplierLedgerModal({
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Contact & Details
+                Contact & Terms
               </span>
               <Phone size={15} className="text-slate-400" />
             </div>
@@ -877,7 +913,7 @@ function SupplierLedgerModal({
               {supplier.contactPerson || "No contact person"}
             </p>
             <p className="truncate text-[11px] font-medium text-slate-500">
-              {supplier.contactNo || supplier.email || "No phone/email"}
+              {supplier.paymentTerms ? `Terms: ${supplier.paymentTerms}` : supplier.contactNo || supplier.email || "No terms / contact"}
             </p>
           </div>
         </div>
@@ -1621,6 +1657,7 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
       const headers = [
         "Supplier Code",
         "Company / Supplier Name",
+        "Payment Terms",
         "Contact Person",
         "Contact Number",
         "Email Address",
@@ -1635,6 +1672,7 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
       const rows = allSuppliers.map((s) => [
         s.supplierCode || "-",
         s.name || "-",
+        s.paymentTerms || "COD / None",
         s.contactPerson || "-",
         s.contactNo || "-",
         s.email || "-",
@@ -1802,7 +1840,7 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
               setSearch(event.target.value)
               setPage(1)
             }}
-            placeholder="Search supplier name, code, contact person, phone, TIN…"
+            placeholder="Search supplier name, code, terms, contact person, phone, TIN…"
             value={search}
           />
         </label>
@@ -1840,10 +1878,11 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
         ) : (
           <>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[900px] text-left text-xs">
+              <table className="w-full min-w-[950px] text-left text-xs">
                 <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                   <tr>
                     <th className="px-4 py-3">Supplier Code & Name</th>
+                    <th className="px-4 py-3">Payment Terms</th>
                     <th className="px-4 py-3">Contact Details</th>
                     <th className="px-4 py-3">TIN / Address</th>
                     <th className="px-4 py-3">Branch</th>
@@ -1867,6 +1906,15 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
                         <p className="font-bold text-slate-900 text-sm">
                           {supplier.name}
                         </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        {supplier.paymentTerms ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 border border-amber-200">
+                            {supplier.paymentTerms}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-slate-800">
@@ -1939,9 +1987,16 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-mono text-xs font-bold text-[var(--color-maroon)]">
-                        {supplier.supplierCode}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-mono text-xs font-bold text-[var(--color-maroon)]">
+                          {supplier.supplierCode}
+                        </p>
+                        {supplier.paymentTerms ? (
+                          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                            {supplier.paymentTerms}
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="font-black text-slate-900 text-sm">
                         {supplier.name}
                       </p>
