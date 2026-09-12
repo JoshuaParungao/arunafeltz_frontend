@@ -672,98 +672,11 @@ function ItemEditorModal({
             </div>
           ) : null}
 
-          {/* Section 1: Product Identity */}
+          {/* Section 1: Classification & Category */}
           <section className="space-y-2.5">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Product Identity
-            </h3>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className={labelClass}>Item Code</span>
-                <input
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("itemCode", event.target.value.toUpperCase())
-                  }
-                  placeholder={
-                    isEditing
-                      ? "Item Code"
-                      : "Auto-generated (e.g. 00001)"
-                  }
-                  value={form.itemCode}
-                />
-              </label>
-
-              <label className="block">
-                <span className={labelClass}>Barcode</span>
-                <input
-                  autoComplete="off"
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("barcode", event.target.value)
-                  }
-                  placeholder="Scan or type barcode"
-                  value={form.barcode}
-                />
-              </label>
-
-              <label className="block sm:col-span-2">
-                <span className={labelClass}>Product Name</span>
-                <input
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("itemName", event.target.value)
-                  }
-                  placeholder="e.g. Intel Core i5-12400F Processor"
-                  required
-                  value={form.itemName}
-                />
-              </label>
-
-              <label className="block">
-                <span className={labelClass}>Brand</span>
-                <input
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("brand", event.target.value)
-                  }
-                  placeholder="e.g. Intel, Kingston, Asus"
-                  value={form.brand}
-                />
-              </label>
-
-              <label className="block">
-                <span className={labelClass}>Model</span>
-                <input
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("modelName", event.target.value)
-                  }
-                  placeholder="e.g. DDR4 3200MHz, Prime B660M"
-                  value={form.modelName}
-                />
-              </label>
-
-              <label className="block sm:col-span-2">
-                <span className={labelClass}>Description</span>
-                <textarea
-                  className={`${inputClass} min-h-[52px] h-[52px] resize-none`}
-                  onChange={(event) =>
-                    onChange("description", event.target.value)
-                  }
-                  placeholder="Optional item notes or technical specifications…"
-                  value={form.description}
-                />
-              </label>
-            </div>
-          </section>
-
-          {/* Section 2: Classification & Tracking */}
-          <section className="space-y-2.5 pt-1 border-t border-slate-100">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-                Classification &amp; Tracking
+                1. Category & Classification
               </h3>
               {onNavigate ? (
                 <button
@@ -800,6 +713,7 @@ function ItemEditorModal({
             ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2">
+              {/* 1. MAIN CATEGORY */}
               <label className="block">
                 <span className={labelClass}>Main Category</span>
                 <select
@@ -816,6 +730,7 @@ function ItemEditorModal({
                 </select>
               </label>
 
+              {/* 2. SUBCATEGORY */}
               <label className="block">
                 <span className={labelClass}>
                   Subcategory / Product Type <span className="text-red-500">*</span>
@@ -864,7 +779,88 @@ function ItemEditorModal({
                   </div>
                 )}
               </label>
+            </div>
+          </section>
 
+          {/* Section 2: Product Identity & Details */}
+          <section className="space-y-2.5 pt-1 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              2. Product Identity & Details
+            </h3>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* 3. ITEM CODE */}
+              <label className="block">
+                <span className={labelClass}>Item Code</span>
+                <input
+                  className={inputClass}
+                  onChange={(event) =>
+                    onChange("itemCode", event.target.value.toUpperCase())
+                  }
+                  placeholder={
+                    isEditing
+                      ? "Item Code"
+                      : "Auto-generated (e.g. 00001)"
+                  }
+                  value={form.itemCode}
+                />
+              </label>
+
+              {/* 4. BARCODE */}
+              <label className="block">
+                <span className={labelClass}>Barcode</span>
+                <input
+                  autoComplete="off"
+                  className={inputClass}
+                  onChange={(event) =>
+                    onChange("barcode", event.target.value)
+                  }
+                  placeholder="Scan or type barcode"
+                  value={form.barcode}
+                />
+              </label>
+
+              {/* 5. PRODUCT NAME */}
+              <label className="block sm:col-span-2">
+                <span className={labelClass}>Product Name</span>
+                <input
+                  className={inputClass}
+                  onChange={(event) =>
+                    onChange("itemName", event.target.value)
+                  }
+                  placeholder="e.g. Intel Core i5-12400F Processor"
+                  required
+                  value={form.itemName}
+                />
+              </label>
+
+              {/* 6. BRAND */}
+              <label className="block">
+                <span className={labelClass}>Brand</span>
+                <input
+                  className={inputClass}
+                  onChange={(event) =>
+                    onChange("brand", event.target.value)
+                  }
+                  placeholder="e.g. Intel, Kingston, Asus"
+                  value={form.brand}
+                />
+              </label>
+
+              {/* 7. MODEL */}
+              <label className="block">
+                <span className={labelClass}>Model</span>
+                <input
+                  className={inputClass}
+                  onChange={(event) =>
+                    onChange("modelName", event.target.value)
+                  }
+                  placeholder="e.g. DDR4 3200MHz, Prime B660M"
+                  value={form.modelName}
+                />
+              </label>
+
+              {/* 8. UNIT */}
               <label className="block">
                 <span className={labelClass}>Unit</span>
                 <select
@@ -884,46 +880,82 @@ function ItemEditorModal({
                 </select>
               </label>
 
-              <div className="flex gap-2">
-                <label className="flex-1 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs hover:bg-slate-50 transition cursor-pointer">
-                  <input
-                    className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
-                    checked={form.isSerialized}
-                    onChange={(event) =>
-                      onChange("isSerialized", event.target.checked)
-                    }
-                    type="checkbox"
-                  />
-                  <div>
-                    <strong className="block text-slate-800 font-bold">Serialized</strong>
-                    <span className="text-[10px] text-slate-500">Unique barcode</span>
-                  </div>
-                </label>
+              <label className="block">
+                <span className={labelClass}>Description</span>
+                <textarea
+                  className={`${inputClass} min-h-[38px] h-[38px] resize-none`}
+                  onChange={(event) =>
+                    onChange("description", event.target.value)
+                  }
+                  placeholder="Optional item notes or description…"
+                  value={form.description}
+                />
+              </label>
+            </div>
+          </section>
 
-                <label className="flex-1 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs hover:bg-slate-50 transition cursor-pointer">
-                  <input
-                    className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
-                    checked={form.hasWarranty}
-                    onChange={(event) => {
-                      const checked = event.target.checked
-                      onChange("hasWarranty", checked)
-                      if (!checked) {
-                        onChange("warrantyDuration", "NO WARRANTY")
-                      } else if (form.warrantyDuration === "NO WARRANTY") {
-                        onChange("warrantyDuration", "1 YEAR WARRANTY")
-                      }
-                    }}
-                    type="checkbox"
-                  />
-                  <div>
-                    <strong className="block text-slate-800 font-bold">Warranty</strong>
-                    <span className="text-[10px] text-slate-500">Track coverage</span>
-                  </div>
-                </label>
-              </div>
+          {/* Section 3: Tracking, Warranty & Status */}
+          <section className="space-y-2.5 pt-1 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              3. Tracking, Warranty & Status
+            </h3>
+
+            <div className="grid gap-3 sm:grid-cols-3 items-center">
+              {/* 9. SERIALIZED */}
+              <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-xs hover:bg-slate-50 transition cursor-pointer">
+                <input
+                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                  checked={form.isSerialized}
+                  onChange={(event) =>
+                    onChange("isSerialized", event.target.checked)
+                  }
+                  type="checkbox"
+                />
+                <div>
+                  <strong className="block text-slate-800 font-bold">Serialized</strong>
+                  <span className="text-[10px] text-slate-500">Unique barcode</span>
+                </div>
+              </label>
+
+              {/* 10. WARRANTY TOGGLE */}
+              <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-xs hover:bg-slate-50 transition cursor-pointer">
+                <input
+                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                  checked={form.hasWarranty}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    onChange("hasWarranty", checked)
+                    if (!checked) {
+                      onChange("warrantyDuration", "NO WARRANTY")
+                    } else if (form.warrantyDuration === "NO WARRANTY") {
+                      onChange("warrantyDuration", "1 YEAR WARRANTY")
+                    }
+                  }}
+                  type="checkbox"
+                />
+                <div>
+                  <strong className="block text-slate-800 font-bold">Warranty</strong>
+                  <span className="text-[10px] text-slate-500">Track coverage</span>
+                </div>
+              </label>
+
+              {/* 11. STATUS */}
+              <label className="block">
+                <span className={labelClass}>Status</span>
+                <select
+                  className={inputClass}
+                  onChange={(event) =>
+                    onChange("status", event.target.value)
+                  }
+                  value={form.status || "ACTIVE"}
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+              </label>
             </div>
 
-            {/* Warranty Coverage Presets */}
+            {/* Warranty Coverage Presets & Detail */}
             <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
@@ -967,22 +999,6 @@ function ItemEditorModal({
                 }}
               />
             </div>
-
-            {isEditing ? (
-              <label className="block max-w-xs">
-                <span className={labelClass}>Status</span>
-                <select
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("status", event.target.value)
-                  }
-                  value={form.status}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
-              </label>
-            ) : null}
           </section>
 
           {/* Quick-Alignment Helper Card for Legacy Items */}
