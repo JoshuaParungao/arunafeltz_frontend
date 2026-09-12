@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   LoaderCircle,
+  Printer,
   RefreshCw,
   Search,
   X,
@@ -25,6 +26,7 @@ import { generateUUID } from "../../utils/uuid";
 import { exportReportExcel } from "../../utils/businessDocumentExport";
 import ExportExcelButton from "../../components/common/ExportExcelButton";
 import CustomerArStatementModal from "./CustomerArStatementModal";
+import CustomerStatementOfAccountModal from "../customers/CustomerStatementOfAccountModal";
 
 const TERMS = [
   "STRAIGHT",
@@ -130,6 +132,7 @@ export default function CreditsPage({ selectedBranch, user }) {
   const [showCollectionForm, setShowCollectionForm] = useState(false);
   const [showDefaultModal, setShowDefaultModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
+  const [soaCustomer, setSoaCustomer] = useState(null);
   const [defaultReason, setDefaultReason] = useState("");
   const [collectionForm, setCollectionForm] = useState({
     amount: "",
@@ -643,14 +646,36 @@ export default function CreditsPage({ selectedBranch, user }) {
                         <Status value={account.status} />
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition"
-                          onClick={() => openDetail(account)}
-                          type="button"
-                        >
-                          <Eye size={13} />
-                          View
-                        </button>
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <button
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition"
+                            onClick={() => openDetail(account)}
+                            type="button"
+                          >
+                            <Eye size={13} />
+                            View
+                          </button>
+                          {(account.customerId || account.customer?.id) ? (
+                            <button
+                              className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100 transition shadow-2xs"
+                              onClick={() => {
+                                const targetId = account.customerId || account.customer?.id;
+                                setSoaCustomer({
+                                  id: targetId,
+                                  fullName: account.customer?.fullName || account.serviceJob?.customerNameSnapshot,
+                                  address: account.customer?.address,
+                                  mobileNumber: account.customer?.mobileNumber,
+                                  companyName: account.customer?.companyName,
+                                });
+                              }}
+                              type="button"
+                              title={`Print Statement of Account (SOA) for ${account.customer?.fullName || "customer"}`}
+                            >
+                              <Printer size={11} className="text-indigo-600" />
+                              SOA
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -697,14 +722,35 @@ export default function CreditsPage({ selectedBranch, user }) {
                       </p>
                     </div>
                   </div>
-                  <button
-                    className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-                    onClick={() => openDetail(account)}
-                    type="button"
-                  >
-                    <Eye size={13} />
-                    View Account
-                  </button>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                      onClick={() => openDetail(account)}
+                      type="button"
+                    >
+                      <Eye size={13} />
+                      View Account
+                    </button>
+                    {(account.customerId || account.customer?.id) ? (
+                      <button
+                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition shadow-2xs"
+                        onClick={() => {
+                          const targetId = account.customerId || account.customer?.id;
+                          setSoaCustomer({
+                            id: targetId,
+                            fullName: account.customer?.fullName || account.serviceJob?.customerNameSnapshot,
+                            address: account.customer?.address,
+                            mobileNumber: account.customer?.mobileNumber,
+                            companyName: account.customer?.companyName,
+                          });
+                        }}
+                        type="button"
+                      >
+                        <Printer size={13} className="text-indigo-600" />
+                        SOA
+                      </button>
+                    ) : null}
+                  </div>
                 </article>
               ))}
             </div>
@@ -758,13 +804,35 @@ export default function CreditsPage({ selectedBranch, user }) {
                     "Walk-in / External Provider"}
                 </h2>
               </div>
-              <button
-                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-                onClick={() => setDetail(null)}
-                type="button"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                {(detail.customerId || detail.customer?.id) ? (
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 text-xs font-bold text-indigo-900 hover:bg-indigo-100 transition shadow-2xs"
+                    onClick={() => {
+                      const targetId = detail.customerId || detail.customer?.id;
+                      setSoaCustomer({
+                        id: targetId,
+                        fullName: detail.customer?.fullName || detail.serviceJob?.customerNameSnapshot,
+                        address: detail.customer?.address,
+                        mobileNumber: detail.customer?.mobileNumber,
+                        companyName: detail.customer?.companyName,
+                      });
+                    }}
+                    type="button"
+                    title="Print official Statement of Account (SOA)"
+                  >
+                    <Printer size={13} className="text-indigo-600" />
+                    <span>Print SOA</span>
+                  </button>
+                ) : null}
+                <button
+                  className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                  onClick={() => setDetail(null)}
+                  type="button"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </header>
             {isDetailLoading ? (
               <div className="flex items-center justify-center gap-2 p-10 text-xs font-bold text-slate-400">
@@ -857,13 +925,22 @@ export default function CreditsPage({ selectedBranch, user }) {
                       <Banknote size={14} />
                       Post Collection
                     </button>
-                    {detail.customerId ? (
+                    {(detail.customerId || detail.customer?.id) ? (
                       <button
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
-                        onClick={() => setShowStatementModal(true)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100 transition shadow-2xs"
+                        onClick={() => {
+                          const targetId = detail.customerId || detail.customer?.id;
+                          setSoaCustomer({
+                            id: targetId,
+                            fullName: detail.customer?.fullName || detail.serviceJob?.customerNameSnapshot,
+                            address: detail.customer?.address,
+                            mobileNumber: detail.customer?.mobileNumber,
+                            companyName: detail.customer?.companyName,
+                          });
+                        }}
                         type="button"
                       >
-                        <FileText size={14} />
+                        <Printer size={14} className="text-indigo-600" />
                         Statement of Account (SOA)
                       </button>
                     ) : null}
@@ -1070,11 +1147,11 @@ export default function CreditsPage({ selectedBranch, user }) {
         </div>
       ) : null}
 
-      {showStatementModal && detail?.customerId ? (
-        <CustomerArStatementModal
-          customerId={detail.customerId}
-          customerName={detail.customer?.fullName || "Customer"}
-          onClose={() => setShowStatementModal(false)}
+      {soaCustomer ? (
+        <CustomerStatementOfAccountModal
+          customerId={soaCustomer.id}
+          initialCustomer={soaCustomer}
+          onClose={() => setSoaCustomer(null)}
           selectedBranch={selectedBranch}
           user={user}
         />
