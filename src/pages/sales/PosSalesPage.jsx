@@ -21,6 +21,7 @@ import {
   Search,
   ShieldCheck,
   ShoppingCart,
+  Sparkles,
   Trash2,
   UserRound,
   Wrench,
@@ -45,6 +46,7 @@ import {
 import {
   getServiceJobs,
   getServiceJobById,
+  getServiceCatalog,
   updateServiceJobStatus,
   releaseServiceJob,
 } from "../../features/service-jobs/serviceJobs.api"
@@ -2367,6 +2369,23 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [serviceMarkup, setServiceMarkup] = useState("")
   const [serviceDiscount, setServiceDiscount] = useState("0")
   const [serviceCharge, setServiceCharge] = useState("0")
+
+  // Service Catalog
+  const [serviceCatalog, setServiceCatalog] = useState([])
+  const [selectedServiceCatalogId, setSelectedServiceCatalogId] = useState("")
+
+  const handleSelectServiceCatalog = (catalogId) => {
+    setSelectedServiceCatalogId(catalogId)
+    if (!catalogId) return
+    const item = serviceCatalog.find((s) => s.id === catalogId)
+    if (item) {
+      setServiceDescription(item.name || item.description || "")
+      setServiceUnitPrice(item.basePrice !== undefined && item.basePrice !== null ? String(item.basePrice) : "")
+      if (item.markupPercent) {
+        setServiceMarkup(String(item.markupPercent))
+      }
+    }
+  }
   const [remarks, setRemarks] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.remarks || ""
@@ -2781,6 +2800,22 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       window.clearTimeout(timer)
     }
   }, [branchId, user?.id])
+
+  useEffect(() => {
+    let isMounted = true
+    getServiceCatalog()
+      .then((response) => {
+        if (!isMounted) return
+        const list = response?.data || response || []
+        setServiceCatalog(Array.isArray(list) ? list.filter((s) => s.isActive !== false) : [])
+      })
+      .catch(() => {
+        if (isMounted) setServiceCatalog([])
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const loadSales = useCallback(async () => {
     if (!branchId) {
@@ -3329,6 +3364,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setServiceUnitPrice("")
     setServiceMarkup("")
     setServiceDiscount("0")
+    setSelectedServiceCatalogId("")
     setCartMessage("")
     setShowServiceForm(false)
   }
@@ -5112,9 +5148,66 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </div>
                   </div>
 
+                  {/* Saved Service Catalog Template Selector */}
+                  {serviceCatalog.length > 0 ? (
+                    <div className="sm:col-span-2 space-y-1 rounded-xl border border-violet-100 bg-violet-50/40 p-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-violet-900 flex items-center gap-1">
+                          <Sparkles size={12} className="text-violet-600" /> Saved Service Catalog (Optional)
+                        </span>
+                        {selectedServiceCatalogId ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedServiceCatalogId("")
+                              setServiceDescription("")
+                              setServiceUnitPrice("")
+                              setServiceMarkup("")
+                            }}
+                            className="text-[10px] font-bold text-violet-700 hover:text-red-700"
+                          >
+                            Clear Template
+                          </button>
+                        ) : null}
+                      </div>
+                      <select
+                        className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-violet-500 transition"
+                        value={selectedServiceCatalogId}
+                        onChange={(e) => handleSelectServiceCatalog(e.target.value)}
+                      >
+                        <option value="">-- Select from Saved Service Catalog or type below --</option>
+                        {serviceCatalog.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} — ₱{Number(s.basePrice || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })} {s.deviceType ? `(${s.deviceType})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+
                   <label className="sm:col-span-2 block">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Description</span>
-                    <input className="mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setServiceDescription(event.target.value)} placeholder="Labor, setup, diagnostics, delivery…" value={serviceDescription} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Description *</span>
+                    <input
+                      list="pos-service-catalog-options"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                      onChange={(event) => {
+                        const val = event.target.value
+                        setServiceDescription(val)
+                        const matched = serviceCatalog.find((s) => s.name?.toLowerCase() === val.trim().toLowerCase())
+                        if (matched) {
+                          handleSelectServiceCatalog(matched.id)
+                        }
+                      }}
+                      placeholder="Labor, setup, diagnostics, delivery…"
+                      value={serviceDescription}
+                    />
+                    <datalist id="pos-service-catalog-options">
+                      {serviceCatalog.map((s) => (
+                        <option key={s.id} value={s.name}>
+                          ₱{Number(s.basePrice || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                        </option>
+                      ))}
+                    </datalist>
                   </label>
                   <label className="block">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Qty</span>

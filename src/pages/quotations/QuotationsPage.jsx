@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   Trash2,
   User,
   UserRound,
@@ -27,6 +28,7 @@ import {
   getQuotationServiceStaff,
   updateQuotationStatus,
 } from "../../features/quotations/quotations.api"
+import { getServiceCatalog } from "../../features/service-jobs/serviceJobs.api"
 import { getItems } from "../../features/items/items.api"
 import { createCustomer, getCustomers } from "../../features/customers/customers.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
@@ -263,6 +265,23 @@ export default function QuotationsPage({ selectedBranch, user }) {
   const [serviceMarkup, setServiceMarkup] = useState("")
   const [serviceDiscount, setServiceDiscount] = useState("0")
 
+  // Service Catalog
+  const [serviceCatalog, setServiceCatalog] = useState([])
+  const [selectedServiceCatalogId, setSelectedServiceCatalogId] = useState("")
+
+  const handleSelectServiceCatalog = (catalogId) => {
+    setSelectedServiceCatalogId(catalogId)
+    if (!catalogId) return
+    const item = serviceCatalog.find((s) => s.id === catalogId)
+    if (item) {
+      setServiceDescription(item.name || item.description || "")
+      setServiceUnitPrice(item.basePrice !== undefined && item.basePrice !== null ? String(item.basePrice) : "")
+      if (item.markupPercent) {
+        setServiceMarkup(String(item.markupPercent))
+      }
+    }
+  }
+
   // Financing / Installment Calculation
   const [installmentRates, setInstallmentRates] = useState(DEFAULT_INSTALLMENT_BASIS)
   const [showFinancingCalc, setShowFinancingCalc] = useState(false)
@@ -374,12 +393,23 @@ export default function QuotationsPage({ selectedBranch, user }) {
     }
   }, [branchId])
 
+  const loadServiceCatalog = useCallback(async () => {
+    try {
+      const response = await getServiceCatalog()
+      const list = response?.data || response || []
+      setServiceCatalog(Array.isArray(list) ? list.filter((s) => s.isActive !== false) : [])
+    } catch {
+      // ignore
+    }
+  }, [])
+
   useEffect(() => {
     if (viewMode === "BUILDER") {
       loadCustomers()
       loadServiceStaff()
+      loadServiceCatalog()
     }
-  }, [viewMode, loadCustomers, loadServiceStaff])
+  }, [viewMode, loadCustomers, loadServiceStaff, loadServiceCatalog])
 
   // Load Products for Builder Search
   const loadItems = useCallback(async () => {
@@ -723,6 +753,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
     setServiceUnitPrice("")
     setServiceMarkup("")
     setServiceDiscount("0")
+    setSelectedServiceCatalogId("")
     setShowServiceForm(false)
     setBuilderMessage("")
   }
@@ -1365,14 +1396,66 @@ export default function QuotationsPage({ selectedBranch, user }) {
                     </select>
                   </div>
 
+                  {/* Saved Service Catalog Template Selector */}
+                  {serviceCatalog.length > 0 ? (
+                    <div className="sm:col-span-2 space-y-1 rounded-xl border border-violet-100 bg-violet-50/40 p-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-violet-900 flex items-center gap-1">
+                          <Sparkles size={12} className="text-violet-600" /> Saved Service Catalog (Optional)
+                        </span>
+                        {selectedServiceCatalogId ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedServiceCatalogId("")
+                              setServiceDescription("")
+                              setServiceUnitPrice("")
+                              setServiceMarkup("")
+                            }}
+                            className="text-[10px] font-bold text-violet-700 hover:text-red-700"
+                          >
+                            Clear Template
+                          </button>
+                        ) : null}
+                      </div>
+                      <select
+                        className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-violet-500 transition"
+                        value={selectedServiceCatalogId}
+                        onChange={(e) => handleSelectServiceCatalog(e.target.value)}
+                      >
+                        <option value="">-- Select from Saved Service Catalog or type below --</option>
+                        {serviceCatalog.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} — ₱{Number(s.basePrice || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })} {s.deviceType ? `(${s.deviceType})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+
                   <label className="sm:col-span-2 block">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Service Scope / Description *</span>
                     <input
+                      list="quotation-service-catalog-options"
                       className="mt-0.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs outline-none focus:bg-white focus:border-[var(--color-maroon)]"
-                      onChange={(e) => setServiceDescription(e.target.value)}
-                      placeholder="e.g. Deep Cleaning & Repasting / Board Repair"
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setServiceDescription(val)
+                        const matched = serviceCatalog.find((s) => s.name?.toLowerCase() === val.trim().toLowerCase())
+                        if (matched) {
+                          handleSelectServiceCatalog(matched.id)
+                        }
+                      }}
+                      placeholder="Labor, setup, diagnostics, delivery…"
                       value={serviceDescription}
                     />
+                    <datalist id="quotation-service-catalog-options">
+                      {serviceCatalog.map((s) => (
+                        <option key={s.id} value={s.name}>
+                          ₱{Number(s.basePrice || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                        </option>
+                      ))}
+                    </datalist>
                   </label>
 
                   <label className="block">
