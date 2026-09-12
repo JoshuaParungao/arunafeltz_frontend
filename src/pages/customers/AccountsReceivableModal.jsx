@@ -151,55 +151,101 @@ export default function AccountsReceivableModal({
     window.print()
   }
 
-  // Export to Excel
-  const handleExportExcel = () => {
+  // Export to Excel (supports Summary 5-column or Detailed 17-column, single account or all)
+  const handleExportExcel = (type = "summary", singleCustomerId = null, singleCustomerName = null) => {
+    const targetCustomerId = singleCustomerId || selectedCustomerId
+    const targetCustomer = customers.find((c) => c.id === targetCustomerId)
+    const customerName = singleCustomerName || targetCustomer?.fullName
+
+    const targetItems = targetCustomerId
+      ? (data?.items || []).filter((it) => it.customerId === targetCustomerId)
+      : filteredItems
+
     const activeFilters = []
-    if (selectedCustomerId) {
-      const c = customers.find((cs) => cs.id === selectedCustomerId)
-      activeFilters.push({ label: "Customer", value: c ? c.fullName : selectedCustomerId })
+    if (targetCustomerId) {
+      activeFilters.push({ label: "Customer", value: customerName || targetCustomerId })
     }
     if (dateFrom) activeFilters.push({ label: "Date From", value: dateFrom })
     if (dateTo) activeFilters.push({ label: "Date To", value: dateTo })
     if (agingFilter !== "ALL") activeFilters.push({ label: "Aging Status", value: agingFilter })
     if (search.trim()) activeFilters.push({ label: "Search", value: search.trim() })
 
-    const headers = [
-      "Transaction No",
-      "Date",
-      "Customer Name",
-      "Customer Code",
-      "Company",
-      "Credit Term",
-      "Credit Amount",
-      "Total Collected",
-      "Outstanding Balance",
-      "Due Date",
-      "Aging Status",
-    ]
+    const cleanSub = customerName ? `_${customerName.replace(/[^a-zA-Z0-9]/g, "_")}` : "_all_customers"
 
-    const rows = filteredItems.map((it) => [
-      it.transactionNo || it.creditCode || "-",
-      formatDate(it.date),
-      it.customerName || "-",
-      it.customerCode || "-",
-      it.companyName || "-",
-      it.term || "Regular",
-      Number(it.amount || 0),
-      Number(it.collected || 0),
-      Number(it.balance || 0),
-      formatDate(it.dueDate),
-      it.isOverdue ? `Overdue (${it.daysOverdue} days)` : "Current",
-    ])
+    if (type === "summary") {
+      const headers = ["Transactionno", "Date", "Customer", "Amount", "Balance"]
+      const rows = targetItems.map((it) => [
+        it.transactionNo || it.creditCode || "-",
+        formatDate(it.date),
+        it.customerName || "-",
+        Number(it.amount || 0),
+        Number(it.balance || 0),
+      ])
 
-    exportReportExcel({
-      title: "OUTSTANDING ACCOUNTS RECEIVABLE REPORT",
-      branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
-      generatedBy: user?.fullName || user?.username || "System",
-      filenamePrefix: "outstanding_accounts_receivable",
-      headers,
-      rows,
-      activeFilters,
-    })
+      exportReportExcel({
+        title: customerName
+          ? `OUTSTANDING ACCOUNTS RECEIVABLE — ${customerName.toUpperCase()}`
+          : "OUTSTANDING ACCOUNTS RECEIVABLE REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: `accounts_receivable_summary${cleanSub}`,
+        headers,
+        rows,
+        activeFilters,
+      })
+    } else {
+      const headers = [
+        "Transaction No",
+        "Credit Code",
+        "Receipt / Invoice No",
+        "Date",
+        "Customer Name",
+        "Customer Code",
+        "Company Name",
+        "Mobile No",
+        "Credit Provider",
+        "Installment Term",
+        "Total Credit Amount (PHP)",
+        "Total Collected (PHP)",
+        "Outstanding Balance (PHP)",
+        "Due Date",
+        "Days Overdue",
+        "Aging Status",
+        "Branch",
+      ]
+
+      const rows = targetItems.map((it) => [
+        it.transactionNo || it.creditCode || "-",
+        it.creditCode || "-",
+        it.receiptCode || "-",
+        formatDate(it.date),
+        it.customerName || "-",
+        it.customerCode || "-",
+        it.companyName || "-",
+        it.customerMobile || "-",
+        it.provider || "-",
+        it.term || "Regular",
+        Number(it.amount || 0),
+        Number(it.collected || 0),
+        Number(it.balance || 0),
+        formatDate(it.dueDate),
+        it.daysOverdue || 0,
+        it.isOverdue ? `Overdue (${it.daysOverdue} days)` : "Current",
+        it.branch?.name || it.branch?.code || "-",
+      ])
+
+      exportReportExcel({
+        title: customerName
+          ? `OUTSTANDING ACCOUNTS RECEIVABLE (DETAILED) — ${customerName.toUpperCase()}`
+          : "OUTSTANDING ACCOUNTS RECEIVABLE (DETAILED AUDIT BREAKDOWN)",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: `accounts_receivable_detailed${cleanSub}`,
+        headers,
+        rows,
+        activeFilters,
+      })
+    }
   }
 
   const shopName = "ARUNAFELTZ COMPUTER PARTS AND ACCESSORIES SHOP"
@@ -260,15 +306,31 @@ export default function AccountsReceivableModal({
               <Printer size={13} className="text-slate-600" />
               <span>Print</span>
             </button>
-            <button
-              onClick={handleExportExcel}
-              disabled={isLoading || filteredItems.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 shadow-2xs transition disabled:opacity-50"
-              type="button"
-            >
-              <FileSpreadsheet size={13} className="text-emerald-600" />
-              <span>Save As</span>
-            </button>
+
+            {/* Split Export Options: Summary vs Detailed */}
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs">
+              <button
+                onClick={() => handleExportExcel("summary")}
+                disabled={isLoading || filteredItems.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-50 transition disabled:opacity-50"
+                type="button"
+                title={selectedCustomerId ? "Export 5-column summary for selected customer" : "Export 5-column summary for all accounts"}
+              >
+                <FileSpreadsheet size={13} className="text-emerald-600" />
+                <span>Save As (Summary)</span>
+              </button>
+              <div className="h-4 w-px bg-slate-200" />
+              <button
+                onClick={() => handleExportExcel("detailed")}
+                disabled={isLoading || filteredItems.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold text-teal-800 hover:bg-teal-50 transition disabled:opacity-50"
+                type="button"
+                title={selectedCustomerId ? "Export 17-column audit breakdown for selected customer" : "Export 17-column audit breakdown for all accounts"}
+              >
+                <FileSpreadsheet size={13} className="text-teal-600" />
+                <span>Detailed</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -315,18 +377,30 @@ export default function AccountsReceivableModal({
               />
             </div>
 
-            <select
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-maroon)]"
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value)}
-            >
-              <option value="">All Customers ({customers.length})</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.fullName} ({c.customerCode})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-1.5">
+              <select
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-maroon)]"
+                value={selectedCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+              >
+                <option value="">All Customers ({customers.length})</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.fullName} ({c.customerCode})
+                  </option>
+                ))}
+              </select>
+              {selectedCustomerId ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCustomerId("")}
+                  className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-slate-200 transition shrink-0"
+                  title="Reset to All Customers"
+                >
+                  All
+                </button>
+              ) : null}
+            </div>
 
             <div className="flex items-center gap-1">
               <input
@@ -450,8 +524,11 @@ export default function AccountsReceivableModal({
                     <th className="px-3.5 py-2.5 font-bold text-right border-r border-slate-300">
                       Amount
                     </th>
-                    <th className="px-3.5 py-2.5 font-bold text-right">
+                    <th className="px-3.5 py-2.5 font-bold text-right border-r border-slate-300">
                       Balance
+                    </th>
+                    <th className="no-print px-2 py-2.5 font-bold text-center w-28">
+                      Account
                     </th>
                   </tr>
                 </thead>
@@ -469,14 +546,19 @@ export default function AccountsReceivableModal({
                       </td>
                       <td className="px-3.5 py-2 font-bold text-slate-900 border-r border-slate-200">
                         <div className="flex items-center justify-between gap-2">
-                          <div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCustomerId(item.customerId)}
+                            className="text-left hover:underline hover:text-[var(--color-maroon)] transition"
+                            title={`Filter transactions for ${item.customerName}`}
+                          >
                             <span>{item.customerName}</span>
                             {item.customerMobile ? (
                               <span className="no-print ml-1 text-[10px] text-slate-400 font-normal">
                                 ({item.customerMobile})
                               </span>
                             ) : null}
-                          </div>
+                          </button>
                           {item.term ? (
                             <span className="no-print text-[10px] font-semibold text-slate-500 bg-slate-100 rounded px-1.5 py-0.5">
                               {item.term}
@@ -490,11 +572,32 @@ export default function AccountsReceivableModal({
                           maximumFractionDigits: 2,
                         })}
                       </td>
-                      <td className="px-3.5 py-2 font-mono font-bold text-right text-slate-900 whitespace-nowrap">
+                      <td className="px-3.5 py-2 font-mono font-bold text-right text-slate-900 border-r border-slate-200 whitespace-nowrap">
                         {Number(item.balance || 0).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
+                      </td>
+                      <td className="no-print px-2 py-1.5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCustomerId(item.customerId)}
+                            className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition"
+                            title={`Filter only ${item.customerName}`}
+                          >
+                            Filter
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportExcel("detailed", item.customerId, item.customerName)}
+                            className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100 transition inline-flex items-center gap-0.5"
+                            title={`Export full audit Excel for ${item.customerName}`}
+                          >
+                            <FileSpreadsheet size={10} className="text-emerald-600" />
+                            Excel
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -511,12 +614,13 @@ export default function AccountsReceivableModal({
                         maximumFractionDigits: 2,
                       })}
                     </td>
-                    <td className="px-3.5 py-2.5 text-right font-black text-slate-950 text-sm">
+                    <td className="px-3.5 py-2.5 text-right font-black text-slate-950 text-sm border-r border-slate-300">
                       {Number(totals.totalBalance).toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </td>
+                    <td className="no-print"></td>
                   </tr>
                 </tfoot>
               </table>

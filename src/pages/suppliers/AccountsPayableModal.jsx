@@ -145,57 +145,120 @@ export default function AccountsPayableModal({
     window.print()
   }
 
-  // Export to Excel
-  const handleExportExcel = () => {
+  // Export to Excel (supports summary and detailed, all or single supplier)
+  const handleExportExcel = (type = "summary", singleSupplierId = null, singleSupplierName = null) => {
+    const targetSupplierId = singleSupplierId || selectedSupplierId
+    const targetSupplier = suppliers.find((s) => s.id === targetSupplierId)
+    const supplierName = singleSupplierName || targetSupplier?.name
+
+    const targetItems = targetSupplierId
+      ? (data?.items || []).filter((it) => it.supplierId === targetSupplierId)
+      : filteredItems
+
     const activeFilters = []
-    if (selectedSupplierId) {
-      const s = suppliers.find((sp) => sp.id === selectedSupplierId)
-      activeFilters.push({ label: "Supplier", value: s ? s.name : selectedSupplierId })
+    if (targetSupplierId) {
+      activeFilters.push({ label: "Supplier", value: supplierName || targetSupplierId })
     }
     if (dateFrom) activeFilters.push({ label: "Date From", value: dateFrom })
     if (dateTo) activeFilters.push({ label: "Date To", value: dateTo })
     if (agingFilter !== "ALL") activeFilters.push({ label: "Aging Status", value: agingFilter })
     if (search.trim()) activeFilters.push({ label: "Search", value: search.trim() })
 
-    const headers = [
-      "Transaction No",
-      "Receiving Date",
-      "Supplier Name",
-      "Supplier Code",
-      "Payment Terms",
-      "Total Amount",
-      "Outstanding Balance",
-      "Due Date",
-      "Aging Status",
-    ]
+    const cleanSub = supplierName ? `_${supplierName.replace(/[^a-zA-Z0-9]/g, "_")}` : "_all_suppliers"
 
-    const rows = filteredItems.map((it) => [
-      it.transactionNo || it.receivingCode || "-",
-      formatDate(it.date),
-      it.supplierName || "-",
-      it.supplierCode || "-",
-      it.paymentTerms || "COD",
-      Number(it.amount || 0),
-      Number(it.balance || 0),
-      formatDate(it.dueDate),
-      it.isOverdue ? `Overdue (${it.daysOverdue} days)` : "Current",
-    ])
+    if (type === "summary") {
+      // Clean 5-column format matching the photo
+      const headers = [
+        "Transactionno",
+        "Date",
+        "Supplier",
+        "Amount",
+        "Balance",
+      ]
 
-    exportReportExcel({
-      title: "OUTSTANDING ACCOUNTS PAYABLE REPORT",
-      branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
-      generatedBy: user?.fullName || user?.username || "System",
-      filenamePrefix: "outstanding_accounts_payable",
-      headers,
-      rows,
-      activeFilters,
-    })
+      const rows = targetItems.map((it) => [
+        it.transactionNo || it.receivingCode || "-",
+        formatDate(it.date),
+        it.supplierName || "-",
+        Number(it.amount || 0),
+        Number(it.balance || 0),
+      ])
+
+      exportReportExcel({
+        title: supplierName
+          ? `OUTSTANDING ACCOUNTS PAYABLE — ${supplierName.toUpperCase()}`
+          : "OUTSTANDING ACCOUNTS PAYABLE REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: `accounts_payable_summary${cleanSub}`,
+        headers,
+        rows,
+        activeFilters,
+      })
+    } else {
+      // Detailed audit breakdown
+      const headers = [
+        "Transaction No",
+        "Receiving Code",
+        "Supplier Delivery/DR No",
+        "Supplier Invoice No",
+        "Reference No",
+        "Receiving Date",
+        "Supplier Name",
+        "Supplier Code",
+        "Contact Person",
+        "Contact Number",
+        "Payment Terms",
+        "Invoice Amount (PHP)",
+        "Outstanding Balance (PHP)",
+        "Due Date",
+        "Days Overdue",
+        "Aging Status",
+        "Branch",
+      ]
+
+      const rows = targetItems.map((it) => [
+        it.transactionNo || it.receivingCode || "-",
+        it.receivingCode || "-",
+        it.supplierDeliveryNo || "-",
+        it.supplierInvoiceNo || "-",
+        it.referenceNo || "-",
+        formatDate(it.date),
+        it.supplierName || "-",
+        it.supplierCode || "-",
+        it.contactPerson || "-",
+        it.contactNo || "-",
+        it.paymentTerms || "COD",
+        Number(it.amount || 0),
+        Number(it.balance || 0),
+        formatDate(it.dueDate),
+        it.daysOverdue || 0,
+        it.isOverdue ? `Overdue (${it.daysOverdue} days)` : "Current",
+        it.branch?.name || it.branch?.code || "-",
+      ])
+
+      exportReportExcel({
+        title: supplierName
+          ? `OUTSTANDING ACCOUNTS PAYABLE (DETAILED) — ${supplierName.toUpperCase()}`
+          : "OUTSTANDING ACCOUNTS PAYABLE (DETAILED AUDIT BREAKDOWN)",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: `accounts_payable_detailed${cleanSub}`,
+        headers,
+        rows,
+        activeFilters,
+      })
+    }
   }
 
   const shopName = "ARUNAFELTZ COMPUTER PARTS AND ACCESSORIES SHOP"
   const shopAddress =
     selectedBranch?.address ||
     "KINGSPIRE BUSINESS CENTRE, MAC ARTHUR HIGHWAY, SAN ISIDRO, CITY OF SAN FERNANDO, PAMPANGA / 0961-873-5798"
+
+  const currentSupplier = selectedSupplierId
+    ? suppliers.find((s) => s.id === selectedSupplierId)
+    : null
 
   return (
     <div className="fixed inset-0 z-60 grid place-items-center overflow-y-auto bg-slate-950/70 p-2 sm:p-4 backdrop-blur-xs">
@@ -231,7 +294,7 @@ export default function AccountsPayableModal({
       >
         {/* Top Minimalist Action Bar (hidden on print) */}
         <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 px-5 py-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={loadPayables}
               disabled={isLoading}
@@ -250,15 +313,30 @@ export default function AccountsPayableModal({
               <Printer size={13} className="text-slate-600" />
               <span>Print</span>
             </button>
-            <button
-              onClick={handleExportExcel}
-              disabled={isLoading || filteredItems.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 shadow-2xs transition disabled:opacity-50"
-              type="button"
-            >
-              <FileSpreadsheet size={13} className="text-emerald-600" />
-              <span>Save As</span>
-            </button>
+
+            {/* Split Save As (Summary / Detailed) */}
+            <div className="inline-flex rounded-lg shadow-2xs">
+              <button
+                onClick={() => handleExportExcel("summary")}
+                disabled={isLoading || filteredItems.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-l-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 transition disabled:opacity-50"
+                type="button"
+                title="Export 5-column summary format"
+              >
+                <FileSpreadsheet size={13} className="text-emerald-600" />
+                <span>Save As (Summary)</span>
+              </button>
+              <button
+                onClick={() => handleExportExcel("detailed")}
+                disabled={isLoading || filteredItems.length === 0}
+                className="inline-flex items-center gap-1 rounded-r-lg border border-l-0 border-slate-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition disabled:opacity-50"
+                type="button"
+                title="Export complete detailed audit breakdown"
+              >
+                <Download size={13} className="text-emerald-700" />
+                <span>Detailed</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -289,6 +367,7 @@ export default function AccountsPayableModal({
             <div className="mt-3 inline-block">
               <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 border-b-2 border-slate-900 pb-0.5 px-2 inline-block">
                 Outstanding Accounts Payable
+                {currentSupplier ? ` — ${currentSupplier.name}` : ""}
               </h2>
             </div>
           </div>
@@ -305,18 +384,30 @@ export default function AccountsPayableModal({
               />
             </div>
 
-            <select
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-maroon)]"
-              value={selectedSupplierId}
-              onChange={(e) => setSelectedSupplierId(e.target.value)}
-            >
-              <option value="">All Suppliers ({suppliers.length})</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.supplierCode})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-1.5">
+              <select
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-maroon)]"
+                value={selectedSupplierId}
+                onChange={(e) => setSelectedSupplierId(e.target.value)}
+              >
+                <option value="">All Suppliers ({suppliers.length})</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.supplierCode})
+                  </option>
+                ))}
+              </select>
+              {selectedSupplierId ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedSupplierId("")}
+                  className="shrink-0 rounded px-2 py-1 text-[11px] font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 transition"
+                  title="Show all suppliers"
+                >
+                  All
+                </button>
+              ) : null}
+            </div>
 
             <div className="flex items-center gap-1">
               <input
@@ -440,8 +531,11 @@ export default function AccountsPayableModal({
                     <th className="px-3.5 py-2.5 font-bold text-right border-r border-slate-300">
                       Amount
                     </th>
-                    <th className="px-3.5 py-2.5 font-bold text-right">
+                    <th className="px-3.5 py-2.5 font-bold text-right border-r border-slate-300">
                       Balance
+                    </th>
+                    <th className="no-print px-3 py-2.5 text-center font-bold">
+                      Account Action
                     </th>
                   </tr>
                 </thead>
@@ -459,7 +553,13 @@ export default function AccountsPayableModal({
                       </td>
                       <td className="px-3.5 py-2 font-bold text-slate-900 border-r border-slate-200">
                         <div className="flex items-center justify-between gap-2">
-                          <span>{item.supplierName}</span>
+                          <span
+                            className="cursor-pointer hover:underline hover:text-[var(--color-maroon)]"
+                            onClick={() => setSelectedSupplierId(item.supplierId)}
+                            title="Click to view only this supplier"
+                          >
+                            {item.supplierName}
+                          </span>
                           {item.paymentTerms ? (
                             <span className="no-print text-[10px] font-semibold text-slate-500 bg-slate-100 rounded px-1.5 py-0.5">
                               {item.paymentTerms}
@@ -473,11 +573,31 @@ export default function AccountsPayableModal({
                           maximumFractionDigits: 2,
                         })}
                       </td>
-                      <td className="px-3.5 py-2 font-mono font-bold text-right text-slate-900 whitespace-nowrap">
+                      <td className="px-3.5 py-2 font-mono font-bold text-right text-slate-900 border-r border-slate-200 whitespace-nowrap">
                         {Number(item.balance || 0).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
+                      </td>
+                      <td className="no-print px-3 py-1.5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSupplierId(item.supplierId)}
+                            className="rounded px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+                            title="Filter table to this supplier"
+                          >
+                            Filter
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportExcel("detailed", item.supplierId, item.supplierName)}
+                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition"
+                            title="Export this supplier's detailed report to Excel"
+                          >
+                            <FileSpreadsheet size={11} /> Excel
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -494,11 +614,14 @@ export default function AccountsPayableModal({
                         maximumFractionDigits: 2,
                       })}
                     </td>
-                    <td className="px-3.5 py-2.5 text-right font-black text-slate-950 text-sm">
+                    <td className="px-3.5 py-2.5 text-right font-black text-slate-950 text-sm border-r border-slate-300">
                       {Number(totals.totalBalance).toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
+                    </td>
+                    <td className="no-print px-3 py-2 text-center text-[10px] font-bold text-slate-500">
+                      {filteredItems.length} records
                     </td>
                   </tr>
                 </tfoot>
