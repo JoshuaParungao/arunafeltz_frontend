@@ -106,7 +106,11 @@ export default function CategoriesPage({ selectedBranch, user }) {
     categoryCode: "",
     description: "",
     status: "ACTIVE",
+    parentId: "",
+    attributeSchema: [],
   })
+  const [newSpecName, setNewSpecName] = useState("")
+  const [newSpecSuggestions, setNewSpecSuggestions] = useState("")
 
   // Unit Modal State
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false)
@@ -143,7 +147,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
       try {
         const params = {
           page: String(page),
-          limit: "15",
+          limit: "50",
           ...(debouncedSearch ? { search: debouncedSearch } : {}),
           ...(statusFilter !== "ALL" ? { status: statusFilter } : {}),
           ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
@@ -232,6 +236,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
 
   useEffect(() => {
     if (activeTab === "categories") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadCategories(1)
     } else {
       loadUnits(1)
@@ -246,7 +251,11 @@ export default function CategoriesPage({ selectedBranch, user }) {
       categoryCode: "",
       description: "",
       status: "ACTIVE",
+      parentId: "",
+      attributeSchema: [],
     })
+    setNewSpecName("")
+    setNewSpecSuggestions("")
     setFormError("")
     setIsCatModalOpen(true)
   }
@@ -258,9 +267,56 @@ export default function CategoriesPage({ selectedBranch, user }) {
       categoryCode: category.categoryCode || "",
       description: category.description || "",
       status: category.status || "ACTIVE",
+      parentId: category.parentId || "",
+      attributeSchema: Array.isArray(category.attributeSchema)
+        ? JSON.parse(JSON.stringify(category.attributeSchema))
+        : [],
     })
+    setNewSpecName("")
+    setNewSpecSuggestions("")
     setFormError("")
     setIsCatModalOpen(true)
+  }
+
+  const handleAddSpecField = () => {
+    if (!newSpecName.trim()) return
+    const trimmedName = newSpecName.trim()
+    const currentSpecs = Array.isArray(catForm.attributeSchema) ? [...catForm.attributeSchema] : []
+    if (currentSpecs.some((s) => s.name.toLowerCase() === trimmedName.toLowerCase())) {
+      setFormError(`Specification "${trimmedName}" is already defined.`)
+      return
+    }
+
+    const suggestions = newSpecSuggestions
+      ? newSpecSuggestions
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : []
+
+    setCatForm({
+      ...catForm,
+      attributeSchema: [
+        ...currentSpecs,
+        {
+          name: trimmedName,
+          type: "text",
+          required: true,
+          suggestions,
+        },
+      ],
+    })
+    setNewSpecName("")
+    setNewSpecSuggestions("")
+    setFormError("")
+  }
+
+  const handleRemoveSpecField = (indexToRemove) => {
+    const currentSpecs = Array.isArray(catForm.attributeSchema) ? [...catForm.attributeSchema] : []
+    setCatForm({
+      ...catForm,
+      attributeSchema: currentSpecs.filter((_, idx) => idx !== indexToRemove),
+    })
   }
 
   const handleCategorySubmit = async (e) => {
@@ -279,6 +335,8 @@ export default function CategoriesPage({ selectedBranch, user }) {
           name: catForm.name.trim(),
           description: catForm.description.trim() || null,
           status: catForm.status,
+          parentId: catForm.parentId || null,
+          attributeSchema: catForm.attributeSchema?.length ? catForm.attributeSchema : null,
         }
         await updateItemCategoryById(editingCategory.id, payload)
         setNoticeMessage(`Category "${catForm.name.trim()}" updated successfully!`)
@@ -291,6 +349,8 @@ export default function CategoriesPage({ selectedBranch, user }) {
           ...(catForm.description.trim()
             ? { description: catForm.description.trim() }
             : {}),
+          parentId: catForm.parentId || null,
+          attributeSchema: catForm.attributeSchema?.length ? catForm.attributeSchema : null,
           ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
         }
         await createItemCategory(payload)
@@ -445,6 +505,12 @@ export default function CategoriesPage({ selectedBranch, user }) {
     return new Set(units.map((u) => String(u.unitCode || "").toUpperCase()))
   }, [units])
 
+  const availableParentCategories = useMemo(() => {
+    return categories.filter(
+      (c) => (!c.parentId || c.parentId === "") && c.id !== editingCategory?.id
+    )
+  }, [categories, editingCategory])
+
   return (
     <div className="space-y-6">
       {/* Top Banner */}
@@ -466,7 +532,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
           </h1>
           <p className="text-xs text-[var(--color-muted)] sm:text-sm">
             {activeTab === "categories"
-              ? "Manage inventory item classifications, groupings, and catalog categories."
+              ? "Manage 2-tier inventory classifications (Category ➔ Subcategory) and specification attribute templates."
               : "Manage units of measurement (BOX, KIT, METER, PAIR, PIECE, ROLL, SET, UNIT) for inventory items."}
           </p>
         </div>
@@ -498,90 +564,104 @@ export default function CategoriesPage({ selectedBranch, user }) {
               type="button"
             >
               <Plus size={15} />
-              Add Unit of Measure
+              Add Unit
             </button>
           )}
         </div>
       </header>
 
-      {/* Primary Section Switcher Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
+      {/* Tabs Switcher */}
+      <div className="flex items-center gap-2 border-b border-slate-200">
         <button
-          className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black transition ${
+          className={`inline-flex items-center gap-2 border-b-2 px-5 py-3 text-xs font-black transition ${
             activeTab === "categories"
-              ? "bg-[var(--color-maroon)] text-white shadow-soft"
-              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              ? "border-[var(--color-maroon)] text-[var(--color-maroon)]"
+              : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
           onClick={() => {
             setActiveTab("categories")
             setSearchQuery("")
+            setStatusFilter("ALL")
           }}
           type="button"
         >
           <Tag size={15} />
           Product Categories
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              activeTab === "categories" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
-            }`}
-          >
-            {catPagination.totalItems || categories.length}
-          </span>
+          {categories.length > 0 ? (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+              {catPagination.totalItems || categories.length}
+            </span>
+          ) : null}
         </button>
 
         <button
-          className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black transition ${
+          className={`inline-flex items-center gap-2 border-b-2 px-5 py-3 text-xs font-black transition ${
             activeTab === "units"
-              ? "bg-[var(--color-maroon)] text-white shadow-soft"
-              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              ? "border-[var(--color-maroon)] text-[var(--color-maroon)]"
+              : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
           onClick={() => {
             setActiveTab("units")
             setSearchQuery("")
+            setStatusFilter("ALL")
           }}
           type="button"
         >
           <Ruler size={15} />
-          Units of Measure (UOM)
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              activeTab === "units" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
-            }`}
-          >
-            {unitPagination.totalItems || units.length}
-          </span>
+          Units of Measure
+          {units.length > 0 ? (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+              {unitPagination.totalItems || units.length}
+            </span>
+          ) : null}
         </button>
       </div>
 
       {/* Notice Message */}
       {noticeMessage ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800 shadow-soft animate-in fade-in slide-in-from-top-2">
-          <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
-          <span>{noticeMessage}</span>
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            <span>{noticeMessage}</span>
+          </div>
+          <button
+            onClick={() => setNoticeMessage("")}
+            className="text-emerald-600 hover:text-emerald-800"
+            type="button"
+          >
+            <X size={14} />
+          </button>
         </div>
       ) : null}
 
       {/* Error Message */}
       {errorMessage ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-800 shadow-soft">
-          <AlertCircle size={16} className="shrink-0 text-red-600" />
-          <span>{errorMessage}</span>
+        <div className="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-800 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="text-red-600 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage("")}
+            className="text-red-600 hover:text-red-800"
+            type="button"
+          >
+            <X size={14} />
+          </button>
         </div>
       ) : null}
 
-      {/* Quick Presets & Filter Pills for Product Categories */}
+      {/* Quick Presets for Categories */}
       {activeTab === "categories" ? (
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-              <Tag size={14} className="text-[var(--color-maroon)]" />
-              Standard PC Parts Presets & Quick Filter:
+              <Box size={14} className="text-[var(--color-maroon)]" />
+              Quick Filter by Standard Category:
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-500 font-medium">
-                Common Computer Hardware Categories
-              </span>
-            </div>
+            <span className="text-[10px] text-slate-500 font-medium">
+              Click a pill to filter catalog categories
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
@@ -761,7 +841,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
             {["ALL", "ACTIVE", "INACTIVE"].map((status) => (
               <button
                 key={status}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                className={`rounded-lg px-3 py-1 text-xs font-bold transition ${
                   statusFilter === status
                     ? "bg-white text-slate-900 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
@@ -769,11 +849,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 onClick={() => setStatusFilter(status)}
                 type="button"
               >
-                {status === "ALL"
-                  ? "All"
-                  : status === "ACTIVE"
-                    ? "Active"
-                    : "Inactive"}
+                {status}
               </button>
             ))}
           </div>
@@ -789,6 +865,8 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 <tr>
                   <th className="px-5 py-3.5">Category Code</th>
                   <th className="px-5 py-3.5">Category Name</th>
+                  <th className="px-5 py-3.5">Classification</th>
+                  <th className="px-5 py-3.5">Specifications Template</th>
                   <th className="px-5 py-3.5">Description</th>
                   <th className="px-5 py-3.5 text-center">Status</th>
                   <th className="px-5 py-3.5 text-right">Created</th>
@@ -798,7 +876,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={8} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <LoaderCircle
                           className="animate-spin text-[var(--color-maroon)]"
@@ -812,7 +890,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   </tr>
                 ) : categories.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={8} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
                         <Tag size={32} />
                         <p className="text-sm font-bold text-slate-700">
@@ -827,52 +905,75 @@ export default function CategoriesPage({ selectedBranch, user }) {
                     </td>
                   </tr>
                 ) : (
-                  categories.map((cat) => (
-                    <tr
-                      key={cat.id}
-                      className="transition hover:bg-slate-50/80 group"
-                    >
-                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900">
-                        {cat.categoryCode || "—"}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="font-bold text-slate-900">{cat.name}</div>
-                        {cat.branch ? (
-                          <div className="text-[10px] text-slate-500">
-                            Branch: {cat.branch.name} ({cat.branch.code})
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600 max-w-xs truncate">
-                        {cat.description || "—"}
-                      </td>
-                      <td className="px-5 py-3.5 text-center">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
-                            cat.status === "ACTIVE"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-200 text-slate-700"
-                          }`}
-                        >
-                          {cat.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right text-slate-500 font-mono">
-                        {formatDate(cat.createdAt)}
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <button
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] hover:bg-slate-50"
-                          onClick={() => handleOpenEditCategoryModal(cat)}
-                          title="Edit category"
-                          type="button"
-                        >
-                          <Edit3 size={13} />
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  categories.map((cat) => {
+                    const hasSpecs = Array.isArray(cat.attributeSchema) && cat.attributeSchema.length > 0
+                    return (
+                      <tr
+                        key={cat.id}
+                        className="transition hover:bg-slate-50/80 group"
+                      >
+                        <td className="px-5 py-3.5 font-mono font-bold text-slate-900">
+                          {cat.categoryCode || "—"}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="font-bold text-slate-900">{cat.name}</div>
+                          {cat.branch ? (
+                            <div className="text-[10px] text-slate-500">
+                              Branch: {cat.branch.name} ({cat.branch.code})
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {cat.parent ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold text-blue-800 border border-blue-200">
+                              ↳ Subcategory of {cat.parent.name}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200">
+                              Main Category
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {hasSpecs ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-bold text-indigo-800 border border-indigo-200">
+                              {cat.attributeSchema.length} specs defined
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">None</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-600 max-w-xs truncate">
+                          {cat.description || "—"}
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
+                              cat.status === "ACTIVE"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-slate-200 text-slate-700"
+                            }`}
+                          >
+                            {cat.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right text-slate-500 font-mono">
+                          {formatDate(cat.createdAt)}
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <button
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] hover:bg-slate-50"
+                            onClick={() => handleOpenEditCategoryModal(cat)}
+                            title="Edit category"
+                            type="button"
+                          >
+                            <Edit3 size={13} />
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
@@ -1036,13 +1137,18 @@ export default function CategoriesPage({ selectedBranch, user }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
           role="dialog"
         >
-          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
               <div className="flex items-center gap-2">
                 <Tag size={18} className="text-[var(--color-maroon)]" />
-                <h3 className="text-base font-black text-slate-900">
-                  {editingCategory ? "Edit Category" : "Add New Category"}
-                </h3>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    {editingCategory ? "Edit Category" : "Add New Category"}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Configure category hierarchy, details, and hardware specification templates
+                  </p>
+                </div>
               </div>
               <button
                 aria-label="Close"
@@ -1054,7 +1160,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
               </button>
             </header>
 
-            <form onSubmit={handleCategorySubmit} className="p-6 space-y-4">
+            <form onSubmit={handleCategorySubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               {formError ? (
                 <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
                   <AlertCircle size={15} className="shrink-0" />
@@ -1062,68 +1168,196 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 </div>
               ) : null}
 
-              <label className="block">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                  Category Name <span className="text-red-500">*</span>
-                </span>
-                <input
-                  autoFocus
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
-                  onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
-                  placeholder="e.g. Monitors, Keyboards, Liquid Coolers"
-                  required
-                  type="text"
-                  value={catForm.name}
-                />
-              </label>
+              {/* Section 1: Classification & Details */}
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                      Parent Category (Classification)
+                    </span>
+                    <select
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      onChange={(e) => setCatForm({ ...catForm, parentId: e.target.value })}
+                      value={catForm.parentId}
+                    >
+                      <option value="">-- Main Category (No Parent) --</option>
+                      {availableParentCategories.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.categoryCode || "No Code"})
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Select a parent to make this a Subcategory (e.g. Desktop CPU under CPU / Processor)
+                    </span>
+                  </label>
 
-              {!editingCategory ? (
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                      Category Name <span className="text-red-500">*</span>
+                    </span>
+                    <input
+                      autoFocus
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+                      placeholder="e.g. Desktop CPU, Gaming GPU, NVMe SSD"
+                      required
+                      type="text"
+                      value={catForm.name}
+                    />
+                  </label>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {!editingCategory ? (
+                    <label className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                        Category Code <span className="text-slate-400 font-normal">(Auto-generated if blank)</span>
+                      </span>
+                      <input
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                        onChange={(e) =>
+                          setCatForm({ ...catForm, categoryCode: e.target.value })
+                        }
+                        placeholder="e.g. CAT-CPU-DESK"
+                        type="text"
+                        value={catForm.categoryCode}
+                      />
+                    </label>
+                  ) : null}
+
+                  {editingCategory ? (
+                    <label className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                        Status
+                      </span>
+                      <select
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                        onChange={(e) => setCatForm({ ...catForm, status: e.target.value })}
+                        value={catForm.status}
+                      >
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="INACTIVE">INACTIVE</option>
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                    Category Code <span className="text-slate-400 font-normal">(Optional, auto-generated if blank)</span>
+                    Description <span className="text-slate-400 font-normal">(Optional)</span>
                   </span>
-                  <input
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                  <textarea
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] resize-none"
                     onChange={(e) =>
-                      setCatForm({ ...catForm, categoryCode: e.target.value })
+                      setCatForm({ ...catForm, description: e.target.value })
                     }
-                    placeholder="e.g. CAT-MONITOR"
-                    type="text"
-                    value={catForm.categoryCode}
+                    placeholder="Additional notes or hardware details covered by this category..."
+                    rows={2}
+                    value={catForm.description}
                   />
                 </label>
-              ) : null}
+              </div>
 
-              <label className="block">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                  Description <span className="text-slate-400 font-normal">(Optional)</span>
-                </span>
-                <textarea
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] resize-none"
-                  onChange={(e) =>
-                    setCatForm({ ...catForm, description: e.target.value })
-                  }
-                  placeholder="Additional notes or sub-types covered by this category..."
-                  rows={3}
-                  value={catForm.description}
-                />
-              </label>
-
-              {editingCategory ? (
-                <label className="block">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                    Status
+              {/* Section 2: Specification Attributes Template */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)] flex items-center gap-1.5">
+                      <Layers size={13} />
+                      Specification Schema Template
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      Products encoded under this category will require these technical attributes.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
+                    {catForm.attributeSchema?.length || 0} specifications
                   </span>
-                  <select
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
-                    onChange={(e) => setCatForm({ ...catForm, status: e.target.value })}
-                    value={catForm.status}
-                  >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="INACTIVE">INACTIVE</option>
-                  </select>
-                </label>
-              ) : null}
+                </div>
+
+                {/* Defined Specs List */}
+                {catForm.attributeSchema?.length > 0 ? (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {catForm.attributeSchema.map((spec, idx) => (
+                      <div
+                        key={spec.name || idx}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-2xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900">{spec.name}</span>
+                            <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-bold text-slate-600 uppercase">
+                              Required
+                            </span>
+                          </div>
+                          {spec.suggestions?.length > 0 ? (
+                            <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                              Suggestions: {spec.suggestions.slice(0, 5).join(", ")}
+                              {spec.suggestions.length > 5 ? ` +${spec.suggestions.length - 5} more` : ""}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-slate-400 italic mt-0.5">
+                              Free-form text input
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSpecField(idx)}
+                          className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                          title="Remove specification field"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-4 text-center">
+                    <p className="text-xs font-semibold text-slate-600">
+                      No technical specifications defined yet.
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Add specification fields below so encoders have guided attributes with auto-suggestions.
+                    </p>
+                  </div>
+                )}
+
+                {/* Inline Add Spec Form */}
+                <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 block">
+                    + Add New Specification Field
+                  </span>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                      onChange={(e) => setNewSpecName(e.target.value)}
+                      placeholder="Spec Name (e.g. Socket, VRAM, Form Factor)"
+                      type="text"
+                      value={newSpecName}
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                      onChange={(e) => setNewSpecSuggestions(e.target.value)}
+                      placeholder="Suggestions (comma separated: AM4, AM5, LGA1700)"
+                      type="text"
+                      value={newSpecSuggestions}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleAddSpecField}
+                      disabled={!newSpecName.trim()}
+                      className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1 text-xs font-bold text-white shadow-2xs hover:bg-slate-900 disabled:opacity-40 transition"
+                    >
+                      <Plus size={12} />
+                      Add Specification
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <footer className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
                 <button

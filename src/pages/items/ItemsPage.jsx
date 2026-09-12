@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, Edit3, PackageSearch, Plus, RefreshCw, Save, Search, X } from "lucide-react"
+import { AlertCircle, CheckCircle2, Edit3, Layers, PackageSearch, Plus, RefreshCw, Save, Search, Tag, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { USER_ROLES } from "../../constants/roles"
@@ -67,6 +67,7 @@ const EMPTY_ITEM_FORM = {
   modelName: "",
   categoryId: "",
   unitId: "",
+  attributes: {},
   isSerialized: false,
   hasWarranty: true,
   warrantyDuration: "1 YEAR WARRANTY",
@@ -97,6 +98,7 @@ function itemToForm(item) {
     modelName: item.modelName || "",
     categoryId: item.category?.id || item.categoryId || "",
     unitId: item.unit?.id || item.unitId || "",
+    attributes: item.attributes && typeof item.attributes === "object" ? { ...item.attributes } : {},
     isSerialized: Boolean(item.isSerialized),
     hasWarranty: warranty !== "NO WARRANTY",
     warrantyDuration: warranty,
@@ -233,6 +235,28 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
             </div>
           </div>
 
+          {/* Technical Specifications */}
+          {item.attributes && typeof item.attributes === "object" && Object.keys(item.attributes).length > 0 ? (
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
+                  ⚙️ Technical Specifications
+                </span>
+                <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 border border-indigo-200">
+                  {Object.keys(item.attributes).length} attributes
+                </span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 text-xs">
+                {Object.entries(item.attributes).map(([key, val]) => (
+                  <div key={key} className="rounded-lg bg-white border border-indigo-100 p-2 shadow-2xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{key}</p>
+                    <p className="mt-0.5 font-bold text-slate-900">{String(val || "—")}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="rounded-xl border border-slate-200 p-3.5 space-y-2">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Selling Price Tiers</p>
             <div className="grid gap-2 grid-cols-2 sm:grid-cols-5 text-xs">
@@ -283,12 +307,92 @@ function ItemEditorModal({
   onSave,
   units,
 }) {
+  const [customSpecKey, setCustomSpecKey] = useState("")
+  const [customSpecVal, setCustomSpecVal] = useState("")
+  const [isAddingCustom, setIsAddingCustom] = useState(false)
+
+  const formCategoryId = form?.categoryId
+  const formAttributes = form?.attributes
+
+  const selectedCategory = useMemo(() => {
+    if (!formCategoryId) return null
+    return categories.find((c) => c.id === formCategoryId) || null
+  }, [categories, formCategoryId])
+
+  const mainCategories = useMemo(() => {
+    return categories.filter((c) => !c.parentId || c.parentId === "")
+  }, [categories])
+
+  const effectiveMainCatId = useMemo(() => {
+    if (!selectedCategory) return ""
+    return selectedCategory.parentId || selectedCategory.id
+  }, [selectedCategory])
+
+  const subcategoryOptions = useMemo(() => {
+    if (!effectiveMainCatId) return []
+    return categories.filter((c) => c.parentId === effectiveMainCatId)
+  }, [categories, effectiveMainCatId])
+
+  const currentSchema = useMemo(() => {
+    return Array.isArray(selectedCategory?.attributeSchema) ? selectedCategory.attributeSchema : []
+  }, [selectedCategory])
+
+  const schemaFieldNames = useMemo(() => {
+    return new Set(currentSchema.map((s) => s.name))
+  }, [currentSchema])
+
+  const customSpecs = useMemo(() => {
+    const attrs = formAttributes || {}
+    return Object.entries(attrs).filter(([k]) => !schemaFieldNames.has(k))
+  }, [formAttributes, schemaFieldNames])
+
+  const completedSchemaCount = useMemo(() => {
+    if (!currentSchema.length) return 0
+    const attrs = formAttributes || {}
+    return currentSchema.filter(
+      (s) =>
+        attrs[s.name] !== undefined &&
+        attrs[s.name] !== null &&
+        String(attrs[s.name]).trim() !== ""
+    ).length
+  }, [currentSchema, formAttributes])
+
   if (!form) return null
 
   const inputClass =
     "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
 
   const labelClass = "text-[11px] font-bold uppercase tracking-wider text-slate-600"
+
+  const handleMainCatChange = (mainId) => {
+    if (!mainId) {
+      onChange("categoryId", "")
+      return
+    }
+    const subs = categories.filter((c) => c.parentId === mainId)
+    if (subs.length > 0) {
+      onChange("categoryId", subs[0].id)
+    } else {
+      onChange("categoryId", mainId)
+    }
+  }
+
+  const handleAddCustomSpec = () => {
+    if (!customSpecKey.trim() || !customSpecVal.trim()) return
+    onChange("attributes", {
+      ...(form.attributes || {}),
+      [customSpecKey.trim()]: customSpecVal.trim(),
+    })
+    setCustomSpecKey("")
+    setCustomSpecVal("")
+    setIsAddingCustom(false)
+  }
+
+  const handleRemoveCustomSpec = (keyToRemove) => {
+    const newAttrs = { ...(form.attributes || {}) }
+    delete newAttrs[keyToRemove]
+    onChange("attributes", newAttrs)
+  }
 
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/60 p-3 sm:p-6 grid place-items-center backdrop-blur-xs">
@@ -416,39 +520,65 @@ function ItemEditorModal({
 
           {/* Section 2: Classification & Tracking */}
           <section className="space-y-2.5 pt-1 border-t border-slate-100">
-            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              Classification &amp; Tracking
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+                Classification &amp; Tracking
+              </h3>
+              {onNavigate ? (
+                <button
+                  className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline flex items-center gap-1"
+                  onClick={() => onNavigate("categories")}
+                  type="button"
+                >
+                  Manage Categories in File Maintenance ↗
+                </button>
+              ) : null}
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <div className="flex items-center justify-between">
-                  <span className={labelClass}>Category</span>
-                  {onNavigate ? (
-                    <button
-                      className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline"
-                      onClick={() => onNavigate("categories")}
-                      type="button"
-                    >
-                      + Manage in File Maintenance ↗
-                    </button>
-                  ) : null}
-                </div>
+                <span className={labelClass}>Main Category</span>
                 <select
                   className={inputClass}
-                  onChange={(event) =>
-                    onChange("categoryId", event.target.value)
-                  }
-                  required
-                  value={form.categoryId}
+                  onChange={(event) => handleMainCatChange(event.target.value)}
+                  value={effectiveMainCatId}
                 >
-                  <option value="">Select category</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
+                  <option value="">Select main category</option>
+                  {mainCategories.map((mainCat) => (
+                    <option key={mainCat.id} value={mainCat.id}>
+                      {mainCat.name}
                     </option>
                   ))}
                 </select>
+              </label>
+
+              <label className="block">
+                <span className={labelClass}>
+                  Subcategory / Product Type <span className="text-red-500">*</span>
+                </span>
+                {subcategoryOptions.length > 0 ? (
+                  <select
+                    className={inputClass}
+                    onChange={(event) =>
+                      onChange("categoryId", event.target.value)
+                    }
+                    required
+                    value={form.categoryId}
+                  >
+                    <option value="">Select subcategory</option>
+                    {subcategoryOptions.map((subCat) => (
+                      <option key={subCat.id} value={subCat.id}>
+                        {subCat.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className={`${inputClass} bg-slate-50 text-slate-500 cursor-not-allowed`}
+                    disabled
+                    value={selectedCategory?.name || "Direct Category (No subcategories)"}
+                  />
+                )}
               </label>
 
               <label className="block">
@@ -470,41 +600,43 @@ function ItemEditorModal({
                 </select>
               </label>
 
-              <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs hover:bg-slate-50 transition cursor-pointer">
-                <input
-                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
-                  checked={form.isSerialized}
-                  onChange={(event) =>
-                    onChange("isSerialized", event.target.checked)
-                  }
-                  type="checkbox"
-                />
-                <div>
-                  <strong className="block text-slate-800 font-bold">Serialized Item</strong>
-                  <span className="text-[10px] text-slate-500">Requires unique serial barcode</span>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs hover:bg-slate-50 transition cursor-pointer">
-                <input
-                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
-                  checked={form.hasWarranty}
-                  onChange={(event) => {
-                    const checked = event.target.checked
-                    onChange("hasWarranty", checked)
-                    if (!checked) {
-                      onChange("warrantyDuration", "NO WARRANTY")
-                    } else if (form.warrantyDuration === "NO WARRANTY") {
-                      onChange("warrantyDuration", "1 YEAR WARRANTY")
+              <div className="flex gap-2">
+                <label className="flex-1 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs hover:bg-slate-50 transition cursor-pointer">
+                  <input
+                    className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                    checked={form.isSerialized}
+                    onChange={(event) =>
+                      onChange("isSerialized", event.target.checked)
                     }
-                  }}
-                  type="checkbox"
-                />
-                <div>
-                  <strong className="block text-slate-800 font-bold">Warranty Tracking</strong>
-                  <span className="text-[10px] text-slate-500">Track warranty lifecycle</span>
-                </div>
-              </label>
+                    type="checkbox"
+                  />
+                  <div>
+                    <strong className="block text-slate-800 font-bold">Serialized</strong>
+                    <span className="text-[10px] text-slate-500">Unique barcode</span>
+                  </div>
+                </label>
+
+                <label className="flex-1 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs hover:bg-slate-50 transition cursor-pointer">
+                  <input
+                    className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                    checked={form.hasWarranty}
+                    onChange={(event) => {
+                      const checked = event.target.checked
+                      onChange("hasWarranty", checked)
+                      if (!checked) {
+                        onChange("warrantyDuration", "NO WARRANTY")
+                      } else if (form.warrantyDuration === "NO WARRANTY") {
+                        onChange("warrantyDuration", "1 YEAR WARRANTY")
+                      }
+                    }}
+                    type="checkbox"
+                  />
+                  <div>
+                    <strong className="block text-slate-800 font-bold">Warranty</strong>
+                    <span className="text-[10px] text-slate-500">Track coverage</span>
+                  </div>
+                </label>
+              </div>
             </div>
 
             {/* Warranty Coverage Presets */}
@@ -568,6 +700,202 @@ function ItemEditorModal({
               </label>
             ) : null}
           </section>
+
+          {/* Section 3: Hardware Technical Specifications */}
+          {currentSchema.length > 0 || customSpecs.length > 0 ? (
+            <section className="space-y-3 pt-2 border-t border-slate-200">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)] flex items-center gap-1.5">
+                    <Layers size={14} />
+                    {selectedCategory?.name || "Product"} — Technical Specifications
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    All specifications are strictly required. Click suggestion buttons or type custom values.
+                  </p>
+                </div>
+                {currentSchema.length > 0 ? (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold shrink-0 self-start sm:self-auto ${
+                      completedSchemaCount === currentSchema.length
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                    }`}
+                  >
+                    {completedSchemaCount === currentSchema.length ? (
+                      <CheckCircle2 size={12} className="text-emerald-700" />
+                    ) : null}
+                    {completedSchemaCount} of {currentSchema.length} Specs Filled
+                  </span>
+                ) : null}
+              </div>
+
+              {/* Standard Attributes from Schema */}
+              {currentSchema.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {currentSchema.map((field) => {
+                    const datalistId = `spec-datalist-${field.name.replace(/[^a-zA-Z0-9]/g, "_")}`
+                    const val = form.attributes?.[field.name] || ""
+                    const isFilled = Boolean(val && String(val).trim())
+
+                    return (
+                      <div key={field.name} className="space-y-1 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
+                        <label className="block">
+                          <div className="flex items-center justify-between">
+                            <span className={labelClass}>
+                              {field.name} <span className="text-red-500">*</span>
+                            </span>
+                            {isFilled ? (
+                              <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                                ✓ Done
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-amber-600 font-bold">Required</span>
+                            )}
+                          </div>
+                          <input
+                            list={datalistId}
+                            className={`${inputClass} bg-white`}
+                            placeholder={field.suggestions?.[0] ? `e.g. ${field.suggestions[0]}` : `Enter ${field.name}`}
+                            value={val}
+                            onChange={(e) => {
+                              onChange("attributes", {
+                                ...(form.attributes || {}),
+                                [field.name]: e.target.value,
+                              })
+                            }}
+                          />
+                          {field.suggestions?.length > 0 ? (
+                            <datalist id={datalistId}>
+                              {field.suggestions.map((sug) => (
+                                <option key={sug} value={sug} />
+                              ))}
+                            </datalist>
+                          ) : null}
+                        </label>
+
+                        {/* Suggestion Pills */}
+                        {field.suggestions?.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Quick:</span>
+                            {field.suggestions.slice(0, 4).map((sug) => (
+                              <button
+                                key={sug}
+                                type="button"
+                                onClick={() => {
+                                  onChange("attributes", {
+                                    ...(form.attributes || {}),
+                                    [field.name]: sug,
+                                  })
+                                }}
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition ${
+                                  val === sug
+                                    ? "bg-[var(--color-maroon)] text-white font-bold shadow-2xs"
+                                    : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-200"
+                                }`}
+                              >
+                                {sug}
+                              </button>
+                            ))}
+                            {val && !field.suggestions.includes(val) ? (
+                              <span className="rounded bg-indigo-100 text-indigo-800 px-1.5 py-0.5 text-[10px] font-bold">
+                                Custom: {val}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : null}
+
+              {/* Custom Specifications Added by User */}
+              {customSpecs.length > 0 ? (
+                <div className="space-y-2 pt-2 border-t border-slate-200">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Custom Specifications
+                  </span>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {customSpecs.map(([specKey, specVal]) => (
+                      <div
+                        key={specKey}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/40 px-3 py-2 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-900">{specKey}</p>
+                          <p className="font-semibold text-slate-900 truncate">{specVal}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomSpec(specKey)}
+                          className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                          title="Remove custom specification"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Add Custom Spec Button / Inline Box */}
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-3">
+                {!isAddingCustom ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingCustom(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-maroon)] hover:underline"
+                  >
+                    <Plus size={13} />
+                    + Add Custom Specification Field
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Add Custom Specification
+                    </span>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                        placeholder="Attribute Name (e.g. Heatsink Color, Special Edition)"
+                        value={customSpecKey}
+                        onChange={(e) => setCustomSpecKey(e.target.value)}
+                      />
+                      <input
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                        placeholder="Attribute Value"
+                        value={customSpecVal}
+                        onChange={(e) => setCustomSpecVal(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingCustom(false)
+                          setCustomSpecKey("")
+                          setCustomSpecVal("")
+                        }}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomSpec}
+                        disabled={!customSpecKey.trim() || !customSpecVal.trim()}
+                        className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-bold text-white hover:bg-slate-900 disabled:opacity-40"
+                      >
+                        Add Spec
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : null}
 
           {/* Section 3: Pricing (Cost & Selling Prices 1 to 5) */}
           <section className="space-y-2.5 pt-1 border-t border-slate-100">
@@ -820,9 +1148,22 @@ function ItemMobileCard({ canManagePrices, canViewCost, item, onEditPrices }) {
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
             Category
           </p>
-          <p className="mt-1 font-bold text-[var(--color-text-strong)]">
-            {item.category?.name || "—"}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 font-bold text-[var(--color-text-strong)]">
+            {item.category?.parent ? (
+              <>
+                <span className="text-xs font-semibold text-[var(--color-muted)]">
+                  {item.category.parent.name}
+                </span>
+                <span className="text-xs text-[var(--color-muted)]">›</span>
+              </>
+            ) : null}
+            <span>{item.category?.name || "—"}</span>
+            {item.attributes && Object.keys(item.attributes).length > 0 ? (
+              <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-[#7A1F2B]/10 px-2 py-0.5 text-[11px] font-semibold text-[#7A1F2B]">
+                <Tag size={11} /> {Object.keys(item.attributes).length} specs
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -910,7 +1251,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
   const loadFilterOptions = useCallback(async () => {
     try {
       const categoryParams = {
-        limit: 100,
+        limit: 250,
       }
 
       if (selectedBranchId) {
@@ -1119,6 +1460,22 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
       return
     }
 
+    // Completeness check against category specification schema
+    const targetCategory = categoryOptions.find((c) => c.id === itemForm.categoryId)
+    const requiredSpecs = Array.isArray(targetCategory?.attributeSchema) ? targetCategory.attributeSchema : []
+    if (requiredSpecs.length > 0) {
+      const missing = requiredSpecs.filter((spec) => {
+        const val = itemForm.attributes?.[spec.name]
+        return val === undefined || val === null || String(val).trim() === ""
+      })
+      if (missing.length > 0) {
+        setItemEditorError(
+          `Please fill in all specifications for ${targetCategory.name}: missing ${missing.map((s) => s.name).join(", ")}. Enter "None" or "N/A" if not applicable.`
+        )
+        return
+      }
+    }
+
     setIsSavingItem(true)
     setItemEditorError("")
 
@@ -1127,6 +1484,15 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
     const packagedDesc = warrantyStr
       ? (cleanDesc ? `${cleanDesc} [WARRANTY: ${warrantyStr}]` : `[WARRANTY: ${warrantyStr}]`)
       : (cleanDesc || null)
+
+    const cleanedAttributes = {}
+    if (itemForm.attributes && typeof itemForm.attributes === "object") {
+      Object.entries(itemForm.attributes).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          cleanedAttributes[key] = String(val).trim()
+        }
+      })
+    }
 
     const payload = {
       ...(itemForm.itemCode.trim()
@@ -1139,6 +1505,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
       modelName: itemForm.modelName.trim() || null,
       categoryId: itemForm.categoryId,
       unitId: itemForm.unitId,
+      attributes: Object.keys(cleanedAttributes).length > 0 ? cleanedAttributes : null,
       isSerialized: Boolean(itemForm.isSerialized),
       hasWarranty: warrantyStr !== "NO WARRANTY" && Boolean(warrantyStr),
       ...(canAdjustPrices
@@ -1526,8 +1893,25 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
                           {item.branch?.code || "—"}
                         </td>
 
-                        <td className="min-w-[140px] px-3 py-4 text-[var(--color-muted)]">
-                          {item.category?.name || "—"}
+                        <td className="min-w-[160px] px-3 py-4">
+                          <div className="flex flex-col gap-0.5">
+                            {item.category?.parent ? (
+                              <span className="text-[11px] font-semibold text-[var(--color-muted)]">
+                                {item.category.parent.name} ›
+                              </span>
+                            ) : null}
+                            <span className="font-semibold text-[var(--color-text-strong)]">
+                              {item.category?.name || "—"}
+                            </span>
+                            {item.attributes && Object.keys(item.attributes).length > 0 ? (
+                              <div className="mt-1 flex items-center">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-[#7A1F2B]/10 px-2 py-0.5 text-[10px] font-bold text-[#7A1F2B]">
+                                  <Tag size={10} />
+                                  {Object.keys(item.attributes).length} specs
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
                         </td>
 
                         <td className="whitespace-nowrap px-3 py-4 text-[var(--color-muted)]">
