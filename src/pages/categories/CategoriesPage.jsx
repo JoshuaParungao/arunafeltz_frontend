@@ -2,17 +2,23 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
   Box,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Edit3,
+  Folder,
+  GitBranch,
+  HelpCircle,
   Layers,
   LoaderCircle,
   Plus,
   RefreshCw,
   Ruler,
   Search,
+  Sparkles,
   Tag,
+  Trash2,
   X,
 } from "lucide-react"
 
@@ -63,6 +69,20 @@ const DEFAULT_STANDARD_UNITS = [
   { unitCode: "ROLL", name: "Roll", description: "Unit for rolled cables, tape, or tubing." },
   { unitCode: "SET", name: "Set", description: "Unit for bundled items or complete sets." },
   { unitCode: "UNIT", name: "Unit", description: "Standard discrete unit / equipment." },
+]
+
+const POPULAR_ATTRIBUTE_PRESETS = [
+  { name: "Brand", suggestions: [] },
+  { name: "Model", suggestions: [] },
+  { name: "Capacity", suggestions: ["8GB", "16GB", "32GB", "64GB", "500GB", "1TB", "2TB"] },
+  { name: "Speed / Frequency", suggestions: ["3200MHz", "3600MHz", "5200MHz", "5600MHz", "6000MHz"] },
+  { name: "Socket", suggestions: ["AM4", "AM5", "LGA1700", "LGA1851"] },
+  { name: "Form Factor", suggestions: ["ATX", "Micro-ATX", "Mini-ITX", "2.5-inch", "M.2 2280"] },
+  { name: "Interface", suggestions: ["PCIe 4.0", "PCIe 5.0", "SATA III", "USB 3.2"] },
+  { name: "Wattage", suggestions: ["550W", "650W", "750W", "850W", "1000W"] },
+  { name: "VRAM", suggestions: ["8GB", "12GB", "16GB", "24GB"] },
+  { name: "Color", suggestions: ["Black", "White", "Silver", "RGB"] },
+  { name: "Connectivity", suggestions: ["Wired", "Wireless 2.4GHz", "Bluetooth"] },
 ]
 
 export default function CategoriesPage({ selectedBranch, user }) {
@@ -244,14 +264,14 @@ export default function CategoriesPage({ selectedBranch, user }) {
   }, [activeTab, loadCategories, loadUnits])
 
   // Category Modal Handlers
-  const handleOpenCreateCategoryModal = () => {
+  const handleOpenCreateCategoryModal = (preselectedParentId = "") => {
     setEditingCategory(null)
     setCatForm({
       name: "",
       categoryCode: "",
       description: "",
       status: "ACTIVE",
-      parentId: "",
+      parentId: typeof preselectedParentId === "string" ? preselectedParentId : "",
       attributeSchema: [],
     })
     setNewSpecName("")
@@ -276,6 +296,26 @@ export default function CategoriesPage({ selectedBranch, user }) {
     setNewSpecSuggestions("")
     setFormError("")
     setIsCatModalOpen(true)
+  }
+
+  const handleAddPresetSpec = (preset) => {
+    const currentSpecs = Array.isArray(catForm.attributeSchema) ? [...catForm.attributeSchema] : []
+    if (currentSpecs.some((s) => s.name.toLowerCase() === preset.name.toLowerCase())) {
+      return
+    }
+    setCatForm({
+      ...catForm,
+      attributeSchema: [
+        ...currentSpecs,
+        {
+          name: preset.name,
+          type: "text",
+          required: true,
+          suggestions: preset.suggestions || [],
+        },
+      ],
+    })
+    setFormError("")
   }
 
   const handleAddSpecField = () => {
@@ -510,6 +550,12 @@ export default function CategoriesPage({ selectedBranch, user }) {
       (c) => (!c.parentId || c.parentId === "") && c.id !== editingCategory?.id
     )
   }, [categories, editingCategory])
+
+  const editingCategoryId = editingCategory?.id
+  const subcategoriesOfEditingCategory = useMemo(() => {
+    if (!editingCategoryId) return []
+    return categories.filter((c) => c.parentId === editingCategoryId)
+  }, [categories, editingCategoryId])
 
   return (
     <div className="space-y-6">
@@ -961,15 +1007,28 @@ export default function CategoriesPage({ selectedBranch, user }) {
                           {formatDate(cat.createdAt)}
                         </td>
                         <td className="px-5 py-3.5 text-right">
-                          <button
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] hover:bg-slate-50"
-                            onClick={() => handleOpenEditCategoryModal(cat)}
-                            title="Edit category"
-                            type="button"
-                          >
-                            <Edit3 size={13} />
-                            Edit
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {!cat.parentId ? (
+                              <button
+                                className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50/70 px-2.5 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100 hover:text-blue-900"
+                                onClick={() => handleOpenCreateCategoryModal(cat.id)}
+                                title={`Add subcategory under ${cat.name}`}
+                                type="button"
+                              >
+                                <Plus size={12} />
+                                Subcategory
+                              </button>
+                            ) : null}
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] hover:bg-slate-50"
+                              onClick={() => handleOpenEditCategoryModal(cat)}
+                              title="Edit category"
+                              type="button"
+                            >
+                              <Edit3 size={13} />
+                              Edit
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -1138,228 +1197,373 @@ export default function CategoriesPage({ selectedBranch, user }) {
           role="dialog"
         >
           <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
-            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
-              <div className="flex items-center gap-2">
-                <Tag size={18} className="text-[var(--color-maroon)]" />
+            {/* Clean Header */}
+            <header className="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-xl bg-[#7A1F2B]/10 p-2 text-[#7A1F2B]">
+                  <Tag size={18} />
+                </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">
                     {editingCategory ? "Edit Category" : "Add New Category"}
                   </h3>
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    Configure category hierarchy, details, and hardware specification templates
+                  <p className="text-xs text-slate-500 font-medium">
+                    Ayusin ang classification at mga required attributes para sa mga produkto.
                   </p>
                 </div>
               </div>
               <button
                 aria-label="Close"
-                className="rounded-xl border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-200"
+                className="rounded-xl border border-slate-200 p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
                 onClick={() => setIsCatModalOpen(false)}
                 type="button"
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </header>
 
-            <form onSubmit={handleCategorySubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={handleCategorySubmit} className="p-6 space-y-5 max-h-[82vh] overflow-y-auto">
               {formError ? (
-                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
-                  <AlertCircle size={15} className="shrink-0" />
+                <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-xs font-bold text-red-700">
+                  <AlertCircle size={16} className="shrink-0" />
                   <span>{formError}</span>
                 </div>
               ) : null}
 
-              {/* Section 1: Classification & Details */}
-              <div className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                      Parent Category (Classification)
-                    </span>
+              {/* Step 1: Category Type / Classification */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                  1. Uri ng Category (Classification)
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCatForm({ ...catForm, parentId: "" })}
+                    className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition ${
+                      !catForm.parentId
+                        ? "border-[#7A1F2B] bg-[#7A1F2B]/5 ring-1 ring-[#7A1F2B]"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`rounded-xl p-2 ${
+                        !catForm.parentId
+                          ? "bg-[#7A1F2B] text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      <Folder size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">Main Category</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        Pangunahing grupo (hal. RAM / Memory, CPU, Storage)
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!catForm.parentId && availableParentCategories.length > 0) {
+                        setCatForm({ ...catForm, parentId: availableParentCategories[0].id })
+                      }
+                    }}
+                    className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition ${
+                      catForm.parentId
+                        ? "border-[#7A1F2B] bg-[#7A1F2B]/5 ring-1 ring-[#7A1F2B]"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`rounded-xl p-2 ${
+                        catForm.parentId
+                          ? "bg-[#7A1F2B] text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      <GitBranch size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">Subcategory</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        Nakasailalim sa Main Category (hal. Desktop RAM)
+                      </p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Subcategories list helper when editing Main Category */}
+                {editingCategory && !catForm.parentId && subcategoriesOfEditingCategory.length > 0 ? (
+                  <div className="flex items-start gap-2 rounded-xl bg-blue-50 border border-blue-200 p-2.5 text-[11px] text-blue-900 leading-snug">
+                    <GitBranch size={15} className="text-blue-700 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Mga Nakapaloob na Subcategories ({subcategoriesOfEditingCategory.length}): </span>
+                      {subcategoriesOfEditingCategory.map((s) => s.name).join(", ")}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Parent Selector if Subcategory */}
+                {catForm.parentId ? (
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5 space-y-1.5 animate-in fade-in">
+                    <label className="text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
+                      <GitBranch size={13} className="text-blue-700" />
+                      Pumili ng Main Category kung saan ito nakapaloob:
+                    </label>
                     <select
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      className="w-full rounded-xl border border-blue-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B]"
                       onChange={(e) => setCatForm({ ...catForm, parentId: e.target.value })}
                       value={catForm.parentId}
                     >
-                      <option value="">-- Main Category (No Parent) --</option>
                       {availableParentCategories.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name} ({p.categoryCode || "No Code"})
+                          {p.name}
                         </option>
                       ))}
                     </select>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      Select a parent to make this a Subcategory (e.g. Desktop CPU under CPU / Processor)
-                    </span>
-                  </label>
+                  </div>
+                ) : null}
+              </div>
 
+              {/* Step 2: Category Details */}
+              <div className="space-y-3 pt-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                  2. Pangalan at Detalye
+                </span>
+                <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                      Category Name <span className="text-red-500">*</span>
+                    <span className="text-xs font-semibold text-slate-700 block mb-1">
+                      Pangalan ng Category <span className="text-red-500">*</span>
                     </span>
                     <input
                       autoFocus
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B] hover:border-slate-400"
                       onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
-                      placeholder="e.g. Desktop CPU, Gaming GPU, NVMe SSD"
+                      placeholder="hal. Desktop RAM (DDR4 / DDR5)"
                       required
                       type="text"
                       value={catForm.name}
                     />
                   </label>
-                </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {!editingCategory ? (
+                  {editingCategory ? (
                     <label className="block">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                        Category Code <span className="text-slate-400 font-normal">(Auto-generated if blank)</span>
+                      <span className="text-xs font-semibold text-slate-700 block mb-1">
+                        Status
+                      </span>
+                      <select
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B]"
+                        onChange={(e) => setCatForm({ ...catForm, status: e.target.value })}
+                        value={catForm.status}
+                      >
+                        <option value="ACTIVE">ACTIVE (Maaaring gamitin)</option>
+                        <option value="INACTIVE">INACTIVE (Nakatago)</option>
+                      </select>
+                    </label>
+                  ) : (
+                    <label className="block">
+                      <span className="text-xs font-semibold text-slate-700 block mb-1">
+                        Category Code <span className="text-slate-400 font-normal">(Optional)</span>
                       </span>
                       <input
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B]"
                         onChange={(e) =>
                           setCatForm({ ...catForm, categoryCode: e.target.value })
                         }
-                        placeholder="e.g. CAT-CPU-DESK"
+                        placeholder="Auto-generated kung walang ilagay"
                         type="text"
                         value={catForm.categoryCode}
                       />
                     </label>
-                  ) : null}
-
-                  {editingCategory ? (
-                    <label className="block">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                        Status
-                      </span>
-                      <select
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
-                        onChange={(e) => setCatForm({ ...catForm, status: e.target.value })}
-                        value={catForm.status}
-                      >
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="INACTIVE">INACTIVE</option>
-                      </select>
-                    </label>
-                  ) : null}
+                  )}
                 </div>
 
                 <label className="block">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
-                    Description <span className="text-slate-400 font-normal">(Optional)</span>
+                  <span className="text-xs font-semibold text-slate-700 block mb-1">
+                    Maikling Deskripsyon <span className="text-slate-400 font-normal">(Optional)</span>
                   </span>
-                  <textarea
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] resize-none"
+                  <input
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B] hover:border-slate-400"
                     onChange={(e) =>
                       setCatForm({ ...catForm, description: e.target.value })
                     }
-                    placeholder="Additional notes or hardware details covered by this category..."
-                    rows={2}
+                    placeholder="hal. Desktop memory sticks and high-performance modules."
+                    type="text"
                     value={catForm.description}
                   />
                 </label>
               </div>
 
-              {/* Section 2: Specification Attributes Template */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-                <div className="flex items-center justify-between">
+              {/* Step 3: Attributes & Specifications */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
                   <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)] flex items-center gap-1.5">
-                      <Layers size={13} />
-                      Specification Schema Template
-                    </h4>
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      Products encoded under this category will require these technical attributes.
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-[#7A1F2B]" />
+                      3. Product Specifications / Attributes
+                    </span>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      Ito ang mga technical specifications na kailangang punan kapag nag-eencode ng item sa category na ito.
                     </p>
                   </div>
-                  <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
-                    {catForm.attributeSchema?.length || 0} specifications
+                  <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
+                    {catForm.attributeSchema?.length || 0} attributes
                   </span>
                 </div>
 
-                {/* Defined Specs List */}
+                {/* Helpful Note for Main Category */}
+                {!catForm.parentId ? (
+                  <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 leading-snug">
+                    <HelpCircle size={15} className="text-amber-700 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Paano gumagana ang Main Category? </span>
+                      Kadalasan, ang mga specific attributes tulad ng <em>Capacity</em> o <em>Speed</em> ay inilalagay sa mga <strong>Subcategory</strong> (tulad ng <em>Desktop RAM</em>). Pwede ka pa ring maglagay ng attributes dito kung nais mo, o iwanan itong blangko kung sa Subcategory ito ilalagay.
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Current Specifications List */}
                 {catForm.attributeSchema?.length > 0 ? (
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                     {catForm.attributeSchema.map((spec, idx) => (
                       <div
                         key={spec.name || idx}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-2xs"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5 shadow-2xs transition hover:border-slate-300"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-slate-900">{spec.name}</span>
-                            <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-bold text-slate-600 uppercase">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-slate-900">{spec.name}</span>
+                            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800 border border-emerald-200 uppercase">
                               Required
                             </span>
                           </div>
                           {spec.suggestions?.length > 0 ? (
-                            <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                              Suggestions: {spec.suggestions.slice(0, 5).join(", ")}
-                              {spec.suggestions.length > 5 ? ` +${spec.suggestions.length - 5} more` : ""}
-                            </p>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {spec.suggestions.slice(0, 6).map((sug, sIdx) => (
+                                <span
+                                  key={sIdx}
+                                  className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
+                                >
+                                  {sug}
+                                </span>
+                              ))}
+                              {spec.suggestions.length > 6 ? (
+                                <span className="text-[10px] text-slate-400 font-medium self-center">
+                                  +{spec.suggestions.length - 6} more
+                                </span>
+                              ) : null}
+                            </div>
                           ) : (
                             <p className="text-[10px] text-slate-400 italic mt-0.5">
-                              Free-form text input
+                              Free text (malayang itatype ng encoder)
                             </p>
                           )}
                         </div>
                         <button
                           type="button"
                           onClick={() => handleRemoveSpecField(idx)}
-                          className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                          title="Remove specification field"
+                          className="rounded-lg p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                          title={`Alisin ang ${spec.name}`}
                         >
-                          <X size={14} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-4 text-center">
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-4 text-center">
                     <p className="text-xs font-semibold text-slate-600">
-                      No technical specifications defined yet.
+                      Wala pang attributes na nakatakda sa category na ito.
                     </p>
-                    <p className="text-[10px] text-slate-400">
-                      Add specification fields below so encoders have guided attributes with auto-suggestions.
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      I-click ang alinman sa 1-Click Quick Presets sa ibaba o mag-type ng sariling attribute name.
                     </p>
                   </div>
                 )}
 
-                {/* Inline Add Spec Form */}
+                {/* 1-Click Popular Presets */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    ⚡ 1-Click Quick Presets (Pindutin para maidagdag agad):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {POPULAR_ATTRIBUTE_PRESETS.map((preset) => {
+                      const isAlreadyAdded = catForm.attributeSchema?.some(
+                        (s) => s.name.toLowerCase() === preset.name.toLowerCase()
+                      )
+                      return (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          disabled={isAlreadyAdded}
+                          onClick={() => handleAddPresetSpec(preset)}
+                          className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                            isAlreadyAdded
+                              ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-default"
+                              : "bg-white text-slate-700 border border-slate-200 hover:border-[#7A1F2B] hover:text-[#7A1F2B] hover:bg-[#7A1F2B]/5 shadow-2xs"
+                          }`}
+                        >
+                          {isAlreadyAdded ? <Check size={11} className="text-emerald-600" /> : <Plus size={11} />}
+                          {preset.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Add Custom Attribute Card */}
                 <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 block">
-                    + Add New Specification Field
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 block">
+                    + Magdagdag ng Custom Attribute
                   </span>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input
-                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-900 outline-none focus:border-[#7A1F2B] hover:border-slate-300"
                       onChange={(e) => setNewSpecName(e.target.value)}
-                      placeholder="Spec Name (e.g. Socket, VRAM, Form Factor)"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          handleAddSpecField()
+                        }
+                      }}
+                      placeholder="Attribute Name (hal. Latency, Heatsink)"
                       type="text"
                       value={newSpecName}
                     />
                     <input
-                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-900 outline-none focus:border-[#7A1F2B] hover:border-slate-300"
                       onChange={(e) => setNewSpecSuggestions(e.target.value)}
-                      placeholder="Suggestions (comma separated: AM4, AM5, LGA1700)"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          handleAddSpecField()
+                        }
+                      }}
+                      placeholder="Mga Pagpipilian (hal. CL16, CL18, CL30)"
                       type="text"
                       value={newSpecSuggestions}
                     />
                   </div>
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-slate-400">
+                      Pindutin ang Enter o i-click ang button para maidagdag.
+                    </span>
                     <button
                       type="button"
                       onClick={handleAddSpecField}
                       disabled={!newSpecName.trim()}
-                      className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1 text-xs font-bold text-white shadow-2xs hover:bg-slate-900 disabled:opacity-40 transition"
+                      className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 disabled:opacity-40 transition"
                     >
                       <Plus size={12} />
-                      Add Specification
+                      Idagdag
                     </button>
                   </div>
                 </div>
               </div>
 
-              <footer className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+              {/* Footer Buttons */}
+              <footer className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
                 <button
                   className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
                   onClick={() => setIsCatModalOpen(false)}
@@ -1368,14 +1572,14 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   Cancel
                 </button>
                 <button
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-5 py-2 text-xs font-bold text-white shadow-soft hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#7A1F2B] px-5 py-2 text-xs font-bold text-white shadow-soft hover:bg-[#601822] transition disabled:opacity-50"
                   disabled={isSaving}
                   type="submit"
                 >
                   {isSaving ? (
                     <LoaderCircle className="animate-spin" size={14} />
                   ) : null}
-                  {editingCategory ? "Save Changes" : "Create Category"}
+                  {editingCategory ? "I-save ang Pagbabago" : "Lumikha ng Category"}
                 </button>
               </footer>
             </form>
