@@ -1377,70 +1377,73 @@ function CustomerDetailModal({
 
 function CustomerMobileCard({ canManage, customer, onEdit, onRequestStatus, onView }) {
   return (
-    <article className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-sm">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="break-words font-bold text-[var(--color-text-strong)]">
+          <p className="font-mono text-xs font-bold text-[var(--color-maroon)]">
+            {customer.customerCode}
+          </p>
+          <p className="font-bold text-slate-900 text-sm">
             {customer.fullName}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
-              Price {customer.priceTier || 1}
+            <span className="inline-block rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+              Price Tier {customer.priceTier || 1}
             </span>
           </div>
         </div>
         <StatusBadge status={customer.status} />
       </div>
 
-      <div className="mt-4 space-y-2 text-sm text-[var(--color-muted)]">
-        <p className="flex items-start gap-2">
-          <Phone className="mt-0.5 shrink-0" size={15} />
-          <span className="break-all">{customer.mobileNumber || "No mobile number"}</span>
+      <div className="space-y-1.5 text-xs text-slate-600">
+        <p className="flex items-center gap-2">
+          <Phone className="shrink-0 text-slate-400" size={13} />
+          <span className="font-medium">{customer.mobileNumber || "—"}</span>
         </p>
-        <p className="flex items-start gap-2">
-          <Mail className="mt-0.5 shrink-0" size={15} />
-          <span className="break-all">{customer.email || "No email"}</span>
+        <p className="flex items-center gap-2">
+          <Mail className="shrink-0 text-slate-400" size={13} />
+          <span className="truncate">{customer.email || "—"}</span>
         </p>
-        <p className="flex items-start gap-2">
-          <Building2 className="mt-0.5 shrink-0" size={15} />
-          <span className="break-words">
-            {customer.companyName || "No company"} · {customer.branch?.code || "No branch"}
+        <p className="flex items-center gap-2">
+          <Building2 className="shrink-0 text-slate-400" size={13} />
+          <span>
+            {customer.companyName || "Individual"} · {customer.branch?.code || "Branch"}
           </span>
         </p>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
         <button
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
           onClick={() => onView(customer)}
           type="button"
         >
-          <Eye size={15} />
+          <Eye size={13} />
           View
         </button>
         {canManage ? (
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] px-3 py-2.5 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
             onClick={() => onEdit(customer)}
             type="button"
           >
-            <Edit3 size={15} />
+            <Edit3 size={13} />
             Edit
           </button>
         ) : null}
         {canManage ? (
           <button
-            className={`col-span-2 rounded-2xl border px-3 py-2.5 text-sm font-bold transition ${
+            className={`col-span-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
               customer.status === "ACTIVE"
-                ? "border-red-200 text-red-700 hover:bg-red-50"
-                : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                ? "border-red-200 bg-red-50/50 text-red-700 hover:bg-red-100"
+                : "border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100"
             }`}
             onClick={() =>
               onRequestStatus(customer, customer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
             }
             type="button"
           >
-            {customer.status === "ACTIVE" ? "Deactivate" : "Reactivate"}
+            {customer.status === "ACTIVE" ? "Deactivate Customer" : "Reactivate Customer"}
           </button>
         ) : null}
       </div>
@@ -1658,67 +1661,70 @@ function CustomersPage({ selectedBranch, user }) {
 
   return (
     <div className="min-w-0 space-y-5">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-[var(--color-accent)]">Customers</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--color-text-strong)]">
-            Customer directory
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--color-muted)]">
-            Maintain customer contact details and review linked quotations, sales, and credit history.
-          </p>
-          {activeBranch ? (
-            <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-[var(--color-soft)] px-3 py-1.5 text-xs font-bold text-[var(--color-muted)]">
-              <Building2 className="shrink-0" size={14} />
-              <span className="truncate">
-                {activeBranch.code} · {activeBranch.name}
-              </span>
+      {/* Top Header matching modern minimalist standard */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              Customer Directory & Accounts
             </p>
-          ) : null}
-        </div>
+            <h1 className="mt-1 text-2xl font-black text-slate-900">
+              Customer Directory & Ledger
+            </h1>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Comprehensive customer profiles with purchase history, service repairs, credit accounts, and receivables.
+            </p>
+            {activeBranch ? (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                <Building2 className="shrink-0 text-slate-500" size={13} />
+                <span>
+                  {activeBranch.code} · {activeBranch.name}
+                </span>
+              </div>
+            ) : null}
+          </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)] disabled:opacity-60"
-            disabled={isLoading}
-            onClick={loadCustomers}
-            type="button"
-          >
-            <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
-            Refresh
-          </button>
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-900 shadow-sm transition hover:bg-blue-100 hover:border-blue-300"
-            onClick={() => {
-              setArCustomerId(null)
-              setIsArModalOpen(true)
-            }}
-            type="button"
-          >
-            <ReceiptText size={16} className="text-blue-700" />
-            Accounts Receivable
-          </button>
-          <ExportExcelButton
-            count={pagination?.totalItems || customers.length}
-            isExporting={isExporting}
-            onClick={handleExportCustomersExcel}
-          />
-          {canManage ? (
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#7A1F2B] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#641824] disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={!activeBranch?.id}
-              onClick={() => openEditor("create")}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-50"
+              disabled={isLoading}
+              onClick={loadCustomers}
               type="button"
             >
-              <Plus size={17} />
-              New customer
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} /> Refresh
             </button>
-          ) : null}
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs font-bold text-blue-900 shadow-xs transition hover:bg-blue-100 hover:border-blue-300"
+              onClick={() => {
+                setArCustomerId(null)
+                setIsArModalOpen(true)
+              }}
+              type="button"
+            >
+              <ReceiptText size={14} className="text-blue-700" />
+              <span>Accounts Receivable</span>
+            </button>
+            <ExportExcelButton
+              count={pagination?.totalItems || customers.length}
+              isExporting={isExporting}
+              onClick={handleExportCustomersExcel}
+            />
+            {canManage ? (
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)] disabled:opacity-60"
+                disabled={!activeBranch?.id}
+                onClick={() => openEditor("create")}
+                type="button"
+              >
+                <Plus size={15} /> New Customer
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </section>
 
       {noticeMessage ? (
-        <section className="flex items-start justify-between gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-800">
+        <section className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs font-bold text-emerald-800 shadow-xs">
           <span>{noticeMessage}</span>
           <button
             aria-label="Dismiss message"
@@ -1726,73 +1732,63 @@ function CustomersPage({ selectedBranch, user }) {
             onClick={() => setNoticeMessage("")}
             type="button"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </section>
       ) : null}
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <label className="min-w-0 flex-1">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Search
-            </span>
-            <span className="relative mt-2 block">
-              <Search
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]"
-                size={18}
-              />
-              <input
-                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-11 pr-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-                onChange={(event) => {
-                  setSearchText(event.target.value)
-                  setPage(1)
-                }}
-                placeholder="Code, name, mobile, email, or company"
-                value={searchText}
-              />
-            </span>
-          </label>
+      {/* Search & Filter Bar */}
+      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px_auto]">
+        <label className="relative">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            size={15}
+          />
+          <input
+            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] placeholder:text-slate-400"
+            onChange={(event) => {
+              setSearchText(event.target.value)
+              setPage(1)
+            }}
+            placeholder="Search customer name, code, mobile, email, company…"
+            value={searchText}
+          />
+        </label>
 
-          <label className="lg:w-56">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Status
-            </span>
-            <select
-              className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
-              onChange={(event) => {
-                setStatusFilter(event.target.value)
-                setPage(1)
-              }}
-              value={statusFilter}
-            >
-              <option value="">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </label>
+        <select
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+          onChange={(event) => {
+            setStatusFilter(event.target.value)
+            setPage(1)
+          }}
+          value={statusFilter}
+        >
+          <option value="">All statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
 
-          <div className="flex flex-col gap-2 sm:flex-row lg:pb-0">
-            <div className="rounded-2xl bg-[var(--color-soft)] px-4 py-3 text-center text-sm font-semibold text-[var(--color-muted)]">
-              {totalItems} customer(s)
-            </div>
+        <div className="flex items-center gap-2">
+          <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-center text-xs font-bold text-slate-600">
+            {totalItems} customer(s)
+          </div>
+          {hasFilters ? (
             <button
-              className="rounded-2xl border border-[var(--color-border)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!hasFilters}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
               onClick={clearFilters}
               type="button"
             >
-              Clear filters
+              Clear
             </button>
-          </div>
+          ) : null}
         </div>
       </section>
 
       {errorMessage ? (
-        <section className="space-y-3 rounded-3xl border border-red-200 bg-red-50 p-5">
-          <ErrorBanner>{errorMessage}</ErrorBanner>
+        <section className="flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-bold text-rose-700 shadow-xs">
+          <span>{errorMessage}</span>
           <button
-            className="rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100"
+            className="rounded-lg border border-rose-200 bg-white px-3 py-1 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
             onClick={loadCustomers}
             type="button"
           >
@@ -1801,32 +1797,33 @@ function CustomersPage({ selectedBranch, user }) {
         </section>
       ) : null}
 
-      <section className="min-w-0 overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         {isLoading ? (
-          <div className="p-6 text-sm font-semibold text-[var(--color-muted)]">
-            Loading customers... Please wait.
+          <div className="flex items-center justify-center gap-2 p-10 text-xs font-bold text-slate-500">
+            <RefreshCw className="animate-spin text-[var(--color-maroon)]" size={16} />
+            Loading customers…
           </div>
         ) : customers.length === 0 ? (
-          <div className="grid place-items-center p-8 text-center">
-            <UsersRound className="text-[var(--color-muted)]" size={40} />
-            <p className="mt-3 font-bold text-[var(--color-text-strong)]">
+          <div className="p-10 text-center">
+            <UsersRound className="mx-auto text-slate-300" size={36} />
+            <p className="mt-2 text-xs font-bold text-slate-800">
               {hasFilters ? "No matching customers found" : "No customers yet"}
             </p>
-            <p className="mt-1 max-w-md text-sm leading-6 text-[var(--color-muted)]">
+            <p className="text-[11px] text-slate-500">
               {hasFilters
-                ? "Try a different search or clear the status filter."
+                ? "Try adjusting your search criteria or clear the status filter."
                 : canManage
                   ? "Create the first customer for this branch. Walk-in transactions can still proceed without one."
                   : "Customer records for this branch will appear here when available."}
             </p>
             {canManage && !hasFilters ? (
               <button
-                className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[#7A1F2B] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#641824] disabled:opacity-60"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[var(--color-maroon-hover)]"
                 disabled={!activeBranch?.id}
                 onClick={() => openEditor("create")}
                 type="button"
               >
-                <Plus size={16} />
+                <Plus size={14} />
                 Create customer
               </button>
             ) : null}
@@ -1834,70 +1831,89 @@ function CustomersPage({ selectedBranch, user }) {
         ) : (
           <>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[960px] border-separate border-spacing-0 text-left text-sm">
-                <thead className="bg-[var(--color-soft)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+              <table className="w-full min-w-[950px] text-left text-xs">
+                <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                   <tr>
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Contact</th>
-                    <th className="px-4 py-3">Company</th>
+                    <th className="px-4 py-3">Customer Code & Name</th>
+                    <th className="px-4 py-3">Price Tier</th>
+                    <th className="px-4 py-3">Contact Details</th>
+                    <th className="px-4 py-3">Company / Address</th>
                     <th className="px-4 py-3">Branch</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Updated</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
+                <tbody className="divide-y divide-slate-200">
                   {customers.map((customer) => (
-                    <tr className="align-top transition hover:bg-[var(--color-soft)]" key={customer.id}>
-                      <td className="min-w-52 px-4 py-4">
-                        <p className="font-bold text-[var(--color-text-strong)]">
+                    <tr
+                      className="hover:bg-slate-50/60 transition cursor-pointer"
+                      key={customer.id}
+                      onClick={() => setDetailCustomer(customer)}
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-mono font-bold text-[var(--color-maroon)]">
+                          {customer.customerCode || "—"}
+                        </p>
+                        <p className="font-bold text-slate-900 text-sm">
                           {customer.fullName}
                         </p>
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
-                            Price {customer.priceTier || 1}
-                          </span>
-                        </div>
                       </td>
-                      <td className="min-w-52 px-4 py-4 text-[var(--color-muted)]">
-                        <p className="break-all">{customer.mobileNumber || "—"}</p>
-                        <p className="mt-1 break-all text-xs">{customer.email || "—"}</p>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
+                          Price Tier {customer.priceTier || 1}
+                        </span>
                       </td>
-                      <td className="min-w-40 px-4 py-4 text-[var(--color-muted)]">
-                        {customer.companyName || "—"}
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-slate-800">
+                          {customer.mobileNumber || "—"}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {customer.email || "No email"}
+                        </p>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 font-semibold text-[var(--color-text-strong)]">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800">
+                          {customer.companyName || "Individual"}
+                        </p>
+                        <p className="text-[11px] text-slate-500 truncate max-w-[200px]">
+                          {customer.address || "—"}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700">
                         {customer.branch?.code || "—"}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4">
+                      <td className="px-4 py-3">
                         <StatusBadge status={customer.status} />
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-xs text-[var(--color-muted)]">
+                      <td className="px-4 py-3 text-slate-500 text-[11px]">
                         {formatDate(customer.updatedAt)}
                       </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap justify-end gap-2">
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex flex-wrap justify-end gap-1.5">
                           <button
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                             onClick={() => setDetailCustomer(customer)}
                             type="button"
+                            title="View Customer 360 Ledger"
                           >
-                            <Eye size={14} />
-                            View
+                            <Eye size={13} />
+                            <span>View</span>
                           </button>
                           {canManage ? (
                             <button
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                               onClick={() => openEditor("edit", customer)}
                               type="button"
+                              title="Edit Customer Details"
                             >
-                              <Edit3 size={14} />
-                              Edit
+                              <Edit3 size={13} />
+                              <span>Edit</span>
                             </button>
                           ) : null}
                           {canManage ? (
                             <button
-                              className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                              className={`rounded-xl border px-2.5 py-1.5 text-xs font-bold shadow-2xs transition ${
                                 customer.status === "ACTIVE"
                                   ? "border-red-200 text-red-700 hover:bg-red-50"
                                   : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
@@ -1922,7 +1938,7 @@ function CustomersPage({ selectedBranch, user }) {
               </table>
             </div>
 
-            <div className="grid gap-4 p-4 lg:hidden">
+            <div className="grid gap-3 p-3 lg:hidden">
               {customers.map((customer) => (
                 <CustomerMobileCard
                   canManage={canManage}
@@ -1941,28 +1957,28 @@ function CustomersPage({ selectedBranch, user }) {
       </section>
 
       {!isLoading && customers.length > 0 ? (
-        <section className="flex flex-col gap-3 rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-[var(--color-muted)]">
+        <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between text-xs">
+          <p className="font-semibold text-slate-500">
             Page {pagination?.page || page} of {totalPages} · {totalItems} customer(s)
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:flex">
+          <div className="flex items-center gap-2">
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition disabled:opacity-50"
               disabled={!pagination?.hasPreviousPage}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               type="button"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
               Previous
             </button>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition disabled:opacity-50"
               disabled={!pagination?.hasNextPage}
               onClick={() => setPage((current) => current + 1)}
               type="button"
             >
               Next
-              <ChevronRight size={16} />
+              <ChevronRight size={14} />
             </button>
           </div>
         </section>
