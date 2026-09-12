@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertCircle,
   Box,
@@ -131,6 +131,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
   })
   const [newSpecName, setNewSpecName] = useState("")
   const [newSpecSuggestions, setNewSpecSuggestions] = useState("")
+  const nameInputRef = useRef(null)
 
   // Unit Modal State
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false)
@@ -364,7 +365,9 @@ export default function CategoriesPage({ selectedBranch, user }) {
     setFormError("")
 
     if (!catForm.name.trim()) {
-      setFormError("Category Name is required.")
+      setFormError("Kailangan pong lagyan ng Pangalan ang Category.")
+      nameInputRef.current?.focus()
+      nameInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
       return
     }
 
@@ -402,11 +405,14 @@ export default function CategoriesPage({ selectedBranch, user }) {
       setTimeout(() => setNoticeMessage(""), 4000)
     } catch (err) {
       console.error("Save category error:", err)
-      setFormError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Failed to save category. Please check your inputs."
-      )
+      const rawMsg = err?.response?.data?.message || err?.message || ""
+      if (rawMsg.includes("already exists") || rawMsg.includes("ALREADY_EXISTS")) {
+        setFormError(`Mayroon nang category na may ganitong pangalan ("${catForm.name.trim()}"). Pakilagyan po ng ibang pangalan.`)
+      } else {
+        setFormError(rawMsg || "Failed to save category. Please check your inputs.")
+      }
+      nameInputRef.current?.focus()
+      nameInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
     } finally {
       setIsSaving(false)
     }
@@ -1333,18 +1339,35 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 </span>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-xs font-semibold text-slate-700 block mb-1">
+                    <span className="text-xs font-bold text-slate-800 block mb-1">
                       Pangalan ng Category <span className="text-red-500">*</span>
                     </span>
                     <input
+                      ref={nameInputRef}
                       autoFocus
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B] hover:border-slate-400"
-                      onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
-                      placeholder="hal. Desktop RAM (DDR4 / DDR5)"
-                      required
+                      className={`w-full rounded-xl border px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none transition ${
+                        formError && !catForm.name.trim()
+                          ? "border-red-500 bg-red-50/30 ring-2 ring-red-200"
+                          : "border-slate-300 bg-white focus:border-[#7A1F2B] focus:ring-1 focus:ring-[#7A1F2B] hover:border-slate-400"
+                      }`}
+                      onChange={(e) => {
+                        setCatForm({ ...catForm, name: e.target.value })
+                        if (formError) setFormError("")
+                      }}
+                      placeholder="I-type dito ang pangalan (hal. Desktop RAM)"
                       type="text"
                       value={catForm.name}
                     />
+                    {formError && !catForm.name.trim() ? (
+                      <p className="mt-1.5 text-xs font-bold text-red-600 flex items-center gap-1 animate-in fade-in">
+                        <AlertCircle size={13} />
+                        Kailangan pong i-type ang pangalan ng category dito bago i-save.
+                      </p>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                        Ilagay ang malinaw na pangalan (hal. Desktop RAM DDR4 / DDR5)
+                      </span>
+                    )}
                   </label>
 
                   {editingCategory ? (
@@ -1562,25 +1585,34 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 </div>
               </div>
 
-              {/* Footer Buttons */}
-              <footer className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-                <button
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
-                  onClick={() => setIsCatModalOpen(false)}
-                  type="button"
-                >
-                  Cancel
-                </button>
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#7A1F2B] px-5 py-2 text-xs font-bold text-white shadow-soft hover:bg-[#601822] transition disabled:opacity-50"
-                  disabled={isSaving}
-                  type="submit"
-                >
-                  {isSaving ? (
-                    <LoaderCircle className="animate-spin" size={14} />
-                  ) : null}
-                  {editingCategory ? "I-save ang Pagbabago" : "Lumikha ng Category"}
-                </button>
+              {/* Footer Buttons & Error Feedback */}
+              <footer className="flex flex-col gap-3 border-t border-slate-100 pt-3">
+                {formError ? (
+                  <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700 animate-in fade-in">
+                    <AlertCircle size={16} className="shrink-0 text-red-600" />
+                    <span>{formError}</span>
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                    onClick={() => setIsCatModalOpen(false)}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#7A1F2B] px-5 py-2 text-xs font-bold text-white shadow-soft hover:bg-[#601822] transition disabled:opacity-50"
+                    disabled={isSaving}
+                    type="submit"
+                  >
+                    {isSaving ? (
+                      <LoaderCircle className="animate-spin" size={14} />
+                    ) : null}
+                    {editingCategory ? "I-save ang Pagbabago" : "Lumikha ng Category"}
+                  </button>
+                </div>
               </footer>
             </form>
           </div>
