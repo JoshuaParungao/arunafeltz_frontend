@@ -254,6 +254,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
   // Service Performer / Staff
   const [serviceStaffList, setServiceStaffList] = useState([])
+  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("")
   const [selectedServiceStaffId, setSelectedServiceStaffId] = useState("")
   const [showServiceForm, setShowServiceForm] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
@@ -791,6 +792,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
     }
 
     const activeCustomer = customers.find((c) => c.id === selectedCustomerId)
+    const assignedSalesPerson = serviceStaffList.find((s) => s.id === selectedSalesPersonId)
+    const effectiveSalesman = assignedSalesPerson || user || { fullName: "Staff" }
 
     const previewDoc = {
       quotationCode: "PREVIEW",
@@ -804,6 +807,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
       },
       customerName: customerSearch.trim() || activeCustomer?.fullName || "Walk-in Customer",
       preparedBy: user || { fullName: "Staff" },
+      salesman: effectiveSalesman.fullName || effectiveSalesman.username || "Staff",
       grandTotal: totals.grandTotal,
       subtotalAmount: totals.productGross + totals.serviceGross,
       totalDiscountAmount: totals.totalDiscount,
@@ -818,6 +822,18 @@ export default function QuotationsPage({ selectedBranch, user }) {
         const gross = getLineGross(line, pricingTerm)
         const lineTotal = getLineTotal(line, pricingTerm)
 
+        let availableStock = null
+        if (line.item?.availableStock !== undefined && line.item?.availableStock !== null) {
+          availableStock = Number(line.item.availableStock)
+        } else if (line.item?.inventoryBatches && Array.isArray(line.item.inventoryBatches)) {
+          availableStock = line.item.inventoryBatches.reduce(
+            (sum, b) => sum + Number(b.quantityAvailable || 0),
+            0
+          )
+        } else if (line.item?.quantityAvailable !== undefined && line.item?.quantityAvailable !== null) {
+          availableStock = Number(line.item.quantityAvailable)
+        }
+
         return {
           id: `preview-${index}`,
           description: line.item?.itemName || line.description,
@@ -827,6 +843,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
           lineTotal,
           warrantyDuration: line.warrantyDuration,
           serviceStaffName: line.serviceStaffName,
+          availableStock,
+          rawItem: line,
         }
       }),
     }
@@ -875,6 +893,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
       const serviceLineWithDoneBy = cart.find((l) => l.type === "SERVICE" && l.serviceStaffId)
       const serviceDoneById = serviceLineWithDoneBy?.serviceStaffId || undefined
+      const assignedSalesPerson = serviceStaffList.find((s) => s.id === selectedSalesPersonId)
+      const effectiveSalesman = assignedSalesPerson || user || { fullName: "Staff" }
 
       const formattedRemarks = [
         isPcBuild ? "[PC BUILD]" : "",
@@ -890,6 +910,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
         notes: serializeQuotationNotes(formattedRemarks, {
           installmentCalculation: showFinancingCalc ? installmentCalculation : undefined,
           pricingTerm,
+          salesmanId: effectiveSalesman.id,
+          salesmanName: effectiveSalesman.fullName || effectiveSalesman.username,
         }),
         isPcBuild,
         items: cart.map((line) => {
@@ -933,7 +955,10 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
       setNoticeMessage(`Quotation ${createdQuote.quotationCode || ""} created successfully!`)
       setLastSavedCalc(showFinancingCalc ? installmentCalculation : null)
-      setActiveQuotationDoc(createdQuote)
+      setActiveQuotationDoc({
+        ...createdQuote,
+        salesman: effectiveSalesman.fullName || effectiveSalesman.username,
+      })
       setIsQuotationPreviewMode(false)
       setIsQuotationDocOpen(true)
 
@@ -1133,6 +1158,44 @@ export default function QuotationsPage({ selectedBranch, user }) {
                     placeholder="City / Municipality"
                     value={customerAddress}
                   />
+                </label>
+              </div>
+
+              {/* Sales Person / Attributed Staff Selector */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                      Sales Person / Salesman
+                    </span>
+                    {selectedSalesPersonId && user?.id && selectedSalesPersonId !== user.id ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSalesPersonId(user.id)}
+                        className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline"
+                      >
+                        Reset ({user.fullName})
+                      </button>
+                    ) : null}
+                  </div>
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
+                    value={selectedSalesPersonId || user?.id || ""}
+                    onChange={(e) => setSelectedSalesPersonId(e.target.value)}
+                  >
+                    {user ? (
+                      <option value={user.id}>
+                        {user.fullName}
+                      </option>
+                    ) : null}
+                    {serviceStaffList
+                      .filter((staff) => staff.id !== user?.id)
+                      .map((staff) => (
+                        <option key={staff.id} value={staff.id}>
+                          {staff.fullName}
+                        </option>
+                      ))}
+                  </select>
                 </label>
               </div>
 

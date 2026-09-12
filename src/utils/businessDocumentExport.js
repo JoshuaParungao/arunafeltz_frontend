@@ -1044,12 +1044,29 @@ export function groupReceiptItems(items = [], options = {}) {
       ? Math.round((qty * unitPrice) * 100) / 100
       : Number(item.lineTotal != null ? item.lineTotal : (qty * unitPrice))
 
+    let availableStock = null
+    if (item.availableStock !== undefined && item.availableStock !== null) {
+      availableStock = Number(item.availableStock)
+    } else if (item.item && Array.isArray(item.item.inventoryBatches)) {
+      availableStock = item.item.inventoryBatches.reduce(
+        (acc, b) => acc + Number(b.quantityAvailable || 0),
+        0
+      )
+    } else if (item.item?.quantityAvailable !== undefined && item.item?.quantityAvailable !== null) {
+      availableStock = Number(item.item.quantityAvailable)
+    } else if (item.batch?.quantityAvailable !== undefined && item.batch?.quantityAvailable !== null) {
+      availableStock = Number(item.batch.quantityAvailable)
+    }
+
     if (groupMap.has(groupKey)) {
       const existing = groupMap.get(groupKey)
       existing.quantity += qty
       existing.lineTotal =
         Math.round((existing.lineTotal + lineTotal) * 100) / 100
       existing.returnedQuantity += returnedQty
+      if (availableStock !== null && (existing.availableStock === null || existing.availableStock === undefined)) {
+        existing.availableStock = availableStock
+      }
       if (serial && !existing.serialNumbers.includes(serial)) {
         existing.serialNumbers.push(serial)
       }
@@ -1065,6 +1082,7 @@ export function groupReceiptItems(items = [], options = {}) {
         returnedQuantity: returnedQty,
         serialNumbers: serial ? [serial] : [],
         rawItem: item,
+        availableStock,
       }
       groupMap.set(groupKey, newGroup)
       groups.push(newGroup)
@@ -1112,6 +1130,18 @@ export function groupQuotationItems(items = [], options = {}) {
     const itemId = item.itemId || item.item?.id || itemCode
     const groupKey = `${itemId}___${itemCode}___${description}___${warrantyBadge}___${cashUnit}`
 
+    let availableStock = null
+    if (item.availableStock !== undefined && item.availableStock !== null) {
+      availableStock = Number(item.availableStock)
+    } else if (item.item && Array.isArray(item.item.inventoryBatches)) {
+      availableStock = item.item.inventoryBatches.reduce(
+        (acc, b) => acc + Number(b.quantityAvailable || 0),
+        0
+      )
+    } else if (item.item?.quantityAvailable !== undefined && item.item?.quantityAvailable !== null) {
+      availableStock = Number(item.item.quantityAvailable)
+    }
+
     if (groupMap.has(groupKey)) {
       const existing = groupMap.get(groupKey)
       existing.quantity += qty
@@ -1119,6 +1149,9 @@ export function groupQuotationItems(items = [], options = {}) {
         Math.round((existing.cashTotal + cashTotal) * 100) / 100
       existing.regTotal =
         Math.round((existing.regTotal + regTotal) * 100) / 100
+      if (availableStock !== null && (existing.availableStock === null || existing.availableStock === undefined)) {
+        existing.availableStock = availableStock
+      }
       if (serial && !existing.serialNumbers.includes(serial)) {
         existing.serialNumbers.push(serial)
       }
@@ -1135,6 +1168,7 @@ export function groupQuotationItems(items = [], options = {}) {
         regTotal,
         serialNumbers: serial ? [serial] : [],
         rawItem: item,
+        availableStock,
       }
       groupMap.set(groupKey, newGroup)
       groups.push(newGroup)
@@ -1698,12 +1732,14 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
 
   const branch = quotation?.branch || {}
   const customer = quotation?.customer || {}
+  const settlement = parseQuotationSettlement(quotation?.notes)
   const salesman = sanitizeForPdf(
-    quotation?.preparedBy?.fullName ||
+    quotation?.salesman ||
+      settlement?.salesmanName ||
+      quotation?.preparedBy?.fullName ||
       quotation?.preparedBy?.username ||
       quotation?.cashier?.fullName ||
       quotation?.cashier?.username ||
-      quotation?.salesman ||
       "-"
   )
 

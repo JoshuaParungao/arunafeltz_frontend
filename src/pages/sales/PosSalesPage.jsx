@@ -889,9 +889,12 @@ function SaleDetailDialog({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-t-2 border-b-2 border-slate-900 text-slate-900 font-bold uppercase text-[11px]">
-                        <th className="py-2 px-2 w-[16%]">ITEM CODE</th>
-                        <th className="py-2 px-2 w-[48%]">ITEM DESCRIPTION</th>
-                        <th className="py-2 px-2 text-center w-[10%]">QTY.</th>
+                        <th className="py-2 px-2 w-[15%]">ITEM CODE</th>
+                        <th className="py-2 px-2 w-[40%]">ITEM DESCRIPTION</th>
+                        <th className="py-2 px-1 text-center w-[8%]">QTY.</th>
+                        <th className="py-2 px-1 text-center w-[11%] print:hidden text-[#002060]">
+                          AVAIL. STOCK
+                        </th>
                         <th className="py-2 px-2 text-right w-[13%]">UNIT PRICE</th>
                         <th className="py-2 px-2 text-right w-[13%]">AMOUNT</th>
                       </tr>
@@ -918,8 +921,33 @@ function SaleDetailDialog({
                               </p>
                             ) : null}
                           </td>
-                          <td className="py-2 px-2 text-center font-bold align-top">
+                          <td className="py-2 px-1 text-center font-bold align-top">
                             {item.quantity}
+                          </td>
+                          <td className="py-2 px-1 text-center align-top print:hidden">
+                            {item.availableStock !== null && item.availableStock !== undefined ? (
+                              item.availableStock >= Number(item.quantity || 1) ? (
+                                <span className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  {item.availableStock}
+                                </span>
+                              ) : item.availableStock > 0 ? (
+                                <span
+                                  className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10.5px] font-bold bg-amber-50 text-amber-800 border border-amber-300"
+                                  title={`Remaining stock: ${item.availableStock}`}
+                                >
+                                  {item.availableStock} (Low)
+                                </span>
+                              ) : (
+                                <span
+                                  className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                                  title="0 Available in branch"
+                                >
+                                  0 (Out)
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-slate-400 font-normal">—</span>
+                            )}
                           </td>
                           <td className="py-2 px-2 text-right align-top font-mono">
                             {formatMoney(item.unitPrice)}
@@ -3559,6 +3587,23 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ? Math.round((baseTotal / termBasis) * 100) / 100
           : baseTotal
 
+        let availableStock = null
+        if (line.item?.availableStock !== undefined && line.item?.availableStock !== null) {
+          availableStock = Number(line.item.availableStock)
+        } else if (line.item?.inventoryBatches && Array.isArray(line.item.inventoryBatches)) {
+          availableStock = line.item.inventoryBatches.reduce(
+            (sum, b) => sum + Number(b.quantityAvailable || 0),
+            0
+          )
+        } else if (line.item?.quantityAvailable !== undefined && line.item?.quantityAvailable !== null) {
+          availableStock = Number(line.item.quantityAvailable)
+        } else if (Array.isArray(line.batches)) {
+          availableStock = line.batches.reduce(
+            (sum, b) => sum + Number(b.quantityAvailable || 0),
+            0
+          )
+        }
+
         return {
           id: line.localId || `item-${index}`,
           lineNo: index + 1,
@@ -3571,6 +3616,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           discountAmount: Number(line.discountAmount || 0),
           lineTotal,
           warrantyDuration: line.warrantyDuration || (line.item?.hasWarranty ? "1 YEAR WARRANTY" : "—"),
+          availableStock,
           serial: line.isCustomSerial
             ? { serialNumber: line.customSerialNumber?.trim() || "PENDING SCAN" }
             : line.serialId
@@ -3695,6 +3741,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       const settlementAmount = Number(effectivePaymentAmount || 0)
       const termTag = pricingTerm !== "CASH" ? `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]` : ""
+      const builderStaff = serviceStaffList.find((s) => s.id === selectedBuilderId)
       const rawBuildRemarks = isPcBuild
         ? builderStaff?.fullName
           ? `[PC BUILD] Assembled by: ${builderStaff.fullName}${effectiveRemarks ? ` | ${effectiveRemarks}` : ""}`

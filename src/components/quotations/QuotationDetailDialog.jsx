@@ -43,12 +43,18 @@ export default function QuotationDetailDialog({
 
   const branch = quotation?.branch || {}
   const customer = quotation?.customer || {}
+  // Resolve installment calculation: use prop first, or parse from quotation.notes
+  const parsedSettlement = useMemo(() => {
+    return parseQuotationSettlement(quotation?.notes)
+  }, [quotation?.notes])
+
   const salesman =
+    quotation?.salesman ||
+    parsedSettlement?.salesmanName ||
     quotation?.preparedBy?.fullName ||
     quotation?.preparedBy?.username ||
     quotation?.cashier?.fullName ||
     quotation?.cashier?.username ||
-    quotation?.salesman ||
     "—"
 
   const branchAddress =
@@ -60,14 +66,10 @@ export default function QuotationDetailDialog({
   const numericMatch = rawCode.match(/\d+$/)
   const displayCode = isPreview ? "PREVIEW" : (numericMatch ? numericMatch[0].padStart(5, "0") : rawCode)
 
-  const items = quotation?.items || []
-
-  // Resolve installment calculation: use prop first, or parse from quotation.notes
   const effectiveInstallmentCalculation = useMemo(() => {
     if (installmentCalculation) return installmentCalculation
-    const parsed = parseQuotationSettlement(quotation?.notes)
-    return parsed?.installmentCalculation || null
-  }, [installmentCalculation, quotation?.notes])
+    return parsedSettlement?.installmentCalculation || null
+  }, [installmentCalculation, parsedSettlement])
 
   const isAR = Boolean(effectiveInstallmentCalculation)
 
@@ -255,19 +257,22 @@ export default function QuotationDetailDialog({
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-t-2 border-b-2 border-slate-900 text-slate-900 font-bold uppercase text-[10.5px]">
-                      <th className="py-2 px-2 w-[14%]">ITEM CODE</th>
-                      <th className="py-2 px-2 w-[34%]">ITEM DESCRIPTION</th>
-                      <th className="py-2 px-1.5 text-center w-[8%]">QTY.</th>
-                      <th className={`py-2 px-2 text-right w-[11%] ${isAR ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
+                      <th className="py-2 px-2 w-[13%]">ITEM CODE</th>
+                      <th className="py-2 px-2 w-[29%]">ITEM DESCRIPTION</th>
+                      <th className="py-2 px-1 text-center w-[7%]">QTY.</th>
+                      <th className="py-2 px-1 text-center w-[9%] print:hidden text-[#002060]">
+                        AVAIL. STOCK
+                      </th>
+                      <th className={`py-2 px-2 text-right w-[10.5%] ${isAR ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
                         REGULAR PRICE
                       </th>
-                      <th className={`py-2 px-2 text-right w-[11%] ${isAR ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
+                      <th className={`py-2 px-2 text-right w-[10.5%] ${isAR ? "text-[#002060] font-black" : "text-slate-400 font-semibold"}`}>
                         REGULAR AMOUNT
                       </th>
-                      <th className={`py-2 px-2 text-right w-[11%] ${!isAR ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
+                      <th className={`py-2 px-2 text-right w-[10.5%] ${!isAR ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
                         CASH PROMO
                       </th>
-                      <th className={`py-2 px-2 text-right w-[11%] ${!isAR ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
+                      <th className={`py-2 px-2 text-right w-[10.5%] ${!isAR ? "text-[var(--color-maroon)] font-black" : "text-slate-400 font-semibold"}`}>
                         CASH AMOUNT
                       </th>
                     </tr>
@@ -289,8 +294,33 @@ export default function QuotationDetailDialog({
                             </p>
                           ) : null}
                         </td>
-                        <td className="py-2 px-1.5 text-center font-bold align-top">
+                        <td className="py-2 px-1 text-center font-bold align-top">
                           {item.quantity}
+                        </td>
+                        <td className="py-2 px-1 text-center align-top print:hidden">
+                          {item.availableStock !== null && item.availableStock !== undefined ? (
+                            item.availableStock >= Number(item.quantity || 1) ? (
+                              <span className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {item.availableStock}
+                              </span>
+                            ) : item.availableStock > 0 ? (
+                              <span
+                                className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10.5px] font-bold bg-amber-50 text-amber-800 border border-amber-300"
+                                title={`Insufficient stock: only ${item.availableStock} available for ${item.quantity} requested`}
+                              >
+                                {item.availableStock} (Low)
+                              </span>
+                            ) : (
+                              <span
+                                className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                                title="0 Available in branch"
+                              >
+                                0 (Out)
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-slate-400 font-normal">—</span>
+                          )}
                         </td>
                         <td className={`py-2 px-2 text-right align-top font-mono ${isAR ? "text-slate-800 font-semibold" : "text-slate-400"}`}>
                           {formatMoney(item.regUnit)}
