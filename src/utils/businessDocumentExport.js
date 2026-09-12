@@ -921,6 +921,7 @@ export function inventoryDocument(items, context = {}) {
     columns: [
       "Item Code",
       "Product Name",
+      "Brand",
       "Category",
       "Available",
       "Total In",
@@ -934,7 +935,8 @@ export function inventoryDocument(items, context = {}) {
     rows: records.map((item) => [
       text(item.itemCode),
       text(item.itemName),
-      text(item.category?.name),
+      text(item.brand),
+      text(item.category?.name || item.categoryName),
       quantity(item.quantityAvailable),
       quantity(item.quantityIn),
       quantity(item.batchCount),

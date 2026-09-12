@@ -160,3 +160,16 @@ export function matchesItemAttributes(item, { capacity, speed, type, specSearch 
 
   return true
 }
+
+/**
+ * Formats an item's attributes JSON object into a clean, human-readable specification string.
+ * Example: "Capacity: 16GB | Speed: 3200MHz | Type: DDR4"
+ */
+export function formatSpecs(attributes) {
+  if (!attributes || typeof attributes !== "object") return "—"
+  const entries = Object.entries(attributes).filter(
+    ([, v]) => v !== null && v !== undefined && String(v).trim() !== ""
+  )
+  if (entries.length === 0) return "—"
+  return entries.map(([key, value]) => `${key}: ${value}`).join(" | ")
+}

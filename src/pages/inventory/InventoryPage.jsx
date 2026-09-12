@@ -21,6 +21,7 @@ import { exportInventoryPdf, exportReportExcel } from "../../utils/businessDocum
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import {
   CAPACITY_PRESETS,
+  formatSpecs,
   matchesItemAttributes,
   POPULAR_BRANDS,
   SPEED_PRESETS,
@@ -649,31 +650,34 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         exportPage += 1
       } while (exportPage <= totalPages)
 
-      exportInventoryPdf(exportItems, {
+      const filteredExportItems = exportItems.filter((item) =>
+        matchesItemAttributes(item, {
+          capacity: capacityFilter,
+          speed: speedFilter,
+          type: typeFilter,
+          specSearch: specSearch,
+        })
+      )
+
+      const pdfFilters = [
+        ["Search", searchText.trim() || "All inventory items"],
+        [
+          "Category",
+          categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
+        ],
+        ["Brand", brandFilter.trim() || "All brands"],
+        ["Status", statusFilter || "All statuses"],
+        ["Low stock only", lowStockOnly === "true" ? "Yes" : "No"],
+      ]
+      if (capacityFilter) pdfFilters.push(["Capacity", capacityFilter])
+      if (speedFilter) pdfFilters.push(["Speed", speedFilter])
+      if (typeFilter) pdfFilters.push(["Type", typeFilter])
+      if (specSearch.trim()) pdfFilters.push(["Spec Keyword", specSearch.trim()])
+
+      exportInventoryPdf(filteredExportItems, {
         branch: viewingBranch || selectedBranch,
         generatedBy: user,
-        filters: [
-          [
-            "Search",
-            searchText.trim() || "All inventory items",
-          ],
-          [
-            "Category",
-            categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
-          ],
-          [
-            "Brand",
-            brandFilter.trim() || "All brands",
-          ],
-          [
-            "Status",
-            statusFilter || "All statuses",
-          ],
-          [
-            "Low stock only",
-            lowStockOnly === "true" ? "Yes" : "No",
-          ],
-        ],
+        filters: pdfFilters,
       })
     } catch (error) {
       setErrorMessage(
@@ -722,12 +726,24 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         exportPage += 1
       } while (exportPage <= totalPages)
 
+      const filteredExportItems = exportItems.filter((item) =>
+        matchesItemAttributes(item, {
+          capacity: capacityFilter,
+          speed: speedFilter,
+          type: typeFilter,
+          specSearch: specSearch,
+        })
+      )
+
       const exportColumns = [
         ["Item Code", (row) => row.itemCode || "—"],
         ["Item Name", (row) => row.itemName || "—"],
-        ["Category", (row) => row.category?.name || row.categoryName || "—"],
         ["Brand", (row) => row.brand || "—"],
-        ["Serialized", (row) => row.isSerialized ? "Yes" : "No"],
+        ["Model", (row) => row.modelName || "—"],
+        ["Category", (row) => row.category?.name || row.categoryName || "—"],
+        ["Unit", (row) => row.unit || row.unitName || "—"],
+        ["Specifications", (row) => formatSpecs(row.attributes)],
+        ["Serialized", (row) => (row.isSerialized ? "Yes" : "No")],
         ["Total Stock", (row) => Number(row.totalQuantity || 0)],
         ["Available Stock", (row) => Number(row.quantityAvailable || 0)],
         ["Reserved Stock", (row) => Number(row.quantityReserved || 0)],
@@ -742,22 +758,33 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         }],
       ]
 
+      const excelFilters = [
+        ["Search Query", searchText.trim() || "All items"],
+        [
+          "Category",
+          categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
+        ],
+        ["Brand", brandFilter.trim() || "All brands"],
+        ["Status", statusFilter || "All statuses"],
+        ["Low stock only", lowStockOnly === "true" ? "Yes" : "No"],
+      ]
+      if (capacityFilter) excelFilters.push(["Capacity", capacityFilter])
+      if (speedFilter) excelFilters.push(["Speed", speedFilter])
+      if (typeFilter) excelFilters.push(["Type", typeFilter])
+      if (specSearch.trim()) excelFilters.push(["Spec Keyword", specSearch.trim()])
+
       exportReportExcel({
         label: "Branch Inventory Status",
         filename: `Inventory-${new Date().toISOString().slice(0, 10)}`,
         columns: exportColumns,
-        records: exportItems,
+        records: filteredExportItems,
         branch: viewingBranch || selectedBranch,
         generatedBy: user,
-        filters: [
-          ["Search Query", searchText.trim() || "All items"],
-          ["Status", statusFilter || "All statuses"],
-          ["Low stock only", lowStockOnly === "true" ? "Yes" : "No"],
-        ],
+        filters: excelFilters,
         totals: [
-          ["Total Items Exported", exportItems.length],
-          ["Total Stock Units", exportItems.reduce((sum, it) => sum + Number(it.quantityAvailable || 0), 0)],
-          ["Total Inventory Valuation", exportItems.reduce((sum, it) => sum + (Number(it.quantityAvailable || 0) * Number(it.costPrice || 0)), 0)],
+          ["Total Items Exported", filteredExportItems.length],
+          ["Total Stock Units", filteredExportItems.reduce((sum, it) => sum + Number(it.quantityAvailable || 0), 0)],
+          ["Total Inventory Valuation", filteredExportItems.reduce((sum, it) => sum + (Number(it.quantityAvailable || 0) * Number(it.costPrice || 0)), 0)],
         ],
       })
     } catch (error) {

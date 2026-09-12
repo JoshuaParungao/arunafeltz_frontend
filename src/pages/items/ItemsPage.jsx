@@ -8,6 +8,7 @@ import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import {
   CAPACITY_PRESETS,
+  formatSpecs,
   matchesItemAttributes,
   POPULAR_BRANDS,
   SPEED_PRESETS,
@@ -1770,21 +1771,38 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
           limit: 50,
         })
         const result = response?.data || {}
-        const pageItems = Array.isArray(result.data) ? result.data : []
+        const pageItems = Array.isArray(result.items)
+          ? result.items
+          : Array.isArray(result.data)
+          ? result.data
+          : []
         exportItems.push(...pageItems)
         totalPages = Math.max(1, Number(result.pagination?.totalPages || 1))
         exportPage += 1
       } while (exportPage <= totalPages)
 
+      const filteredExportItems = exportItems.filter((item) =>
+        matchesItemAttributes(item, {
+          capacity: capacityFilter,
+          speed: speedFilter,
+          type: typeFilter,
+          specSearch: specSearch,
+        })
+      )
+
       const exportColumns = [
         ["Item Code", (row) => row.itemCode || "—"],
         ["Item Name", (row) => row.itemName || "—"],
         ["Barcode", (row) => row.barcode || "—"],
-        ["Category", (row) => row.category?.name || row.categoryName || "—"],
         ["Brand", (row) => row.brand || "—"],
+        ["Model", (row) => row.modelName || "—"],
+        ["Category", (row) => row.category?.name || row.categoryName || "—"],
         ["Unit", (row) => row.unit?.name || row.unitName || "—"],
-        ["Serialized", (row) => row.isSerialized ? "Yes" : "No"],
+        ["Specifications", (row) => formatSpecs(row.attributes)],
+        ["Serialized", (row) => (row.isSerialized ? "Yes" : "No")],
         ["Warranty", (row) => parseItemWarranty(row)],
+        ["Min Stock", (row) => Number(row.minStock || 0)],
+        ["Reorder Level", (row) => Number(row.reorderLevel || 0)],
         ["Cost Price", (row) => Number(row.costPrice || 0)],
         ["Price 1", (row) => Number(row.price1 || 0)],
         ["Price 2", (row) => Number(row.price2 || 0)],
@@ -1794,25 +1812,31 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
         ["Status", (row) => row.status || (row.isActive ? "ACTIVE" : "INACTIVE")],
       ]
 
+      const excelFilters = [
+        ["Search Query", searchText.trim() || "All items"],
+        [
+          "Category Filter",
+          categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
+        ],
+        ["Brand Filter", brandFilter.trim() || "All brands"],
+        ["Status Filter", statusFilter || "All statuses"],
+        ["Serialized Only", serializedFilter ? "Yes" : "All"],
+      ]
+      if (capacityFilter) excelFilters.push(["Capacity Filter", capacityFilter])
+      if (speedFilter) excelFilters.push(["Speed Filter", speedFilter])
+      if (typeFilter) excelFilters.push(["Type Filter", typeFilter])
+      if (specSearch.trim()) excelFilters.push(["Spec Search", specSearch.trim()])
+
       exportReportExcel({
         label: "Product Catalog",
         filename: `Product-Catalog-${new Date().toISOString().slice(0, 10)}`,
         columns: exportColumns,
-        records: exportItems,
+        records: filteredExportItems,
         branch: selectedBranch,
         generatedBy: user,
-        filters: [
-          ["Search Query", searchText.trim() || "All items"],
-          [
-            "Category Filter",
-            categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
-          ],
-          ["Brand Filter", brandFilter.trim() || "All brands"],
-          ["Status Filter", statusFilter || "All statuses"],
-          ["Serialized Only", serializedFilter ? "Yes" : "All"],
-        ],
+        filters: excelFilters,
         totals: [
-          ["Total Catalog Items", exportItems.length],
+          ["Total Catalog Items", filteredExportItems.length],
         ],
       })
     } catch (error) {
