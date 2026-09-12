@@ -14,6 +14,7 @@ import {
   Phone,
   Plus,
   Printer,
+  ReceiptText,
   RefreshCw,
   Search,
   Tag,
@@ -35,6 +36,7 @@ import QuotationDetailDialog from "../../components/quotations/QuotationDetailDi
 import CreditAccountDetailModal from "../../components/credits/CreditAccountDetailModal"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import AccountsReceivableModal from "./AccountsReceivableModal"
 
 const CUSTOMER_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -1058,6 +1060,7 @@ function CustomerDetailModal({
   customer: initialCustomer,
   onClose,
   onEdit,
+  onOpenAr,
   onRequestStatus,
   refreshKey,
 }) {
@@ -1156,6 +1159,16 @@ function CustomerDetailModal({
             >
               <RefreshCw className={isLoading ? "animate-spin" : ""} size={15} />
             </button>
+            {onOpenAr ? (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 hover:bg-blue-100 transition"
+                onClick={() => onOpenAr(customer)}
+                type="button"
+              >
+                <ReceiptText size={13} className="text-blue-700" />
+                Accounts Receivable
+              </button>
+            ) : null}
             {canManage ? (
               <button
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
@@ -1448,6 +1461,8 @@ function CustomersPage({ selectedBranch, user }) {
   const [detailCustomer, setDetailCustomer] = useState(null)
   const [detailRefreshKey, setDetailRefreshKey] = useState(0)
   const [statusRequest, setStatusRequest] = useState(null)
+  const [isArModalOpen, setIsArModalOpen] = useState(false)
+  const [arCustomerId, setArCustomerId] = useState(null)
   const requestIdRef = useRef(0)
   const pageSize = 10
 
@@ -1671,6 +1686,17 @@ function CustomersPage({ selectedBranch, user }) {
           >
             <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
             Refresh
+          </button>
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-900 shadow-sm transition hover:bg-blue-100 hover:border-blue-300"
+            onClick={() => {
+              setArCustomerId(null)
+              setIsArModalOpen(true)
+            }}
+            type="button"
+          >
+            <ReceiptText size={16} className="text-blue-700" />
+            Accounts Receivable
           </button>
           <ExportExcelButton
             count={pagination?.totalItems || customers.length}
@@ -1962,6 +1988,10 @@ function CustomersPage({ selectedBranch, user }) {
             setDetailCustomer(null)
             openEditor("edit", customer)
           }}
+          onOpenAr={(customer) => {
+            setArCustomerId(customer.id)
+            setIsArModalOpen(true)
+          }}
           onRequestStatus={(customer, targetStatus) => {
             setDetailCustomer(null)
             setStatusRequest({ customer, targetStatus })
@@ -1977,6 +2007,20 @@ function CustomersPage({ selectedBranch, user }) {
           onClose={() => setStatusRequest(null)}
           onSaved={handleSavedStatus}
           targetStatus={statusRequest.targetStatus}
+        />
+      ) : null}
+
+      {/* Outstanding Accounts Receivable Modal */}
+      {isArModalOpen ? (
+        <AccountsReceivableModal
+          customers={customers}
+          initialCustomerId={arCustomerId}
+          onClose={() => {
+            setIsArModalOpen(false)
+            setArCustomerId(null)
+          }}
+          selectedBranch={activeBranch}
+          user={user}
         />
       ) : null}
     </div>

@@ -1,4 +1,4 @@
-﻿import apiClient from "../../lib/apiClient"
+import apiClient from "../../lib/apiClient"
 
 export async function getCustomers(params = {}) {
   const response = await apiClient.get("/customers", { params })
@@ -22,5 +22,10 @@ export async function createCustomer(payload) {
 
 export async function updateCustomerById(id, payload) {
   const response = await apiClient.patch(`/customers/${id}`, payload)
+  return response.data
+}
+
+export async function getAccountsReceivable(params = {}) {
+  const response = await apiClient.get("/customers/accounts-receivable", { params })
   return response.data
 }
