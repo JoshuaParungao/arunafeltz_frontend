@@ -37,6 +37,7 @@ import CreditAccountDetailModal from "../../components/credits/CreditAccountDeta
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import AccountsReceivableModal from "./AccountsReceivableModal"
+import CustomerStatementOfAccountModal from "./CustomerStatementOfAccountModal"
 
 const CUSTOMER_MANAGER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -1061,6 +1062,7 @@ function CustomerDetailModal({
   onClose,
   onEdit,
   onOpenAr,
+  onOpenSoa,
   onRequestStatus,
   refreshKey,
 }) {
@@ -1159,6 +1161,17 @@ function CustomerDetailModal({
             >
               <RefreshCw className={isLoading ? "animate-spin" : ""} size={15} />
             </button>
+            {onOpenSoa ? (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition shadow-2xs"
+                onClick={() => onOpenSoa(customer)}
+                type="button"
+                title="Print client-facing Statement of Account (SOA)"
+              >
+                <Printer size={13} className="text-indigo-700" />
+                Print SOA
+              </button>
+            ) : null}
             {onOpenAr ? (
               <button
                 className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 hover:bg-blue-100 transition"
@@ -1466,6 +1479,7 @@ function CustomersPage({ selectedBranch, user }) {
   const [statusRequest, setStatusRequest] = useState(null)
   const [isArModalOpen, setIsArModalOpen] = useState(false)
   const [arCustomerId, setArCustomerId] = useState(null)
+  const [selectedSoaCustomer, setSelectedSoaCustomer] = useState(null)
   const requestIdRef = useRef(0)
   const pageSize = 10
 
@@ -1900,6 +1914,15 @@ function CustomersPage({ selectedBranch, user }) {
                             <Eye size={13} />
                             <span>View</span>
                           </button>
+                          <button
+                            className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50/70 px-2.5 py-1.5 text-xs font-bold text-indigo-800 shadow-2xs hover:bg-indigo-100 transition"
+                            onClick={() => setSelectedSoaCustomer(customer)}
+                            type="button"
+                            title="Print Statement of Account (SOA)"
+                          >
+                            <Printer size={13} className="text-indigo-600" />
+                            <span>SOA</span>
+                          </button>
                           {canManage ? (
                             <button
                               className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
@@ -2008,6 +2031,9 @@ function CustomersPage({ selectedBranch, user }) {
             setArCustomerId(customer.id)
             setIsArModalOpen(true)
           }}
+          onOpenSoa={(customer) => {
+            setSelectedSoaCustomer(customer)
+          }}
           onRequestStatus={(customer, targetStatus) => {
             setDetailCustomer(null)
             setStatusRequest({ customer, targetStatus })
@@ -2035,6 +2061,17 @@ function CustomersPage({ selectedBranch, user }) {
             setIsArModalOpen(false)
             setArCustomerId(null)
           }}
+          selectedBranch={activeBranch}
+          user={user}
+        />
+      ) : null}
+
+      {/* Client-Facing Statement of Account (SOA) Modal */}
+      {selectedSoaCustomer ? (
+        <CustomerStatementOfAccountModal
+          customerId={selectedSoaCustomer.id}
+          initialCustomer={selectedSoaCustomer}
+          onClose={() => setSelectedSoaCustomer(null)}
           selectedBranch={activeBranch}
           user={user}
         />

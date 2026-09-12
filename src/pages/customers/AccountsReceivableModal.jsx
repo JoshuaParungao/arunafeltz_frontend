@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { getAccountsReceivable } from "../../features/customers/customers.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
+import CustomerStatementOfAccountModal from "./CustomerStatementOfAccountModal"
 
 function formatMoney(value) {
   const n = Number(value || 0)
@@ -51,6 +52,7 @@ export default function AccountsReceivableModal({
   const [data, setData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
+  const [soaCustomer, setSoaCustomer] = useState(null)
 
   // Filter States
   const [search, setSearch] = useState("")
@@ -331,6 +333,27 @@ export default function AccountsReceivableModal({
                 <span>Detailed</span>
               </button>
             </div>
+
+            {selectedCustomerId ? (
+              <button
+                onClick={() => {
+                  const targetCustomer = customers.find((c) => c.id === selectedCustomerId)
+                  setSoaCustomer({
+                    id: selectedCustomerId,
+                    name: targetCustomer?.fullName,
+                    address: targetCustomer?.address,
+                    items: (data?.items || []).filter((it) => it.customerId === selectedCustomerId),
+                  })
+                }}
+                disabled={isLoading || filteredItems.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-900 hover:bg-indigo-100 shadow-2xs transition disabled:opacity-50"
+                type="button"
+                title="Print customer-facing Statement of Account (SOA)"
+              >
+                <Printer size={13} className="text-indigo-600" />
+                <span>Print Client SOA</span>
+              </button>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">
@@ -590,6 +613,22 @@ export default function AccountsReceivableModal({
                           </button>
                           <button
                             type="button"
+                            onClick={() =>
+                              setSoaCustomer({
+                                id: item.customerId,
+                                name: item.customerName,
+                                address: item.customerAddress,
+                                items: (data?.items || []).filter((it) => it.customerId === item.customerId),
+                              })
+                            }
+                            className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-800 hover:bg-indigo-100 transition inline-flex items-center gap-0.5"
+                            title={`Print Statement of Account (SOA) for ${item.customerName}`}
+                          >
+                            <Printer size={10} className="text-indigo-600" />
+                            SOA
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleExportExcel("detailed", item.customerId, item.customerName)}
                             className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100 transition inline-flex items-center gap-0.5"
                             title={`Export full audit Excel for ${item.customerName}`}
@@ -663,6 +702,22 @@ export default function AccountsReceivableModal({
           </div>
         </footer>
       </section>
+
+      {/* Client-Facing Statement of Account (SOA) Modal */}
+      {soaCustomer ? (
+        <CustomerStatementOfAccountModal
+          customerId={soaCustomer.id}
+          initialCustomer={{
+            id: soaCustomer.id,
+            fullName: soaCustomer.name,
+            address: soaCustomer.address,
+          }}
+          initialItems={soaCustomer.items}
+          onClose={() => setSoaCustomer(null)}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      ) : null}
     </div>
   )
 }
