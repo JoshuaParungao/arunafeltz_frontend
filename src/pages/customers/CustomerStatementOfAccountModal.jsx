@@ -7,7 +7,7 @@ import {
   Printer,
   X,
 } from "lucide-react"
-import { getAccountsReceivable } from "../../features/customers/customers.api"
+import { getAccountsReceivable, getCustomerById } from "../../features/customers/customers.api"
 import {
   exportReportExcel,
   exportStatementOfAccountPdf,
@@ -46,20 +46,37 @@ export default function CustomerStatementOfAccountModal({
   selectedBranch,
   user,
 }) {
-  const [items, setItems] = useState(initialItems && initialItems.length > 0 ? initialItems : null)
+  const [items, setItems] = useState(initialItems && initialItems.length > 0 ? initialItems : [])
   const [customerInfo, setCustomerInfo] = useState(initialCustomer || null)
-  const [isLoading, setIsLoading] = useState(!initialItems || initialItems.length === 0)
+  const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
 
   const loadData = useCallback(async () => {
-    if (!customerId) return
+    if (!customerId) {
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     setErrorMessage("")
     try {
-      const res = await getAccountsReceivable({ customerId, limit: 500 })
-      const fetchedItems = res?.data?.items || []
+      const [arRes, custRes] = await Promise.allSettled([
+        getAccountsReceivable({ customerId, limit: 500 }),
+        getCustomerById(customerId),
+      ])
+
+      const fetchedItems = arRes.status === "fulfilled" ? arRes.value?.data?.items || [] : []
       setItems(fetchedItems)
-      if (fetchedItems.length > 0) {
+
+      if (custRes.status === "fulfilled" && custRes.value?.data) {
+        const c = custRes.value.data
+        setCustomerInfo({
+          id: c.id,
+          fullName: c.fullName,
+          address: c.address,
+          mobileNumber: c.mobileNumber,
+          companyName: c.companyName,
+        })
+      } else if (fetchedItems.length > 0) {
         const first = fetchedItems[0]
         setCustomerInfo((prev) => ({
           id: first.customerId,
@@ -79,10 +96,8 @@ export default function CustomerStatementOfAccountModal({
   }, [customerId])
 
   useEffect(() => {
-    if (!items || items.length === 0) {
-      loadData()
-    }
-  }, [items, loadData])
+    loadData()
+  }, [loadData])
 
   // Aging Bucket Calculations based on As-Of Date
   const asOfDate = useMemo(() => new Date(), [])
@@ -272,7 +287,7 @@ export default function CustomerStatementOfAccountModal({
           <div className="flex items-center gap-2">
             <button
               onClick={handleSavePdf}
-              disabled={isLoading || rows.length === 0}
+              disabled={isLoading}
               className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 hover:bg-blue-100 shadow-2xs transition disabled:opacity-50"
               type="button"
               title="Download official Statement of Account as PDF file"
@@ -283,7 +298,7 @@ export default function CustomerStatementOfAccountModal({
 
             <button
               onClick={handlePrint}
-              disabled={isLoading || rows.length === 0}
+              disabled={isLoading}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 shadow-2xs transition disabled:opacity-50"
               type="button"
               title="Print official Statement of Account"
@@ -294,7 +309,7 @@ export default function CustomerStatementOfAccountModal({
 
             <button
               onClick={handleExportExcel}
-              disabled={isLoading || rows.length === 0}
+              disabled={isLoading}
               className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 shadow-2xs transition disabled:opacity-50"
               type="button"
               title="Export aging statement to Excel"
@@ -386,8 +401,15 @@ export default function CustomerStatementOfAccountModal({
                   <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
                     {rows.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="py-8 text-center text-slate-400 font-sans italic">
-                          No outstanding invoices or balances found for this customer.
+                        <td colSpan={9} className="py-8 text-center text-slate-500 font-sans">
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <span className="font-bold text-slate-800 text-xs uppercase tracking-wide">
+                              No Outstanding Accounts Receivable
+                            </span>
+                            <span className="text-[11px] text-slate-500 italic">
+                              This customer has zero outstanding balance. All transactions are fully settled.
+                            </span>
+                          </div>
                         </td>
                       </tr>
                     ) : (
@@ -424,36 +446,34 @@ export default function CustomerStatementOfAccountModal({
                       ))
                     )}
                   </tbody>
-                  {rows.length > 0 ? (
-                    <tfoot>
-                      <tr className="border-t-2 border-slate-900 font-mono text-[11px] font-black text-slate-950">
-                        <td className="py-2 pr-2 font-sans font-black uppercase" colSpan={2}>
-                          GRAND TOTAL
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {formatMoney(totals.t_0_30)}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {formatMoney(totals.t_31_60)}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {formatMoney(totals.t_61_90)}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {formatMoney(totals.t_91_120)}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {formatMoney(totals.t_121_150)}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {formatMoney(totals.t_over_150)}
-                        </td>
-                        <td className="py-2 pl-2 text-right font-black text-xs">
-                          {formatMoney(totals.grandTotal)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  ) : null}
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-900 font-mono text-[11px] font-black text-slate-950">
+                      <td className="py-2 pr-2 font-sans font-black uppercase" colSpan={2}>
+                        GRAND TOTAL
+                      </td>
+                      <td className="py-2 px-2 text-right">
+                        {formatMoney(totals.t_0_30) || "—"}
+                      </td>
+                      <td className="py-2 px-2 text-right">
+                        {formatMoney(totals.t_31_60) || "—"}
+                      </td>
+                      <td className="py-2 px-2 text-right">
+                        {formatMoney(totals.t_61_90) || "—"}
+                      </td>
+                      <td className="py-2 px-2 text-right">
+                        {formatMoney(totals.t_91_120) || "—"}
+                      </td>
+                      <td className="py-2 px-2 text-right">
+                        {formatMoney(totals.t_121_150) || "—"}
+                      </td>
+                      <td className="py-2 px-2 text-right">
+                        {formatMoney(totals.t_over_150) || "—"}
+                      </td>
+                      <td className="py-2 pl-2 text-right font-black text-xs">
+                        {formatMoney(totals.grandTotal) || "0.00"}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
 
