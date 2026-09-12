@@ -237,14 +237,31 @@ function createRequestKey() {
   return generateUUID()
 }
 
+const ERROR_CODE_TRANSLATIONS = {
+  CASH_SOURCE_CONFLICT: "A cash register conflict occurred while recording this payment.",
+  STAFF_CUSTOM_PRICE_NOT_ALLOWED: "Custom pricing is not permitted for staff accounts.",
+  CANNOT_APPEND_TO_SALE_IN_CURRENT_STATUS: "Items cannot be added to a sale in its current status.",
+  INSUFFICIENT_PAYMENT_FOR_ADDED_ITEMS: "The tendered payment is less than the total for the added items.",
+  SERIAL_NOT_AVAILABLE: "The entered serial number is not available or has already been sold.",
+  SERIAL_REQUIRED: "A serial number is required for this item.",
+  BATCH_NOT_FOUND: "No active stock batch found for this item in this branch.",
+  INSUFFICIENT_BATCH_QUANTITY: "Insufficient stock available in this branch.",
+  ITEM_NOT_FOUND: "The requested item was not found in this branch.",
+  CREDIT_ACCOUNT_NOT_FOUND: "The associated credit account was not found.",
+  CANNOT_APPEND_TO_INACTIVE_CREDIT_ACCOUNT: "Cannot add items to an inactive or cancelled credit account.",
+  RECEIVABLE_INITIAL_SETTLEMENT_EXCEEDS_TOTAL: "Downpayment cannot exceed the total purchase price.",
+  SALE_NOT_FOUND: "Sale record not found.",
+  BRANCH_ACCESS_DENIED: "You do not have access to records from another branch.",
+}
+
 function getApiErrorMessage(error, fallback) {
-  return (
+  const raw =
     error?.response?.data?.message ||
     error?.response?.data?.error?.message ||
     (typeof error?.response?.data?.error === "string" ? error.response.data.error : null) ||
     error?.message ||
     fallback
-  )
+  return ERROR_CODE_TRANSLATIONS[raw] || raw
 }
 
 function getCatalogRows(response) {
@@ -1440,7 +1457,7 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
     return Math.max(tender - addedGrandTotal, 0)
   }, [addedGrandTotal, paymentAmount])
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault()
     setMessage("")
 
@@ -1476,7 +1493,7 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
         description: it.item ? undefined : it.description,
         priceTier: it.item ? Number(it.priceTier || 1) : undefined,
         quantity: Number(it.quantity),
-        unitPrice: Number(it.unitPrice),
+        unitPrice: it.item ? undefined : Number(it.unitPrice),
         serialNumber: it.serialNumber?.trim() || undefined,
       })),
       payments: tender > 0 ? [
@@ -1490,7 +1507,11 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
       remarks: remarks.trim() || undefined,
     }
 
-    onConfirm(payload)
+    try {
+      await onConfirm(payload)
+    } catch (err) {
+      setMessage(getApiErrorMessage(err, "Unable to add items to this sale."))
+    }
   }
 
   const newReceiptTotal = Number(sale.grandTotal || 0) + addedGrandTotal
@@ -1829,9 +1850,20 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
                   </label>
 
                   <label className="block">
-                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
-                      {isCreditSale ? "Downpayment Amount (₱)" : "Tendered Amount"}
-                    </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-500">
+                        {isCreditSale ? "Downpayment Amount (₱)" : "Tendered Amount"}
+                      </span>
+                      {!isCreditSale && addedGrandTotal > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setPaymentAmount(String(addedGrandTotal))}
+                          className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded transition cursor-pointer"
+                        >
+                          Exact (₱{formatMoney(addedGrandTotal)})
+                        </button>
+                      ) : null}
+                    </div>
                     <input
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-emerald-500"
                       disabled={isSaving}
@@ -4379,7 +4411,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         }
       }
     } catch (error) {
-      setNoticeMessage(getApiErrorMessage(error, "Unable to add items to this sale."))
+      const msg = getApiErrorMessage(error, "Unable to add items to this sale.")
+      setNoticeMessage(msg)
+      throw error
     } finally {
       setIsAppendingSale(false)
     }
