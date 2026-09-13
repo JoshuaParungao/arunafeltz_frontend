@@ -4613,14 +4613,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ["Sale Type Filter", saleTypeFilter],
           ["Total Sales Records", displayedSales.length],
           ["Total Gross Sales (Includes AR, Mark-up, Interest)", detailedMetrics.kabuuangSale],
-          ["Parts & Products Revenue", detailedMetrics.partsRevenue],
+          ["Item Gross Sales (Parts & Products)", detailedMetrics.partsRevenue],
+          ["Item Cost of Goods (Puhunan)", detailedMetrics.partsCost],
+          ["Item Gross Profit (Tubo sa Item Lang)", detailedMetrics.partsProfit],
+          ["Item Mark-up (Patong)", detailedMetrics.totalMarkup],
           ["Services & Labor Revenue", detailedMetrics.serviceRevenue],
-          ["Parts & Services Combined (Base)", detailedMetrics.combinedBaseRevenue],
-          ["Total Mark-up", detailedMetrics.totalMarkup],
           ["Financing Interest Charges", detailedMetrics.totalInterest],
           ["Accounts Receivable (AR Balance)", detailedMetrics.totalArBalance],
           ["Actual Cash Collected", detailedMetrics.totalCollectedCash],
-          ["Gross Profit Margin", detailedMetrics.estimatedProfit],
+          ["Total Business Gross Profit (Combined)", detailedMetrics.overallGrossProfit],
           ["Top Sales Account (Highest Salesperson)", detailedMetrics.topSalesPerson ? `${detailedMetrics.topSalesPerson.name} (${formatMoney(detailedMetrics.topSalesPerson.totalSales)} · ${detailedMetrics.topSalesPerson.count} sales)` : "—"],
         ],
       })
@@ -4825,7 +4826,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           salePartsFromItems += lineTotal
 
           // Parts cost
-          const unitCost = Number(line.operationalUnitCostSnapshot || line.acquisitionUnitCostSnapshot || 0)
+          let unitCost = Number(line.operationalUnitCostSnapshot || line.acquisitionUnitCostSnapshot || 0)
+          if (unitCost <= 0 && Number(line.baseUnitPriceSnapshot || 0) > 0) {
+            unitCost = Number(line.baseUnitPriceSnapshot)
+          }
           if (unitCost > 0) {
             totalCost += (unitCost * qty)
           }
@@ -4861,8 +4865,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     })
 
     combinedBaseRevenue = partsRevenue + serviceRevenue
-    const partsProfit = Math.max(partsRevenue - totalCost, 0)
-    estimatedProfit = partsProfit + serviceRevenue + totalInterest
+    const partsCost = totalCost
+    const partsProfit = Math.max(partsRevenue - partsCost, 0)
+    const overallGrossProfit = partsProfit + serviceRevenue + totalInterest
 
     const salesPersonsList = Object.values(salesPersonsMap).sort((a, b) => b.totalSales - a.totalSales)
     const topSalesPerson = salesPersonsList.length > 0 ? salesPersonsList[0] : null
@@ -4871,13 +4876,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalTransactions,
       completedCount,
       partsRevenue,
+      partsCost,
+      partsProfit,
       serviceRevenue,
       combinedBaseRevenue,
       totalMarkup,
       totalInterest,
       totalArBalance,
       totalCollectedCash,
-      estimatedProfit,
+      estimatedProfit: overallGrossProfit,
+      overallGrossProfit,
       kabuuangSale,
       salesPersonsList,
       topSalesPerson,
@@ -6585,135 +6593,241 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </div>
           ) : null}
 
-          {/* Tier 1: 4 Key Financial Metric Cards (Click to Filter) */}
+          {/* Tier 1: 4 Key Financial Metric Cards (Click to Filter / Dynamic by Sale Type) */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Card 1: Total Gross Sales */}
-            <div
-              role="button"
-              onClick={() => setSaleTypeFilter("ALL")}
-              title="Click to view all sales"
-              className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
-                saleTypeFilter === "ALL"
-                  ? "border-emerald-500 bg-gradient-to-br from-emerald-100/80 via-white to-emerald-50/60 ring-2 ring-emerald-500 shadow-md"
-                  : "border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 hover:border-emerald-400"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
-                  Total Gross Sales
-                </span>
-                <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
-                  <ReceiptText size={16} />
-                </span>
-              </div>
-              <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
-                {formatMoney(detailedMetrics.kabuuangSale)}
-              </p>
-              <div className="mt-1 flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-emerald-700/90">
-                  Includes AR, Mark-up, and Financing
-                </p>
-                {saleTypeFilter === "ALL" ? (
-                  <span className="rounded-full bg-emerald-600 text-white px-2 py-0.2 text-[9px] font-black">Active</span>
-                ) : null}
-              </div>
-            </div>
+            {saleTypeFilter === "PARTS_ONLY" ? (
+              /* Dedicated Item / Parts Financial Metric Cards */
+              <>
+                {/* Card 1: Item Gross Sales */}
+                <div
+                  role="button"
+                  onClick={() => setSaleTypeFilter("PARTS_ONLY")}
+                  className="relative overflow-hidden rounded-2xl border border-blue-600 bg-gradient-to-br from-blue-100/90 via-white to-blue-50 ring-2 ring-blue-600 shadow-md p-4 transition hover:scale-[1.01]"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
+                      Item Gross Sales (Benta sa Item)
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
+                      <PackageSearch size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-2xl font-black text-blue-950">
+                    {formatMoney(detailedMetrics.partsRevenue)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-blue-700/90">
+                      Gross revenue exclusively from items & parts
+                    </p>
+                    <span className="rounded-full bg-blue-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
+                  </div>
+                </div>
 
-            {/* Card 2: Parts & Products Revenue */}
-            <div
-              role="button"
-              onClick={() => setSaleTypeFilter("PARTS_ONLY")}
-              title="Click to filter by parts and items only"
-              className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
-                saleTypeFilter === "PARTS_ONLY"
-                  ? "border-blue-600 bg-gradient-to-br from-blue-100/90 via-white to-blue-50 ring-2 ring-blue-600 shadow-md"
-                  : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 hover:border-blue-400"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">
-                  Parts & Products Revenue
-                </span>
-                <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
-                  <PackageSearch size={16} />
-                </span>
-              </div>
-              <p className="mt-2 font-mono text-2xl font-black text-blue-950">
-                {formatMoney(detailedMetrics.partsRevenue)}
-              </p>
-              <div className="mt-1 flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-blue-700/90">
-                  Revenue exclusively from items & parts
-                </p>
-                {saleTypeFilter === "PARTS_ONLY" ? (
-                  <span className="rounded-full bg-blue-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
-                ) : null}
-              </div>
-            </div>
+                {/* Card 2: Item Cost of Goods (Puhunan) */}
+                <div className="relative overflow-hidden rounded-2xl border border-slate-300 bg-gradient-to-br from-slate-100 via-white to-slate-50 p-4 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
+                      Item Cost of Goods (Puhunan)
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-xl bg-slate-700 text-white shadow-xs">
+                      <Package size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-2xl font-black text-slate-900">
+                    {formatMoney(detailedMetrics.partsCost)}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                    Total acquisition / base cost of items sold
+                  </p>
+                </div>
 
-            {/* Card 3: Services & Labor Revenue */}
-            <div
-              role="button"
-              onClick={() => setSaleTypeFilter("SERVICE_ONLY")}
-              title="Click to filter by services and labor only"
-              className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
-                saleTypeFilter === "SERVICE_ONLY"
-                  ? "border-amber-500 bg-gradient-to-br from-amber-100/90 via-white to-amber-50 ring-2 ring-amber-500 shadow-md"
-                  : "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 hover:border-amber-400"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
-                  Services & Labor Revenue
-                </span>
-                <span className="grid size-8 place-items-center rounded-xl bg-amber-500 text-white shadow-xs">
-                  <Wrench size={16} />
-                </span>
-              </div>
-              <p className="mt-2 font-mono text-2xl font-black text-amber-950">
-                {formatMoney(detailedMetrics.serviceRevenue)}
-              </p>
-              <div className="mt-1 flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-amber-700/90">
-                  Revenue exclusively from labor & repairs
-                </p>
-                {saleTypeFilter === "SERVICE_ONLY" ? (
-                  <span className="rounded-full bg-amber-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
-                ) : null}
-              </div>
-            </div>
+                {/* Card 3: Item Mark-up (Patong sa Item) */}
+                <div
+                  role="button"
+                  onClick={() => setSaleTypeFilter("MARKUP_ONLY")}
+                  title="Click to filter by item mark-up only"
+                  className="relative overflow-hidden rounded-2xl border border-teal-300 bg-gradient-to-br from-teal-50 via-white to-teal-50/40 p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] hover:border-teal-400"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-teal-800">
+                      Item Mark-up (Patong sa Item)
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-xl bg-teal-600 text-white shadow-xs">
+                      <Sparkles size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-2xl font-black text-teal-950">
+                    {formatMoney(detailedMetrics.totalMarkup)}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold text-teal-700/90">
+                    Total mark-up profit applied above cost
+                  </p>
+                </div>
 
-            {/* Card 4: Gross Profit Margin */}
-            <div className="relative overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-800">
-                  Gross Profit Margin
-                </span>
-                <span className="grid size-8 place-items-center rounded-xl bg-purple-600 text-white shadow-xs">
-                  <TrendingUp size={16} />
-                </span>
-              </div>
-              <p className="mt-2 font-mono text-2xl font-black text-purple-950">
-                {formatMoney(detailedMetrics.estimatedProfit)}
-              </p>
-              <p className="mt-1 text-[11px] font-semibold text-purple-700/90">
-                Estimated gross margin (Parts profit + labor + interest)
-              </p>
-            </div>
+                {/* Card 4: Item Gross Profit (Tubo sa Item Lang) */}
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-400 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 p-4 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900">
+                      Item Gross Profit (Tubo sa Item)
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                      <TrendingUp size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
+                    {formatMoney(detailedMetrics.partsProfit)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-emerald-700/90">
+                      Item Sales bawas puhunan ng piyesa lamang
+                    </p>
+                    {detailedMetrics.partsRevenue > 0 ? (
+                      <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800">
+                        {((detailedMetrics.partsProfit / detailedMetrics.partsRevenue) * 100).toFixed(1)}% Margin
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* All Sales / General Overview Cards */
+              <>
+                {/* Card 1: Total Gross Sales */}
+                <div
+                  role="button"
+                  onClick={() => setSaleTypeFilter("ALL")}
+                  title="Click to view all sales"
+                  className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
+                    saleTypeFilter === "ALL"
+                      ? "border-emerald-500 bg-gradient-to-br from-emerald-100/80 via-white to-emerald-50/60 ring-2 ring-emerald-500 shadow-md"
+                      : "border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 hover:border-emerald-400"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                      Total Gross Sales
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                      <ReceiptText size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
+                    {formatMoney(detailedMetrics.kabuuangSale)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-emerald-700/90">
+                      Includes Products, Services, AR, & Interest
+                    </p>
+                    {saleTypeFilter === "ALL" ? (
+                      <span className="rounded-full bg-emerald-600 text-white px-2 py-0.2 text-[9px] font-black">Active</span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Card 2: Item Gross Sales (Parts & Products) */}
+                <div
+                  role="button"
+                  onClick={() => setSaleTypeFilter("PARTS_ONLY")}
+                  title="Click to filter by parts and items only"
+                  className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
+                    saleTypeFilter === "PARTS_ONLY"
+                      ? "border-blue-600 bg-gradient-to-br from-blue-100/90 via-white to-blue-50 ring-2 ring-blue-600 shadow-md"
+                      : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 hover:border-blue-400"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">
+                      Item Gross Sales (Parts)
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
+                      <PackageSearch size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-2xl font-black text-blue-950">
+                    {formatMoney(detailedMetrics.partsRevenue)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-blue-700/90">
+                      Gross revenue exclusively from items
+                    </p>
+                    {saleTypeFilter === "PARTS_ONLY" ? (
+                      <span className="rounded-full bg-blue-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Card 3: Services & Labor Revenue */}
+                <div
+                  role="button"
+                  onClick={() => setSaleTypeFilter("SERVICE_ONLY")}
+                  title="Click to filter by services and labor only"
+                  className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
+                    saleTypeFilter === "SERVICE_ONLY"
+                      ? "border-amber-500 bg-gradient-to-br from-amber-100/90 via-white to-amber-50 ring-2 ring-amber-500 shadow-md"
+                      : "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 hover:border-amber-400"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                      Services & Labor Revenue
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-xl bg-amber-500 text-white shadow-xs">
+                      <Wrench size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-2xl font-black text-amber-950">
+                    {formatMoney(detailedMetrics.serviceRevenue)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-amber-700/90">
+                      Revenue exclusively from labor & repairs
+                    </p>
+                    {saleTypeFilter === "SERVICE_ONLY" ? (
+                      <span className="rounded-full bg-amber-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Card 4: Item Gross Profit (Tubo sa Item Lang) */}
+                <div className="relative overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-800">
+                      Item Gross Profit (Tubo sa Item)
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-xl bg-purple-600 text-white shadow-xs">
+                      <TrendingUp size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-2xl font-black text-purple-950">
+                    {formatMoney(detailedMetrics.partsProfit)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-purple-700/90">
+                      Benta bawas puhunan ng piyesa lamang
+                    </p>
+                    {detailedMetrics.partsRevenue > 0 ? (
+                      <span className="rounded bg-purple-100 px-1.5 py-0.2 text-[9px] font-bold text-purple-800">
+                        {((detailedMetrics.partsProfit / detailedMetrics.partsRevenue) * 100).toFixed(1)}% Margin
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Tier 2: 5 Breakdown Categories Strip */}
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
-            {/* Strip 1: Parts & Services */}
+            {/* Strip 1: Item Cost / Puhunan */}
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
               <div className="flex items-center justify-between text-slate-500">
-                <span className="text-[10px] font-black uppercase tracking-wider">Parts & Services</span>
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">Base</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Item Cost (Puhunan)</span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">Cost Basis</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-slate-900">
-                {formatMoney(detailedMetrics.combinedBaseRevenue)}
+                {formatMoney(detailedMetrics.partsCost)}
               </p>
-              <p className="text-[10px] text-slate-500">Combined base parts and services</p>
+              <p className="text-[10px] text-slate-500">Acquisition cost ng mga naibentang item</p>
             </div>
 
             {/* Strip 2: Mark-up (Click to filter) */}
@@ -6739,16 +6853,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="text-[10px] text-teal-700/80">Total mark-up applied on items</p>
             </div>
 
-            {/* Strip 3: Interest */}
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 shadow-2xs">
-              <div className="flex items-center justify-between text-indigo-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">Financing Interest</span>
-                <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-800">Financing</span>
+            {/* Strip 3: Total Combined Profit */}
+            <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-purple-700">
+                <span className="text-[10px] font-black uppercase tracking-wider">Total Business Profit</span>
+                <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[9px] font-bold text-purple-800">Combined</span>
               </div>
-              <p className="mt-1 font-mono text-base font-black text-indigo-950">
-                {formatMoney(detailedMetrics.totalInterest)}
+              <p className="mt-1 font-mono text-base font-black text-purple-950">
+                {formatMoney(detailedMetrics.overallGrossProfit)}
               </p>
-              <p className="text-[10px] text-indigo-700/80">Financing fees from installment plans</p>
+              <p className="text-[10px] text-purple-700/80">Item profit + labor service + interest</p>
             </div>
 
             {/* Strip 4: AR (Accounts Receivable) */}
