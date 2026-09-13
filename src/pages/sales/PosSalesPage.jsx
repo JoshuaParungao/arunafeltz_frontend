@@ -7313,11 +7313,6 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </div>
                     <p className="mt-1 text-sm font-black text-slate-900">
                       {detailedMetrics.topSalesPerson.name}
-                      {detailedMetrics.topSalesPerson.username ? (
-                        <span className="ml-1.5 font-mono text-xs font-semibold text-slate-500">
-                          (@{detailedMetrics.topSalesPerson.username})
-                        </span>
-                      ) : null}
                     </p>
                   </div>
                 </div>
