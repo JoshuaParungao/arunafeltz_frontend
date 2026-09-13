@@ -2328,6 +2328,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   )
   const [dateFilterPeriod, setDateFilterPeriod] = useState("TODAY") // "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "THIS_YEAR" | "ALL"
   const [showSalesmenLeaderboard, setShowSalesmenLeaderboard] = useState(false)
+  const [saleTypeFilter, setSaleTypeFilter] = useState("ALL") // "ALL" | "PARTS_ONLY" | "SERVICE_ONLY" | "MARKUP_ONLY"
+  const [itemsViewMode, setItemsViewMode] = useState("RECEIPTS") // "RECEIPTS" | "ITEMS"
 
   const [itemSearch, setItemSearch] = useState("")
   const [itemResults, setItemResults] = useState([])
@@ -4535,6 +4537,43 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ["Total Sales Revenue (Tier " + priceTierFilter + ")", totalTierRevenue],
         ],
       })
+    } else if (itemsViewMode === "ITEMS") {
+      const itemColumns = [
+        ["Receipt Code", (row) => row.receiptCode],
+        ["Date & Time", (row) => row.saleDate ? new Date(row.saleDate).toLocaleString("en-PH") : "—"],
+        ["Product / Description", (row) => row.itemName],
+        ["Item Code", (row) => row.itemCode],
+        ["Type", (row) => row.isService ? "Service" : "Parts / Product"],
+        ["Quantity", (row) => row.quantity],
+        ["Unit Cost / Base", (row) => row.unitCost],
+        ["Unit Selling Price", (row) => row.unitPrice],
+        ["Mark-up (Patong)", (row) => row.lineMarkup],
+        ["Line Total", (row) => row.lineTotal],
+        ["Customer", (row) => row.customerName],
+        ["Sales Agent / Cashier", (row) => row.cashierName],
+      ]
+      const totalItemsRevenue = itemSalesRows.reduce((sum, r) => sum + r.lineTotal, 0)
+      const totalItemsMarkup = itemSalesRows.reduce((sum, r) => sum + r.lineMarkup, 0)
+      const totalItemsQty = itemSalesRows.reduce((sum, r) => sum + r.quantity, 0)
+
+      exportReportExcel({
+        label: `Itemized Sales Breakdown (${saleTypeFilter})`,
+        filename: `Item-Sales-${saleTypeFilter}-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
+        columns: itemColumns,
+        records: itemSalesRows,
+        branch: activeBranch,
+        generatedBy: user,
+        filters: [
+          ["Timeframe Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Sale Type Filter", saleTypeFilter],
+          ["Total Line Items", itemSalesRows.length],
+        ],
+        totals: [
+          ["Total Units Sold", totalItemsQty],
+          ["Total Revenue", totalItemsRevenue],
+          ["Total Mark-up (Patong)", totalItemsMarkup],
+        ],
+      })
     } else {
       const exportColumns = [
         ["Receipt Code", (row) => row.receiptCode || "—"],
@@ -4554,14 +4593,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         ["Remarks", (row) => row.remarks || "—"],
       ]
       exportReportExcel({
-        label: "Branch Sales History",
-        filename: `Sales-History-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
+        label: `Branch Sales History (${saleTypeFilter})`,
+        filename: `Sales-History-${saleTypeFilter}-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
         columns: exportColumns,
-        records: filteredSalesByDate,
+        records: displayedSales,
         branch: activeBranch,
         generatedBy: user,
         filters: [
           ["Date Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Sale Type", saleTypeFilter],
           ["Price Tier", "All Price Tiers"],
           ["Search Query", salesSearch.trim() || "All"],
           ["Sale Status", salesStatus || "All Statuses"],
@@ -4569,7 +4609,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         ],
         totals: [
           ["Timeframe Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
-          ["Total Sales Records", filteredSalesByDate.length],
+          ["Sale Type Filter", saleTypeFilter],
+          ["Total Sales Records", displayedSales.length],
           ["Total Gross Sales (Includes AR, Mark-up, Interest)", detailedMetrics.kabuuangSale],
           ["Parts & Products Revenue", detailedMetrics.partsRevenue],
           ["Services & Labor Revenue", detailedMetrics.serviceRevenue],
@@ -4789,16 +4830,24 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           }
         }
 
-        // Markup
+        // Markup (Patong sa Item)
         const markupPct = Number(line.markupPercent || 0)
         const baseUnit = Number(line.baseUnitPriceSnapshot || 0)
         const unitPrice = Number(line.unitPrice || 0)
+        const unitCost = Number(line.operationalUnitCostSnapshot || line.acquisitionUnitCostSnapshot || 0)
+
+        let lineMarkup = 0
         if (markupPct > 0 && baseUnit > 0) {
-          totalMarkup += Math.max(unitPrice - baseUnit, 0) * qty
+          lineMarkup = Math.max(unitPrice - baseUnit, 0) * qty
         } else if (markupPct > 0 && unitPrice > 0) {
           const approxBase = unitPrice / (1 + markupPct / 100)
-          totalMarkup += Math.max(unitPrice - approxBase, 0) * qty
+          lineMarkup = Math.max(unitPrice - approxBase, 0) * qty
+        } else if (baseUnit > 0 && unitPrice > baseUnit) {
+          lineMarkup = (unitPrice - baseUnit) * qty
+        } else if (unitCost > 0 && unitPrice > unitCost) {
+          lineMarkup = (unitPrice - unitCost) * qty
         }
+        totalMarkup += lineMarkup
       })
 
       if (items.length > 0) {
@@ -4833,6 +4882,102 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       topSalesPerson,
     }
   }, [filteredSalesByDate])
+
+  const displayedSales = useMemo(() => {
+    if (saleTypeFilter === "PARTS_ONLY") {
+      return filteredSalesByDate.filter((sale) => {
+        if (sale.status === "CANCELLED") return false
+        const items = Array.isArray(sale.items) ? sale.items : []
+        return items.some((it) => {
+          const desc = String(it.description || "").toLowerCase()
+          return it.itemId && !desc.includes("service") && !desc.includes("labor") && !desc.startsWith("[jo #")
+        })
+      })
+    }
+    if (saleTypeFilter === "SERVICE_ONLY") {
+      return filteredSalesByDate.filter((sale) => {
+        if (sale.status === "CANCELLED") return false
+        if (Number(sale.serviceCharge || 0) > 0) return true
+        const items = Array.isArray(sale.items) ? sale.items : []
+        return items.some((it) => {
+          const desc = String(it.description || "").toLowerCase()
+          return !it.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
+        })
+      })
+    }
+    if (saleTypeFilter === "MARKUP_ONLY") {
+      return filteredSalesByDate.filter((sale) => {
+        if (sale.status === "CANCELLED") return false
+        const items = Array.isArray(sale.items) ? sale.items : []
+        return items.some((it) => {
+          const markupPct = Number(it.markupPercent || 0)
+          const baseUnit = Number(it.baseUnitPriceSnapshot || 0)
+          const unitPrice = Number(it.unitPrice || 0)
+          const unitCost = Number(it.operationalUnitCostSnapshot || it.acquisitionUnitCostSnapshot || 0)
+          return (
+            markupPct > 0 ||
+            (baseUnit > 0 && unitPrice > baseUnit) ||
+            (unitCost > 0 && unitPrice > unitCost)
+          )
+        })
+      })
+    }
+    return filteredSalesByDate
+  }, [filteredSalesByDate, saleTypeFilter])
+
+  const itemSalesRows = useMemo(() => {
+    const rows = []
+    filteredSalesByDate.forEach((sale) => {
+      if (sale.status === "CANCELLED") return
+      const items = Array.isArray(sale.items) ? sale.items : []
+      items.forEach((line) => {
+        const desc = String(line.description || "").toLowerCase()
+        const isServiceLine = !line.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
+
+        if (saleTypeFilter === "PARTS_ONLY" && isServiceLine) return
+        if (saleTypeFilter === "SERVICE_ONLY" && !isServiceLine) return
+
+        const qty = Number(line.quantity || 1)
+        const unitPrice = Number(line.unitPrice || 0)
+        const lineTotal = Number(line.lineTotal || (unitPrice * qty) || 0)
+        const baseUnit = Number(line.baseUnitPriceSnapshot || 0)
+        const unitCost = Number(line.operationalUnitCostSnapshot || line.acquisitionUnitCostSnapshot || 0)
+        const markupPct = Number(line.markupPercent || 0)
+
+        let lineMarkup = 0
+        if (markupPct > 0 && baseUnit > 0) {
+          lineMarkup = Math.max(unitPrice - baseUnit, 0) * qty
+        } else if (markupPct > 0 && unitPrice > 0) {
+          const approxBase = unitPrice / (1 + markupPct / 100)
+          lineMarkup = Math.max(unitPrice - approxBase, 0) * qty
+        } else if (baseUnit > 0 && unitPrice > baseUnit) {
+          lineMarkup = (unitPrice - baseUnit) * qty
+        } else if (unitCost > 0 && unitPrice > unitCost) {
+          lineMarkup = (unitPrice - unitCost) * qty
+        }
+
+        if (saleTypeFilter === "MARKUP_ONLY" && lineMarkup <= 0) return
+
+        rows.push({
+          id: line.id || `${sale.id}-${line.lineNo || Math.random()}`,
+          saleId: sale.id,
+          receiptCode: sale.receiptCode || "—",
+          saleDate: sale.saleDate || sale.createdAt,
+          customerName: sale.customer?.fullName || "Walk-in Customer",
+          cashierName: sale.cashier?.fullName || sale.cashier?.username || "—",
+          itemCode: line.item?.itemCode || line.itemCodeSnapshot || (isServiceLine ? "SERVICE" : "—"),
+          itemName: line.item?.itemName || line.itemNameSnapshot || line.description || (isServiceLine ? "Service / Labor Charge" : "—"),
+          isService: isServiceLine,
+          quantity: qty,
+          unitCost: unitCost || baseUnit || 0,
+          unitPrice,
+          lineMarkup,
+          lineTotal,
+        })
+      })
+    })
+    return rows
+  }, [filteredSalesByDate, saleTypeFilter])
 
   return (
     <div className="min-w-0 space-y-4">
@@ -6271,42 +6416,93 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       {posViewMode === "SALES_HISTORY" ? (
         <>
           {/* Executive Filter & Date Period Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 p-3.5 shadow-2xs">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-500">
-                Period:
-              </span>
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 p-3.5 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  Period:
+                </span>
 
-              {/* Segmented Pill Switcher (Picture 2) */}
-              <div className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold">
-                {[
-                  ["TODAY", "Today"],
-                  ["YESTERDAY", "Yesterday"],
-                  ["THIS_WEEK", "1 Week"],
-                  ["THIS_MONTH", "1 Month"],
-                  ["THIS_YEAR", "1 Year"],
-                  ["ALL", "All"],
-                ].map(([val, lbl]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setDateFilterPeriod(val)}
-                    className={`rounded-lg px-3 py-1.5 transition text-xs cursor-pointer ${
-                      dateFilterPeriod === val
-                        ? "bg-white text-slate-900 shadow-2xs font-black"
-                        : "text-slate-500 hover:text-slate-900"
-                    }`}
-                  >
-                    {lbl}
-                  </button>
-                ))}
+                {/* Segmented Pill Switcher (Picture 2) */}
+                <div className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold">
+                  {[
+                    ["TODAY", "Today"],
+                    ["YESTERDAY", "Yesterday"],
+                    ["THIS_WEEK", "1 Week"],
+                    ["THIS_MONTH", "1 Month"],
+                    ["THIS_YEAR", "1 Year"],
+                    ["ALL", "All"],
+                  ].map(([val, lbl]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setDateFilterPeriod(val)}
+                      className={`rounded-lg px-3 py-1.5 transition text-xs cursor-pointer ${
+                        dateFilterPeriod === val
+                          ? "bg-white text-slate-900 shadow-2xs font-black"
+                          : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                <span className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-700 shadow-2xs">
+                  {detailedMetrics.totalTransactions} Receipt{detailedMetrics.totalTransactions === 1 ? "" : "s"} ({detailedMetrics.completedCount} Completed)
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs">
-              <span className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-700 shadow-2xs">
-                {detailedMetrics.totalTransactions} Receipt{detailedMetrics.totalTransactions === 1 ? "" : "s"} ({detailedMetrics.completedCount} Completed)
-              </span>
+            {/* Sale Type / Revenue Stream Filter (Requested by user: hiwalay ang service, parts, at patong sa item) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-600">
+                  Sale Filter:
+                </span>
+                <div className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold">
+                  {[
+                    ["ALL", "All Sales"],
+                    ["PARTS_ONLY", "Parts & Items Only"],
+                    ["SERVICE_ONLY", "Services Only"],
+                    ["MARKUP_ONLY", "Item Mark-up Only"],
+                  ].map(([val, lbl]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setSaleTypeFilter(val)}
+                      className={`rounded-lg px-3 py-1.5 transition text-xs cursor-pointer ${
+                        saleTypeFilter === val
+                          ? "bg-[var(--color-maroon)] text-white shadow-2xs font-black"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {saleTypeFilter !== "ALL" ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[var(--color-maroon)] bg-[var(--color-maroon)]/10 border border-[var(--color-maroon)]/20 rounded-lg px-2.5 py-1">
+                    ● Filter active: {
+                      saleTypeFilter === "PARTS_ONLY" ? `Parts & Items Only (${displayedSales.length} receipts)` :
+                      saleTypeFilter === "SERVICE_ONLY" ? `Services Only (${displayedSales.length} receipts)` :
+                      `Item Mark-up Only (${displayedSales.length} receipts)`
+                    }
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSaleTypeFilter("ALL")}
+                    className="text-xs font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                  >
+                    Reset Filter
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -6411,10 +6607,19 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </div>
           ) : null}
 
-          {/* Tier 1: 4 Key Financial Metric Cards */}
+          {/* Tier 1: 4 Key Financial Metric Cards (Click to Filter) */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {/* Card 1: Total Gross Sales */}
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 p-4 shadow-2xs">
+            <div
+              role="button"
+              onClick={() => setSaleTypeFilter("ALL")}
+              title="Click to view all sales"
+              className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
+                saleTypeFilter === "ALL"
+                  ? "border-emerald-500 bg-gradient-to-br from-emerald-100/80 via-white to-emerald-50/60 ring-2 ring-emerald-500 shadow-md"
+                  : "border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 hover:border-emerald-400"
+              }`}
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
                   Total Gross Sales
@@ -6426,13 +6631,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
                 {formatMoney(detailedMetrics.kabuuangSale)}
               </p>
-              <p className="mt-1 text-[11px] font-semibold text-emerald-700/90">
-                Includes AR, Mark-up, and Financing Interest
-              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-emerald-700/90">
+                  Includes AR, Mark-up, and Financing
+                </p>
+                {saleTypeFilter === "ALL" ? (
+                  <span className="rounded-full bg-emerald-600 text-white px-2 py-0.2 text-[9px] font-black">Active</span>
+                ) : null}
+              </div>
             </div>
 
             {/* Card 2: Parts & Products Revenue */}
-            <div className="relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 p-4 shadow-2xs">
+            <div
+              role="button"
+              onClick={() => setSaleTypeFilter("PARTS_ONLY")}
+              title="Click to filter by parts and items only"
+              className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
+                saleTypeFilter === "PARTS_ONLY"
+                  ? "border-blue-600 bg-gradient-to-br from-blue-100/90 via-white to-blue-50 ring-2 ring-blue-600 shadow-md"
+                  : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 hover:border-blue-400"
+              }`}
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">
                   Parts & Products Revenue
@@ -6444,13 +6663,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="mt-2 font-mono text-2xl font-black text-blue-950">
                 {formatMoney(detailedMetrics.partsRevenue)}
               </p>
-              <p className="mt-1 text-[11px] font-semibold text-blue-700/90">
-                Revenue exclusively from inventory items and parts
-              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-blue-700/90">
+                  Revenue exclusively from items & parts
+                </p>
+                {saleTypeFilter === "PARTS_ONLY" ? (
+                  <span className="rounded-full bg-blue-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
+                ) : null}
+              </div>
             </div>
 
             {/* Card 3: Services & Labor Revenue */}
-            <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 p-4 shadow-2xs">
+            <div
+              role="button"
+              onClick={() => setSaleTypeFilter("SERVICE_ONLY")}
+              title="Click to filter by services and labor only"
+              className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
+                saleTypeFilter === "SERVICE_ONLY"
+                  ? "border-amber-500 bg-gradient-to-br from-amber-100/90 via-white to-amber-50 ring-2 ring-amber-500 shadow-md"
+                  : "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 hover:border-amber-400"
+              }`}
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
                   Services & Labor Revenue
@@ -6462,9 +6695,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="mt-2 font-mono text-2xl font-black text-amber-950">
                 {formatMoney(detailedMetrics.serviceRevenue)}
               </p>
-              <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
-                Revenue exclusively from labor, repairs, & service fees
-              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-amber-700/90">
+                  Revenue exclusively from labor & repairs
+                </p>
+                {saleTypeFilter === "SERVICE_ONLY" ? (
+                  <span className="rounded-full bg-amber-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
+                ) : null}
+              </div>
             </div>
 
             {/* Card 4: Gross Profit Margin */}
@@ -6500,16 +6738,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="text-[10px] text-slate-500">Combined base parts and services</p>
             </div>
 
-            {/* Strip 2: Mark-up */}
-            <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3 shadow-2xs">
+            {/* Strip 2: Mark-up (Click to filter) */}
+            <div
+              role="button"
+              onClick={() => setSaleTypeFilter("MARKUP_ONLY")}
+              title="Click to filter by item mark-up only"
+              className={`rounded-xl border p-3 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
+                saleTypeFilter === "MARKUP_ONLY"
+                  ? "border-teal-600 bg-teal-100/70 ring-2 ring-teal-600 shadow-md"
+                  : "border-teal-200 bg-teal-50/40 hover:border-teal-400"
+              }`}
+            >
               <div className="flex items-center justify-between text-teal-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">Mark-up</span>
-                <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[9px] font-bold text-teal-800">Margin</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Item Mark-up</span>
+                <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[9px] font-bold text-teal-800">
+                  {saleTypeFilter === "MARKUP_ONLY" ? "Filtered" : "Patong"}
+                </span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-teal-950">
                 {formatMoney(detailedMetrics.totalMarkup)}
               </p>
-              <p className="text-[10px] text-teal-700/80">Total mark-up applied above cost/base</p>
+              <p className="text-[10px] text-teal-700/80">Total mark-up applied on items</p>
             </div>
 
             {/* Strip 3: Interest */}
@@ -6607,9 +6856,50 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </button>
               </div>
 
+              {historyTab === "SALES" ? (
+                <div className="inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setItemsViewMode("RECEIPTS")}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition text-xs cursor-pointer ${
+                      itemsViewMode === "RECEIPTS"
+                        ? "bg-white text-slate-900 shadow-2xs font-black"
+                        : "text-slate-500 hover:text-slate-900"
+                    }`}
+                  >
+                    <ReceiptText size={13} />
+                    Receipts ({displayedSales.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setItemsViewMode("ITEMS")}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition text-xs cursor-pointer ${
+                      itemsViewMode === "ITEMS"
+                        ? "bg-white text-slate-900 shadow-2xs font-black"
+                        : "text-slate-500 hover:text-slate-900"
+                    }`}
+                  >
+                    <Package size={13} />
+                    Items Sold ({itemSalesRows.length})
+                  </button>
+                </div>
+              ) : null}
+
               <ExportExcelButton
-                filteredCount={historyTab === "QUOTATIONS" ? quotations.length : filteredSalesByDate.length}
-                label={historyTab === "QUOTATIONS" ? "Export Quotes (.xlsx)" : "Export Sales (.xlsx)"}
+                filteredCount={
+                  historyTab === "QUOTATIONS"
+                    ? quotations.length
+                    : itemsViewMode === "ITEMS"
+                    ? itemSalesRows.length
+                    : displayedSales.length
+                }
+                label={
+                  historyTab === "QUOTATIONS"
+                    ? "Export Quotes (.xlsx)"
+                    : itemsViewMode === "ITEMS"
+                    ? "Export Items (.xlsx)"
+                    : "Export Sales (.xlsx)"
+                }
                 onExport={handleExportSalesExcel}
                 size="sm"
               />
@@ -6743,134 +7033,426 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             <div className="flex items-center justify-center gap-2 p-8 text-xs font-bold text-slate-400"><LoaderCircle className="animate-spin" size={16} />Loading sales…</div>
           ) : sales.length === 0 ? (
             <div className="p-8 text-center"><ReceiptText className="mx-auto text-slate-300" size={32} /><p className="mt-2 text-xs font-bold text-slate-700">{salesMessage || "No sales yet"}</p><p className="mt-0.5 text-[11px] text-slate-400">Completed transactions will appear here.</p></div>
-          ) : filteredSalesByDate.length === 0 ? (
+          ) : (itemsViewMode === "ITEMS" ? itemSalesRows.length === 0 : displayedSales.length === 0) ? (
             <div className="p-8 text-center">
               <ReceiptText className="mx-auto text-slate-300" size={32} />
-              <p className="mt-2 text-xs font-bold text-slate-700">No sales records found for {DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod}</p>
-              <p className="mt-0.5 text-[11px] text-slate-400">Try selecting another timeframe or view all sales records.</p>
-              <button
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
-                onClick={() => setDateFilterPeriod("ALL")}
-                type="button"
-              >
-                View All Records
-              </button>
+              <p className="mt-2 text-xs font-bold text-slate-700">
+                No {saleTypeFilter === "PARTS_ONLY" ? "parts / product" : saleTypeFilter === "SERVICE_ONLY" ? "service" : saleTypeFilter === "MARKUP_ONLY" ? "mark-up" : "sales"} records found for {DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod}
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Try selecting another timeframe or resetting your sale filter.</p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                {saleTypeFilter !== "ALL" ? (
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                    onClick={() => setSaleTypeFilter("ALL")}
+                    type="button"
+                  >
+                    Reset Sale Filter
+                  </button>
+                ) : null}
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                  onClick={() => setDateFilterPeriod("ALL")}
+                  type="button"
+                >
+                  View All Records
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[900px] text-left text-xs">
-                  <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                    <tr>
-                      <th className="px-4 py-3">Receipt</th>
-                      <th className="px-4 py-3">Customer</th>
-                      <th className="px-4 py-3">Sales Agent</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Payment</th>
-                      <th className="px-4 py-3 text-right">Total</th>
-                      <th className="px-4 py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {filteredSalesByDate.map((sale) => (
-                      <tr className="hover:bg-slate-50/50 transition" key={sale.id}>
-                        <td className="px-4 py-3">
-                          <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
-                          <p className="text-[10px] text-slate-400">{formatDate(sale.saleDate)}</p>
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-slate-800">{sale.customer?.fullName || "Walk-in"}</td>
-                        <td className="px-4 py-3 text-slate-600">{sale.cashier?.fullName || "—"}</td>
-                        <td className="px-4 py-3"><StatusBadge status={sale.status} /></td>
-                        <td className="px-4 py-3 space-y-1">
+              {itemsViewMode === "ITEMS" ? (
+                /* Itemized Products & Services Sold View */
+                <>
+                  <div className="hidden overflow-x-auto lg:block">
+                    <table className="w-full min-w-[950px] text-left text-xs">
+                      <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                        <tr>
+                          <th className="px-4 py-3">Receipt & Date</th>
+                          <th className="px-4 py-3">Product / Item</th>
+                          <th className="px-4 py-3">Category</th>
+                          <th className="px-4 py-3 text-right">Qty</th>
+                          <th className="px-4 py-3 text-right">Selling Price</th>
+                          <th className="px-4 py-3 text-right">Mark-up (Patong)</th>
+                          <th className="px-4 py-3 text-right">Line Total</th>
+                          <th className="px-4 py-3">Customer & Staff</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {itemSalesRows.map((row) => (
+                          <tr className="hover:bg-slate-50/50 transition" key={row.id}>
+                            <td className="px-4 py-3">
+                              <p className="font-mono font-bold text-slate-900">{row.receiptCode}</p>
+                              <p className="text-[10px] text-slate-400">{formatDate(row.saleDate)}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="font-bold text-slate-800">{row.itemName}</p>
+                              {row.itemCode && row.itemCode !== "—" && row.itemCode !== "SERVICE" ? (
+                                <p className="font-mono text-[10px] text-slate-400">{row.itemCode}</p>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-3">
+                              {row.isService ? (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                  🔧 Service
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                                  📦 Product / Part
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">
+                              {row.quantity}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-slate-700">
+                              {formatMoney(row.unitPrice)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-teal-800">
+                              {row.lineMarkup > 0 ? (
+                                <span className="rounded bg-teal-50 border border-teal-200 px-1.5 py-0.5 text-[11px]">
+                                  +{formatMoney(row.lineMarkup)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-normal">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-black text-slate-900">
+                              {formatMoney(row.lineTotal)}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              <p className="font-semibold text-slate-800">{row.customerName}</p>
+                              <p className="text-[10px] text-slate-400">Encoder: {row.cashierName}</p>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile View for Items Sold */}
+                  <div className="grid gap-2.5 p-3 lg:hidden text-xs">
+                    {itemSalesRows.map((row) => (
+                      <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs" key={row.id}>
+                        <div className="flex items-start justify-between gap-2">
                           <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-mono font-bold text-slate-900">{row.receiptCode}</p>
+                              {row.isService ? (
+                                <span className="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.2 text-[9px] font-bold text-amber-800">
+                                  Service
+                                </span>
+                              ) : (
+                                <span className="rounded bg-blue-50 border border-blue-200 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">
+                                  Product
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400">{formatDate(row.saleDate)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono font-bold text-slate-900">{formatMoney(row.lineTotal)}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">Qty: {row.quantity} × {formatMoney(row.unitPrice)}</p>
+                          </div>
+                        </div>
+                        <p className="mt-2 font-bold text-slate-800">{row.itemName}</p>
+                        <div className="mt-1 flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
+                          <span className="text-[11px] text-slate-600">Cust: {row.customerName}</span>
+                          {row.lineMarkup > 0 ? (
+                            <span className="font-mono text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5">
+                              Patong: +{formatMoney(row.lineMarkup)}
+                            </span>
+                          ) : null}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                /* Receipts / Transactions History View */
+                <>
+                  <div className="hidden overflow-x-auto lg:block">
+                    <table className="w-full min-w-[900px] text-left text-xs">
+                      <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                        <tr>
+                          <th className="px-4 py-3">Receipt</th>
+                          <th className="px-4 py-3">Customer</th>
+                          <th className="px-4 py-3">Sales Agent</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Payment</th>
+                          <th className="px-4 py-3 text-right">Total</th>
+                          <th className="px-4 py-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {displayedSales.map((sale) => (
+                          <tr className="hover:bg-slate-50/50 transition" key={sale.id}>
+                            <td className="px-4 py-3">
+                              <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
+                              <p className="text-[10px] text-slate-400">{formatDate(sale.saleDate)}</p>
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-slate-800">{sale.customer?.fullName || "Walk-in"}</td>
+                            <td className="px-4 py-3 text-slate-600">{sale.cashier?.fullName || "—"}</td>
+                            <td className="px-4 py-3"><StatusBadge status={sale.status} /></td>
+                            <td className="px-4 py-3 space-y-1">
+                              <div>
+                                {sale.creditAccount ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-900">
+                                    💳 {formatStatus(sale.creditAccount.provider)}
+                                    {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
+                                  </span>
+                                ) : (sale.payments || []).length > 0 ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                                    {sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ")}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500 text-[11px] font-medium">Cash</span>
+                                )}
+                              </div>
+                              <div>
+                                <StatusBadge status={sale.paymentStatus} />
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {(() => {
+                                const cr = sale.creditAccount
+                                const cashTotal = Number(
+                                  cr?.cashPromoTotalAmount ||
+                                    cr?.sourceTotalAmountSnapshot ||
+                                    sale.grandTotal ||
+                                    sale.subtotal ||
+                                    0
+                                )
+                                const rawBasis = Number(cr?.termBasis || 0)
+                                const termKey = cr?.term
+                                const basis =
+                                  rawBasis > 0 && rawBasis < 1
+                                    ? rawBasis
+                                    : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
+                                const savedRegular = Number(cr?.regularPriceTotalAmount || 0)
+                                const dp = Number(cr?.downpaymentAmount || sale.amountPaid || 0)
+                                const collected = Number(cr?.totalCollected || 0)
+
+                                const effectiveTotal =
+                                  basis < 1 && cashTotal > 0
+                                    ? (savedRegular > cashTotal
+                                        ? savedRegular
+                                        : Math.round((cashTotal / basis) * 100) / 100)
+                                    : (savedRegular > 0 ? savedRegular : Number(sale.grandTotal || 0))
+
+                                const rawRemaining = Number(cr?.remainingBalance || 0)
+                                const effectiveBal = cr
+                                  ? (basis < 1 && cashTotal > 0 && rawRemaining <= cashTotal
+                                      ? Math.max(0, Math.round((effectiveTotal - dp - collected) * 100) / 100)
+                                      : rawRemaining)
+                                  : 0
+
+                                // Filter-specific totals for this sale
+                                const salePartsTotal = (sale.items || [])
+                                  .filter((it) => {
+                                    const d = String(it.description || "").toLowerCase()
+                                    return it.itemId && !d.includes("service") && !d.includes("labor") && !d.startsWith("[jo #")
+                                  })
+                                  .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
+
+                                const saleServiceTotal = (sale.items || [])
+                                  .filter((it) => {
+                                    const d = String(it.description || "").toLowerCase()
+                                    return !it.itemId || d.includes("service") || d.includes("labor") || d.startsWith("[jo #")
+                                  })
+                                  .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0) + Number(sale.serviceCharge || 0)
+
+                                const saleMarkupTotal = (sale.items || []).reduce((sum, it) => {
+                                  const markupPct = Number(it.markupPercent || 0)
+                                  const baseUnit = Number(it.baseUnitPriceSnapshot || 0)
+                                  const unitPrice = Number(it.unitPrice || 0)
+                                  const unitCost = Number(it.operationalUnitCostSnapshot || it.acquisitionUnitCostSnapshot || 0)
+                                  const qty = Number(it.quantity || 1)
+                                  let lineMarkup = 0
+                                  if (markupPct > 0 && baseUnit > 0) lineMarkup = Math.max(unitPrice - baseUnit, 0) * qty
+                                  else if (markupPct > 0 && unitPrice > 0) lineMarkup = Math.max(unitPrice - (unitPrice / (1 + markupPct / 100)), 0) * qty
+                                  else if (baseUnit > 0 && unitPrice > baseUnit) lineMarkup = (unitPrice - baseUnit) * qty
+                                  else if (unitCost > 0 && unitPrice > unitCost) lineMarkup = (unitPrice - unitCost) * qty
+                                  return sum + lineMarkup
+                                }, 0)
+
+                                return (
+                                  <>
+                                    <p className="font-mono font-bold text-slate-900 text-xs">
+                                      {formatMoney(effectiveTotal)}
+                                    </p>
+                                    {saleTypeFilter === "PARTS_ONLY" ? (
+                                      <p className="mt-0.5 font-mono text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 inline-block">
+                                        Parts: {formatMoney(salePartsTotal)}
+                                      </p>
+                                    ) : saleTypeFilter === "SERVICE_ONLY" ? (
+                                      <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
+                                        Service: {formatMoney(saleServiceTotal)}
+                                      </p>
+                                    ) : saleTypeFilter === "MARKUP_ONLY" ? (
+                                      <p className="mt-0.5 font-mono text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 inline-block">
+                                        Patong: +{formatMoney(saleMarkupTotal)}
+                                      </p>
+                                    ) : null}
+                                    {priceTierFilter ? (
+                                      <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
+                                        T{priceTierFilter}: {formatMoney(
+                                          (sale.items || [])
+                                            .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
+                                            .reduce(
+                                              (sum, it) =>
+                                                sum +
+                                                Number(
+                                                  it.lineTotal ||
+                                                    Number(it.unitPrice || 0) *
+                                                      Number(it.quantity || 1) ||
+                                                    0
+                                                ),
+                                              0
+                                            )
+                                        )}
+                                      </p>
+                                    ) : null}
+                                    {cr && effectiveBal > 0 ? (
+                                      <p className="text-[10px] text-blue-700 font-mono">
+                                        Bal: {formatMoney(effectiveBal)}
+                                      </p>
+                                    ) : null}
+                                  </>
+                                )
+                              })()}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                                  onClick={() => openSaleDetails(sale)}
+                                  type="button"
+                                >
+                                  <Eye size={12} /> View
+                                </button>
+                                {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") ? (
+                                  <button
+                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
+                                    onClick={() => handleOpenAddItems(sale)}
+                                    type="button"
+                                    title="Add more items to this receipt"
+                                  >
+                                    <Plus size={12} /> Add Items
+                                  </button>
+                                ) : null}
+                                {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
+                                  <button
+                                    className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800 hover:bg-orange-100 transition"
+                                    onClick={() => handleOpenReturn(sale)}
+                                    type="button"
+                                    title="Refund or return specific items"
+                                  >
+                                    <RotateCcw size={12} /> Refund
+                                  </button>
+                                ) : null}
+                                {canCancelSale && sale.status === "COMPLETED" ? (
+                                  <button
+                                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100 transition"
+                                    onClick={() => handleOpenCancel(sale)}
+                                    type="button"
+                                    title="Cancel whole sale"
+                                  >
+                                    <X size={12} /> Cancel
+                                  </button>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile View for Receipts */}
+                  <div className="grid gap-2.5 p-3 lg:hidden text-xs">
+                    {displayedSales.map((sale) => {
+                      const salePartsTotal = (sale.items || [])
+                        .filter((it) => {
+                          const d = String(it.description || "").toLowerCase()
+                          return it.itemId && !d.includes("service") && !d.includes("labor") && !d.startsWith("[jo #")
+                        })
+                        .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
+
+                      const saleServiceTotal = (sale.items || [])
+                        .filter((it) => {
+                          const d = String(it.description || "").toLowerCase()
+                          return !it.itemId || d.includes("service") || d.includes("labor") || d.startsWith("[jo #")
+                        })
+                        .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0) + Number(sale.serviceCharge || 0)
+
+                      const saleMarkupTotal = (sale.items || []).reduce((sum, it) => {
+                        const markupPct = Number(it.markupPercent || 0)
+                        const baseUnit = Number(it.baseUnitPriceSnapshot || 0)
+                        const unitPrice = Number(it.unitPrice || 0)
+                        const unitCost = Number(it.operationalUnitCostSnapshot || it.acquisitionUnitCostSnapshot || 0)
+                        const qty = Number(it.quantity || 1)
+                        let lineMarkup = 0
+                        if (markupPct > 0 && baseUnit > 0) lineMarkup = Math.max(unitPrice - baseUnit, 0) * qty
+                        else if (markupPct > 0 && unitPrice > 0) lineMarkup = Math.max(unitPrice - (unitPrice / (1 + markupPct / 100)), 0) * qty
+                        else if (baseUnit > 0 && unitPrice > baseUnit) lineMarkup = (unitPrice - baseUnit) * qty
+                        else if (unitCost > 0 && unitPrice > unitCost) lineMarkup = (unitPrice - unitCost) * qty
+                        return sum + lineMarkup
+                      }, 0)
+
+                      return (
+                        <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs" key={sale.id}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
+                              <p className="text-[10px] text-slate-400">{formatDate(sale.saleDate)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-mono font-bold text-slate-900">
+                                {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
+                              </p>
+                              {saleTypeFilter === "PARTS_ONLY" ? (
+                                <p className="mt-0.5 font-mono text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 inline-block">
+                                  Parts: {formatMoney(salePartsTotal)}
+                                </p>
+                              ) : saleTypeFilter === "SERVICE_ONLY" ? (
+                                <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
+                                  Service: {formatMoney(saleServiceTotal)}
+                                </p>
+                              ) : saleTypeFilter === "MARKUP_ONLY" ? (
+                                <p className="mt-0.5 font-mono text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 inline-block">
+                                  Patong: +{formatMoney(saleMarkupTotal)}
+                                </p>
+                              ) : null}
+                              {priceTierFilter ? (
+                                <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
+                                  T{priceTierFilter}: {formatMoney(
+                                    (sale.items || [])
+                                      .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
+                                      .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
+                                  )}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                          <p className="mt-1.5 text-slate-700">{sale.customer?.fullName || "Walk-in customer"}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <StatusBadge status={sale.status} />
+                            <StatusBadge status={sale.paymentStatus} />
                             {sale.creditAccount ? (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-900">
+                              <span className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-900">
                                 💳 {formatStatus(sale.creditAccount.provider)}
                                 {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
                               </span>
                             ) : (sale.payments || []).length > 0 ? (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                              <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">
                                 {sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ")}
                               </span>
-                            ) : (
-                              <span className="text-slate-500 text-[11px] font-medium">Cash</span>
-                            )}
+                            ) : null}
                           </div>
-                          <div>
-                            <StatusBadge status={sale.paymentStatus} />
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {(() => {
-                            const cr = sale.creditAccount
-                            const cashTotal = Number(
-                              cr?.cashPromoTotalAmount ||
-                                cr?.sourceTotalAmountSnapshot ||
-                                sale.grandTotal ||
-                                sale.subtotal ||
-                                0
-                            )
-                            const rawBasis = Number(cr?.termBasis || 0)
-                            const termKey = cr?.term
-                            const basis =
-                              rawBasis > 0 && rawBasis < 1
-                                ? rawBasis
-                                : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
-                            const savedRegular = Number(cr?.regularPriceTotalAmount || 0)
-                            const dp = Number(cr?.downpaymentAmount || sale.amountPaid || 0)
-                            const collected = Number(cr?.totalCollected || 0)
-
-                            const effectiveTotal =
-                              basis < 1 && cashTotal > 0
-                                ? (savedRegular > cashTotal
-                                    ? savedRegular
-                                    : Math.round((cashTotal / basis) * 100) / 100)
-                                : (savedRegular > 0 ? savedRegular : Number(sale.grandTotal || 0))
-
-                            const rawRemaining = Number(cr?.remainingBalance || 0)
-                            const effectiveBal = cr
-                              ? (basis < 1 && cashTotal > 0 && rawRemaining <= cashTotal
-                                  ? Math.max(0, Math.round((effectiveTotal - dp - collected) * 100) / 100)
-                                  : rawRemaining)
-                              : 0
-
-                            return (
-                              <>
-                                <p className="font-mono font-bold text-slate-900 text-xs">
-                                  {formatMoney(effectiveTotal)}
-                                </p>
-                                {priceTierFilter ? (
-                                  <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
-                                    T{priceTierFilter}: {formatMoney(
-                                      (sale.items || [])
-                                        .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
-                                        .reduce(
-                                          (sum, it) =>
-                                            sum +
-                                            Number(
-                                              it.lineTotal ||
-                                                Number(it.unitPrice || 0) *
-                                                  Number(it.quantity || 1) ||
-                                                0
-                                            ),
-                                          0
-                                        )
-                                    )}
-                                  </p>
-                                ) : null}
-                                {cr && effectiveBal > 0 ? (
-                                  <p className="text-[10px] text-blue-700 font-mono">
-                                    Bal: {formatMoney(effectiveBal)}
-                                  </p>
-                                ) : null}
-                              </>
-                            )
-                          })()}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center justify-end gap-1.5">
+                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
                             <button
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                              className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-700"
                               onClick={() => openSaleDetails(sale)}
                               type="button"
                             >
@@ -6878,118 +7460,38 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                             </button>
                             {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") ? (
                               <button
-                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
+                                className="flex-1 min-w-[75px] inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800"
                                 onClick={() => handleOpenAddItems(sale)}
                                 type="button"
-                                title="Add more items to this receipt"
                               >
                                 <Plus size={12} /> Add Items
                               </button>
                             ) : null}
                             {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
                               <button
-                                className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800 hover:bg-orange-100 transition"
+                                className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800"
                                 onClick={() => handleOpenReturn(sale)}
                                 type="button"
-                                title="Refund or return specific items"
                               >
                                 <RotateCcw size={12} /> Refund
                               </button>
                             ) : null}
                             {canCancelSale && sale.status === "COMPLETED" ? (
                               <button
-                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100 transition"
+                                className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700"
                                 onClick={() => handleOpenCancel(sale)}
                                 type="button"
-                                title="Cancel whole sale"
                               >
                                 <X size={12} /> Cancel
                               </button>
                             ) : null}
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="grid gap-2.5 p-3 lg:hidden text-xs">
-                {filteredSalesByDate.map((sale) => (
-                  <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs" key={sale.id}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
-                        <p className="text-[10px] text-slate-400">{formatDate(sale.saleDate)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono font-bold text-slate-900">
-                          {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
-                        </p>
-                        {priceTierFilter ? (
-                          <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
-                            T{priceTierFilter}: {formatMoney(
-                              (sale.items || [])
-                                .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
-                                .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
-                            )}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                    <p className="mt-1.5 text-slate-700">{sale.customer?.fullName || "Walk-in customer"}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <StatusBadge status={sale.status} />
-                      <StatusBadge status={sale.paymentStatus} />
-                      {sale.creditAccount ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-900">
-                          💳 {formatStatus(sale.creditAccount.provider)}
-                          {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
-                        </span>
-                      ) : (sale.payments || []).length > 0 ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">
-                          {sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ")}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-                      <button
-                        className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-700"
-                        onClick={() => openSaleDetails(sale)}
-                        type="button"
-                      >
-                        <Eye size={12} /> View
-                      </button>
-                      {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") ? (
-                        <button
-                          className="flex-1 min-w-[75px] inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800"
-                          onClick={() => handleOpenAddItems(sale)}
-                          type="button"
-                        >
-                          <Plus size={12} /> Add Items
-                        </button>
-                      ) : null}
-                      {canCancelSale && (sale.status === "COMPLETED" || sale.status === "PARTIALLY_REFUNDED") && !sale.creditAccount ? (
-                        <button
-                          className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-bold text-orange-800"
-                          onClick={() => handleOpenReturn(sale)}
-                          type="button"
-                        >
-                          <RotateCcw size={12} /> Refund
-                        </button>
-                      ) : null}
-                      {canCancelSale && sale.status === "COMPLETED" ? (
-                        <button
-                          className="flex-1 min-w-[65px] inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700"
-                          onClick={() => handleOpenCancel(sale)}
-                          type="button"
-                        >
-                          <X size={12} /> Cancel
-                        </button>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
-              </div>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
             </>
           )
         ) : (
