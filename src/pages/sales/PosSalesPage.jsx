@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Cpu,
   CreditCard,
   Download,
   Eye,
