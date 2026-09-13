@@ -4863,97 +4863,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ["Combined Grand Total", quotations.reduce((sum, q) => sum + Number(q.grandTotal || 0), 0)],
         ],
       })
-    } else if (selectedPriceTiers.length > 0) {
-      const tierDisplayNames = selectedPriceTiers.map((t) => `T${t} (${TIER_LABELS[t] || `Tier ${t}`})`).join(", ")
-      const itemRows = []
-      let totalTierUnits = 0
-      let totalTierRevenue = 0
-
-      filteredSalesByDate.forEach((sale) => {
-        ;(sale.items || []).forEach((item) => {
-          const itemTier = Number(item.priceTier || 1)
-          if (selectedPriceTiers.includes(itemTier)) {
-            const qty = Number(item.quantity || 1)
-            const lineTotal = Number(item.lineTotal || (Number(item.unitPrice || 0) * qty) || 0)
-            totalTierUnits += qty
-            totalTierRevenue += lineTotal
-            itemRows.push({
-              receiptCode: sale.receiptCode || "—",
-              saleDate: sale.saleDate || sale.createdAt,
-              customerName: sale.customer?.fullName || "Walk-in Customer",
-              itemCode: item.item?.itemCode || item.itemCodeSnapshot || "—",
-              description: item.description || item.itemNameSnapshot || "—",
-              priceTier: `Tier ${itemTier} (${TIER_LABELS[itemTier] || `Tier ${itemTier}`})`,
-              unitPrice: Number(item.unitPrice || 0),
-              quantity: qty,
-              lineTotal,
-              paymentMethod: sale.creditAccount ? formatStatus(sale.creditAccount.provider) : formatStatus(sale.paymentMethod || "CASH"),
-              cashierName: sale.cashier?.fullName || sale.cashier?.username || "—",
-              saleStatus: formatStatus(sale.status),
-            })
-          }
-        })
-      })
-
-      const exportColumns = [
-        ["Receipt Code", (row) => row.receiptCode],
-        ["Date & Time", (row) => row.saleDate ? new Date(row.saleDate).toLocaleString("en-PH") : "—"],
-        ["Customer Name", (row) => row.customerName],
-        ["Item Code", (row) => row.itemCode],
-        ["Product / Description", (row) => row.description],
-        ["Price Tier", (row) => row.priceTier],
-        ["Unit Price", (row) => row.unitPrice],
-        ["Quantity", (row) => row.quantity],
-        ["Line Total", (row) => row.lineTotal],
-        ["Payment Method", (row) => row.paymentMethod],
-        ["Sales Agent / Cashier", (row) => row.cashierName],
-        ["Sale Status", (row) => row.saleStatus],
-      ]
-
-      exportReportExcel({
-        label: `Sales by Price Tiers - ${tierDisplayNames}`,
-        filename: `Sales-PriceTiers-${selectedPriceTiers.join("-")}-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
-        columns: exportColumns,
-        records: itemRows,
-        branch: activeBranch,
-        generatedBy: user,
-        filters: [
-          ["Date Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
-          ["Price Tiers", tierDisplayNames],
-          ["Search Query", salesSearch.trim() || "All"],
-          ["Sale Status", salesStatus || "All Statuses"],
-          ["Payment Status", paymentStatus || "All Payment Statuses"],
-        ],
-        totals: [
-          ["Date Period Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
-          ["Price Tiers Filter", tierDisplayNames],
-          ["Matching Line Items", itemRows.length],
-          ["Total Units Sold", totalTierUnits],
-          ["Total Sales Revenue (Selected Tiers)", totalTierRevenue],
-        ],
-      })
     } else if (itemsViewMode === "ITEMS") {
-      const itemColumns = [
-        ["Receipt Code", (row) => row.receiptCode],
-        ["Date & Time", (row) => row.saleDate ? new Date(row.saleDate).toLocaleString("en-PH") : "—"],
-        ["Product / Description", (row) => row.itemName],
-        ["Item Code", (row) => row.itemCode],
-        ["Type", (row) => row.isService ? "Service" : "Parts / Product"],
-        ["Quantity", (row) => row.quantity],
-        ["Unit Cost / Base", (row) => row.unitCost],
-        ["Unit Selling Price", (row) => row.unitPrice],
-        ["Mark-up (Patong)", (row) => row.lineMarkup],
-        ["Line Total", (row) => row.lineTotal],
-        ["Customer", (row) => row.customerName],
-        ["Sales Agent / Cashier", (row) => row.cashierName],
-      ]
-      const totalItemsRevenue = itemSalesRows.reduce((sum, r) => sum + r.lineTotal, 0)
-      const totalItemsMarkup = itemSalesRows.reduce((sum, r) => sum + r.lineMarkup, 0)
-      const totalItemsQty = itemSalesRows.reduce((sum, r) => sum + r.quantity, 0)
       const catSummary = salesCategory.allSales
         ? "All Sales"
         : [
-            salesCategory.items ? "Items" : null,
+            salesCategory.items ? `Items${selectedPriceTiers.length < 5 ? ` (Tiers: ${selectedPriceTiers.join(", ")})` : ""}` : null,
             salesCategory.parts ? "Parts" : null,
             salesCategory.services ? "Services" : null,
           ].filter(Boolean).join(", ") || "None"
@@ -4967,6 +4881,28 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ].filter(Boolean).join(", ") || "None"
 
       const compSummary = `Mark-up: ${totalComputation.markup ? "Kasama" : "Excluded"}, Interest: ${totalComputation.interest ? "Kasama" : "Excluded"}`
+
+      const itemColumns = [
+        ["Receipt Code", (row) => row.receiptCode],
+        ["Date & Time", (row) => row.saleDate ? new Date(row.saleDate).toLocaleString("en-PH") : "—"],
+        ["Customer Name", (row) => row.customerName],
+        ["Sales Agent / Cashier", (row) => row.cashierName],
+        ["Item Code", (row) => row.itemCode],
+        ["Product / Description", (row) => row.itemName],
+        ["Category", (row) => row.isService ? "Service" : row.isPart ? "Service Part" : "Item"],
+        ["Price Tier", (row) => row.priceTier ? `Tier ${row.priceTier} (${TIER_LABELS[row.priceTier] || `Price ${row.priceTier}`})` : (row.isService ? "Service" : "—")],
+        ["Quantity", (row) => row.quantity],
+        ["Unit Cost (Puhunan)", (row) => row.unitCost],
+        ["Unit Selling Price", (row) => row.unitPrice],
+        ["Mark-up (Patong)", (row) => row.lineMarkup],
+        ["Line Total", (row) => row.lineTotal],
+      ]
+
+      const totalItemsRevenue = itemSalesRows.reduce((sum, r) => sum + Number(r.lineTotal || 0), 0)
+      const totalItemsMarkup = itemSalesRows.reduce((sum, r) => sum + Number(r.lineMarkup || 0), 0)
+      const totalItemsCost = itemSalesRows.reduce((sum, r) => sum + (Number(r.unitCost || 0) * Number(r.quantity || 1)), 0)
+      const totalItemsQty = itemSalesRows.reduce((sum, r) => sum + Number(r.quantity || 1), 0)
+      const totalItemsProfit = totalItemsRevenue - totalItemsCost
 
       exportReportExcel({
         label: `Itemized Sales Breakdown (${catSummary} · ${paySummary})`,
@@ -4978,6 +4914,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         filters: [
           ["Timeframe Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
           ["Sales Category Filter", catSummary],
+          ["Price Tiers Filter", selectedPriceTiers.length === 5 ? "All Tiers (1-5)" : selectedPriceTiers.map((t) => `Tier ${t}`).join(", ")],
           ["Payment Method Filter", paySummary],
           ["Total Computation Settings", compSummary],
           ["Total Line Items", itemSalesRows.length],
@@ -4985,14 +4922,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         totals: [
           ["Total Units Sold", totalItemsQty],
           ["Total Revenue", totalItemsRevenue],
+          ["Total Cost of Goods (Puhunan)", totalItemsCost],
           ["Total Mark-up (Patong)", totalItemsMarkup],
+          ["Total Gross Profit (Tubo)", totalItemsProfit],
         ],
       })
     } else {
       const catSummary = salesCategory.allSales
         ? "All Sales"
         : [
-            salesCategory.items ? "Items" : null,
+            salesCategory.items ? `Items${selectedPriceTiers.length < 5 ? ` (Tiers: ${selectedPriceTiers.join(", ")})` : ""}` : null,
             salesCategory.parts ? "Parts" : null,
             salesCategory.services ? "Services" : null,
           ].filter(Boolean).join(", ") || "None"
@@ -5007,56 +4946,130 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       const compSummary = `Mark-up: ${totalComputation.markup ? "Kasama" : "Excluded"}, Interest: ${totalComputation.interest ? "Kasama" : "Excluded"}`
 
+      // Helper function to calculate effective computed total per receipt
+      const getSaleReceiptComputed = (sale) => {
+        const cr = sale.creditAccount
+        const cashTotal = Number(
+          cr?.cashPromoTotalAmount ||
+            cr?.sourceTotalAmountSnapshot ||
+            sale.grandTotal ||
+            sale.subtotal ||
+            0
+        )
+        const rawBasis = Number(cr?.termBasis || 0)
+        const termKey = cr?.term
+        const basis =
+          rawBasis > 0 && rawBasis < 1
+            ? rawBasis
+            : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
+        const savedRegular = Number(cr?.regularPriceTotalAmount || 0)
+
+        const effectiveTotal =
+          basis < 1 && cashTotal > 0
+            ? (savedRegular > cashTotal
+                ? savedRegular
+                : Math.round((cashTotal / basis) * 100) / 100)
+            : (savedRegular > 0 ? savedRegular : Number(sale.grandTotal || 0))
+
+        const saleMarkupTotal = (sale.items || []).reduce((sum, it) => {
+          const markupPct = Number(it.markupPercent || 0)
+          const baseUnit = Number(it.baseUnitPriceSnapshot || 0)
+          const unitPrice = Number(it.unitPrice || 0)
+          const unitCost = Number(it.operationalUnitCostSnapshot || it.acquisitionUnitCostSnapshot || 0)
+          const qty = Number(it.quantity || 1)
+          let lineMarkup = 0
+          if (markupPct > 0 && baseUnit > 0) lineMarkup = Math.max(unitPrice - baseUnit, 0) * qty
+          else if (markupPct > 0 && unitPrice > 0) lineMarkup = Math.max(unitPrice - (unitPrice / (1 + markupPct / 100)), 0) * qty
+          else if (baseUnit > 0 && unitPrice > baseUnit) lineMarkup = (unitPrice - baseUnit) * qty
+          else if (unitCost > 0 && unitPrice > unitCost) lineMarkup = (unitPrice - unitCost) * qty
+          return sum + lineMarkup
+        }, 0)
+
+        const saleInterest = cr ? Math.max(effectiveTotal - cashTotal, 0) : 0
+
+        let computedReceiptTotal = effectiveTotal
+        if (!totalComputation.markup && saleMarkupTotal > 0) {
+          computedReceiptTotal = Math.max(computedReceiptTotal - saleMarkupTotal, 0)
+        }
+        if (!totalComputation.interest && saleInterest > 0) {
+          computedReceiptTotal = Math.max(computedReceiptTotal - saleInterest, 0)
+        }
+
+        const rawRemaining = Number(cr?.remainingBalance || 0)
+        const dp = Number(cr?.downpaymentAmount || sale.amountPaid || 0)
+        const collected = Number(cr?.totalCollected || 0)
+        const effectiveBal = cr
+          ? (basis < 1 && cashTotal > 0 && rawRemaining <= cashTotal
+              ? Math.max(0, Math.round((effectiveTotal - dp - collected) * 100) / 100)
+              : rawRemaining)
+          : 0
+
+        return {
+          effectiveTotal,
+          computedReceiptTotal,
+          saleMarkupTotal,
+          saleInterest,
+          effectiveBal,
+        }
+      }
+
       const exportColumns = [
         ["Receipt Code", (row) => row.receiptCode || "—"],
         ["Date & Time", (row) => (row.saleDate || row.createdAt) ? new Date(row.saleDate || row.createdAt).toLocaleString("en-PH") : "—"],
         ["Customer Name", (row) => row.customer?.fullName || "Walk-in Customer"],
-        ["Sale Status", (row) => formatStatus(row.status)],
-        ["Payment Status", (row) => formatStatus(row.paymentStatus)],
         ["Payment Method", (row) => row.creditAccount ? formatStatus(row.creditAccount.provider) : formatStatus(row.paymentMethod || "CASH")],
         ["Financing Term", (row) => row.creditAccount?.term ? formatStatus(row.creditAccount.term) : "—"],
         ["Items Count", (row) => (row.items || []).length],
         ["Subtotal", (row) => Number(row.subtotal || 0)],
-        ["Total Discount", (row) => Number(row.totalDiscount || 0)],
-        ["Grand Total", (row) => Number(row.creditAccount?.regularPriceTotalAmount || row.grandTotal || 0)],
+        ["Discount", (row) => Number(row.totalDiscount || 0)],
+        ["Mark-up (Patong)", (row) => getSaleReceiptComputed(row).saleMarkupTotal],
+        ["Interest Charge", (row) => getSaleReceiptComputed(row).saleInterest],
+        ["Computed Total", (row) => getSaleReceiptComputed(row).computedReceiptTotal],
+        ["Original Grand Total", (row) => Number(row.creditAccount?.regularPriceTotalAmount || row.grandTotal || 0)],
         ["Amount Paid", (row) => Number(row.amountPaid || 0)],
-        ["Change", (row) => Number(row.changeAmount || 0)],
-        ["Cashier", (row) => row.cashier?.fullName || row.cashier?.username || "—"],
+        ["Balance (AR)", (row) => getSaleReceiptComputed(row).effectiveBal],
+        ["Sales Agent / Cashier", (row) => row.cashier?.fullName || row.cashier?.username || "—"],
+        ["Sale Status", (row) => formatStatus(row.status)],
+        ["Payment Status", (row) => formatStatus(row.paymentStatus)],
         ["Remarks", (row) => row.remarks || "—"],
       ]
+
       exportReportExcel({
-        label: `Branch Sales History (${catSummary} · ${paySummary})`,
-        filename: `Sales-History-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
+        label: `Branch Sales Records (${catSummary} · ${paySummary})`,
+        filename: `Sales-Records-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
         columns: exportColumns,
         records: displayedSales,
         branch: activeBranch,
         generatedBy: user,
         filters: [
-          ["Date Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Timeframe Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
           ["Sales Category Filter", catSummary],
+          ["Price Tiers Filter", selectedPriceTiers.length === 5 ? "All Tiers (1-5)" : selectedPriceTiers.map((t) => `Tier ${t}`).join(", ")],
           ["Payment Method Filter", paySummary],
           ["Total Computation Settings", compSummary],
           ["Search Query", salesSearch.trim() || "All"],
           ["Sale Status", salesStatus || "All Statuses"],
           ["Payment Status", paymentStatus || "All Payment Statuses"],
+          ["Matching Receipts", displayedSales.length],
         ],
         totals: [
-          ["Timeframe Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Timeframe Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
           ["Sales Category Filter", catSummary],
           ["Payment Method Filter", paySummary],
           ["Total Computation Settings", compSummary],
-          ["Total Sales Records", displayedSales.length],
+          ["Total Matching Sales Receipts", displayedSales.length],
           ["Computed Total Gross Sales (Filter Applied)", detailedMetrics.computedGrandTotal],
-          ["Total Gross Sales (Raw All)", detailedMetrics.kabuuangSale],
-          ["Item Gross Sales (Parts & Products)", detailedMetrics.partsRevenue],
-          ["Item Cost of Goods (Puhunan)", detailedMetrics.partsCost],
-          ["Item Gross Profit (Tubo sa Item Lang)", detailedMetrics.partsProfit],
-          ["Item Mark-up (Patong)", detailedMetrics.totalMarkup],
+          ["Raw Total Gross Sales (Unfiltered)", detailedMetrics.kabuuangSale],
+          ["Items Gross Sales (Effective)", detailedMetrics.effectiveItemsRevenue],
+          ["Service Parts Gross (Effective)", detailedMetrics.effectivePartsRevenue],
           ["Services & Labor Revenue", detailedMetrics.serviceRevenue],
+          ["Actual Physical Cash in Drawer", detailedMetrics.totalPhysicalCash],
+          ["Online Real-Time Payments (GCash/Maya/Bank)", detailedMetrics.totalOnlinePayments],
+          ["Accounts Receivable Balance (AR)", detailedMetrics.totalArBalance],
+          ["Item Mark-up (Patong)", detailedMetrics.totalMarkup],
           ["Financing Interest Charges", detailedMetrics.totalInterest],
-          ["Accounts Receivable (AR Balance)", detailedMetrics.totalArBalance],
-          ["Actual Cash Collected", detailedMetrics.totalCollectedCash],
-          ["Total Business Gross Profit (Combined)", detailedMetrics.overallGrossProfit],
+          ["Total Cost of Goods (Puhunan)", detailedMetrics.totalCost],
+          ["Total Business Gross Profit (Tubo)", detailedMetrics.overallGrossProfit],
           ["Top Sales Account (Highest Salesperson)", detailedMetrics.topSalesPerson ? `${detailedMetrics.topSalesPerson.name} (${formatMoney(detailedMetrics.topSalesPerson.totalSales)} · ${detailedMetrics.topSalesPerson.count} sales)` : "—"],
         ],
       })
