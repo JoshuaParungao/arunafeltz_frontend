@@ -13,6 +13,7 @@ import {
   Eye,
   FileText,
   LoaderCircle,
+  Package,
   PackageSearch,
   Plus,
   Printer,
@@ -5047,30 +5048,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </button>
           </div>
 
-          {/* Quick Action Button */}
-          {posViewMode === "REGISTER" ? (
-            <button
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50"
-              onClick={() => {
-                setPosViewMode("SALES_HISTORY")
-                loadSales()
-              }}
-              type="button"
-            >
-              <ReceiptText className="text-[var(--color-maroon)]" size={14} />
-              View Sales Records
-            </button>
-          ) : (
-            <button
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
-              onClick={() => setPosViewMode("REGISTER")}
-              type="button"
-            >
-              <Plus size={14} />
-              + Open Register
-              {cart.length > 0 ? ` (${cart.length})` : ""}
-            </button>
-          )}
+
 
           <button
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50"
