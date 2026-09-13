@@ -2457,6 +2457,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [isServiceStaffDropdownOpen, setIsServiceStaffDropdownOpen] = useState(false)
   const serviceStaffDropdownRef = useRef(null)
   const [isPriceTierDropdownOpen, setIsPriceTierDropdownOpen] = useState(false)
+  const [tierDropdownPlacement, setTierDropdownPlacement] = useState("bottom")
   const priceTierDropdownRef = useRef(null)
 
   useEffect(() => {
@@ -2657,6 +2658,19 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const handleClearPriceTiers = () => {
     setSelectedPriceTiers([])
     setSalesPage(1)
+  }
+
+  const handleTogglePriceTierDropdown = () => {
+    if (!isPriceTierDropdownOpen && priceTierDropdownRef.current) {
+      const rect = priceTierDropdownRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      if (spaceBelow < 340 && rect.top > 280) {
+        setTierDropdownPlacement("top")
+      } else {
+        setTierDropdownPlacement("bottom")
+      }
+    }
+    setIsPriceTierDropdownOpen((prev) => !prev)
   }
 
   // Quotation History in POS
@@ -7007,8 +7021,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </div>
           </div>
 
-          <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-        <div className="border-b border-slate-200 bg-slate-50/75 p-3.5">
+          <section className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-2xs">
+        <div className="border-b border-slate-200 bg-slate-50/75 p-3.5 rounded-t-2xl">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <span className={`grid size-7 place-items-center rounded-lg ${historyTab === "QUOTATIONS" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"}`}>
@@ -7149,7 +7163,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 <div className="relative" ref={priceTierDropdownRef}>
                   <button
                     type="button"
-                    onClick={() => setIsPriceTierDropdownOpen((prev) => !prev)}
+                    onClick={handleTogglePriceTierDropdown}
                     className={`w-full flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold outline-none transition cursor-pointer ${
                       selectedPriceTiers.length > 0
                         ? "border-amber-400 bg-amber-50 text-amber-900 ring-1 ring-amber-300 shadow-2xs"
@@ -7178,8 +7192,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   </button>
 
                   {isPriceTierDropdownOpen ? (
-                    <div className="absolute right-0 top-full z-40 mt-1.5 w-72 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl ring-1 ring-black/5 animate-in fade-in-50 zoom-in-95">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2 px-1">
+                    <div
+                      className={`absolute right-0 z-50 w-72 max-h-[85vh] rounded-2xl border border-slate-200 bg-white p-2.5 shadow-2xl ring-1 ring-black/10 flex flex-col animate-in fade-in-50 zoom-in-95 ${
+                        tierDropdownPlacement === "top"
+                          ? "bottom-full mb-1.5"
+                          : "top-full mt-1.5"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2 px-1 shrink-0">
                         <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
                           Filter Price Tiers
                         </span>
@@ -7201,13 +7221,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                         </div>
                       </div>
 
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-2 space-y-1 overflow-y-auto overscroll-contain max-h-56 pr-1 flex-1">
                         {[1, 2, 3, 4, 5].map((tierNum) => {
                           const isChecked = selectedPriceTiers.includes(tierNum)
                           return (
                             <label
                               key={tierNum}
-                              className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold cursor-pointer transition select-none ${
+                              className={`flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs font-bold cursor-pointer transition select-none ${
                                 isChecked
                                   ? "bg-amber-50/90 text-amber-950 hover:bg-amber-100/70 border border-amber-200/80"
                                   : "text-slate-700 hover:bg-slate-50 border border-transparent"
@@ -7244,7 +7264,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                         })}
                       </div>
 
-                      <div className="mt-2.5 border-t border-slate-100 pt-2 px-1 flex items-center justify-between">
+                      <div className="mt-2.5 border-t border-slate-100 pt-2 px-1 flex items-center justify-between shrink-0">
                         <span className="text-[10px] text-slate-400">
                           {selectedPriceTiers.length === 0
                             ? "All tiers visible"
