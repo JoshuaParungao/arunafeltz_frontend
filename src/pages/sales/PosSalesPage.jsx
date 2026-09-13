@@ -26,6 +26,7 @@ import {
   Trash2,
   TrendingUp,
   UserRound,
+  Users,
   Wrench,
   X,
 } from "lucide-react"
@@ -2326,6 +2327,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     initialContext?.viewMode || (initialContext?.saleId ? "SALES_HISTORY" : "REGISTER")
   )
   const [dateFilterPeriod, setDateFilterPeriod] = useState("TODAY") // "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "THIS_YEAR" | "ALL"
+  const [showSalesmenLeaderboard, setShowSalesmenLeaderboard] = useState(false)
 
   const [itemSearch, setItemSearch] = useState("")
   const [itemResults, setItemResults] = useState([])
@@ -4577,6 +4579,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ["AR (Accounts Receivable Balanse)", detailedMetrics.totalArBalance],
           ["Aktwal na Nakolekta (Cash & Payments)", detailedMetrics.totalCollectedCash],
           ["Tubo (Estimated Profit)", detailedMetrics.estimatedProfit],
+          ["Highest Sale Account (Top Salesman)", detailedMetrics.topSalesPerson ? `${detailedMetrics.topSalesPerson.name} (${formatMoney(detailedMetrics.topSalesPerson.totalSales)} · ${detailedMetrics.topSalesPerson.count} sales)` : "—"],
         ],
       })
     }
@@ -4703,6 +4706,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     // Grand Total
     let kabuuangSale = 0 // Kabuuang sale kasama ang AR, Markup, Interest
 
+    // Sales Person / Salesman aggregation (Highest Sale Account)
+    const salesPersonsMap = {}
+
     filteredSalesByDate.forEach((sale) => {
       if (sale.status === "CANCELLED") return
 
@@ -4714,6 +4720,26 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         : Number(sale.grandTotal || 0)
 
       kabuuangSale += effectiveSaleTotal
+
+      // Sales person / agent attribution
+      const spId = sale.cashier?.id || sale.cashierId || (sale.cashier?.fullName ? `name-${sale.cashier.fullName}` : "unassigned")
+      const spName = sale.cashier?.fullName || sale.cashier?.username || "Unassigned Staff"
+      if (!salesPersonsMap[spId]) {
+        salesPersonsMap[spId] = {
+          id: spId,
+          name: spName,
+          username: sale.cashier?.username || "",
+          role: sale.cashier?.role || "",
+          totalSales: 0,
+          count: 0,
+          completedCount: 0,
+        }
+      }
+      salesPersonsMap[spId].totalSales += effectiveSaleTotal
+      salesPersonsMap[spId].count += 1
+      if (sale.status === "COMPLETED") {
+        salesPersonsMap[spId].completedCount += 1
+      }
 
       // Cash & collected
       const upfrontPaid = Number(sale.amountPaid || 0)
@@ -4788,6 +4814,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     const partsProfit = Math.max(partsRevenue - totalCost, 0)
     estimatedProfit = partsProfit + serviceRevenue + totalInterest
 
+    const salesPersonsList = Object.values(salesPersonsMap).sort((a, b) => b.totalSales - a.totalSales)
+    const topSalesPerson = salesPersonsList.length > 0 ? salesPersonsList[0] : null
+
     return {
       totalTransactions,
       completedCount,
@@ -4800,6 +4829,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalCollectedCash,
       estimatedProfit,
       kabuuangSale,
+      salesPersonsList,
+      topSalesPerson,
     }
   }, [filteredSalesByDate])
 
@@ -6317,6 +6348,107 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               </span>
             </div>
           </div>
+
+          {/* Highest Sale Account (Top Salesman) Banner / Spotlight */}
+          {detailedMetrics.topSalesPerson && detailedMetrics.kabuuangSale > 0 ? (
+            <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-500/10 via-amber-50/70 to-orange-500/10 p-4 shadow-2xs">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-xl text-white shadow-soft">
+                    🏆
+                  </span>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-md border border-amber-300 bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950">
+                        Highest Sale Account ({DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod})
+                      </span>
+                      {detailedMetrics.salesPersonsList.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowSalesmenLeaderboard((v) => !v)}
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-300/80 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-amber-900 hover:bg-white transition shadow-2xs cursor-pointer"
+                        >
+                          <Users size={11} />
+                          {showSalesmenLeaderboard ? "Hide Rankings" : `View All Sales Staff (${detailedMetrics.salesPersonsList.length})`}
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm font-black text-slate-900">
+                      {detailedMetrics.topSalesPerson.name}
+                      {detailedMetrics.topSalesPerson.username ? (
+                        <span className="ml-1.5 font-mono text-xs font-semibold text-slate-500">
+                          (@{detailedMetrics.topSalesPerson.username})
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 sm:justify-end">
+                  <div className="text-left sm:text-right">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Highest Sales Generated
+                    </p>
+                    <p className="font-mono text-lg font-black text-amber-950">
+                      {formatMoney(detailedMetrics.topSalesPerson.totalSales)}
+                    </p>
+                  </div>
+                  <div className="border-l border-amber-300/60 pl-4 text-left sm:text-right">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Volume / Share
+                    </p>
+                    <p className="font-mono text-xs font-black text-slate-800">
+                      {detailedMetrics.topSalesPerson.count} Resibo ({detailedMetrics.kabuuangSale > 0 ? `${Math.round((detailedMetrics.topSalesPerson.totalSales / detailedMetrics.kabuuangSale) * 100)}%` : "0%"} ng total)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Collapsible Full Sales Staff Leaderboard */}
+              {showSalesmenLeaderboard && detailedMetrics.salesPersonsList.length > 1 ? (
+                <div className="mt-3.5 border-t border-amber-200/80 pt-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-900 mb-2">
+                    Ranking ng mga Nag-cater na Sales Staff ({DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod})
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {detailedMetrics.salesPersonsList.map((sp, idx) => (
+                      <div
+                        key={sp.id}
+                        className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition ${
+                          idx === 0
+                            ? "border-amber-300 bg-amber-100/60 shadow-2xs font-bold"
+                            : "border-slate-200/70 bg-white/80"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`grid size-6 shrink-0 place-items-center rounded-lg text-[10px] font-black ${
+                              idx === 0
+                                ? "bg-amber-500 text-white"
+                                : idx === 1
+                                  ? "bg-slate-400 text-white"
+                                  : idx === 2
+                                    ? "bg-amber-700 text-white"
+                                    : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            #{idx + 1}
+                          </span>
+                          <div className="min-w-0 truncate">
+                            <p className="truncate font-bold text-slate-900">{sp.name}</p>
+                            <p className="text-[10px] text-slate-400">{sp.count} receipt{sp.count === 1 ? "" : "s"}</p>
+                          </div>
+                        </div>
+                        <p className="font-mono font-black text-slate-900 pl-2 shrink-0">
+                          {formatMoney(sp.totalSales)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Tier 1: 4 Key Financial Metric Cards */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
