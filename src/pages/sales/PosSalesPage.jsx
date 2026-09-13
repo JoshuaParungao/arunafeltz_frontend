@@ -2309,12 +2309,12 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob, sales
 }
 
 const DATE_FILTER_LABELS = {
-  TODAY: "Today (Ngayong Araw)",
-  YESTERDAY: "Yesterday (Kahapon)",
-  THIS_WEEK: "1 Week (Huling 7 Araw)",
-  THIS_MONTH: "1 Month (Huling 30 Araw)",
-  THIS_YEAR: "1 Year (Kasalukuyang Taon)",
-  ALL: "All Records (Lahat ng Benta)",
+  TODAY: "Today",
+  YESTERDAY: "Yesterday",
+  THIS_WEEK: "1 Week",
+  THIS_MONTH: "1 Month",
+  THIS_YEAR: "1 Year",
+  ALL: "All Time",
 }
 
 function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
@@ -4568,18 +4568,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ["Payment Status", paymentStatus || "All Payment Statuses"],
         ],
         totals: [
-          ["Date Period Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Timeframe Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
           ["Total Sales Records", filteredSalesByDate.length],
-          ["Kabuuang Sale (Grand Total kasama AR, Mark Up, Interest)", detailedMetrics.kabuuangSale],
-          ["Kinita sa Parts Lang", detailedMetrics.partsRevenue],
-          ["Kinita sa Service Lang", detailedMetrics.serviceRevenue],
-          ["Kinita sa Service & Parts (Base Total)", detailedMetrics.combinedBaseRevenue],
-          ["Mark Up", detailedMetrics.totalMarkup],
-          ["Interest (Financing Charges)", detailedMetrics.totalInterest],
-          ["AR (Accounts Receivable Balanse)", detailedMetrics.totalArBalance],
-          ["Aktwal na Nakolekta (Cash & Payments)", detailedMetrics.totalCollectedCash],
-          ["Tubo (Estimated Profit)", detailedMetrics.estimatedProfit],
-          ["Highest Sale Account (Top Salesman)", detailedMetrics.topSalesPerson ? `${detailedMetrics.topSalesPerson.name} (${formatMoney(detailedMetrics.topSalesPerson.totalSales)} · ${detailedMetrics.topSalesPerson.count} sales)` : "—"],
+          ["Total Gross Sales (Includes AR, Mark-up, Interest)", detailedMetrics.kabuuangSale],
+          ["Parts & Products Revenue", detailedMetrics.partsRevenue],
+          ["Services & Labor Revenue", detailedMetrics.serviceRevenue],
+          ["Parts & Services Combined (Base)", detailedMetrics.combinedBaseRevenue],
+          ["Total Mark-up", detailedMetrics.totalMarkup],
+          ["Financing Interest Charges", detailedMetrics.totalInterest],
+          ["Accounts Receivable (AR Balance)", detailedMetrics.totalArBalance],
+          ["Actual Cash Collected", detailedMetrics.totalCollectedCash],
+          ["Gross Profit Margin", detailedMetrics.estimatedProfit],
+          ["Top Sales Account (Highest Salesperson)", detailedMetrics.topSalesPerson ? `${detailedMetrics.topSalesPerson.name} (${formatMoney(detailedMetrics.topSalesPerson.totalSales)} · ${detailedMetrics.topSalesPerson.count} sales)` : "—"],
         ],
       })
     }
@@ -4901,27 +4901,6 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               ) : null}
             </button>
           </div>
-
-          {/* Clean 1-Button Date Range Filter */}
-          {posViewMode === "SALES_HISTORY" ? (
-            <div className="relative inline-flex items-center">
-              <select
-                aria-label="Filter by time period"
-                className="appearance-none rounded-xl border border-[var(--color-maroon)]/40 bg-[var(--color-maroon)]/5 py-2 pl-8 pr-7 text-xs font-black text-[var(--color-maroon)] outline-none hover:bg-[var(--color-maroon)]/10 transition cursor-pointer"
-                onChange={(e) => setDateFilterPeriod(e.target.value)}
-                value={dateFilterPeriod}
-              >
-                <option value="TODAY">📅 Today (Ngayong Araw)</option>
-                <option value="YESTERDAY">📅 Yesterday (Kahapon)</option>
-                <option value="THIS_WEEK">📅 1 Week (Huling 7 Araw)</option>
-                <option value="THIS_MONTH">📅 1 Month (Huling 30 Araw)</option>
-                <option value="THIS_YEAR">📅 1 Year (Kasalukuyang Taon)</option>
-                <option value="ALL">📅 All Records (Lahat)</option>
-              </select>
-              <Calendar className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-maroon)]" size={13} />
-              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-maroon)] text-[9px]">▼</span>
-            </div>
-          ) : null}
 
           {/* Quick Action Button */}
           {posViewMode === "REGISTER" ? (
@@ -6293,31 +6272,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         <>
           {/* Executive Filter & Date Period Header */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 p-3.5 shadow-2xs">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               <span className="text-xs font-black uppercase tracking-wider text-slate-500">
-                Period Filter:
+                Period:
               </span>
-              {/* Clean 1-button dropdown selector */}
-              <div className="relative inline-flex items-center">
-                <select
-                  aria-label="Filter by time period"
-                  className="appearance-none rounded-xl border border-[var(--color-maroon)]/40 bg-white py-2 pl-8 pr-8 text-xs font-black text-[var(--color-maroon)] shadow-2xs outline-none hover:border-[var(--color-maroon)] focus:ring-2 focus:ring-[var(--color-maroon)]/20 transition cursor-pointer"
-                  onChange={(e) => setDateFilterPeriod(e.target.value)}
-                  value={dateFilterPeriod}
-                >
-                  <option value="TODAY">📅 Today (Ngayong Araw)</option>
-                  <option value="YESTERDAY">📅 Yesterday (Kahapon)</option>
-                  <option value="THIS_WEEK">📅 1 Week (Huling 7 Araw)</option>
-                  <option value="THIS_MONTH">📅 1 Month (Huling 30 Araw)</option>
-                  <option value="THIS_YEAR">📅 1 Year (Kasalukuyang Taon)</option>
-                  <option value="ALL">📅 All Records (Lahat)</option>
-                </select>
-                <Calendar className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-maroon)]" size={13} />
-                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-maroon)] text-[9px]">▼</span>
-              </div>
 
-              {/* Quick Pills for 1-Click Fast Switching */}
-              <div className="hidden sm:inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1 text-[11px] font-bold">
+              {/* Segmented Pill Switcher (Picture 2) */}
+              <div className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold">
                 {[
                   ["TODAY", "Today"],
                   ["YESTERDAY", "Yesterday"],
@@ -6330,10 +6291,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     key={val}
                     type="button"
                     onClick={() => setDateFilterPeriod(val)}
-                    className={`rounded-lg px-2.5 py-1 transition ${
+                    className={`rounded-lg px-3 py-1.5 transition text-xs cursor-pointer ${
                       dateFilterPeriod === val
                         ? "bg-white text-slate-900 shadow-2xs font-black"
-                        : "text-slate-500 hover:text-slate-800"
+                        : "text-slate-500 hover:text-slate-900"
                     }`}
                   >
                     {lbl}
@@ -6344,12 +6305,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
             <div className="flex items-center gap-2 text-xs">
               <span className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-700 shadow-2xs">
-                {detailedMetrics.totalTransactions} Resibo ({detailedMetrics.completedCount} Completed)
+                {detailedMetrics.totalTransactions} Receipt{detailedMetrics.totalTransactions === 1 ? "" : "s"} ({detailedMetrics.completedCount} Completed)
               </span>
             </div>
           </div>
 
-          {/* Highest Sale Account (Top Salesman) Banner / Spotlight */}
+          {/* Highest Sale Account (Top Salesperson) Banner / Spotlight */}
           {detailedMetrics.topSalesPerson && detailedMetrics.kabuuangSale > 0 ? (
             <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-500/10 via-amber-50/70 to-orange-500/10 p-4 shadow-2xs">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -6360,7 +6321,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md border border-amber-300 bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950">
-                        Highest Sale Account ({DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod})
+                        Top Sales Account ({DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod})
                       </span>
                       {detailedMetrics.salesPersonsList.length > 1 ? (
                         <button
@@ -6387,7 +6348,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 <div className="flex flex-wrap items-center gap-4 sm:justify-end">
                   <div className="text-left sm:text-right">
                     <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      Highest Sales Generated
+                      Total Sales Generated
                     </p>
                     <p className="font-mono text-lg font-black text-amber-950">
                       {formatMoney(detailedMetrics.topSalesPerson.totalSales)}
@@ -6398,7 +6359,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       Volume / Share
                     </p>
                     <p className="font-mono text-xs font-black text-slate-800">
-                      {detailedMetrics.topSalesPerson.count} Resibo ({detailedMetrics.kabuuangSale > 0 ? `${Math.round((detailedMetrics.topSalesPerson.totalSales / detailedMetrics.kabuuangSale) * 100)}%` : "0%"} ng total)
+                      {detailedMetrics.topSalesPerson.count} Receipt{detailedMetrics.topSalesPerson.count === 1 ? "" : "s"} ({detailedMetrics.kabuuangSale > 0 ? `${Math.round((detailedMetrics.topSalesPerson.totalSales / detailedMetrics.kabuuangSale) * 100)}%` : "0%"} share)
                     </p>
                   </div>
                 </div>
@@ -6408,7 +6369,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               {showSalesmenLeaderboard && detailedMetrics.salesPersonsList.length > 1 ? (
                 <div className="mt-3.5 border-t border-amber-200/80 pt-3">
                   <p className="text-[10px] font-black uppercase tracking-wider text-amber-900 mb-2">
-                    Ranking ng mga Nag-cater na Sales Staff ({DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod})
+                    Sales Staff Performance Leaderboard ({DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod})
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {detailedMetrics.salesPersonsList.map((sp, idx) => (
@@ -6452,11 +6413,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
           {/* Tier 1: 4 Key Financial Metric Cards */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Card 1: Kabuuang Sale */}
+            {/* Card 1: Total Gross Sales */}
             <div className="relative overflow-hidden rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 p-4 shadow-2xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
-                  Kabuuang Sale (Grand Total)
+                  Total Gross Sales
                 </span>
                 <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
                   <ReceiptText size={16} />
@@ -6466,15 +6427,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 {formatMoney(detailedMetrics.kabuuangSale)}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-emerald-700/90">
-                Kasama ang AR, Mark Up, at Interest
+                Includes AR, Mark-up, and Financing Interest
               </p>
             </div>
 
-            {/* Card 2: Kinita sa Parts Lang */}
+            {/* Card 2: Parts & Products Revenue */}
             <div className="relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 p-4 shadow-2xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">
-                  Kinita sa Parts Lang
+                  Parts & Products Revenue
                 </span>
                 <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
                   <PackageSearch size={16} />
@@ -6484,15 +6445,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 {formatMoney(detailedMetrics.partsRevenue)}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-blue-700/90">
-                Benta mula sa mga piyesa / produkto lamang
+                Revenue exclusively from inventory items and parts
               </p>
             </div>
 
-            {/* Card 3: Kinita sa Service Lang */}
+            {/* Card 3: Services & Labor Revenue */}
             <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 p-4 shadow-2xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
-                  Kinita sa Service Lang
+                  Services & Labor Revenue
                 </span>
                 <span className="grid size-8 place-items-center rounded-xl bg-amber-500 text-white shadow-xs">
                   <Wrench size={16} />
@@ -6502,15 +6463,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 {formatMoney(detailedMetrics.serviceRevenue)}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
-                Benta mula sa labor & service charges lamang
+                Revenue exclusively from labor, repairs, & service fees
               </p>
             </div>
 
-            {/* Card 4: Tubo (Gross Profit) */}
+            {/* Card 4: Gross Profit Margin */}
             <div className="relative overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-purple-800">
-                  Tubo (Gross Profit)
+                  Gross Profit Margin
                 </span>
                 <span className="grid size-8 place-items-center rounded-xl bg-purple-600 text-white shadow-xs">
                   <TrendingUp size={16} />
@@ -6520,71 +6481,71 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 {formatMoney(detailedMetrics.estimatedProfit)}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-purple-700/90">
-                Kita bawas ang cost ng pisa (+ labor & interest)
+                Estimated gross margin (Parts profit + labor + interest)
               </p>
             </div>
           </div>
 
           {/* Tier 2: 5 Breakdown Categories Strip */}
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
-            {/* Strip 1: Kinita sa Service & Parts */}
+            {/* Strip 1: Parts & Services */}
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
               <div className="flex items-center justify-between text-slate-500">
-                <span className="text-[10px] font-black uppercase tracking-wider">Service & Parts</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Parts & Services</span>
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">Base</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-slate-900">
                 {formatMoney(detailedMetrics.combinedBaseRevenue)}
               </p>
-              <p className="text-[10px] text-slate-500">Pinagsamang pisa at serbisyo</p>
+              <p className="text-[10px] text-slate-500">Combined base parts and services</p>
             </div>
 
-            {/* Strip 2: Mark Up */}
+            {/* Strip 2: Mark-up */}
             <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3 shadow-2xs">
               <div className="flex items-center justify-between text-teal-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">Mark Up</span>
-                <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[9px] font-bold text-teal-800">Patong</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Mark-up</span>
+                <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[9px] font-bold text-teal-800">Margin</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-teal-950">
                 {formatMoney(detailedMetrics.totalMarkup)}
               </p>
-              <p className="text-[10px] text-teal-700/80">Ipinatong na halaga sa base price</p>
+              <p className="text-[10px] text-teal-700/80">Total mark-up applied above cost/base</p>
             </div>
 
             {/* Strip 3: Interest */}
             <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 shadow-2xs">
               <div className="flex items-center justify-between text-indigo-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">Interest</span>
-                <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-800">Hulugan</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Financing Interest</span>
+                <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-800">Financing</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-indigo-950">
                 {formatMoney(detailedMetrics.totalInterest)}
               </p>
-              <p className="text-[10px] text-indigo-700/80">Financing fee sa installment</p>
+              <p className="text-[10px] text-indigo-700/80">Financing fees from installment plans</p>
             </div>
 
             {/* Strip 4: AR (Accounts Receivable) */}
             <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-3 shadow-2xs">
               <div className="flex items-center justify-between text-rose-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">AR (Pautang Balanse)</span>
-                <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold text-rose-800">Credit</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Accounts Receivable</span>
+                <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold text-rose-800">AR Balance</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-rose-950">
                 {formatMoney(detailedMetrics.totalArBalance)}
               </p>
-              <p className="text-[10px] text-rose-700/80">Natitirang sisingilin sa accounts</p>
+              <p className="text-[10px] text-rose-700/80">Outstanding uncollected credit balance</p>
             </div>
 
-            {/* Strip 5: Aktwal na Nakolekta */}
+            {/* Strip 5: Actual Cash Collected */}
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 shadow-2xs">
               <div className="flex items-center justify-between text-emerald-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">Aktwal na Nakolekta</span>
-                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">Cash In</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Actual Cash Collected</span>
+                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">Collected</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-emerald-950">
                 {formatMoney(detailedMetrics.totalCollectedCash)}
               </p>
-              <p className="text-[10px] text-emerald-700/80">Cash at payment sa kaha</p>
+              <p className="text-[10px] text-emerald-700/80">Payments received in register</p>
             </div>
           </div>
 
@@ -6785,14 +6746,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ) : filteredSalesByDate.length === 0 ? (
             <div className="p-8 text-center">
               <ReceiptText className="mx-auto text-slate-300" size={32} />
-              <p className="mt-2 text-xs font-bold text-slate-700">Walang sales record para sa {DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod}</p>
-              <p className="mt-0.5 text-[11px] text-slate-400">Subukang pumili ng ibang date filter o tingnan ang lahat ng benta.</p>
+              <p className="mt-2 text-xs font-bold text-slate-700">No sales records found for {DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Try selecting another timeframe or view all sales records.</p>
               <button
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
                 onClick={() => setDateFilterPeriod("ALL")}
                 type="button"
               >
-                Ipakita Lahat (All Records)
+                View All Records
               </button>
             </div>
           ) : (
