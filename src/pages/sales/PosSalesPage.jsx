@@ -2331,7 +2331,68 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   )
   const [dateFilterPeriod, setDateFilterPeriod] = useState("TODAY") // "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "THIS_YEAR" | "ALL"
   const [showSalesmenLeaderboard, setShowSalesmenLeaderboard] = useState(false)
-  const [saleTypeFilter, setSaleTypeFilter] = useState("ALL") // "ALL" | "PARTS_ONLY" | "SERVICE_ONLY" | "MARKUP_ONLY"
+  const [mainCategories, setMainCategories] = useState({
+    allSales: true,
+    items: true,
+    parts: true,
+    ar: true,
+    services: true,
+  })
+  const [subCategories, setSubCategories] = useState({
+    markup: true,
+    interest: true,
+  })
+
+  const handleToggleAllSales = () => {
+    setMainCategories((prev) => {
+      const nextVal = !prev.allSales
+      return {
+        allSales: nextVal,
+        items: nextVal,
+        parts: nextVal,
+        ar: nextVal,
+        services: nextVal,
+      }
+    })
+    setSalesPage(1)
+  }
+
+  const handleToggleMainCategory = (key) => {
+    setMainCategories((prev) => {
+      const updated = {
+        ...prev,
+        [key]: !prev[key],
+      }
+      const allSelected = updated.items && updated.parts && updated.ar && updated.services
+      updated.allSales = allSelected
+      return updated
+    })
+    setSalesPage(1)
+  }
+
+  const handleToggleSubCategory = (key) => {
+    setSubCategories((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }))
+    setSalesPage(1)
+  }
+
+  const handleResetCategoryFilters = () => {
+    setMainCategories({
+      allSales: true,
+      items: true,
+      parts: true,
+      ar: true,
+      services: true,
+    })
+    setSubCategories({
+      markup: true,
+      interest: true,
+    })
+    setSalesPage(1)
+  }
+
   const [itemsViewMode, setItemsViewMode] = useState("RECEIPTS") // "RECEIPTS" | "ITEMS"
 
   const [itemSearch, setItemSearch] = useState("")
@@ -4585,17 +4646,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const totalItemsRevenue = itemSalesRows.reduce((sum, r) => sum + r.lineTotal, 0)
       const totalItemsMarkup = itemSalesRows.reduce((sum, r) => sum + r.lineMarkup, 0)
       const totalItemsQty = itemSalesRows.reduce((sum, r) => sum + r.quantity, 0)
+      const activeMainLabels = mainCategories.allSales
+        ? "All Sales"
+        : [
+            mainCategories.items ? "Items" : null,
+            mainCategories.parts ? "Parts" : null,
+            mainCategories.ar ? "AR" : null,
+            mainCategories.services ? "Services" : null,
+          ].filter(Boolean).join(", ") || "None"
+      const subCatSummary = `Mark-up: ${subCategories.markup ? "Kasama" : "Excluded"}, Interest: ${subCategories.interest ? "Kasama" : "Excluded"}`
 
       exportReportExcel({
-        label: `Itemized Sales Breakdown (${saleTypeFilter})`,
-        filename: `Item-Sales-${saleTypeFilter}-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
+        label: `Itemized Sales Breakdown (${activeMainLabels})`,
+        filename: `Item-Sales-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
         columns: itemColumns,
         records: itemSalesRows,
         branch: activeBranch,
         generatedBy: user,
         filters: [
           ["Timeframe Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
-          ["Sale Type Filter", saleTypeFilter],
+          ["Main Category Filter", activeMainLabels],
+          ["Sub Category Settings", subCatSummary],
           ["Total Line Items", itemSalesRows.length],
         ],
         totals: [
@@ -4605,6 +4676,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         ],
       })
     } else {
+      const activeMainLabels = mainCategories.allSales
+        ? "All Sales"
+        : [
+            mainCategories.items ? "Items" : null,
+            mainCategories.parts ? "Parts" : null,
+            mainCategories.ar ? "AR" : null,
+            mainCategories.services ? "Services" : null,
+          ].filter(Boolean).join(", ") || "None"
+      const subCatSummary = `Mark-up: ${subCategories.markup ? "Kasama" : "Excluded"}, Interest: ${subCategories.interest ? "Kasama" : "Excluded"}`
+
       const exportColumns = [
         ["Receipt Code", (row) => row.receiptCode || "—"],
         ["Date & Time", (row) => (row.saleDate || row.createdAt) ? new Date(row.saleDate || row.createdAt).toLocaleString("en-PH") : "—"],
@@ -4623,25 +4704,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         ["Remarks", (row) => row.remarks || "—"],
       ]
       exportReportExcel({
-        label: `Branch Sales History (${saleTypeFilter})`,
-        filename: `Sales-History-${saleTypeFilter}-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
+        label: `Branch Sales History (${activeMainLabels})`,
+        filename: `Sales-History-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
         columns: exportColumns,
         records: displayedSales,
         branch: activeBranch,
         generatedBy: user,
         filters: [
           ["Date Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
-          ["Sale Type", saleTypeFilter],
-          ["Price Tier", "All Price Tiers"],
+          ["Main Categories", activeMainLabels],
+          ["Sub Categories", subCatSummary],
           ["Search Query", salesSearch.trim() || "All"],
           ["Sale Status", salesStatus || "All Statuses"],
           ["Payment Status", paymentStatus || "All Payment Statuses"],
         ],
         totals: [
           ["Timeframe Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
-          ["Sale Type Filter", saleTypeFilter],
+          ["Main Categories Filter", activeMainLabels],
+          ["Sub Category Settings", subCatSummary],
           ["Total Sales Records", displayedSales.length],
-          ["Total Gross Sales (Includes AR, Mark-up, Interest)", detailedMetrics.kabuuangSale],
+          ["Computed Total Gross Sales (Filter Applied)", detailedMetrics.computedGrandTotal],
+          ["Total Gross Sales (Raw All)", detailedMetrics.kabuuangSale],
           ["Item Gross Sales (Parts & Products)", detailedMetrics.partsRevenue],
           ["Item Cost of Goods (Puhunan)", detailedMetrics.partsCost],
           ["Item Gross Profit (Tubo sa Item Lang)", detailedMetrics.partsProfit],
@@ -4775,8 +4858,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     let totalArBalance = 0 // Accounts Receivable (unpaid balance)
     let totalCollectedCash = 0 // Aktwal na perang nakolekta
 
-    // Grand Total
-    let kabuuangSale = 0 // Kabuuang sale kasama ang AR, Markup, Interest
+    // Grand Totals
+    let computedGrandTotal = 0
+    let kabuuangSale = 0 // Raw kabuuang sale
 
     // Sales Person / Salesman aggregation (Highest Sale Account)
     const salesPersonsMap = {}
@@ -4784,14 +4868,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     filteredSalesByDate.forEach((sale) => {
       if (sale.status === "CANCELLED") return
 
-      totalTransactions += 1
-      if (sale.status === "COMPLETED") completedCount += 1
-
-      const effectiveSaleTotal = sale.creditAccount
+      const rawSaleTotal = sale.creditAccount
         ? Number(sale.creditAccount.regularPriceTotalAmount || sale.grandTotal || 0)
         : Number(sale.grandTotal || 0)
-
-      kabuuangSale += effectiveSaleTotal
+      kabuuangSale += rawSaleTotal
 
       // Sales person / agent attribution
       const spId = sale.cashier?.id || sale.cashierId || (sale.cashier?.fullName ? `name-${sale.cashier.fullName}` : "unassigned")
@@ -4807,11 +4887,6 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           completedCount: 0,
         }
       }
-      salesPersonsMap[spId].totalSales += effectiveSaleTotal
-      salesPersonsMap[spId].count += 1
-      if (sale.status === "COMPLETED") {
-        salesPersonsMap[spId].completedCount += 1
-      }
 
       // Cash & collected
       const upfrontPaid = Number(sale.amountPaid || 0)
@@ -4819,6 +4894,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalCollectedCash += (upfrontPaid + creditCollected)
 
       // Credit & Interest
+      let saleInterest = 0
       if (sale.creditAccount) {
         const regularTotal = Number(sale.creditAccount.regularPriceTotalAmount || 0)
         const promoTotal = Number(
@@ -4827,8 +4903,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           sale.grandTotal ||
           0
         )
-        const interest = Math.max(regularTotal - promoTotal, 0)
-        totalInterest += interest
+        saleInterest = Math.max(regularTotal - promoTotal, 0)
+        totalInterest += saleInterest
 
         const remainingAr = Number(
           sale.creditAccount.remainingBalance ??
@@ -4841,6 +4917,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const saleServiceCharge = Number(sale.serviceCharge || 0)
       let saleServiceFromItems = 0
       let salePartsFromItems = 0
+      let saleMarkupFromItems = 0
 
       const items = Array.isArray(sale.items) ? sale.items : []
       items.forEach((line) => {
@@ -4862,27 +4939,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           if (unitCost > 0) {
             totalCost += (unitCost * qty)
           }
-        }
 
-        // Markup (Patong sa Item)
-        const markupPct = Number(line.markupPercent || 0)
-        const baseUnit = Number(line.baseUnitPriceSnapshot || 0)
-        const unitPrice = Number(line.unitPrice || 0)
-        const unitCost = Number(line.operationalUnitCostSnapshot || line.acquisitionUnitCostSnapshot || 0)
-
-        let lineMarkup = 0
-        if (markupPct > 0 && baseUnit > 0) {
-          lineMarkup = Math.max(unitPrice - baseUnit, 0) * qty
-        } else if (markupPct > 0 && unitPrice > 0) {
-          const approxBase = unitPrice / (1 + markupPct / 100)
-          lineMarkup = Math.max(unitPrice - approxBase, 0) * qty
-        } else if (baseUnit > 0 && unitPrice > baseUnit) {
-          lineMarkup = (unitPrice - baseUnit) * qty
-        } else if (unitCost > 0 && unitPrice > unitCost) {
-          lineMarkup = (unitPrice - unitCost) * qty
+          // Markup (Patong sa Item)
+          const markupPct = Number(line.markupPercent || 0)
+          const baseUnit = Number(line.baseUnitPriceSnapshot || 0)
+          const unitPrice = Number(line.unitPrice || 0)
+          let lineMarkup = 0
+          if (markupPct > 0 && baseUnit > 0) {
+            lineMarkup = Math.max(unitPrice - baseUnit, 0) * qty
+          } else if (markupPct > 0 && unitPrice > 0) {
+            const approxBase = unitPrice / (1 + markupPct / 100)
+            lineMarkup = Math.max(unitPrice - approxBase, 0) * qty
+          } else if (baseUnit > 0 && unitPrice > baseUnit) {
+            lineMarkup = (unitPrice - baseUnit) * qty
+          } else if (unitCost > 0 && unitPrice > unitCost) {
+            lineMarkup = (unitPrice - unitCost) * qty
+          }
+          saleMarkupFromItems += lineMarkup
         }
-        totalMarkup += lineMarkup
       })
+
+      totalMarkup += saleMarkupFromItems
 
       if (items.length > 0) {
         partsRevenue += salePartsFromItems
@@ -4891,12 +4968,60 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         serviceRevenue += saleServiceCharge
         partsRevenue += Math.max(Number(sale.grandTotal || 0) - saleServiceCharge, 0)
       }
+
+      // Check if sale matches Main Category
+      const hasPhysicalItems = salePartsFromItems > 0
+      const hasServices = (saleServiceFromItems + saleServiceCharge) > 0
+      const hasAr = Boolean(sale.creditAccount)
+
+      let matchesMain = false
+      if (mainCategories.allSales) {
+        matchesMain = true
+      } else {
+        if (mainCategories.items && hasPhysicalItems) matchesMain = true
+        if (mainCategories.parts && hasPhysicalItems) matchesMain = true
+        if (mainCategories.ar && hasAr) matchesMain = true
+        if (mainCategories.services && hasServices) matchesMain = true
+      }
+
+      if (!matchesMain) return
+
+      totalTransactions += 1
+      if (sale.status === "COMPLETED") completedCount += 1
+
+      // Computed effective total for this sale based on Main & Sub Categories
+      let effectiveSaleTotal = 0
+      if (mainCategories.allSales || mainCategories.items || mainCategories.parts) {
+        const itemBase = Math.max(salePartsFromItems - saleMarkupFromItems, 0)
+        effectiveSaleTotal += itemBase
+        if (subCategories.markup) {
+          effectiveSaleTotal += saleMarkupFromItems
+        }
+      }
+      if (mainCategories.allSales || mainCategories.services) {
+        effectiveSaleTotal += (saleServiceFromItems + saleServiceCharge)
+      }
+      if (hasAr && (mainCategories.allSales || mainCategories.ar)) {
+        if (subCategories.interest) {
+          effectiveSaleTotal += saleInterest
+        }
+      }
+
+      computedGrandTotal += effectiveSaleTotal
+      salesPersonsMap[spId].totalSales += effectiveSaleTotal
+      salesPersonsMap[spId].count += 1
+      if (sale.status === "COMPLETED") {
+        salesPersonsMap[spId].completedCount += 1
+      }
     })
 
     combinedBaseRevenue = partsRevenue + serviceRevenue
     const partsCost = totalCost
-    const partsProfit = Math.max(partsRevenue - partsCost, 0)
-    const overallGrossProfit = partsProfit + serviceRevenue + totalInterest
+    // Effective parts profit respects subCategories.markup
+    const effectivePartsProfit = subCategories.markup
+      ? Math.max(partsRevenue - partsCost, 0)
+      : Math.max(partsRevenue - totalMarkup - partsCost, 0)
+    const overallGrossProfit = effectivePartsProfit + serviceRevenue + (subCategories.interest ? totalInterest : 0)
 
     const salesPersonsList = Object.values(salesPersonsMap).sort((a, b) => b.totalSales - a.totalSales)
     const topSalesPerson = salesPersonsList.length > 0 ? salesPersonsList[0] : null
@@ -4905,8 +5030,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalTransactions,
       completedCount,
       partsRevenue,
+      effectivePartsRevenue: subCategories.markup ? partsRevenue : Math.max(partsRevenue - totalMarkup, 0),
       partsCost,
-      partsProfit,
+      partsProfit: effectivePartsProfit,
       serviceRevenue,
       combinedBaseRevenue,
       totalMarkup,
@@ -4915,65 +5041,66 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalCollectedCash,
       estimatedProfit: overallGrossProfit,
       overallGrossProfit,
+      computedGrandTotal,
       kabuuangSale,
       salesPersonsList,
       topSalesPerson,
     }
-  }, [filteredSalesByDate])
+  }, [filteredSalesByDate, mainCategories, subCategories])
 
   const displayedSales = useMemo(() => {
-    if (saleTypeFilter === "PARTS_ONLY") {
-      return filteredSalesByDate.filter((sale) => {
-        if (sale.status === "CANCELLED") return false
+    return filteredSalesByDate.filter((sale) => {
+      if (sale.status === "CANCELLED") return false
+
+      if (selectedPriceTiers.length > 0) {
         const items = Array.isArray(sale.items) ? sale.items : []
-        return items.some((it) => {
-          const desc = String(it.description || "").toLowerCase()
-          return it.itemId && !desc.includes("service") && !desc.includes("labor") && !desc.startsWith("[jo #")
-        })
+        const matchesTier = items.some((it) => selectedPriceTiers.includes(Number(it.priceTier || 1)))
+        if (!matchesTier) return false
+      }
+
+      const items = Array.isArray(sale.items) ? sale.items : []
+      const hasPhysicalItems = items.some((it) => {
+        const desc = String(it.description || "").toLowerCase()
+        return it.itemId && !desc.includes("service") && !desc.includes("labor") && !desc.startsWith("[jo #")
       })
-    }
-    if (saleTypeFilter === "SERVICE_ONLY") {
-      return filteredSalesByDate.filter((sale) => {
-        if (sale.status === "CANCELLED") return false
-        if (Number(sale.serviceCharge || 0) > 0) return true
-        const items = Array.isArray(sale.items) ? sale.items : []
-        return items.some((it) => {
-          const desc = String(it.description || "").toLowerCase()
-          return !it.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
-        })
+      const hasServices = Number(sale.serviceCharge || 0) > 0 || items.some((it) => {
+        const desc = String(it.description || "").toLowerCase()
+        return !it.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
       })
-    }
-    if (saleTypeFilter === "MARKUP_ONLY") {
-      return filteredSalesByDate.filter((sale) => {
-        if (sale.status === "CANCELLED") return false
-        const items = Array.isArray(sale.items) ? sale.items : []
-        return items.some((it) => {
-          const markupPct = Number(it.markupPercent || 0)
-          const baseUnit = Number(it.baseUnitPriceSnapshot || 0)
-          const unitPrice = Number(it.unitPrice || 0)
-          const unitCost = Number(it.operationalUnitCostSnapshot || it.acquisitionUnitCostSnapshot || 0)
-          return (
-            markupPct > 0 ||
-            (baseUnit > 0 && unitPrice > baseUnit) ||
-            (unitCost > 0 && unitPrice > unitCost)
-          )
-        })
-      })
-    }
-    return filteredSalesByDate
-  }, [filteredSalesByDate, saleTypeFilter])
+      const hasAr = Boolean(sale.creditAccount)
+
+      if (mainCategories.allSales) return true
+
+      let matches = false
+      if (mainCategories.items && hasPhysicalItems) matches = true
+      if (mainCategories.parts && hasPhysicalItems) matches = true
+      if (mainCategories.services && hasServices) matches = true
+      if (mainCategories.ar && hasAr) matches = true
+
+      return matches
+    })
+  }, [filteredSalesByDate, mainCategories, selectedPriceTiers])
 
   const itemSalesRows = useMemo(() => {
     const rows = []
     filteredSalesByDate.forEach((sale) => {
       if (sale.status === "CANCELLED") return
+
+      const hasAr = Boolean(sale.creditAccount)
+      if (!mainCategories.allSales) {
+        if (mainCategories.ar && !hasAr && !mainCategories.items && !mainCategories.parts && !mainCategories.services) return
+      }
+
       const items = Array.isArray(sale.items) ? sale.items : []
       items.forEach((line) => {
         const desc = String(line.description || "").toLowerCase()
         const isServiceLine = !line.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
 
-        if (saleTypeFilter === "PARTS_ONLY" && isServiceLine) return
-        if (saleTypeFilter === "SERVICE_ONLY" && !isServiceLine) return
+        if (!mainCategories.allSales) {
+          if (isServiceLine && !mainCategories.services) return
+          if (!isServiceLine && !mainCategories.items && !mainCategories.parts) return
+        }
+
         if (selectedPriceTiers.length > 0 && !isServiceLine) {
           const itemTier = Number(line.priceTier || 1)
           if (!selectedPriceTiers.includes(itemTier)) return
@@ -4998,7 +5125,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           lineMarkup = (unitPrice - unitCost) * qty
         }
 
-        if (saleTypeFilter === "MARKUP_ONLY" && lineMarkup <= 0) return
+        // Sub Category: if markup is unchecked, exclude markup from line total!
+        const effectiveLineTotal = subCategories.markup ? lineTotal : Math.max(lineTotal - lineMarkup, 0)
+        const effectiveUnitPrice = subCategories.markup ? unitPrice : (qty > 0 ? (effectiveLineTotal / qty) : unitPrice)
 
         rows.push({
           id: line.id || `${sale.id}-${line.lineNo || Math.random()}`,
@@ -5013,14 +5142,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           isService: isServiceLine,
           quantity: qty,
           unitCost: unitCost || baseUnit || 0,
-          unitPrice,
-          lineMarkup,
-          lineTotal,
+          unitPrice: effectiveUnitPrice,
+          originalUnitPrice: unitPrice,
+          lineMarkup: subCategories.markup ? lineMarkup : 0,
+          originalMarkup: lineMarkup,
+          lineTotal: effectiveLineTotal,
         })
       })
     })
     return rows
-  }, [filteredSalesByDate, saleTypeFilter, selectedPriceTiers])
+  }, [filteredSalesByDate, mainCategories, subCategories, selectedPriceTiers])
 
   return (
     <div className="min-w-0 space-y-4">
@@ -6476,53 +6607,137 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               </div>
             </div>
 
-            {/* Sale Type / Revenue Stream Filter (Requested by user: hiwalay ang service, parts, at patong sa item) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-600">
-                  Sale Filter:
-                </span>
-                <div className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold">
-                  {[
-                    ["ALL", "All Sales"],
-                    ["PARTS_ONLY", "Parts & Items Only"],
-                    ["SERVICE_ONLY", "Services Only"],
-                    ["MARKUP_ONLY", "Item Mark-up Only"],
-                  ].map(([val, lbl]) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setSaleTypeFilter(val)}
-                      className={`rounded-lg px-3 py-1.5 transition text-xs cursor-pointer ${
-                        saleTypeFilter === val
-                          ? "bg-[var(--color-maroon)] text-white shadow-2xs font-black"
-                          : "text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      {lbl}
-                    </button>
-                  ))}
+            {/* Main Category & Sub Category Filter Panel (Requested by User) */}
+            <div className="flex flex-col gap-3.5 border-t border-slate-200/80 pt-3">
+              {/* Row 1: Main Category */}
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-800">
+                    Main Category:
+                  </p>
+                  <span className="text-[11px] font-medium text-slate-400">
+                    Piliin ang mga benta na gustong makita
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs font-bold">
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={mainCategories.allSales}
+                      onChange={handleToggleAllSales}
+                      className="size-4 rounded border-slate-300 text-[var(--color-maroon)] focus:ring-[var(--color-maroon)] accent-[var(--color-maroon)] cursor-pointer"
+                    />
+                    <span className={mainCategories.allSales ? "text-slate-900 font-black" : "text-slate-600"}>
+                      All Sales
+                    </span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={mainCategories.items}
+                      onChange={() => handleToggleMainCategory("items")}
+                      className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600 cursor-pointer"
+                    />
+                    <span className={mainCategories.items ? "text-blue-950 font-bold" : "text-slate-600"}>
+                      Items
+                    </span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={mainCategories.parts}
+                      onChange={() => handleToggleMainCategory("parts")}
+                      className="size-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                    />
+                    <span className={mainCategories.parts ? "text-indigo-950 font-bold" : "text-slate-600"}>
+                      Parts
+                    </span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={mainCategories.ar}
+                      onChange={() => handleToggleMainCategory("ar")}
+                      className="size-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+                    />
+                    <span className={mainCategories.ar ? "text-purple-950 font-bold" : "text-slate-600"}>
+                      AR
+                    </span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={mainCategories.services}
+                      onChange={() => handleToggleMainCategory("services")}
+                      className="size-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
+                    />
+                    <span className={mainCategories.services ? "text-amber-950 font-bold" : "text-slate-600"}>
+                      Services
+                    </span>
+                  </label>
                 </div>
               </div>
 
-              {saleTypeFilter !== "ALL" ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[var(--color-maroon)] bg-[var(--color-maroon)]/10 border border-[var(--color-maroon)]/20 rounded-lg px-2.5 py-1">
-                    ● Filter active: {
-                      saleTypeFilter === "PARTS_ONLY" ? `Parts & Items Only (${displayedSales.length} receipts)` :
-                      saleTypeFilter === "SERVICE_ONLY" ? `Services Only (${displayedSales.length} receipts)` :
-                      `Item Mark-up Only (${displayedSales.length} receipts)`
-                    }
+              <div className="h-px bg-slate-100" />
+
+              {/* Row 2: Sub Category */}
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-800">
+                    Sub Category:
+                  </p>
+                  <span className="text-[11px] font-medium text-slate-400">
+                    Kung naka-check kasama sa total; kung uncheck matic di kasama sa total
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setSaleTypeFilter("ALL")}
-                    className="text-xs font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
-                  >
-                    Reset Filter
-                  </button>
                 </div>
-              ) : null}
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs font-bold">
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={subCategories.markup}
+                      onChange={() => handleToggleSubCategory("markup")}
+                      className="size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 accent-teal-600 cursor-pointer"
+                    />
+                    <span className={subCategories.markup ? "text-teal-950 font-bold" : "text-slate-500"}>
+                      Mark-up
+                    </span>
+                    {subCategories.markup ? (
+                      <span className="rounded bg-teal-100 text-teal-800 px-1.5 py-0.2 text-[9px] font-bold">
+                        Kasama sa Total (+{formatMoney(detailedMetrics.totalMarkup)})
+                      </span>
+                    ) : (
+                      <span className="rounded bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 text-[9px] font-bold">
+                        Matic Excluded sa Total
+                      </span>
+                    )}
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={subCategories.interest}
+                      onChange={() => handleToggleSubCategory("interest")}
+                      className="size-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+                    />
+                    <span className={subCategories.interest ? "text-purple-950 font-bold" : "text-slate-500"}>
+                      Interest
+                    </span>
+                    {subCategories.interest ? (
+                      <span className="rounded bg-purple-100 text-purple-800 px-1.5 py-0.2 text-[9px] font-bold">
+                        Kasama sa Total (+{formatMoney(detailedMetrics.totalInterest)})
+                      </span>
+                    ) : (
+                      <span className="rounded bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 text-[9px] font-bold">
+                        Matic Excluded sa Total
+                      </span>
+                    )}
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -6627,227 +6842,102 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </div>
           ) : null}
 
-          {/* Tier 1: 4 Key Financial Metric Cards (Click to Filter / Dynamic by Sale Type) */}
+          {/* Tier 1: 4 Key Financial Metric Cards (Dynamic based on Main & Sub Category checkboxes) */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {saleTypeFilter === "PARTS_ONLY" ? (
-              /* Dedicated Item / Parts Financial Metric Cards */
-              <>
-                {/* Card 1: Item Gross Sales */}
-                <div
-                  role="button"
-                  onClick={() => setSaleTypeFilter("PARTS_ONLY")}
-                  className="relative overflow-hidden rounded-2xl border border-blue-600 bg-gradient-to-br from-blue-100/90 via-white to-blue-50 ring-2 ring-blue-600 shadow-md p-4 transition hover:scale-[1.01]"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
-                      Item Gross Sales (Benta sa Item)
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
-                      <PackageSearch size={16} />
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-2xl font-black text-blue-950">
-                    {formatMoney(detailedMetrics.partsRevenue)}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-blue-700/90">
-                      Gross revenue exclusively from items & parts
-                    </p>
-                    <span className="rounded-full bg-blue-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
-                  </div>
-                </div>
+            {/* Card 1: Total Gross Sales */}
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500 bg-gradient-to-br from-emerald-100/90 via-white to-emerald-50/70 p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900">
+                  Total Gross Sales (Kabuuang Benta)
+                </span>
+                <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <ReceiptText size={16} />
+                </span>
+              </div>
+              <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
+                {formatMoney(detailedMetrics.computedGrandTotal)}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-1 text-[11px] font-semibold text-emerald-800/90">
+                <span>
+                  {subCategories.markup && subCategories.interest
+                    ? "Kasama ang Mark-up at Interest"
+                    : !subCategories.markup && !subCategories.interest
+                      ? "Base benta (Excluded ang Mark-up at Interest)"
+                      : subCategories.markup
+                        ? "Kasama ang Mark-up (Excluded ang Interest)"
+                        : "Kasama ang Interest (Excluded ang Mark-up)"}
+                </span>
+                <span className="rounded bg-emerald-200/80 px-1.5 py-0.2 text-[9px] font-black text-emerald-950">
+                  {mainCategories.allSales ? "All Streams" : "Filtered"}
+                </span>
+              </div>
+            </div>
 
-                {/* Card 2: Item Cost of Goods (Puhunan) */}
-                <div className="relative overflow-hidden rounded-2xl border border-slate-300 bg-gradient-to-br from-slate-100 via-white to-slate-50 p-4 shadow-2xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
-                      Item Cost of Goods (Puhunan)
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-xl bg-slate-700 text-white shadow-xs">
-                      <Package size={16} />
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-2xl font-black text-slate-900">
-                    {formatMoney(detailedMetrics.partsCost)}
-                  </p>
-                  <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                    Total acquisition / base cost of items sold
-                  </p>
-                </div>
+            {/* Card 2: Items & Parts Gross Sales */}
+            <div className="relative overflow-hidden rounded-2xl border border-blue-300 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
+                  Items & Parts Gross Sales
+                </span>
+                <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
+                  <PackageSearch size={16} />
+                </span>
+              </div>
+              <p className="mt-2 font-mono text-2xl font-black text-blue-950">
+                {formatMoney(detailedMetrics.effectivePartsRevenue)}
+              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-blue-700/90">
+                  {subCategories.markup ? "Kasama ang Mark-up sa Items" : "Puhunan / Base lamang (Excluded Patong)"}
+                </p>
+                <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${subCategories.markup ? "bg-blue-100 text-blue-800" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
+                  {subCategories.markup ? "+Mark-up" : "Excl. Mark-up"}
+                </span>
+              </div>
+            </div>
 
-                {/* Card 3: Item Mark-up (Patong sa Item) */}
-                <div
-                  role="button"
-                  onClick={() => setSaleTypeFilter("MARKUP_ONLY")}
-                  title="Click to filter by item mark-up only"
-                  className="relative overflow-hidden rounded-2xl border border-teal-300 bg-gradient-to-br from-teal-50 via-white to-teal-50/40 p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] hover:border-teal-400"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-teal-800">
-                      Item Mark-up (Patong sa Item)
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-xl bg-teal-600 text-white shadow-xs">
-                      <Sparkles size={16} />
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-2xl font-black text-teal-950">
-                    {formatMoney(detailedMetrics.totalMarkup)}
-                  </p>
-                  <p className="mt-1 text-[11px] font-semibold text-teal-700/90">
-                    Total mark-up profit applied above cost
-                  </p>
-                </div>
+            {/* Card 3: Services & Labor Revenue */}
+            <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-900">
+                  Services & Labor Revenue
+                </span>
+                <span className="grid size-8 place-items-center rounded-xl bg-amber-500 text-white shadow-xs">
+                  <Wrench size={16} />
+                </span>
+              </div>
+              <p className="mt-2 font-mono text-2xl font-black text-amber-950">
+                {formatMoney(detailedMetrics.serviceRevenue)}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
+                Revenue mula sa labor, repair, at service charges
+              </p>
+            </div>
 
-                {/* Card 4: Item Gross Profit (Tubo sa Item Lang) */}
-                <div className="relative overflow-hidden rounded-2xl border border-emerald-400 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 p-4 shadow-2xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900">
-                      Item Gross Profit (Tubo sa Item)
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
-                      <TrendingUp size={16} />
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
-                    {formatMoney(detailedMetrics.partsProfit)}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-emerald-700/90">
-                      Item Sales bawas puhunan ng piyesa lamang
-                    </p>
-                    {detailedMetrics.partsRevenue > 0 ? (
-                      <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800">
-                        {((detailedMetrics.partsProfit / detailedMetrics.partsRevenue) * 100).toFixed(1)}% Margin
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </>
-            ) : (
-              /* All Sales / General Overview Cards */
-              <>
-                {/* Card 1: Total Gross Sales */}
-                <div
-                  role="button"
-                  onClick={() => setSaleTypeFilter("ALL")}
-                  title="Click to view all sales"
-                  className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
-                    saleTypeFilter === "ALL"
-                      ? "border-emerald-500 bg-gradient-to-br from-emerald-100/80 via-white to-emerald-50/60 ring-2 ring-emerald-500 shadow-md"
-                      : "border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 hover:border-emerald-400"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
-                      Total Gross Sales
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
-                      <ReceiptText size={16} />
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
-                    {formatMoney(detailedMetrics.kabuuangSale)}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-emerald-700/90">
-                      Includes Products, Services, AR, & Interest
-                    </p>
-                    {saleTypeFilter === "ALL" ? (
-                      <span className="rounded-full bg-emerald-600 text-white px-2 py-0.2 text-[9px] font-black">Active</span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* Card 2: Item Gross Sales (Parts & Products) */}
-                <div
-                  role="button"
-                  onClick={() => setSaleTypeFilter("PARTS_ONLY")}
-                  title="Click to filter by parts and items only"
-                  className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
-                    saleTypeFilter === "PARTS_ONLY"
-                      ? "border-blue-600 bg-gradient-to-br from-blue-100/90 via-white to-blue-50 ring-2 ring-blue-600 shadow-md"
-                      : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 hover:border-blue-400"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">
-                      Item Gross Sales (Parts)
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
-                      <PackageSearch size={16} />
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-2xl font-black text-blue-950">
-                    {formatMoney(detailedMetrics.partsRevenue)}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-blue-700/90">
-                      Gross revenue exclusively from items
-                    </p>
-                    {saleTypeFilter === "PARTS_ONLY" ? (
-                      <span className="rounded-full bg-blue-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* Card 3: Services & Labor Revenue */}
-                <div
-                  role="button"
-                  onClick={() => setSaleTypeFilter("SERVICE_ONLY")}
-                  title="Click to filter by services and labor only"
-                  className={`relative overflow-hidden rounded-2xl border p-4 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
-                    saleTypeFilter === "SERVICE_ONLY"
-                      ? "border-amber-500 bg-gradient-to-br from-amber-100/90 via-white to-amber-50 ring-2 ring-amber-500 shadow-md"
-                      : "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 hover:border-amber-400"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
-                      Services & Labor Revenue
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-xl bg-amber-500 text-white shadow-xs">
-                      <Wrench size={16} />
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-2xl font-black text-amber-950">
-                    {formatMoney(detailedMetrics.serviceRevenue)}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-amber-700/90">
-                      Revenue exclusively from labor & repairs
-                    </p>
-                    {saleTypeFilter === "SERVICE_ONLY" ? (
-                      <span className="rounded-full bg-amber-600 text-white px-2 py-0.2 text-[9px] font-black">Filtered</span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* Card 4: Item Gross Profit (Tubo sa Item Lang) */}
-                <div className="relative overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-800">
-                      Item Gross Profit (Tubo sa Item)
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-xl bg-purple-600 text-white shadow-xs">
-                      <TrendingUp size={16} />
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-2xl font-black text-purple-950">
-                    {formatMoney(detailedMetrics.partsProfit)}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-purple-700/90">
-                      Benta bawas puhunan ng piyesa lamang
-                    </p>
-                    {detailedMetrics.partsRevenue > 0 ? (
-                      <span className="rounded bg-purple-100 px-1.5 py-0.2 text-[9px] font-bold text-purple-800">
-                        {((detailedMetrics.partsProfit / detailedMetrics.partsRevenue) * 100).toFixed(1)}% Margin
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </>
-            )}
+            {/* Card 4: Item Gross Profit / Tubo */}
+            <div className="relative overflow-hidden rounded-2xl border border-purple-300 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-900">
+                  Total Business Profit (Tubo)
+                </span>
+                <span className="grid size-8 place-items-center rounded-xl bg-purple-600 text-white shadow-xs">
+                  <TrendingUp size={16} />
+                </span>
+              </div>
+              <p className="mt-2 font-mono text-2xl font-black text-purple-950">
+                {formatMoney(detailedMetrics.overallGrossProfit)}
+              </p>
+              <div className="mt-1 flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-purple-700/90">
+                  Tubo sa item + serbisyo {subCategories.interest ? "+ financing interest" : ""}
+                </p>
+                {detailedMetrics.computedGrandTotal > 0 ? (
+                  <span className="rounded bg-purple-100 px-1.5 py-0.2 text-[9px] font-bold text-purple-800">
+                    {((detailedMetrics.overallGrossProfit / detailedMetrics.computedGrandTotal) * 100).toFixed(1)}% Margin
+                  </span>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           {/* Tier 2: 5 Breakdown Categories Strip */}
@@ -6864,39 +6954,32 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="text-[10px] text-slate-500">Acquisition cost ng mga naibentang item</p>
             </div>
 
-            {/* Strip 2: Mark-up (Click to filter) */}
-            <div
-              role="button"
-              onClick={() => setSaleTypeFilter("MARKUP_ONLY")}
-              title="Click to filter by item mark-up only"
-              className={`rounded-xl border p-3 shadow-2xs cursor-pointer transition hover:scale-[1.01] ${
-                saleTypeFilter === "MARKUP_ONLY"
-                  ? "border-teal-600 bg-teal-100/70 ring-2 ring-teal-600 shadow-md"
-                  : "border-teal-200 bg-teal-50/40 hover:border-teal-400"
-              }`}
-            >
+            {/* Strip 2: Mark-up */}
+            <div className={`rounded-xl border p-3 shadow-2xs transition ${subCategories.markup ? "border-teal-300 bg-teal-50/50" : "border-slate-200 bg-slate-50/60 opacity-80"}`}>
               <div className="flex items-center justify-between text-teal-700">
                 <span className="text-[10px] font-black uppercase tracking-wider">Item Mark-up</span>
-                <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[9px] font-bold text-teal-800">
-                  {saleTypeFilter === "MARKUP_ONLY" ? "Filtered" : "Patong"}
+                <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${subCategories.markup ? "bg-teal-100 text-teal-800" : "bg-rose-100 text-rose-700"}`}>
+                  {subCategories.markup ? "Kasama sa Total" : "Matic Excluded"}
                 </span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-teal-950">
                 {formatMoney(detailedMetrics.totalMarkup)}
               </p>
-              <p className="text-[10px] text-teal-700/80">Total mark-up applied on items</p>
+              <p className="text-[10px] text-teal-700/80">Patong na tubo sa ibabaw ng base price</p>
             </div>
 
-            {/* Strip 3: Total Combined Profit */}
-            <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-3 shadow-2xs">
+            {/* Strip 3: Interest sa AR Credit */}
+            <div className={`rounded-xl border p-3 shadow-2xs transition ${subCategories.interest ? "border-purple-300 bg-purple-50/50" : "border-slate-200 bg-slate-50/60 opacity-80"}`}>
               <div className="flex items-center justify-between text-purple-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">Total Business Profit</span>
-                <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[9px] font-bold text-purple-800">Combined</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Financing Interest</span>
+                <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${subCategories.interest ? "bg-purple-100 text-purple-800" : "bg-rose-100 text-rose-700"}`}>
+                  {subCategories.interest ? "Kasama sa Total" : "Matic Excluded"}
+                </span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-purple-950">
-                {formatMoney(detailedMetrics.overallGrossProfit)}
+                {formatMoney(detailedMetrics.totalInterest)}
               </p>
-              <p className="text-[10px] text-purple-700/80">Item profit + labor service + interest</p>
+              <p className="text-[10px] text-purple-700/80">Interest charges mula sa credit accounts</p>
             </div>
 
             {/* Strip 4: AR (Accounts Receivable) */}
@@ -7506,45 +7589,63 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                   return sum + lineMarkup
                                 }, 0)
 
+                                const saleInterest = cr ? Math.max(effectiveTotal - cashTotal, 0) : 0
+
+                                // Sub Category: "if di sila naka check matic di sila kasama sa total.."
+                                let computedReceiptTotal = effectiveTotal
+                                if (!subCategories.markup && saleMarkupTotal > 0) {
+                                  computedReceiptTotal = Math.max(computedReceiptTotal - saleMarkupTotal, 0)
+                                }
+                                if (!subCategories.interest && saleInterest > 0) {
+                                  computedReceiptTotal = Math.max(computedReceiptTotal - saleInterest, 0)
+                                }
+
                                 return (
                                   <>
                                     <p className="font-mono font-bold text-slate-900 text-xs">
-                                      {formatMoney(effectiveTotal)}
+                                      {formatMoney(computedReceiptTotal)}
                                     </p>
-                                    {saleTypeFilter === "PARTS_ONLY" ? (
-                                      <p className="mt-0.5 font-mono text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 inline-block">
-                                        Parts: {formatMoney(salePartsTotal)}
-                                      </p>
-                                    ) : saleTypeFilter === "SERVICE_ONLY" ? (
-                                      <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
-                                        Service: {formatMoney(saleServiceTotal)}
-                                      </p>
-                                    ) : saleTypeFilter === "MARKUP_ONLY" ? (
-                                      <p className="mt-0.5 font-mono text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 inline-block">
-                                        Patong: +{formatMoney(saleMarkupTotal)}
-                                      </p>
-                                    ) : null}
-                                    {priceTierFilter ? (
-                                      <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
-                                        T{priceTierFilter}: {formatMoney(
-                                          (sale.items || [])
-                                            .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
-                                            .reduce(
-                                              (sum, it) =>
-                                                sum +
-                                                Number(
-                                                  it.lineTotal ||
-                                                    Number(it.unitPrice || 0) *
-                                                      Number(it.quantity || 1) ||
-                                                    0
-                                                ),
-                                              0
-                                            )
-                                        )}
-                                      </p>
-                                    ) : null}
+                                    <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                                      {!subCategories.markup && saleMarkupTotal > 0 ? (
+                                        <span className="font-mono text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1 py-0.2">
+                                          Excl. Mark-up (-{formatMoney(saleMarkupTotal)})
+                                        </span>
+                                      ) : subCategories.markup && saleMarkupTotal > 0 ? (
+                                        <span className="font-mono text-[9px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded px-1 py-0.2">
+                                          +Mark-up: {formatMoney(saleMarkupTotal)}
+                                        </span>
+                                      ) : null}
+                                      {!subCategories.interest && saleInterest > 0 ? (
+                                        <span className="font-mono text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1 py-0.2">
+                                          Excl. Interest (-{formatMoney(saleInterest)})
+                                        </span>
+                                      ) : subCategories.interest && saleInterest > 0 ? (
+                                        <span className="font-mono text-[9px] font-bold text-purple-800 bg-purple-50 border border-purple-200 rounded px-1 py-0.2">
+                                          +Interest: {formatMoney(saleInterest)}
+                                        </span>
+                                      ) : null}
+                                      {selectedPriceTiers.length > 0 ? (
+                                        <span className="font-mono text-[9px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1 py-0.2">
+                                          Tiers [{selectedPriceTiers.join(",")}]: {formatMoney(
+                                            (sale.items || [])
+                                              .filter((it) => selectedPriceTiers.includes(Number(it.priceTier || 1)))
+                                              .reduce(
+                                                (sum, it) =>
+                                                  sum +
+                                                  Number(
+                                                    it.lineTotal ||
+                                                      Number(it.unitPrice || 0) *
+                                                        Number(it.quantity || 1) ||
+                                                      0
+                                                  ),
+                                                0
+                                              )
+                                          )}
+                                        </span>
+                                      ) : null}
+                                    </div>
                                     {cr && effectiveBal > 0 ? (
-                                      <p className="text-[10px] text-blue-700 font-mono">
+                                      <p className="text-[10px] text-blue-700 font-mono mt-0.5">
                                         Bal: {formatMoney(effectiveBal)}
                                       </p>
                                     ) : null}
@@ -7630,6 +7731,38 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                         return sum + lineMarkup
                       }, 0)
 
+                      const cr = sale.creditAccount
+                      const cashTotal = Number(
+                        cr?.cashPromoTotalAmount ||
+                          cr?.sourceTotalAmountSnapshot ||
+                          sale.grandTotal ||
+                          sale.subtotal ||
+                          0
+                      )
+                      const rawBasis = Number(cr?.termBasis || 0)
+                      const termKey = cr?.term
+                      const basis =
+                        rawBasis > 0 && rawBasis < 1
+                          ? rawBasis
+                          : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
+                      const savedRegular = Number(cr?.regularPriceTotalAmount || 0)
+                      const effectiveTotal =
+                        basis < 1 && cashTotal > 0
+                          ? (savedRegular > cashTotal
+                              ? savedRegular
+                              : Math.round((cashTotal / basis) * 100) / 100)
+                          : (savedRegular > 0 ? savedRegular : Number(sale.grandTotal || 0))
+
+                      const saleInterest = cr ? Math.max(effectiveTotal - cashTotal, 0) : 0
+
+                      let computedReceiptTotal = effectiveTotal
+                      if (!subCategories.markup && saleMarkupTotal > 0) {
+                        computedReceiptTotal = Math.max(computedReceiptTotal - saleMarkupTotal, 0)
+                      }
+                      if (!subCategories.interest && saleInterest > 0) {
+                        computedReceiptTotal = Math.max(computedReceiptTotal - saleInterest, 0)
+                      }
+
                       return (
                         <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs" key={sale.id}>
                           <div className="flex items-start justify-between gap-2">
@@ -7639,30 +7772,37 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                             </div>
                             <div className="text-right">
                               <p className="font-mono font-bold text-slate-900">
-                                {formatMoney(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal)}
+                                {formatMoney(computedReceiptTotal)}
                               </p>
-                              {saleTypeFilter === "PARTS_ONLY" ? (
-                                <p className="mt-0.5 font-mono text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 inline-block">
-                                  Parts: {formatMoney(salePartsTotal)}
-                                </p>
-                              ) : saleTypeFilter === "SERVICE_ONLY" ? (
-                                <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
-                                  Service: {formatMoney(saleServiceTotal)}
-                                </p>
-                              ) : saleTypeFilter === "MARKUP_ONLY" ? (
-                                <p className="mt-0.5 font-mono text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 inline-block">
-                                  Patong: +{formatMoney(saleMarkupTotal)}
-                                </p>
-                              ) : null}
-                              {priceTierFilter ? (
-                                <p className="mt-0.5 font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
-                                  T{priceTierFilter}: {formatMoney(
-                                    (sale.items || [])
-                                      .filter((it) => Number(it.priceTier || 1) === Number(priceTierFilter))
-                                      .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
-                                  )}
-                                </p>
-                              ) : null}
+                              <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                                {!subCategories.markup && saleMarkupTotal > 0 ? (
+                                  <span className="font-mono text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1 py-0.2">
+                                    Excl. Mark-up (-{formatMoney(saleMarkupTotal)})
+                                  </span>
+                                ) : subCategories.markup && saleMarkupTotal > 0 ? (
+                                  <span className="font-mono text-[9px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded px-1 py-0.2">
+                                    +Mark-up: {formatMoney(saleMarkupTotal)}
+                                  </span>
+                                ) : null}
+                                {!subCategories.interest && saleInterest > 0 ? (
+                                  <span className="font-mono text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1 py-0.2">
+                                    Excl. Interest (-{formatMoney(saleInterest)})
+                                  </span>
+                                ) : subCategories.interest && saleInterest > 0 ? (
+                                  <span className="font-mono text-[9px] font-bold text-purple-800 bg-purple-50 border border-purple-200 rounded px-1 py-0.2">
+                                    +Interest: {formatMoney(saleInterest)}
+                                  </span>
+                                ) : null}
+                                {selectedPriceTiers.length > 0 ? (
+                                  <span className="font-mono text-[9px] font-bold text-amber-800 bg-amber-100/80 border border-amber-200 rounded px-1 py-0.2">
+                                    Tiers [{selectedPriceTiers.join(",")}]: {formatMoney(
+                                      (sale.items || [])
+                                        .filter((it) => selectedPriceTiers.includes(Number(it.priceTier || 1)))
+                                        .reduce((sum, it) => sum + Number(it.lineTotal || (Number(it.unitPrice || 0) * Number(it.quantity || 1)) || 0), 0)
+                                    )}
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                           <p className="mt-1.5 text-slate-700">{sale.customer?.fullName || "Walk-in customer"}</p>
