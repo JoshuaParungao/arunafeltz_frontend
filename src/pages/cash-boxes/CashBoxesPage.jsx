@@ -45,6 +45,7 @@ const OWNER_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN"])
 const CASH_IN_TYPES = new Set(["CASH_IN", "ADJUSTMENT_IN", "SALE_PAYMENT", "CREDIT_COLLECTION", "SERVICE_PAYMENT"])
 
 const EXPENSE_CATEGORIES = [
+  { id: "SUPPLIER_PAYMENT", label: "Supplier Payment / Delivery", icon: Building2, color: "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400" },
   { id: "MEALS_SNACKS", label: "Meals & Staff Snacks", icon: Utensils, color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400" },
   { id: "LOGISTICS_COURIER", label: "Logistics & Delivery", icon: Truck, color: "text-blue-600 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400" },
   { id: "STORE_SUPPLIES", label: "Store Supplies & Cleaning", icon: Sparkles, color: "text-purple-600 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400" },

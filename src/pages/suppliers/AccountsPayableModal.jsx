@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
+  Banknote,
   Building2,
   Calendar,
   CheckCircle2,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react"
 import { getAccountsPayable } from "../../features/suppliers/suppliers.api"
 import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
+import RecordSupplierPaymentModal from "./RecordSupplierPaymentModal"
 
 function formatMoney(value) {
   const n = Number(value || 0)
@@ -51,6 +53,8 @@ export default function AccountsPayableModal({
   const [data, setData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
+  const [noticeMessage, setNoticeMessage] = useState("")
+  const [paymentModalItem, setPaymentModalItem] = useState(null)
 
   // Filter States
   const [search, setSearch] = useState("")
@@ -115,6 +119,7 @@ export default function AccountsPayableModal({
   // Recalculate totals based on filtered items
   const totals = useMemo(() => {
     let amount = 0
+    let paid = 0
     let balance = 0
     let overdueCount = 0
     let overdueAmount = 0
@@ -122,6 +127,7 @@ export default function AccountsPayableModal({
 
     filteredItems.forEach((it) => {
       amount += Number(it.amount || 0)
+      paid += Number(it.paid || 0)
       balance += Number(it.balance || 0)
       if (it.supplierId) supplierSet.add(it.supplierId)
       if (it.isOverdue) {
@@ -132,6 +138,7 @@ export default function AccountsPayableModal({
 
     return {
       totalAmount: amount,
+      totalPaid: paid,
       totalBalance: balance,
       totalCount: filteredItems.length,
       supplierCount: supplierSet.size,
@@ -158,14 +165,18 @@ export default function AccountsPayableModal({
         ["Date", (it) => formatDate(it.date)],
         ["Supplier", (it) => it.supplierName || "-"],
         ["Invoice Amount", (it) => `PHP ${formatMoney(it.amount)}`],
+        ["Paid Amount", (it) => `PHP ${formatMoney(it.paid)}`],
         ["Outstanding Balance", (it) => `PHP ${formatMoney(it.balance)}`],
+        ["Status", (it) => (it.balance <= 0 ? "Paid" : Number(it.paid || 0) > 0 ? "Partial" : "Unpaid")],
         ["Due Date", (it) => formatDate(it.dueDate)],
         ["Aging Status", (it) => (it.isOverdue ? `Overdue (${it.daysOverdue}d)` : "Current")],
       ],
       records: targetItems,
       totals: [
         ["Total Records", String(targetItems.length)],
-        ["Total Balance", `PHP ${formatMoney(totals.totalBalance)}`],
+        ["Total Invoiced Amount", `PHP ${formatMoney(totals.totalAmount)}`],
+        ["Total Settled / Paid", `PHP ${formatMoney(totals.totalPaid)}`],
+        ["Total Outstanding Balance", `PHP ${formatMoney(totals.totalBalance)}`],
         ["Total Overdue", `PHP ${formatMoney(totals.overdueAmount)}`],
       ],
       branch: selectedBranch || user?.branch,
@@ -195,13 +206,15 @@ export default function AccountsPayableModal({
     const cleanSub = supplierName ? `_${supplierName.replace(/[^a-zA-Z0-9]/g, "_")}` : "_all_suppliers"
 
     if (type === "summary") {
-      // Clean 5-column format matching the photo
+      // Clean 7-column format
       const headers = [
         "Transactionno",
         "Date",
         "Supplier",
-        "Amount",
+        "Invoice Amount",
+        "Paid Amount",
         "Balance",
+        "Payment Status",
       ]
 
       const rows = targetItems.map((it) => [
@@ -209,13 +222,15 @@ export default function AccountsPayableModal({
         formatDate(it.date),
         it.supplierName || "-",
         Number(it.amount || 0),
+        Number(it.paid || 0),
         Number(it.balance || 0),
+        it.balance <= 0 ? "PAID" : Number(it.paid || 0) > 0 ? "PARTIALLY_PAID" : "UNPAID",
       ])
 
       exportReportExcel({
         title: supplierName
           ? `OUTSTANDING ACCOUNTS PAYABLE — ${supplierName.toUpperCase()}`
-          : "OUTSTANDING ACCOUNTS PAYABLE REPORT",
+          : "OUTSTANDING ACCOUNTS PAYABLE (STATEMENT SUMMARY)",
         branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
         generatedBy: user?.fullName || user?.username || "System",
         filenamePrefix: `accounts_payable_summary${cleanSub}`,
@@ -228,7 +243,7 @@ export default function AccountsPayableModal({
       const headers = [
         "Transaction No",
         "Receiving Code",
-        "Supplier Delivery/DR No",
+        "Delivery Receipt No",
         "Supplier Invoice No",
         "Reference No",
         "Receiving Date",
@@ -238,7 +253,9 @@ export default function AccountsPayableModal({
         "Contact Number",
         "Payment Terms",
         "Invoice Amount (PHP)",
+        "Paid Amount (PHP)",
         "Outstanding Balance (PHP)",
+        "Payment Status",
         "Due Date",
         "Days Overdue",
         "Aging Status",
@@ -258,7 +275,9 @@ export default function AccountsPayableModal({
         it.contactNo || "-",
         it.paymentTerms || "COD",
         Number(it.amount || 0),
+        Number(it.paid || 0),
         Number(it.balance || 0),
+        it.balance <= 0 ? "PAID" : Number(it.paid || 0) > 0 ? "PARTIALLY_PAID" : "UNPAID",
         formatDate(it.dueDate),
         it.daysOverdue || 0,
         it.isOverdue ? `Overdue (${it.daysOverdue} days)` : "Current",
@@ -478,19 +497,19 @@ export default function AccountsPayableModal({
                 {formatMoney(totals.totalBalance)}
               </p>
               <p className="text-[10px] text-slate-400 font-medium">
-                {totals.totalCount} active payables
+                {totals.totalCount} active deliveries
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Active Suppliers
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 shadow-2xs">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                Total Settled / Paid
               </p>
-              <p className="mt-1 font-mono text-base font-black text-slate-900">
-                {totals.supplierCount}
+              <p className="mt-1 font-mono text-base font-black text-emerald-700">
+                {formatMoney(totals.totalPaid)}
               </p>
-              <p className="text-[10px] text-slate-400 font-medium">
-                With unpaid deliveries
+              <p className="text-[10px] text-emerald-700/80 font-medium">
+                Disbursed to suppliers
               </p>
             </div>
 
@@ -502,7 +521,7 @@ export default function AccountsPayableModal({
                 {formatMoney(totals.totalAmount)}
               </p>
               <p className="text-[10px] text-slate-400 font-medium">
-                Gross received goods
+                Gross received deliveries
               </p>
             </div>
 
@@ -518,6 +537,23 @@ export default function AccountsPayableModal({
               </p>
             </div>
           </div>
+
+          {/* Notice Message */}
+          {noticeMessage ? (
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />
+                <span>{noticeMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNoticeMessage("")}
+                className="text-emerald-700 hover:text-emerald-950 text-[11px] font-bold"
+              >
+                Dismiss
+              </button>
+            </div>
+          ) : null}
 
           {/* Error Message */}
           {errorMessage ? (
@@ -544,7 +580,7 @@ export default function AccountsPayableModal({
               </p>
             </div>
           ) : (
-            /* Modern Minimalist Table (matching user screenshot columns with clean styling) */
+            /* Modern Minimalist Table */
             <div className="border border-slate-300 rounded-lg overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
@@ -562,7 +598,13 @@ export default function AccountsPayableModal({
                       Amount
                     </th>
                     <th className="px-3.5 py-2.5 font-bold text-right border-r border-slate-300">
+                      Paid
+                    </th>
+                    <th className="px-3.5 py-2.5 font-bold text-right border-r border-slate-300">
                       Balance
+                    </th>
+                    <th className="px-3.5 py-2.5 font-bold text-center border-r border-slate-300">
+                      Status
                     </th>
                     <th className="no-print px-3 py-2.5 text-center font-bold">
                       Account Action
@@ -603,26 +645,53 @@ export default function AccountsPayableModal({
                           maximumFractionDigits: 2,
                         })}
                       </td>
-                      <td className="px-3.5 py-2 font-mono font-bold text-right text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                      <td className="px-3.5 py-2 font-mono text-right text-emerald-700 font-bold border-r border-slate-200 whitespace-nowrap">
+                        {Number(item.paid || 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3.5 py-2 font-mono font-black text-right text-[var(--color-maroon)] border-r border-slate-200 whitespace-nowrap">
                         {Number(item.balance || 0).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </td>
+                      <td className="px-3 py-2 text-center border-r border-slate-200 whitespace-nowrap">
+                        {item.balance <= 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-300 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                            <CheckCircle2 size={11} /> Paid
+                          </span>
+                        ) : Number(item.paid || 0) > 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2 py-0.5 text-[10px] font-black text-amber-800">
+                            Partial
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                            Unpaid
+                          </span>
+                        )}
+                      </td>
                       <td className="no-print px-3 py-1.5 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedSupplierId(item.supplierId)}
-                            className="rounded px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
-                            title="Filter table to this supplier"
-                          >
-                            Filter
-                          </button>
+                          {item.balance > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentModalItem(item)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-maroon)] bg-[var(--color-maroon)] px-2.5 py-1 text-[11px] font-black text-white hover:opacity-90 transition shadow-2xs cursor-pointer"
+                              title="Disburse payment / pay supplier"
+                            >
+                              <Banknote size={12} /> Pay / Settle
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">
+                              <CheckCircle2 size={12} className="text-emerald-600" /> Settled
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleExportExcel("detailed", item.supplierId, item.supplierName)}
-                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition"
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition cursor-pointer"
                             title="Export this supplier's detailed report to Excel"
                           >
                             <FileSpreadsheet size={11} /> Excel
@@ -633,10 +702,10 @@ export default function AccountsPayableModal({
                   ))}
                 </tbody>
                 <tfoot>
-                  {/* Distinctive Shaded Total Balance Row (exactly like screenshot bottom bar) */}
+                  {/* Distinctive Shaded Total Balance Row */}
                   <tr className="border-t-2 border-slate-400 bg-slate-200/90 font-mono text-xs font-black text-slate-900">
                     <td colSpan={3} className="px-3.5 py-2.5 text-right font-bold uppercase tracking-wider text-slate-700 border-r border-slate-300">
-                      Total Outstanding Balance:
+                      Total Summary:
                     </td>
                     <td className="px-3.5 py-2.5 text-right font-bold border-r border-slate-300">
                       {Number(totals.totalAmount).toLocaleString("en-US", {
@@ -644,14 +713,20 @@ export default function AccountsPayableModal({
                         maximumFractionDigits: 2,
                       })}
                     </td>
-                    <td className="px-3.5 py-2.5 text-right font-black text-slate-950 text-sm border-r border-slate-300">
+                    <td className="px-3.5 py-2.5 text-right font-bold text-emerald-800 border-r border-slate-300">
+                      {Number(totals.totalPaid).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                    <td className="px-3.5 py-2.5 text-right font-black text-[var(--color-maroon)] text-sm border-r border-slate-300">
                       {Number(totals.totalBalance).toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </td>
-                    <td className="no-print px-3 py-2 text-center text-[10px] font-bold text-slate-500">
-                      {filteredItems.length} records
+                    <td colSpan={2} className="no-print px-3 py-2 text-center text-[10px] font-bold text-slate-600">
+                      {filteredItems.length} delivery record(s)
                     </td>
                   </tr>
                 </tfoot>
@@ -695,6 +770,20 @@ export default function AccountsPayableModal({
           </div>
         </footer>
       </section>
+
+      {/* Record Supplier Payment Modal */}
+      {paymentModalItem ? (
+        <RecordSupplierPaymentModal
+          item={paymentModalItem}
+          onClose={() => setPaymentModalItem(null)}
+          onSuccess={() => {
+            loadPayables()
+            setNoticeMessage("Supplier payment recorded successfully and logged in Store Expenses.")
+          }}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      ) : null}
     </div>
   )
 }

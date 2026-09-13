@@ -34,3 +34,8 @@ export async function getAccountsPayable(params = {}) {
   const response = await apiClient.get("/suppliers/accounts-payable", { params })
   return response.data
 }
+
+export async function recordSupplierPayment(receivingId, payload) {
+  const response = await apiClient.post(`/suppliers/accounts-payable/${receivingId}/payments`, payload)
+  return response.data
+}
