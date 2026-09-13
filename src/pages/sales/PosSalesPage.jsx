@@ -7577,17 +7577,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             <div className="p-8 text-center">
               <ReceiptText className="mx-auto text-slate-300" size={32} />
               <p className="mt-2 text-xs font-bold text-slate-700">
-                No {saleTypeFilter === "PARTS_ONLY" ? "parts / product" : saleTypeFilter === "SERVICE_ONLY" ? "service" : saleTypeFilter === "MARKUP_ONLY" ? "mark-up" : "sales"} records found for {DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod}
+                No sales records found for {DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod}
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-400">Try selecting another timeframe or resetting your sale filter.</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Try selecting another timeframe or resetting your filters.</p>
               <div className="mt-3 flex items-center justify-center gap-2">
-                {saleTypeFilter !== "ALL" ? (
+                {!mainCategories.allSales ? (
                   <button
                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
-                    onClick={() => setSaleTypeFilter("ALL")}
+                    onClick={handleResetCategoryFilters}
                     type="button"
                   >
-                    Reset Sale Filter
+                    Reset Category Filter
                   </button>
                 ) : null}
                 <button
