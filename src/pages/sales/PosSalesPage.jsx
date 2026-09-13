@@ -5005,26 +5005,35 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     let totalTransactions = 0
     let completedCount = 0
 
-    // Revenue categories
-    let partsRevenue = 0 // Kinita sa parts lang
+    // Revenue streams
+    let itemsRevenue = 0 // Kinita sa items (peripherals, devices)
+    let partsRevenue = 0 // Kinita sa parts (PC internal components)
     let serviceRevenue = 0 // Kinita sa service lang
-    let combinedBaseRevenue = 0 // Kinita sa service and parts
 
-    // Margin, Markup, and Profit
-    let totalMarkup = 0 // Mark up
-    let totalCost = 0 // Cost ng pisa
-    let estimatedProfit = 0 // Tubo / Net Margin
+    // Cost & Markup
+    let itemsCost = 0
+    let partsCost = 0
+    let itemsMarkup = 0
+    let partsMarkup = 0
+    let totalMarkup = 0
+    let totalCost = 0
 
     // Financing & Credit
     let totalInterest = 0 // Interest / financing charges
     let totalArBalance = 0 // Accounts Receivable (unpaid balance)
-    let totalCollectedCash = 0 // Aktwal na perang nakolekta
+
+    // Payments: Physical Cash vs Online Real-Time
+    let totalPhysicalCash = 0 // Actual paper cash in drawer
+    let totalOnlinePayments = 0 // Real-time electronic payments
+    let totalGcash = 0
+    let totalMaya = 0
+    let totalBankTransfer = 0
 
     // Grand Totals
     let computedGrandTotal = 0
     let kabuuangSale = 0 // Raw kabuuang sale
 
-    // Sales Person / Salesman aggregation (Highest Sale Account)
+    // Sales Person / Salesman aggregation
     const salesPersonsMap = {}
 
     filteredSalesByDate.forEach((sale) => {
@@ -5050,10 +5059,51 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         }
       }
 
-      // Cash & collected
-      const upfrontPaid = Number(sale.amountPaid || 0)
-      const creditCollected = sale.creditAccount ? Number(sale.creditAccount.totalCollected || 0) : 0
-      totalCollectedCash += (upfrontPaid + creditCollected)
+      // Track Payments (Physical Cash vs Online Real-Time vs AR)
+      const salePayments = Array.isArray(sale.payments) && sale.payments.length > 0 ? sale.payments : []
+      if (salePayments.length > 0) {
+        salePayments.forEach((p) => {
+          const amt = Number(p.amount || 0)
+          const m = String(p.paymentMethod || "").toUpperCase()
+          const ref = String(p.referenceNo || "").toLowerCase()
+          const rem = String(p.remarks || "").toLowerCase()
+
+          if (m === "GCASH" || ref.includes("gcash") || rem.includes("gcash")) {
+            totalOnlinePayments += amt
+            totalGcash += amt
+          } else if (m === "MAYA" || m === "PAYMAYA" || ref.includes("maya") || rem.includes("maya")) {
+            totalOnlinePayments += amt
+            totalMaya += amt
+          } else if (m === "BANK_TRANSFER" || ref.includes("bank") || rem.includes("bank") || ref.includes("transfer") || rem.includes("transfer")) {
+            totalOnlinePayments += amt
+            totalBankTransfer += amt
+          } else if (isOnlinePaymentMethod(m, rem, ref)) {
+            totalOnlinePayments += amt
+            totalBankTransfer += amt
+          } else if (m === "CASH") {
+            totalPhysicalCash += amt
+          } else {
+            totalPhysicalCash += amt
+          }
+        })
+      } else {
+        const upfrontPaid = Number(sale.amountPaid || 0)
+        if (isOnlineSale(sale)) {
+          totalOnlinePayments += upfrontPaid
+          const m = String(sale.paymentMethod || "").toUpperCase()
+          if (m.includes("GCASH")) totalGcash += upfrontPaid
+          else if (m.includes("MAYA")) totalMaya += upfrontPaid
+          else totalBankTransfer += upfrontPaid
+        } else if (!sale.creditAccount && upfrontPaid > 0) {
+          totalPhysicalCash += upfrontPaid
+        }
+      }
+
+      // Credit Collections
+      if (sale.creditAccount) {
+        const creditCollected = Number(sale.creditAccount.totalCollected || 0)
+        totalPhysicalCash += creditCollected
+      }
 
       // Credit & Interest
       let saleInterest = 0
@@ -5082,6 +5132,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       let saleItemsFromItems = 0
       let salePartsMarkup = 0
       let saleItemsMarkup = 0
+      let salePartsCost = 0
+      let saleItemsCost = 0
 
       const items = Array.isArray(sale.items) ? sale.items : []
       items.forEach((line) => {
@@ -5099,9 +5151,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           if (unitCost <= 0 && Number(line.baseUnitPriceSnapshot || 0) > 0) {
             unitCost = Number(line.baseUnitPriceSnapshot)
           }
-          if (unitCost > 0) {
-            totalCost += (unitCost * qty)
-          }
+          const costTotal = unitCost > 0 ? unitCost * qty : 0
 
           // Markup (Patong sa Item)
           const markupPct = Number(line.markupPercent || 0)
@@ -5122,25 +5172,30 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           if (isPart) {
             salePartsFromItems += lineTotal
             salePartsMarkup += lineMarkup
+            salePartsCost += costTotal
           } else {
             saleItemsFromItems += lineTotal
             saleItemsMarkup += lineMarkup
+            saleItemsCost += costTotal
           }
         }
       })
 
       const salePhysicalTotal = salePartsFromItems + saleItemsFromItems
       const salePhysicalMarkup = salePartsMarkup + saleItemsMarkup
-      saleMarkupFromItems = salePhysicalMarkup
-      totalMarkup += salePhysicalMarkup
+      const salePhysicalCost = salePartsCost + saleItemsCost
 
-      if (items.length > 0) {
-        partsRevenue += salePhysicalTotal
-        serviceRevenue += (saleServiceFromItems + saleServiceCharge)
-      } else {
-        serviceRevenue += saleServiceCharge
-        partsRevenue += Math.max(Number(sale.grandTotal || 0) - saleServiceCharge, 0)
-      }
+      partsRevenue += salePartsFromItems
+      partsMarkup += salePartsMarkup
+      partsCost += salePartsCost
+
+      itemsRevenue += saleItemsFromItems
+      itemsMarkup += saleItemsMarkup
+      itemsCost += saleItemsCost
+
+      totalMarkup += salePhysicalMarkup
+      totalCost += salePhysicalCost
+      serviceRevenue += (saleServiceFromItems + saleServiceCharge)
 
       // Check if sale matches Main Category
       const hasParts = salePartsFromItems > 0
@@ -5222,13 +5277,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       }
     })
 
-    combinedBaseRevenue = partsRevenue + serviceRevenue
-    const partsCost = totalCost
-    // Effective parts profit respects subCategories.markup
+    const effectiveItemsProfit = subCategories.markup
+      ? Math.max(itemsRevenue - itemsCost, 0)
+      : Math.max(itemsRevenue - itemsMarkup - itemsCost, 0)
+
     const effectivePartsProfit = subCategories.markup
       ? Math.max(partsRevenue - partsCost, 0)
-      : Math.max(partsRevenue - totalMarkup - partsCost, 0)
-    const overallGrossProfit = effectivePartsProfit + serviceRevenue + (subCategories.interest ? totalInterest : 0)
+      : Math.max(partsRevenue - partsMarkup - partsCost, 0)
+
+    const combinedPhysicalProfit = effectiveItemsProfit + effectivePartsProfit
+    const overallGrossProfit = combinedPhysicalProfit + serviceRevenue + (subCategories.interest ? totalInterest : 0)
 
     const salesPersonsList = Object.values(salesPersonsMap).sort((a, b) => b.totalSales - a.totalSales)
     const topSalesPerson = salesPersonsList.length > 0 ? salesPersonsList[0] : null
@@ -5236,16 +5294,31 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     return {
       totalTransactions,
       completedCount,
+      itemsRevenue,
+      effectiveItemsRevenue: subCategories.markup ? itemsRevenue : Math.max(itemsRevenue - itemsMarkup, 0),
+      itemsCost,
+      itemsMarkup,
+      itemsProfit: effectiveItemsProfit,
       partsRevenue,
-      effectivePartsRevenue: subCategories.markup ? partsRevenue : Math.max(partsRevenue - totalMarkup, 0),
+      effectivePartsRevenue: subCategories.markup ? partsRevenue : Math.max(partsRevenue - partsMarkup, 0),
       partsCost,
+      partsMarkup,
       partsProfit: effectivePartsProfit,
+      physicalRevenue: itemsRevenue + partsRevenue,
+      effectivePhysicalRevenue: subCategories.markup
+        ? (itemsRevenue + partsRevenue)
+        : Math.max(itemsRevenue + partsRevenue - totalMarkup, 0),
       serviceRevenue,
-      combinedBaseRevenue,
       totalMarkup,
+      totalCost,
       totalInterest,
       totalArBalance,
-      totalCollectedCash,
+      totalPhysicalCash,
+      totalOnlinePayments,
+      totalGcash,
+      totalMaya,
+      totalBankTransfer,
+      totalCollectedCash: totalPhysicalCash + totalOnlinePayments,
       estimatedProfit: overallGrossProfit,
       overallGrossProfit,
       computedGrandTotal,
@@ -7089,53 +7162,165 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                         : "Kasama ang Interest (Excluded ang Mark-up)"}
                 </span>
                 <span className="rounded bg-emerald-200/80 px-1.5 py-0.2 text-[9px] font-black text-emerald-950">
-                  {mainCategories.allSales ? "All Streams" : "Filtered"}
+                  {mainCategories.allSales
+                    ? "All Sales"
+                    : [
+                        mainCategories.items ? "Items" : null,
+                        mainCategories.parts ? "Parts" : null,
+                        mainCategories.online ? "Online" : null,
+                        mainCategories.ar ? "AR" : null,
+                        mainCategories.services ? "Services" : null,
+                      ].filter(Boolean).join(" + ")}
                 </span>
               </div>
             </div>
 
-            {/* Card 2: Items & Parts Gross Sales */}
-            <div className="relative overflow-hidden rounded-2xl border border-blue-300 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 p-4 shadow-2xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
-                  Items & Parts Gross Sales
-                </span>
-                <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
-                  <PackageSearch size={16} />
-                </span>
-              </div>
-              <p className="mt-2 font-mono text-2xl font-black text-blue-950">
-                {formatMoney(detailedMetrics.effectivePartsRevenue)}
-              </p>
-              <div className="mt-1 flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-blue-700/90">
-                  {subCategories.markup ? "Kasama ang Mark-up sa Items" : "Puhunan / Base lamang (Excluded Patong)"}
+            {/* Card 2: Contextual based on active category (Items vs Parts vs Online vs AR vs Physical) */}
+            {mainCategories.items && !mainCategories.parts ? (
+              <div className="relative overflow-hidden rounded-2xl border border-blue-300 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 p-4 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
+                    Items Gross Sales
+                  </span>
+                  <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
+                    <PackageSearch size={16} />
+                  </span>
+                </div>
+                <p className="mt-2 font-mono text-2xl font-black text-blue-950">
+                  {formatMoney(detailedMetrics.effectiveItemsRevenue)}
                 </p>
-                <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${subCategories.markup ? "bg-blue-100 text-blue-800" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
-                  {subCategories.markup ? "+Mark-up" : "Excl. Mark-up"}
-                </span>
+                <div className="mt-1 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-blue-700/90">
+                    {subCategories.markup ? "Kasama ang Mark-up sa Items" : "Puhunan lamang (Excluded Patong)"}
+                  </p>
+                  <span className="rounded bg-blue-100 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">
+                    📦 Items Only
+                  </span>
+                </div>
               </div>
-            </div>
-
-            {/* Card 3: Services & Labor Revenue */}
-            <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 p-4 shadow-2xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-900">
-                  Services & Labor Revenue
-                </span>
-                <span className="grid size-8 place-items-center rounded-xl bg-amber-500 text-white shadow-xs">
-                  <Wrench size={16} />
-                </span>
+            ) : mainCategories.parts && !mainCategories.items ? (
+              <div className="relative overflow-hidden rounded-2xl border border-indigo-300 bg-gradient-to-br from-indigo-50 via-white to-indigo-50/40 p-4 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-900">
+                    Parts Gross Sales
+                  </span>
+                  <span className="grid size-8 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
+                    <Cpu size={16} />
+                  </span>
+                </div>
+                <p className="mt-2 font-mono text-2xl font-black text-indigo-950">
+                  {formatMoney(detailedMetrics.effectivePartsRevenue)}
+                </p>
+                <div className="mt-1 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-indigo-700/90">
+                    {subCategories.markup ? "Kasama ang Mark-up sa Parts" : "Puhunan lamang (Excluded Patong)"}
+                  </p>
+                  <span className="rounded bg-indigo-100 px-1.5 py-0.2 text-[9px] font-bold text-indigo-800">
+                    ⚙️ Parts Only
+                  </span>
+                </div>
               </div>
-              <p className="mt-2 font-mono text-2xl font-black text-amber-950">
-                {formatMoney(detailedMetrics.serviceRevenue)}
-              </p>
-              <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
-                Revenue mula sa labor, repair, at service charges
-              </p>
-            </div>
+            ) : mainCategories.online && !mainCategories.items && !mainCategories.parts ? (
+              <div className="relative overflow-hidden rounded-2xl border border-teal-300 bg-gradient-to-br from-teal-50 via-white to-teal-50/40 p-4 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-teal-900">
+                    Online Real-Time Sales
+                  </span>
+                  <span className="grid size-8 place-items-center rounded-xl bg-teal-600 text-white shadow-xs">
+                    <TrendingUp size={16} />
+                  </span>
+                </div>
+                <p className="mt-2 font-mono text-2xl font-black text-teal-950">
+                  {formatMoney(detailedMetrics.totalOnlinePayments)}
+                </p>
+                <div className="mt-1 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-teal-700/90">
+                    GCash, Maya, at Bank Transfers
+                  </p>
+                  <span className="rounded bg-teal-100 px-1.5 py-0.2 text-[9px] font-bold text-teal-800">
+                    🌐 Real-Time
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="relative overflow-hidden rounded-2xl border border-blue-300 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 p-4 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
+                    Items & Parts Gross Sales
+                  </span>
+                  <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
+                    <PackageSearch size={16} />
+                  </span>
+                </div>
+                <p className="mt-2 font-mono text-2xl font-black text-blue-950">
+                  {formatMoney(detailedMetrics.effectivePhysicalRevenue)}
+                </p>
+                <div className="mt-1 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-blue-700/90">
+                    {subCategories.markup ? "Kasama ang Mark-up sa Items & Parts" : "Puhunan / Base lamang (Excluded Patong)"}
+                  </p>
+                  <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${subCategories.markup ? "bg-blue-100 text-blue-800" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
+                    {subCategories.markup ? "+Mark-up" : "Excl. Mark-up"}
+                  </span>
+                </div>
+              </div>
+            )}
 
-            {/* Card 4: Item Gross Profit / Tubo */}
+            {/* Card 3: Contextual (Services vs Online E-Wallets vs AR Interest) */}
+            {mainCategories.online && !mainCategories.services ? (
+              <div className="relative overflow-hidden rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 p-4 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900">
+                    GCash & Maya Revenue
+                  </span>
+                  <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                    <TrendingUp size={16} />
+                  </span>
+                </div>
+                <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
+                  {formatMoney(detailedMetrics.totalGcash + detailedMetrics.totalMaya)}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold text-emerald-700/90">
+                  E-Wallets: GCash ({formatMoney(detailedMetrics.totalGcash)}) + Maya ({formatMoney(detailedMetrics.totalMaya)})
+                </p>
+              </div>
+            ) : mainCategories.ar && !mainCategories.services ? (
+              <div className="relative overflow-hidden rounded-2xl border border-purple-300 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-900">
+                    Financing Interest Earned
+                  </span>
+                  <span className="grid size-8 place-items-center rounded-xl bg-purple-600 text-white shadow-xs">
+                    <TrendingUp size={16} />
+                  </span>
+                </div>
+                <p className="mt-2 font-mono text-2xl font-black text-purple-950">
+                  {formatMoney(detailedMetrics.totalInterest)}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold text-purple-700/90">
+                  Interest charges mula sa credit accounts
+                </p>
+              </div>
+            ) : (
+              <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 p-4 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-900">
+                    Services & Labor Revenue
+                  </span>
+                  <span className="grid size-8 place-items-center rounded-xl bg-amber-500 text-white shadow-xs">
+                    <Wrench size={16} />
+                  </span>
+                </div>
+                <p className="mt-2 font-mono text-2xl font-black text-amber-950">
+                  {formatMoney(detailedMetrics.serviceRevenue)}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
+                  Revenue mula sa labor, repair, at service charges
+                </p>
+              </div>
+            )}
+
+            {/* Card 4: Total Business Profit / Tubo */}
             <div className="relative overflow-hidden rounded-2xl border border-purple-300 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-purple-900">
@@ -7161,21 +7346,21 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </div>
           </div>
 
-          {/* Tier 2: 5 Breakdown Categories Strip */}
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
-            {/* Strip 1: Item Cost / Puhunan */}
+          {/* Tier 2: 6 Breakdown Categories Strip (Aligned directly to Main & Sub Category Checkboxes) */}
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {/* Strip 1: Item & Parts Cost / Puhunan */}
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
               <div className="flex items-center justify-between text-slate-500">
                 <span className="text-[10px] font-black uppercase tracking-wider">Item Cost (Puhunan)</span>
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">Cost Basis</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-slate-900">
-                {formatMoney(detailedMetrics.partsCost)}
+                {formatMoney(detailedMetrics.totalCost)}
               </p>
-              <p className="text-[10px] text-slate-500">Acquisition cost ng mga naibentang item</p>
+              <p className="text-[10px] text-slate-500">Puhunan ng mga naibentang item & piyesa</p>
             </div>
 
-            {/* Strip 2: Mark-up */}
+            {/* Strip 2: Mark-up (Sub Category Checkbox) */}
             <div className={`rounded-xl border p-3 shadow-2xs transition ${subCategories.markup ? "border-teal-300 bg-teal-50/50" : "border-slate-200 bg-slate-50/60 opacity-80"}`}>
               <div className="flex items-center justify-between text-teal-700">
                 <span className="text-[10px] font-black uppercase tracking-wider">Item Mark-up</span>
@@ -7189,7 +7374,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="text-[10px] text-teal-700/80">Patong na tubo sa ibabaw ng base price</p>
             </div>
 
-            {/* Strip 3: Interest sa AR Credit */}
+            {/* Strip 3: Interest sa AR Credit (Sub Category Checkbox) */}
             <div className={`rounded-xl border p-3 shadow-2xs transition ${subCategories.interest ? "border-purple-300 bg-purple-50/50" : "border-slate-200 bg-slate-50/60 opacity-80"}`}>
               <div className="flex items-center justify-between text-purple-700">
                 <span className="text-[10px] font-black uppercase tracking-wider">Financing Interest</span>
@@ -7203,7 +7388,19 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="text-[10px] text-purple-700/80">Interest charges mula sa credit accounts</p>
             </div>
 
-            {/* Strip 4: AR (Accounts Receivable) */}
+            {/* Strip 4: Online Real-Time Payments (Main Category Checkbox) */}
+            <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-teal-700">
+                <span className="text-[10px] font-black uppercase tracking-wider">Online Payments</span>
+                <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[9px] font-bold text-teal-800">🌐 Real-Time</span>
+              </div>
+              <p className="mt-1 font-mono text-base font-black text-teal-950">
+                {formatMoney(detailedMetrics.totalOnlinePayments)}
+              </p>
+              <p className="text-[10px] text-teal-700/80">GCash ({formatMoney(detailedMetrics.totalGcash)}), Bank, Maya</p>
+            </div>
+
+            {/* Strip 5: Accounts Receivable (Main Category Checkbox) */}
             <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-3 shadow-2xs">
               <div className="flex items-center justify-between text-rose-700">
                 <span className="text-[10px] font-black uppercase tracking-wider">Accounts Receivable</span>
@@ -7215,16 +7412,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <p className="text-[10px] text-rose-700/80">Outstanding uncollected credit balance</p>
             </div>
 
-            {/* Strip 5: Actual Cash Collected */}
+            {/* Strip 6: Actual Physical Cash Collected in Register */}
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 shadow-2xs">
               <div className="flex items-center justify-between text-emerald-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">Actual Cash Collected</span>
-                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">Collected</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Physical Cash (Kaha)</span>
+                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">💵 Sa Kaha</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-emerald-950">
-                {formatMoney(detailedMetrics.totalCollectedCash)}
+                {formatMoney(detailedMetrics.totalPhysicalCash)}
               </p>
-              <p className="text-[10px] text-emerald-700/80">Payments received in register</p>
+              <p className="text-[10px] text-emerald-700/80">Aktwal na perang papel at barya sa kaha</p>
             </div>
           </div>
 
