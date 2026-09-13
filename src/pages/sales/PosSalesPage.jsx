@@ -5546,7 +5546,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       const items = Array.isArray(sale.items) ? sale.items : []
       items.forEach((line) => {
-        const isLabor = isServiceLaborLine(line)
+        const isService = isServiceLaborLine(line)
+        const isLabor = isService
         const isPart = isServicePartLine(line)
         const isItem = !isLabor && !isPart
 
@@ -5607,7 +5608,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       })
     })
     return rows
-  }, [filteredSalesByDate, salesCategory, paymentMethodFilter, totalComputation, selectedPriceTiers])
+  }, [filteredSalesByDate, salesCategory, paymentMethodFilter, totalComputation, selectedPriceTiers, subCategories.markup])
 
   return (
     <div className="min-w-0 space-y-4">
