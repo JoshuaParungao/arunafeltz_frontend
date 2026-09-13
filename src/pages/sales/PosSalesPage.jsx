@@ -2498,12 +2498,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       parts: false,
       services: false,
     })
+    setSelectedPriceTiers([])
     setSalesPage(1)
   }
 
   const handleToggleSalesCategory = (key) => {
     setSalesCategory((prev) => {
       if (prev.allSales) {
+        if (key === "items") {
+          setSelectedPriceTiers([1, 2, 3, 4, 5])
+        }
         return {
           allSales: false,
           items: key === "items",
@@ -2513,6 +2517,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       }
 
       const nextVal = !prev[key]
+      if (key === "items") {
+        if (nextVal) {
+          setSelectedPriceTiers([1, 2, 3, 4, 5])
+        } else {
+          setSelectedPriceTiers([])
+        }
+      }
+
       const updated = {
         ...prev,
         [key]: nextVal,
@@ -2520,6 +2532,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       // Kung na-check na lahat ng 3 specific categories, ibalik sa All Sales
       if (updated.items && updated.parts && updated.services) {
+        setSelectedPriceTiers([])
         return {
           allSales: true,
           items: false,
@@ -2531,6 +2544,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       // Kung na-uncheck lahat (walang naka-check), ibalik sa All Sales
       const anyActive = updated.items || updated.parts || updated.services
       if (!anyActive) {
+        setSelectedPriceTiers([])
         return {
           allSales: true,
           items: false,
@@ -2900,11 +2914,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const handleTogglePriceTier = (tier) => {
     setSelectedPriceTiers((prev) => {
       const tierNum = Number(tier)
+      let next
       if (prev.includes(tierNum)) {
-        return prev.filter((t) => t !== tierNum)
+        next = prev.filter((t) => t !== tierNum)
       } else {
-        return [...prev, tierNum].sort((a, b) => a - b)
+        next = [...prev, tierNum].sort((a, b) => a - b)
       }
+      if (next.length === 0) {
+        return [1, 2, 3, 4, 5]
+      }
+      return next
     })
     setSalesPage(1)
   }
@@ -5315,9 +5334,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             salePartsMarkup += lineMarkup
             salePartsCost += costTotal
           } else {
-            saleItemsFromItems += lineTotal
-            saleItemsMarkup += lineMarkup
-            saleItemsCost += costTotal
+            const lineTier = Number(line.priceTier || 1)
+            const matchesTier =
+              !salesCategory.items ||
+              selectedPriceTiers.length === 0 ||
+              selectedPriceTiers.includes(lineTier)
+
+            if (matchesTier) {
+              saleItemsFromItems += lineTotal
+              saleItemsMarkup += lineMarkup
+              saleItemsCost += costTotal
+            }
           }
         }
       })
@@ -5453,21 +5480,21 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       salesPersonsList,
       topSalesPerson,
     }
-  }, [filteredSalesByDate, salesCategory, paymentMethodFilter, totalComputation])
+  }, [filteredSalesByDate, salesCategory, paymentMethodFilter, totalComputation, selectedPriceTiers])
 
   const displayedSales = useMemo(() => {
     return filteredSalesByDate.filter((sale) => {
       if (sale.status === "CANCELLED") return false
 
-      if (selectedPriceTiers.length > 0) {
-        const items = Array.isArray(sale.items) ? sale.items : []
-        const matchesTier = items.some((it) => selectedPriceTiers.includes(Number(it.priceTier || 1)))
-        if (!matchesTier) return false
-      }
-
       const items = Array.isArray(sale.items) ? sale.items : []
       const hasParts = items.some((it) => isServicePartLine(it))
-      const hasItems = items.some((it) => isInventoryItemLine(it))
+      const hasItems = items.some((it) => {
+        if (!isInventoryItemLine(it)) return false
+        if (salesCategory.items && selectedPriceTiers.length > 0) {
+          return selectedPriceTiers.includes(Number(it.priceTier || 1))
+        }
+        return true
+      })
       const hasServices = Number(sale.serviceCharge || 0) > 0 || items.some((it) => isServiceLaborLine(it))
 
       let matchesCat = false
@@ -7091,6 +7118,54 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </span>
                   </label>
                 </div>
+
+                {/* Sub-tiers for Items (Lilitaw kapag naka-check ang Items, automatic naka-select all ang Tier 1-5) */}
+                {salesCategory.items && (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 p-2 sm:p-2.5 text-xs">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-blue-900 flex items-center gap-1 shrink-0">
+                      🏷️ Price Tiers:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((tier) => {
+                        const isChecked = selectedPriceTiers.includes(tier)
+                        return (
+                          <label
+                            key={tier}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold cursor-pointer transition select-none ${
+                              isChecked
+                                ? "border-blue-400 bg-white text-blue-950 shadow-2xs font-black ring-1 ring-blue-200"
+                                : "border-blue-200/70 bg-white/60 text-slate-500 hover:bg-white hover:text-slate-800"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleTogglePriceTier(tier)}
+                              className="size-3.5 rounded border-blue-300 text-blue-600 focus:ring-blue-500 accent-blue-600 cursor-pointer"
+                            />
+                            <span>Tier {tier}</span>
+                            <span className="text-[10px] text-slate-400 font-normal">
+                              ({TIER_LABELS[tier] || `Price ${tier}`})
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                    <div className="ml-auto flex items-center gap-2 shrink-0 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPriceTiers([1, 2, 3, 4, 5])}
+                        className="text-blue-700 hover:text-blue-900 underline cursor-pointer"
+                      >
+                        Select All (1-5)
+                      </button>
+                      <span className="text-blue-300">|</span>
+                      <span className="text-blue-800">
+                        {selectedPriceTiers.length === 5 ? "Lahat ng Tiers active" : `${selectedPriceTiers.length} of 5 active`}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="h-px bg-slate-100" />
