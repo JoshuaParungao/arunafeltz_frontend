@@ -243,6 +243,78 @@ function createRequestKey() {
   return generateUUID()
 }
 
+function isServiceLine(line) {
+  if (!line) return false
+  if (line.isService || line.type === "SERVICE") return true
+  const desc = String(line.description || line.itemName || "").toLowerCase()
+  return !line.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
+}
+
+function isPartLine(line) {
+  if (!line) return false
+  if (line.isPcBuildPart) return true
+
+  const text = [
+    line.description,
+    line.itemName,
+    line.itemNameSnapshot,
+    line.brandSnapshot,
+    line.modelSnapshot,
+    line.item?.itemName,
+    line.item?.category?.name,
+    line.item?.category?.categoryCode,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+
+  return (
+    text.includes("cpu") ||
+    text.includes("processor") ||
+    text.includes("ryzen") ||
+    text.includes("intel") ||
+    text.includes("core i") ||
+    text.includes("athlon") ||
+    text.includes("motherboard") ||
+    text.includes("mobo") ||
+    text.includes("ram /") ||
+    text.includes("ram memory") ||
+    text.includes("ddr3") ||
+    text.includes("ddr4") ||
+    text.includes("ddr5") ||
+    text.includes("sodimm") ||
+    text.includes("so-dimm") ||
+    text.includes("graphics card") ||
+    text.includes("geforce") ||
+    text.includes("rtx") ||
+    text.includes("gtx") ||
+    text.includes("radeon") ||
+    text.includes("gpu") ||
+    text.includes("nvme") ||
+    text.includes("sata ssd") ||
+    text.includes("internal ssd") ||
+    text.includes("internal hdd") ||
+    text.includes("power supply") ||
+    text.includes("psu") ||
+    text.includes("chassis") ||
+    text.includes("pc case") ||
+    text.includes("casing") ||
+    text.includes("cpu cooler") ||
+    text.includes("liquid cooler") ||
+    text.includes("aio cooler") ||
+    text.includes("chassis fan") ||
+    text.includes("case fan") ||
+    text.includes("thermal paste") ||
+    text.includes("cat-cpu") ||
+    text.includes("cat-mobo") ||
+    text.includes("cat-ram") ||
+    text.includes("cat-gpu") ||
+    text.includes("cat-strg-nvme") ||
+    text.includes("cat-strg-sata") ||
+    text.includes("cat-strg-hdd")
+  )
+}
+
 const ERROR_CODE_TRANSLATIONS = {
   CASH_SOURCE_CONFLICT: "A cash register conflict occurred while recording this payment.",
   STAFF_CUSTOM_PRICE_NOT_ALLOWED: "Custom pricing is not permitted for staff accounts.",
@@ -2333,10 +2405,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [showSalesmenLeaderboard, setShowSalesmenLeaderboard] = useState(false)
   const [mainCategories, setMainCategories] = useState({
     allSales: true,
-    items: true,
-    parts: true,
-    ar: true,
-    services: true,
+    items: false,
+    parts: false,
+    ar: false,
+    services: false,
   })
   const [subCategories, setSubCategories] = useState({
     markup: true,
@@ -2344,27 +2416,59 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   })
 
   const handleToggleAllSales = () => {
-    setMainCategories((prev) => {
-      const nextVal = !prev.allSales
-      return {
-        allSales: nextVal,
-        items: nextVal,
-        parts: nextVal,
-        ar: nextVal,
-        services: nextVal,
-      }
+    setMainCategories({
+      allSales: true,
+      items: false,
+      parts: false,
+      ar: false,
+      services: false,
     })
     setSalesPage(1)
   }
 
   const handleToggleMainCategory = (key) => {
     setMainCategories((prev) => {
+      // 1 by 1: kung naka All Sales, piliin agad ang napiling kategorya
+      if (prev.allSales) {
+        return {
+          allSales: false,
+          items: key === "items",
+          parts: key === "parts",
+          ar: key === "ar",
+          services: key === "services",
+        }
+      }
+
+      // Kung nasa 1-by-1 mode na, i-toggle ang kategoryang pinindot
+      const nextVal = !prev[key]
       const updated = {
         ...prev,
-        [key]: !prev[key],
+        [key]: nextVal,
       }
-      const allSelected = updated.items && updated.parts && updated.ar && updated.services
-      updated.allSales = allSelected
+
+      // Kung na-check na lahat ng 4 categories, ibalik sa All Sales
+      if (updated.items && updated.parts && updated.ar && updated.services) {
+        return {
+          allSales: true,
+          items: false,
+          parts: false,
+          ar: false,
+          services: false,
+        }
+      }
+
+      // Kung na-uncheck lahat (walang naka-check), ibalik sa All Sales para laging may lumalabas
+      const anyActive = updated.items || updated.parts || updated.ar || updated.services
+      if (!anyActive) {
+        return {
+          allSales: true,
+          items: false,
+          parts: false,
+          ar: false,
+          services: false,
+        }
+      }
+
       return updated
     })
     setSalesPage(1)
@@ -2381,10 +2485,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const handleResetCategoryFilters = () => {
     setMainCategories({
       allSales: true,
-      items: true,
-      parts: true,
-      ar: true,
-      services: true,
+      items: false,
+      parts: false,
+      ar: false,
+      services: false,
     })
     setSubCategories({
       markup: true,
@@ -4927,25 +5031,26 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         totalArBalance += Math.max(remainingAr, 0)
       }
 
-      // Items segregation: Parts vs Service
+      // Items segregation: Parts vs Items vs Service
       const saleServiceCharge = Number(sale.serviceCharge || 0)
       let saleServiceFromItems = 0
       let salePartsFromItems = 0
-      let saleMarkupFromItems = 0
+      let saleItemsFromItems = 0
+      let salePartsMarkup = 0
+      let saleItemsMarkup = 0
 
       const items = Array.isArray(sale.items) ? sale.items : []
       items.forEach((line) => {
         const qty = Number(line.quantity || 1)
         const lineTotal = Number(line.lineTotal || (Number(line.unitPrice || 0) * qty) || 0)
-        const desc = String(line.description || "").toLowerCase()
-        const isServiceLine = !line.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
+        const isService = isServiceLine(line)
 
-        if (isServiceLine) {
+        if (isService) {
           saleServiceFromItems += lineTotal
         } else {
-          salePartsFromItems += lineTotal
+          const isPart = isPartLine(line)
 
-          // Parts cost
+          // Parts / Items cost
           let unitCost = Number(line.operationalUnitCostSnapshot || line.acquisitionUnitCostSnapshot || 0)
           if (unitCost <= 0 && Number(line.baseUnitPriceSnapshot || 0) > 0) {
             unitCost = Number(line.baseUnitPriceSnapshot)
@@ -4969,14 +5074,24 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           } else if (unitCost > 0 && unitPrice > unitCost) {
             lineMarkup = (unitPrice - unitCost) * qty
           }
-          saleMarkupFromItems += lineMarkup
+
+          if (isPart) {
+            salePartsFromItems += lineTotal
+            salePartsMarkup += lineMarkup
+          } else {
+            saleItemsFromItems += lineTotal
+            saleItemsMarkup += lineMarkup
+          }
         }
       })
 
-      totalMarkup += saleMarkupFromItems
+      const salePhysicalTotal = salePartsFromItems + saleItemsFromItems
+      const salePhysicalMarkup = salePartsMarkup + saleItemsMarkup
+      saleMarkupFromItems = salePhysicalMarkup
+      totalMarkup += salePhysicalMarkup
 
       if (items.length > 0) {
-        partsRevenue += salePartsFromItems
+        partsRevenue += salePhysicalTotal
         serviceRevenue += (saleServiceFromItems + saleServiceCharge)
       } else {
         serviceRevenue += saleServiceCharge
@@ -4984,7 +5099,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       }
 
       // Check if sale matches Main Category
-      const hasPhysicalItems = salePartsFromItems > 0
+      const hasParts = salePartsFromItems > 0
+      const hasItems = saleItemsFromItems > 0
       const hasServices = (saleServiceFromItems + saleServiceCharge) > 0
       const hasAr = Boolean(sale.creditAccount)
 
@@ -4992,8 +5108,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       if (mainCategories.allSales) {
         matchesMain = true
       } else {
-        if (mainCategories.items && hasPhysicalItems) matchesMain = true
-        if (mainCategories.parts && hasPhysicalItems) matchesMain = true
+        if (mainCategories.items && hasItems) matchesMain = true
+        if (mainCategories.parts && hasParts) matchesMain = true
         if (mainCategories.ar && hasAr) matchesMain = true
         if (mainCategories.services && hasServices) matchesMain = true
       }
@@ -5005,19 +5121,41 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       // Computed effective total for this sale based on Main & Sub Categories
       let effectiveSaleTotal = 0
-      if (mainCategories.allSales || mainCategories.items || mainCategories.parts) {
-        const itemBase = Math.max(salePartsFromItems - saleMarkupFromItems, 0)
+      if (mainCategories.allSales) {
+        const itemBase = Math.max(salePhysicalTotal - salePhysicalMarkup, 0)
         effectiveSaleTotal += itemBase
         if (subCategories.markup) {
-          effectiveSaleTotal += saleMarkupFromItems
+          effectiveSaleTotal += salePhysicalMarkup
         }
-      }
-      if (mainCategories.allSales || mainCategories.services) {
         effectiveSaleTotal += (saleServiceFromItems + saleServiceCharge)
-      }
-      if (hasAr && (mainCategories.allSales || mainCategories.ar)) {
-        if (subCategories.interest) {
+        if (hasAr && subCategories.interest) {
           effectiveSaleTotal += saleInterest
+        }
+      } else {
+        if (mainCategories.items) {
+          const itemBase = Math.max(saleItemsFromItems - saleItemsMarkup, 0)
+          effectiveSaleTotal += itemBase
+          if (subCategories.markup) {
+            effectiveSaleTotal += saleItemsMarkup
+          }
+        }
+        if (mainCategories.parts) {
+          const partBase = Math.max(salePartsFromItems - salePartsMarkup, 0)
+          effectiveSaleTotal += partBase
+          if (subCategories.markup) {
+            effectiveSaleTotal += salePartsMarkup
+          }
+        }
+        if (mainCategories.services) {
+          effectiveSaleTotal += (saleServiceFromItems + saleServiceCharge)
+        }
+        if (mainCategories.ar && hasAr) {
+          if (!mainCategories.items && !mainCategories.parts && !mainCategories.services) {
+            const arBase = Number(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal || 0)
+            effectiveSaleTotal += subCategories.interest ? arBase : Math.max(arBase - saleInterest, 0)
+          } else if (subCategories.interest) {
+            effectiveSaleTotal += saleInterest
+          }
         }
       }
 
@@ -5072,22 +5210,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         if (!matchesTier) return false
       }
 
-      const items = Array.isArray(sale.items) ? sale.items : []
-      const hasPhysicalItems = items.some((it) => {
-        const desc = String(it.description || "").toLowerCase()
-        return it.itemId && !desc.includes("service") && !desc.includes("labor") && !desc.startsWith("[jo #")
-      })
-      const hasServices = Number(sale.serviceCharge || 0) > 0 || items.some((it) => {
-        const desc = String(it.description || "").toLowerCase()
-        return !it.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
-      })
-      const hasAr = Boolean(sale.creditAccount)
-
       if (mainCategories.allSales) return true
 
+      const items = Array.isArray(sale.items) ? sale.items : []
+      const hasParts = items.some((it) => !isServiceLine(it) && isPartLine(it))
+      const hasItems = items.some((it) => !isServiceLine(it) && !isPartLine(it))
+      const hasServices = Number(sale.serviceCharge || 0) > 0 || items.some((it) => isServiceLine(it))
+      const hasAr = Boolean(sale.creditAccount)
+
       let matches = false
-      if (mainCategories.items && hasPhysicalItems) matches = true
-      if (mainCategories.parts && hasPhysicalItems) matches = true
+      if (mainCategories.items && hasItems) matches = true
+      if (mainCategories.parts && hasParts) matches = true
       if (mainCategories.services && hasServices) matches = true
       if (mainCategories.ar && hasAr) matches = true
 
@@ -5107,15 +5240,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       const items = Array.isArray(sale.items) ? sale.items : []
       items.forEach((line) => {
-        const desc = String(line.description || "").toLowerCase()
-        const isServiceLine = !line.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
+        const isService = isServiceLine(line)
+        const isPart = isPartLine(line)
+        const isItem = !isService && !isPart
 
         if (!mainCategories.allSales) {
-          if (isServiceLine && !mainCategories.services) return
-          if (!isServiceLine && !mainCategories.items && !mainCategories.parts) return
+          if (isService && !mainCategories.services) return
+          if (isPart && !mainCategories.parts) return
+          if (isItem && !mainCategories.items) return
         }
 
-        if (selectedPriceTiers.length > 0 && !isServiceLine) {
+        if (selectedPriceTiers.length > 0 && !isService) {
           const itemTier = Number(line.priceTier || 1)
           if (!selectedPriceTiers.includes(itemTier)) return
         }
@@ -5150,10 +5285,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           saleDate: sale.saleDate || sale.createdAt,
           customerName: sale.customer?.fullName || "Walk-in Customer",
           cashierName: sale.cashier?.fullName || sale.cashier?.username || "—",
-          itemCode: line.item?.itemCode || line.itemCodeSnapshot || (isServiceLine ? "SERVICE" : "—"),
-          itemName: line.item?.itemName || line.itemNameSnapshot || line.description || (isServiceLine ? "Service / Labor Charge" : "—"),
+          itemCode: line.item?.itemCode || line.itemCodeSnapshot || (isService ? "SERVICE" : "—"),
+          itemName: line.item?.itemName || line.itemNameSnapshot || line.description || (isService ? "Service / Labor Charge" : "—"),
           priceTier: line.priceTier ? Number(line.priceTier) : null,
-          isService: isServiceLine,
+          isService,
+          isPart,
           quantity: qty,
           unitCost: unitCost || baseUnit || 0,
           unitPrice: effectiveUnitPrice,
@@ -6630,7 +6766,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     Main Category:
                   </p>
                   <span className="text-[11px] font-medium text-slate-400">
-                    Piliin ang mga benta na gustong makita
+                    1 by 1 filter: Pag naka-check, lilitaw ang mga napiling benta
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs font-bold">
@@ -7429,9 +7565,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                                   🔧 Service
                                 </span>
+                              ) : row.isPart ? (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-800">
+                                  ⚙️ Part
+                                </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-800">
-                                  📦 Product / Part
+                                  📦 Item
                                 </span>
                               )}
                             </td>
@@ -7475,9 +7615,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                 <span className="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.2 text-[9px] font-bold text-amber-800">
                                   Service
                                 </span>
+                              ) : row.isPart ? (
+                                <span className="rounded bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 text-[9px] font-bold text-indigo-800">
+                                  Part
+                                </span>
                               ) : (
                                 <span className="rounded bg-blue-50 border border-blue-200 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">
-                                  Product
+                                  Item
                                 </span>
                               )}
                             </div>
