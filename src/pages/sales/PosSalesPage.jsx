@@ -100,10 +100,10 @@ const SALE_CANCELLER_ROLES = new Set([
 ])
 
 const IMMEDIATE_PAYMENT_METHODS = [
-  ["CASH", "Cash"],
-  ["GCASH", "GCash"],
-  ["BANK_TRANSFER", "Bank transfer"],
-  ["OTHER", "Other"],
+  ["CASH", "Cash (Physical)"],
+  ["GCASH", "GCash (Online)"],
+  ["BANK_TRANSFER", "Bank Transfer (Any Bank)"],
+  ["OTHER", "Maya / PayMaya / Other Online"],
 ]
 
 const RECEIVABLE_PROVIDERS = [
@@ -313,6 +313,42 @@ function isPartLine(line) {
     text.includes("cat-strg-sata") ||
     text.includes("cat-strg-hdd")
   )
+}
+
+function isOnlinePaymentMethod(method, remarks = "", ref = "") {
+  const m = String(method || "").toUpperCase()
+  if (m === "GCASH" || m === "MAYA" || m === "PAYMAYA" || m === "BANK_TRANSFER") {
+    return true
+  }
+  const text = `${method || ""} ${remarks || ""} ${ref || ""}`.toLowerCase()
+  return (
+    text.includes("gcash") ||
+    text.includes("maya") ||
+    text.includes("paymaya") ||
+    text.includes("bank") ||
+    text.includes("transfer") ||
+    text.includes("online") ||
+    text.includes("qr") ||
+    text.includes("bdo") ||
+    text.includes("bpi") ||
+    text.includes("metrobank") ||
+    text.includes("unionbank") ||
+    text.includes("chinabank") ||
+    text.includes("rcbc") ||
+    text.includes("security bank") ||
+    text.includes("landbank")
+  )
+}
+
+function isOnlineSale(sale) {
+  if (!sale) return false
+  if (isOnlinePaymentMethod(sale.paymentMethod, sale.remarks)) return true
+  if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+    if (sale.payments.some((p) => isOnlinePaymentMethod(p.paymentMethod, p.remarks, p.referenceNo))) {
+      return true
+    }
+  }
+  return false
 }
 
 const ERROR_CODE_TRANSLATIONS = {
@@ -2407,6 +2443,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     allSales: true,
     items: false,
     parts: false,
+    online: false,
     ar: false,
     services: false,
   })
@@ -2420,6 +2457,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       allSales: true,
       items: false,
       parts: false,
+      online: false,
       ar: false,
       services: false,
     })
@@ -2434,6 +2472,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           allSales: false,
           items: key === "items",
           parts: key === "parts",
+          online: key === "online",
           ar: key === "ar",
           services: key === "services",
         }
@@ -2446,24 +2485,26 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         [key]: nextVal,
       }
 
-      // Kung na-check na lahat ng 4 categories, ibalik sa All Sales
-      if (updated.items && updated.parts && updated.ar && updated.services) {
+      // Kung na-check na lahat ng 5 categories, ibalik sa All Sales
+      if (updated.items && updated.parts && updated.online && updated.ar && updated.services) {
         return {
           allSales: true,
           items: false,
           parts: false,
+          online: false,
           ar: false,
           services: false,
         }
       }
 
       // Kung na-uncheck lahat (walang naka-check), ibalik sa All Sales para laging may lumalabas
-      const anyActive = updated.items || updated.parts || updated.ar || updated.services
+      const anyActive = updated.items || updated.parts || updated.online || updated.ar || updated.services
       if (!anyActive) {
         return {
           allSales: true,
           items: false,
           parts: false,
+          online: false,
           ar: false,
           services: false,
         }
@@ -2487,6 +2528,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       allSales: true,
       items: false,
       parts: false,
+      online: false,
       ar: false,
       services: false,
     })
@@ -4769,6 +4811,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         : [
             mainCategories.items ? "Items" : null,
             mainCategories.parts ? "Parts" : null,
+            mainCategories.online ? "Online (Bank/GCash/Maya)" : null,
             mainCategories.ar ? "AR" : null,
             mainCategories.services ? "Services" : null,
           ].filter(Boolean).join(", ") || "None"
@@ -4799,6 +4842,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         : [
             mainCategories.items ? "Items" : null,
             mainCategories.parts ? "Parts" : null,
+            mainCategories.online ? "Online (Bank/GCash/Maya)" : null,
             mainCategories.ar ? "AR" : null,
             mainCategories.services ? "Services" : null,
           ].filter(Boolean).join(", ") || "None"
@@ -5101,8 +5145,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       // Check if sale matches Main Category
       const hasParts = salePartsFromItems > 0
       const hasItems = saleItemsFromItems > 0
+      const hasPhysicalItems = salePhysicalTotal > 0
       const hasServices = (saleServiceFromItems + saleServiceCharge) > 0
       const hasAr = Boolean(sale.creditAccount)
+      const hasOnline = isOnlineSale(sale)
 
       let matchesMain = false
       if (mainCategories.allSales) {
@@ -5110,6 +5156,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       } else {
         if (mainCategories.items && hasItems) matchesMain = true
         if (mainCategories.parts && hasParts) matchesMain = true
+        if (mainCategories.online && hasOnline) matchesMain = true
         if (mainCategories.ar && hasAr) matchesMain = true
         if (mainCategories.services && hasServices) matchesMain = true
       }
@@ -5150,11 +5197,19 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           effectiveSaleTotal += (saleServiceFromItems + saleServiceCharge)
         }
         if (mainCategories.ar && hasAr) {
-          if (!mainCategories.items && !mainCategories.parts && !mainCategories.services) {
+          if (!mainCategories.items && !mainCategories.parts && !mainCategories.services && !mainCategories.online) {
             const arBase = Number(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal || 0)
             effectiveSaleTotal += subCategories.interest ? arBase : Math.max(arBase - saleInterest, 0)
           } else if (subCategories.interest) {
             effectiveSaleTotal += saleInterest
+          }
+        }
+        if (mainCategories.online && hasOnline) {
+          if (!mainCategories.items && !mainCategories.parts && !mainCategories.services) {
+            let onlineBase = Number(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal || 0)
+            if (!subCategories.markup && salePhysicalMarkup > 0) onlineBase = Math.max(onlineBase - salePhysicalMarkup, 0)
+            if (!subCategories.interest && saleInterest > 0) onlineBase = Math.max(onlineBase - saleInterest, 0)
+            effectiveSaleTotal += onlineBase
           }
         }
       }
@@ -5217,10 +5272,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const hasItems = items.some((it) => !isServiceLine(it) && !isPartLine(it))
       const hasServices = Number(sale.serviceCharge || 0) > 0 || items.some((it) => isServiceLine(it))
       const hasAr = Boolean(sale.creditAccount)
+      const hasOnline = isOnlineSale(sale)
 
       let matches = false
       if (mainCategories.items && hasItems) matches = true
       if (mainCategories.parts && hasParts) matches = true
+      if (mainCategories.online && hasOnline) matches = true
       if (mainCategories.services && hasServices) matches = true
       if (mainCategories.ar && hasAr) matches = true
 
@@ -5234,8 +5291,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       if (sale.status === "CANCELLED") return
 
       const hasAr = Boolean(sale.creditAccount)
+      const hasOnline = isOnlineSale(sale)
       if (!mainCategories.allSales) {
-        if (mainCategories.ar && !hasAr && !mainCategories.items && !mainCategories.parts && !mainCategories.services) return
+        if (mainCategories.ar && !hasAr && !mainCategories.items && !mainCategories.parts && !mainCategories.services && !mainCategories.online) return
+        if (mainCategories.online && !hasOnline && !mainCategories.items && !mainCategories.parts && !mainCategories.services && !mainCategories.ar) return
       }
 
       const items = Array.isArray(sale.items) ? sale.items : []
@@ -5245,9 +5304,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         const isItem = !isService && !isPart
 
         if (!mainCategories.allSales) {
-          if (isService && !mainCategories.services) return
-          if (isPart && !mainCategories.parts) return
-          if (isItem && !mainCategories.items) return
+          if (isService && !mainCategories.services && !mainCategories.online) return
+          if (isPart && !mainCategories.parts && !mainCategories.online) return
+          if (isItem && !mainCategories.items && !mainCategories.online) return
         }
 
         if (selectedPriceTiers.length > 0 && !isService) {
@@ -6809,6 +6868,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
+                      checked={mainCategories.online}
+                      onChange={() => handleToggleMainCategory("online")}
+                      className="size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 accent-teal-600 cursor-pointer"
+                    />
+                    <span className={mainCategories.online ? "text-teal-950 font-bold" : "text-slate-600"}>
+                      Online (GCash / Bank / Maya)
+                    </span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
                       checked={mainCategories.ar}
                       onChange={() => handleToggleMainCategory("ar")}
                       className="size-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
@@ -7678,12 +7749,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                     💳 {formatStatus(sale.creditAccount.provider)}
                                     {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
                                   </span>
+                                ) : isOnlineSale(sale) ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 border border-teal-200 px-2 py-0.5 text-[10px] font-bold text-teal-800">
+                                    🌐 {(sale.payments || []).length > 0 ? sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ") : formatStatus(sale.paymentMethod || "Online")}
+                                  </span>
                                 ) : (sale.payments || []).length > 0 ? (
                                   <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
                                     {sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ")}
                                   </span>
                                 ) : (
-                                  <span className="text-slate-500 text-[11px] font-medium">Cash</span>
+                                  <span className="text-slate-500 text-[11px] font-medium">💵 Cash</span>
                                 )}
                               </div>
                               <div>
@@ -7978,11 +8053,19 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                 💳 {formatStatus(sale.creditAccount.provider)}
                                 {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
                               </span>
+                            ) : isOnlineSale(sale) ? (
+                              <span className="inline-flex items-center gap-1 rounded bg-teal-50 border border-teal-200 px-1.5 py-0.5 text-[10px] font-bold text-teal-800">
+                                🌐 {(sale.payments || []).length > 0 ? sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ") : formatStatus(sale.paymentMethod || "Online")}
+                              </span>
                             ) : (sale.payments || []).length > 0 ? (
                               <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">
                                 {sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ")}
                               </span>
-                            ) : null}
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded bg-slate-50 border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                                💵 Cash
+                              </span>
+                            )}
                           </div>
                           <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
                             <button
