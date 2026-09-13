@@ -5,7 +5,9 @@ import {
   Barcode,
   Building2,
   Calendar,
+  Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -2393,6 +2395,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   })
   const [isServiceStaffDropdownOpen, setIsServiceStaffDropdownOpen] = useState(false)
   const serviceStaffDropdownRef = useRef(null)
+  const [isPriceTierDropdownOpen, setIsPriceTierDropdownOpen] = useState(false)
+  const priceTierDropdownRef = useRef(null)
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -2401,6 +2405,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       }
       if (serviceStaffDropdownRef.current && !serviceStaffDropdownRef.current.contains(event.target)) {
         setIsServiceStaffDropdownOpen(false)
+      }
+      if (priceTierDropdownRef.current && !priceTierDropdownRef.current.contains(event.target)) {
+        setIsPriceTierDropdownOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -2564,10 +2571,32 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [salesSearch, setSalesSearch] = useState("")
   const [salesStatus, setSalesStatus] = useState("")
   const [paymentStatus, setPaymentStatus] = useState("")
-  const [priceTierFilter, setPriceTierFilter] = useState("")
+  const [selectedPriceTiers, setSelectedPriceTiers] = useState([])
   const [isLoadingSales, setIsLoadingSales] = useState(false)
   const [salesMessage, setSalesMessage] = useState("")
   const salesRequestIdRef = useRef(0)
+
+  const handleTogglePriceTier = (tier) => {
+    setSelectedPriceTiers((prev) => {
+      const tierNum = Number(tier)
+      if (prev.includes(tierNum)) {
+        return prev.filter((t) => t !== tierNum)
+      } else {
+        return [...prev, tierNum].sort((a, b) => a - b)
+      }
+    })
+    setSalesPage(1)
+  }
+
+  const handleSelectAllPriceTiers = () => {
+    setSelectedPriceTiers([1, 2, 3, 4, 5])
+    setSalesPage(1)
+  }
+
+  const handleClearPriceTiers = () => {
+    setSelectedPriceTiers([])
+    setSalesPage(1)
+  }
 
   // Quotation History in POS
   const [historyTab, setHistoryTab] = useState("SALES") // "SALES" | "QUOTATIONS"
@@ -2890,7 +2919,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         search: salesSearch.trim() || undefined,
         status: salesStatus || undefined,
         paymentStatus: paymentStatus || undefined,
-        priceTier: priceTierFilter ? Number(priceTierFilter) : undefined,
+        priceTier: selectedPriceTiers.length > 0 ? selectedPriceTiers.join(",") : undefined,
       })
       if (requestId !== salesRequestIdRef.current) return
 
@@ -2906,7 +2935,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     } finally {
       if (requestId === salesRequestIdRef.current) setIsLoadingSales(false)
     }
-  }, [branchId, paymentStatus, priceTierFilter, salesPage, salesSearch, salesStatus])
+  }, [branchId, paymentStatus, selectedPriceTiers, salesPage, salesSearch, salesStatus])
 
   const filteredTierSummary = useMemo(() => {
     let tierUnits = 0
@@ -2922,8 +2951,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         const qty = Number(item.quantity || 1)
         const lineTot = Number(item.lineTotal || (Number(item.unitPrice || 0) * qty) || 0)
 
-        if (priceTierFilter) {
-          if (itemTier === Number(priceTierFilter)) {
+        if (selectedPriceTiers.length > 0) {
+          if (selectedPriceTiers.includes(itemTier)) {
             tierUnits += qty
             tierRevenue += lineTot
             saleHasMatchingTier = true
@@ -2945,7 +2974,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       tierRevenue,
       matchingReceiptsCount,
     }
-  }, [sales, priceTierFilter])
+  }, [sales, selectedPriceTiers])
 
   const loadQuotations = useCallback(async () => {
     if (!branchId) {
@@ -4469,8 +4498,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ["Combined Grand Total", quotations.reduce((sum, q) => sum + Number(q.grandTotal || 0), 0)],
         ],
       })
-    } else if (priceTierFilter) {
-      const tierName = TIER_LABELS[priceTierFilter] || `Tier ${priceTierFilter}`
+    } else if (selectedPriceTiers.length > 0) {
+      const tierDisplayNames = selectedPriceTiers.map((t) => `T${t} (${TIER_LABELS[t] || `Tier ${t}`})`).join(", ")
       const itemRows = []
       let totalTierUnits = 0
       let totalTierRevenue = 0
@@ -4478,7 +4507,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       filteredSalesByDate.forEach((sale) => {
         ;(sale.items || []).forEach((item) => {
           const itemTier = Number(item.priceTier || 1)
-          if (itemTier === Number(priceTierFilter)) {
+          if (selectedPriceTiers.includes(itemTier)) {
             const qty = Number(item.quantity || 1)
             const lineTotal = Number(item.lineTotal || (Number(item.unitPrice || 0) * qty) || 0)
             totalTierUnits += qty
@@ -4489,7 +4518,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               customerName: sale.customer?.fullName || "Walk-in Customer",
               itemCode: item.item?.itemCode || item.itemCodeSnapshot || "—",
               description: item.description || item.itemNameSnapshot || "—",
-              priceTier: `Tier ${itemTier} (${tierName})`,
+              priceTier: `Tier ${itemTier} (${TIER_LABELS[itemTier] || `Tier ${itemTier}`})`,
               unitPrice: Number(item.unitPrice || 0),
               quantity: qty,
               lineTotal,
@@ -4517,25 +4546,25 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       ]
 
       exportReportExcel({
-        label: `Sales by Price Tier - ${tierName}`,
-        filename: `Sales-Tier-${priceTierFilter}-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
+        label: `Sales by Price Tiers - ${tierDisplayNames}`,
+        filename: `Sales-PriceTiers-${selectedPriceTiers.join("-")}-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
         columns: exportColumns,
         records: itemRows,
         branch: activeBranch,
         generatedBy: user,
         filters: [
           ["Date Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
-          ["Price Tier", `Tier ${priceTierFilter} (${tierName})`],
+          ["Price Tiers", tierDisplayNames],
           ["Search Query", salesSearch.trim() || "All"],
           ["Sale Status", salesStatus || "All Statuses"],
           ["Payment Status", paymentStatus || "All Payment Statuses"],
         ],
         totals: [
           ["Date Period Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
-          ["Price Tier Filter", `Tier ${priceTierFilter} · ${tierName}`],
+          ["Price Tiers Filter", tierDisplayNames],
           ["Matching Line Items", itemRows.length],
           ["Total Units Sold", totalTierUnits],
-          ["Total Sales Revenue (Tier " + priceTierFilter + ")", totalTierRevenue],
+          ["Total Sales Revenue (Selected Tiers)", totalTierRevenue],
         ],
       })
     } else if (itemsViewMode === "ITEMS") {
@@ -4945,6 +4974,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
         if (saleTypeFilter === "PARTS_ONLY" && isServiceLine) return
         if (saleTypeFilter === "SERVICE_ONLY" && !isServiceLine) return
+        if (selectedPriceTiers.length > 0 && !isServiceLine) {
+          const itemTier = Number(line.priceTier || 1)
+          if (!selectedPriceTiers.includes(itemTier)) return
+        }
 
         const qty = Number(line.quantity || 1)
         const unitPrice = Number(line.unitPrice || 0)
@@ -4976,6 +5009,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           cashierName: sale.cashier?.fullName || sale.cashier?.username || "—",
           itemCode: line.item?.itemCode || line.itemCodeSnapshot || (isServiceLine ? "SERVICE" : "—"),
           itemName: line.item?.itemName || line.itemNameSnapshot || line.description || (isServiceLine ? "Service / Labor Charge" : "—"),
+          priceTier: line.priceTier ? Number(line.priceTier) : null,
           isService: isServiceLine,
           quantity: qty,
           unitCost: unitCost || baseUnit || 0,
@@ -4986,7 +5020,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       })
     })
     return rows
-  }, [filteredSalesByDate, saleTypeFilter])
+  }, [filteredSalesByDate, saleTypeFilter, selectedPriceTiers])
 
   return (
     <div className="min-w-0 space-y-4">
@@ -7029,25 +7063,121 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <option value="UNPAID">Unpaid</option>
                   <option value="REFUNDED">Refunded</option>
                 </select>
-                <select
-                  className={`rounded-xl border px-3 py-2 text-xs font-bold outline-none transition ${
-                    priceTierFilter
-                      ? "border-amber-400 bg-amber-50 text-amber-900 ring-1 ring-amber-300"
-                      : "border-slate-200 bg-white text-slate-800 focus:border-[var(--color-maroon)]"
-                  }`}
-                  onChange={(event) => {
-                    setPriceTierFilter(event.target.value)
-                    setSalesPage(1)
-                  }}
-                  value={priceTierFilter}
-                >
-                  <option value="">All Price Tiers</option>
-                  <option value="1">Price Tier 1 · SRP / Retail</option>
-                  <option value="2">Price Tier 2 · Wholesale / Dealer</option>
-                  <option value="3">Price Tier 3 · VIP / Contractor</option>
-                  <option value="4">Price Tier 4 · Corporate / Special</option>
-                  <option value="5">Price Tier 5 · Promo / Clearance</option>
-                </select>
+                <div className="relative" ref={priceTierDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsPriceTierDropdownOpen((prev) => !prev)}
+                    className={`w-full flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold outline-none transition cursor-pointer ${
+                      selectedPriceTiers.length > 0
+                        ? "border-amber-400 bg-amber-50 text-amber-900 ring-1 ring-amber-300 shadow-2xs"
+                        : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 focus:border-[var(--color-maroon)]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      {selectedPriceTiers.length === 0 ? (
+                        <span className="truncate">All Price Tiers</span>
+                      ) : selectedPriceTiers.length === 1 ? (
+                        <span className="truncate">
+                          Price Tier {selectedPriceTiers[0]} · {TIER_LABELS[selectedPriceTiers[0]]}
+                        </span>
+                      ) : (
+                        <span className="truncate">
+                          Tiers: {selectedPriceTiers.map((t) => `T${t}`).join(", ")} ({selectedPriceTiers.length} selected)
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      size={14}
+                      className={`shrink-0 transition-transform duration-200 ${
+                        isPriceTierDropdownOpen ? "rotate-180" : ""
+                      } ${selectedPriceTiers.length > 0 ? "text-amber-800" : "text-slate-400"}`}
+                    />
+                  </button>
+
+                  {isPriceTierDropdownOpen ? (
+                    <div className="absolute right-0 top-full z-40 mt-1.5 w-72 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl ring-1 ring-black/5 animate-in fade-in-50 zoom-in-95">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2 px-1">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                          Filter Price Tiers
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={handleSelectAllPriceTiers}
+                            className="rounded-lg px-2 py-0.5 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 transition cursor-pointer"
+                          >
+                            All (1-5)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleClearPriceTiers}
+                            className="rounded-lg px-2 py-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 space-y-1">
+                        {[1, 2, 3, 4, 5].map((tierNum) => {
+                          const isChecked = selectedPriceTiers.includes(tierNum)
+                          return (
+                            <label
+                              key={tierNum}
+                              className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold cursor-pointer transition select-none ${
+                                isChecked
+                                  ? "bg-amber-50/90 text-amber-950 hover:bg-amber-100/70 border border-amber-200/80"
+                                  : "text-slate-700 hover:bg-slate-50 border border-transparent"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleTogglePriceTier(tierNum)}
+                                className="size-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer shrink-0"
+                              />
+                              <span
+                                className={`grid size-6 shrink-0 place-items-center rounded-lg font-mono text-[10px] font-black ${
+                                  isChecked
+                                    ? "bg-amber-500 text-white shadow-xs"
+                                    : "bg-slate-100 text-slate-600"
+                                }`}
+                              >
+                                T{tierNum}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-bold leading-tight">
+                                  Price Tier {tierNum}
+                                </p>
+                                <p className="truncate text-[10px] font-medium text-slate-500">
+                                  {TIER_LABELS[tierNum]}
+                                </p>
+                              </div>
+                              {isChecked ? (
+                                <Check size={14} className="text-amber-600 shrink-0" />
+                              ) : null}
+                            </label>
+                          )
+                        })}
+                      </div>
+
+                      <div className="mt-2.5 border-t border-slate-100 pt-2 px-1 flex items-center justify-between">
+                        <span className="text-[10px] text-slate-400">
+                          {selectedPriceTiers.length === 0
+                            ? "All tiers visible"
+                            : `${selectedPriceTiers.length} tier(s) selected`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsPriceTierDropdownOpen(false)}
+                          className="rounded-lg bg-[var(--color-maroon)] px-3 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition cursor-pointer"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </>
             ) : (
               <select
@@ -7066,23 +7196,34 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             )}
           </div>
 
-          {historyTab === "SALES" && priceTierFilter ? (
+          {historyTab === "SALES" && selectedPriceTiers.length > 0 ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50/50 to-amber-50 p-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-amber-500 font-mono font-black text-sm text-white shadow-xs">
-                  T{priceTierFilter}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {selectedPriceTiers.map((tierNum) => (
+                    <span
+                      key={tierNum}
+                      className="grid size-9 place-items-center rounded-xl bg-amber-500 font-mono font-black text-xs text-white shadow-xs"
+                      title={`Price Tier ${tierNum} (${TIER_LABELS[tierNum]})`}
+                    >
+                      T{tierNum}
+                    </span>
+                  ))}
+                </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold text-slate-900 text-xs">
-                      Filtered by Price Tier {priceTierFilter} ({TIER_LABELS[priceTierFilter] || `Tier ${priceTierFilter}`})
+                      Filtered by Price {selectedPriceTiers.length === 1 ? `Tier ${selectedPriceTiers[0]}` : `Tiers (${selectedPriceTiers.map((t) => `T${t}`).join(", ")})`}
+                      <span className="ml-1.5 font-semibold text-slate-600">
+                        ({selectedPriceTiers.map((t) => TIER_LABELS[t]).join(", ")})
+                      </span>
                     </p>
                     <span className="rounded-full bg-amber-200/70 border border-amber-300 px-2 py-0.5 text-[10px] font-black text-amber-900">
-                      Tier Filter Active
+                      {selectedPriceTiers.length} Tier{selectedPriceTiers.length === 1 ? "" : "s"} Active
                     </span>
                   </div>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    Showing receipts containing products sold under this specific pricing tier
+                    Showing receipts containing products sold under selected pricing tier(s)
                   </p>
                 </div>
               </div>
@@ -7090,7 +7231,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <div className="flex flex-wrap items-center gap-4">
                 <div className="text-right">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Units Sold (Tier {priceTierFilter})
+                    Units Sold ({selectedPriceTiers.map((t) => `T${t}`).join(", ")})
                   </p>
                   <p className="font-mono text-sm font-black text-slate-800">
                     {filteredTierSummary.tierUnits} pc(s)
@@ -7099,21 +7240,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 <div className="h-7 w-px bg-amber-200" />
                 <div className="text-right">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-maroon)]">
-                    Total Sales (Tier {priceTierFilter})
+                    Total Sales ({selectedPriceTiers.map((t) => `T${t}`).join(", ")})
                   </p>
                   <p className="font-mono text-base font-black text-[var(--color-maroon)]">
                     {formatMoney(filteredTierSummary.tierRevenue)}
                   </p>
                 </div>
                 <button
-                  className="rounded-xl border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-2xs"
-                  onClick={() => {
-                    setPriceTierFilter("")
-                    setSalesPage(1)
-                  }}
+                  className="rounded-xl border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-2xs cursor-pointer"
+                  onClick={handleClearPriceTiers}
                   type="button"
                 >
-                  Clear Tier
+                  Clear Tiers
                 </button>
               </div>
             </div>
