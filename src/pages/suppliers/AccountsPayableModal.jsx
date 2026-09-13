@@ -401,20 +401,20 @@ export default function AccountsPayableModal({
           </div>
 
           {/* Minimalist Interactive Filters (hidden in print) */}
-          <div className="no-print grid gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs sm:grid-cols-4">
-            <div className="relative">
+          <div className="no-print grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs">
+            <div className="relative min-w-0">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] placeholder:text-slate-400"
+                className="w-full min-w-0 rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] placeholder:text-slate-400"
                 placeholder="Search transaction, supplier…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
               <select
-                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-maroon)]"
+                className="w-full min-w-0 truncate rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-maroon)]"
                 value={selectedSupplierId}
                 onChange={(e) => setSelectedSupplierId(e.target.value)}
               >
@@ -437,33 +437,35 @@ export default function AccountsPayableModal({
               ) : null}
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 min-w-0">
               <input
                 type="date"
-                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-[var(--color-maroon)]"
+                className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-[var(--color-maroon)]"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
                 title="Date From"
               />
-              <span className="text-slate-400 font-bold">-</span>
+              <span className="text-slate-400 font-bold shrink-0">-</span>
               <input
                 type="date"
-                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-[var(--color-maroon)]"
+                className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-[var(--color-maroon)]"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
                 title="Date To"
               />
             </div>
 
-            <select
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-maroon)]"
-              value={agingFilter}
-              onChange={(e) => setAgingFilter(e.target.value)}
-            >
-              <option value="ALL">All Aging Statuses</option>
-              <option value="CURRENT">Current / Due Soon</option>
-              <option value="OVERDUE">Overdue Only</option>
-            </select>
+            <div className="min-w-0">
+              <select
+                className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-maroon)]"
+                value={agingFilter}
+                onChange={(e) => setAgingFilter(e.target.value)}
+              >
+                <option value="ALL">All Aging Statuses</option>
+                <option value="CURRENT">Current / Due Soon</option>
+                <option value="OVERDUE">Overdue Only</option>
+              </select>
+            </div>
           </div>
 
           {/* Minimalist Summary KPI Row (hidden in print) */}
@@ -543,7 +545,7 @@ export default function AccountsPayableModal({
             </div>
           ) : (
             /* Modern Minimalist Table (matching user screenshot columns with clean styling) */
-            <div className="border border-slate-300 rounded-lg overflow-hidden">
+            <div className="border border-slate-300 rounded-lg overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
                   <tr className="border-b border-slate-300 bg-slate-50 text-[11px] font-bold text-slate-800">
