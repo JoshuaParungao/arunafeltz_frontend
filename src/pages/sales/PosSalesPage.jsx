@@ -2311,6 +2311,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const canCreateSale = SALE_MANAGER_ROLES.has(user?.role)
   const canCancelSale = SALE_CANCELLER_ROLES.has(user?.role)
 
+  const [posViewMode, setPosViewMode] = useState(
+    initialContext?.viewMode || (initialContext?.saleId ? "SALES_HISTORY" : "REGISTER")
+  )
+
   const [itemSearch, setItemSearch] = useState("")
   const [itemResults, setItemResults] = useState([])
   const [jobOrderResults, setJobOrderResults] = useState([])
@@ -4615,39 +4619,134 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
   const totalPages = salesMeta?.totalPages || 1
 
+  const salesMetrics = useMemo(() => {
+    const totalCount = salesMeta?.total !== undefined ? salesMeta.total : sales.length
+    let totalRevenue = 0
+    let completedCount = 0
+    let totalPaid = 0
+
+    sales.forEach((s) => {
+      const saleTotal = Number(s.creditAccount?.regularPriceTotalAmount || s.grandTotal || 0)
+      totalRevenue += saleTotal
+      if (s.status === "COMPLETED") {
+        completedCount += 1
+      }
+      totalPaid += Number(s.amountPaid || 0)
+    })
+
+    return { totalCount, totalRevenue, completedCount, totalPaid }
+  }, [sales, salesMeta])
+
   return (
     <div className="min-w-0 space-y-4">
-      {/* Top Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Top Header Banner & View Mode Switcher */}
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
-              POS Cashiering
+            <span className="rounded-lg bg-[var(--color-maroon)]/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+              {posViewMode === "REGISTER" ? "POS Cashiering Register" : "Sales Archive & Records"}
             </span>
             {activeBranch ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
                 <Building2 size={11} />
                 <span className="truncate">{activeBranch.code} · {activeBranch.name}</span>
               </span>
             ) : null}
           </div>
-          <h1 className="mt-0.5 text-xl font-black text-slate-900 leading-tight">
-            Branch Checkout & Sales History
+          <h1 className="mt-1 text-xl font-black text-slate-900 leading-tight">
+            {posViewMode === "REGISTER" ? "POS Cashiering & Checkout" : "Branch Sales Records & Audit"}
           </h1>
           <p className="text-xs text-slate-500">
-            Fast checkout, serial assignment, and quotation conversion with live inventory validation.
+            {posViewMode === "REGISTER"
+              ? "Fast checkout, barcode scanner, serial assignment, and quotation conversion."
+              : "Review completed receipts, transaction details, official warranty slips, and item refunds."}
           </p>
         </div>
 
-        <button
-          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50"
-          disabled={isLoadingSales}
-          onClick={loadSales}
-          type="button"
-        >
-          <RefreshCw className={isLoadingSales ? "animate-spin" : ""} size={14} />
-          Refresh Sales
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Segmented View Mode Switcher Pills */}
+          <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1">
+            <button
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                posViewMode === "REGISTER"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+              onClick={() => setPosViewMode("REGISTER")}
+              type="button"
+            >
+              <ShoppingCart size={13} />
+              Register
+              {cart.length > 0 ? (
+                <span className="ml-1 rounded-full bg-rose-100 px-1.5 py-0.2 text-[10px] font-bold text-rose-800">
+                  {cart.length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                posViewMode === "SALES_HISTORY"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+              onClick={() => {
+                setPosViewMode("SALES_HISTORY")
+                loadSales()
+              }}
+              type="button"
+            >
+              <ReceiptText size={13} />
+              Sales Records
+              {salesMeta?.total !== undefined ? (
+                <span className="ml-1 rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
+                  {salesMeta.total}
+                </span>
+              ) : null}
+            </button>
+          </div>
+
+          {/* Quick Action Button */}
+          {posViewMode === "REGISTER" ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50"
+              onClick={() => {
+                setPosViewMode("SALES_HISTORY")
+                loadSales()
+              }}
+              type="button"
+            >
+              <ReceiptText className="text-[var(--color-maroon)]" size={14} />
+              View Sales Records
+            </button>
+          ) : (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+              onClick={() => setPosViewMode("REGISTER")}
+              type="button"
+            >
+              <Plus size={14} />
+              + Open Register
+              {cart.length > 0 ? ` (${cart.length})` : ""}
+            </button>
+          )}
+
+          <button
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50"
+            disabled={posViewMode === "SALES_HISTORY" ? isLoadingSales : isLoadingItems}
+            onClick={() => {
+              if (posViewMode === "SALES_HISTORY") {
+                loadSales()
+              } else {
+                loadItems()
+                loadSales()
+              }
+            }}
+            type="button"
+          >
+            <RefreshCw className={isLoadingSales || isLoadingItems ? "animate-spin" : ""} size={14} />
+            Refresh
+          </button>
+        </div>
       </header>
 
       {noticeMessage ? (
@@ -4657,11 +4756,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         </div>
       ) : null}
 
-      {!canCreateSale ? (
+      {!canCreateSale && posViewMode === "REGISTER" ? (
         <ErrorBanner>Your role can view sales but cannot create them.</ErrorBanner>
       ) : null}
 
-      {canCreateSale ? (
+      {posViewMode === "REGISTER" && canCreateSale ? (
         <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
           <div className="lg:col-span-5 min-w-0 space-y-3">
             {/* Customer & Price Tier Card (at the very top) */}
@@ -5948,8 +6047,84 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         </div>
       ) : null}
 
-      {/* Sales History & Customer Quotations Section */}
-      <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+      {/* Quick link bar when in Register mode */}
+      {posViewMode === "REGISTER" && canCreateSale ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50/75 p-3.5 text-xs shadow-2xs">
+          <div className="flex items-center gap-2 text-slate-600">
+            <ReceiptText className="text-[var(--color-maroon)]" size={16} />
+            <span className="font-semibold">
+              Looking for past receipts, customer transactions, or quotation conversions?
+            </span>
+          </div>
+          <button
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-2xs transition hover:bg-slate-100"
+            onClick={() => {
+              setPosViewMode("SALES_HISTORY")
+              loadSales()
+            }}
+            type="button"
+          >
+            <Eye size={13} />
+            <span>View Sales Records ({salesMeta?.total ?? sales.length}) →</span>
+          </button>
+        </div>
+      ) : null}
+
+      {/* Sales History & Customer Quotations Section (Active when in SALES_HISTORY mode) */}
+      {posViewMode === "SALES_HISTORY" ? (
+        <>
+          {/* 3 Summary Metric KPI Cards */}
+          <div className="grid gap-3.5 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-slate-100 text-slate-700">
+                  <ReceiptText size={20} />
+                </span>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Total Transactions
+                  </p>
+                  <p className="mt-0.5 font-mono text-xl font-black text-slate-900">
+                    {salesMetrics.totalCount} Receipt{salesMetrics.totalCount === 1 ? "" : "s"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-4 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <Sparkles size={20} />
+                </span>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                    Sales Revenue (Current View)
+                  </p>
+                  <p className="mt-0.5 font-mono text-xl font-black text-emerald-900">
+                    {formatMoney(salesMetrics.totalRevenue)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white p-4 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
+                  <CheckCircle2 size={20} />
+                </span>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-blue-700">
+                    Completed & Collected
+                  </p>
+                  <p className="mt-0.5 font-mono text-xl font-black text-blue-950">
+                    {salesMetrics.completedCount} Completed · {formatMoney(salesMetrics.totalPaid)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
         <div className="border-b border-slate-200 bg-slate-50/75 p-3.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -6653,6 +6828,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ) : null
         )}
       </section>
+    </>
+  ) : null}
 
       {saleCheckoutPreview ? (
         <SaleDetailDialog
