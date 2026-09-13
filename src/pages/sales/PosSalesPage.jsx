@@ -4,6 +4,7 @@ import {
   AlertCircle,
   Barcode,
   Building2,
+  Calendar,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -23,6 +24,7 @@ import {
   ShoppingCart,
   Sparkles,
   Trash2,
+  TrendingUp,
   UserRound,
   Wrench,
   X,
@@ -2305,6 +2307,15 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob, sales
   )
 }
 
+const DATE_FILTER_LABELS = {
+  TODAY: "Today (Ngayong Araw)",
+  YESTERDAY: "Yesterday (Kahapon)",
+  THIS_WEEK: "1 Week (Huling 7 Araw)",
+  THIS_MONTH: "1 Month (Huling 30 Araw)",
+  THIS_YEAR: "1 Year (Kasalukuyang Taon)",
+  ALL: "All Records (Lahat ng Benta)",
+}
+
 function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const activeBranch = selectedBranch || user?.branch || null
   const branchId = activeBranch?.id
@@ -2314,6 +2325,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [posViewMode, setPosViewMode] = useState(
     initialContext?.viewMode || (initialContext?.saleId ? "SALES_HISTORY" : "REGISTER")
   )
+  const [dateFilterPeriod, setDateFilterPeriod] = useState("TODAY") // "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "THIS_YEAR" | "ALL"
 
   const [itemSearch, setItemSearch] = useState("")
   const [itemResults, setItemResults] = useState([])
@@ -4458,7 +4470,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       let totalTierUnits = 0
       let totalTierRevenue = 0
 
-      sales.forEach((sale) => {
+      filteredSalesByDate.forEach((sale) => {
         ;(sale.items || []).forEach((item) => {
           const itemTier = Number(item.priceTier || 1)
           if (itemTier === Number(priceTierFilter)) {
@@ -4501,18 +4513,20 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       exportReportExcel({
         label: `Sales by Price Tier - ${tierName}`,
-        filename: `Sales-Tier-${priceTierFilter}-${new Date().toISOString().slice(0, 10)}`,
+        filename: `Sales-Tier-${priceTierFilter}-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
         columns: exportColumns,
         records: itemRows,
         branch: activeBranch,
         generatedBy: user,
         filters: [
+          ["Date Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
           ["Price Tier", `Tier ${priceTierFilter} (${tierName})`],
           ["Search Query", salesSearch.trim() || "All"],
           ["Sale Status", salesStatus || "All Statuses"],
           ["Payment Status", paymentStatus || "All Payment Statuses"],
         ],
         totals: [
+          ["Date Period Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
           ["Price Tier Filter", `Tier ${priceTierFilter} · ${tierName}`],
           ["Matching Line Items", itemRows.length],
           ["Total Units Sold", totalTierUnits],
@@ -4522,7 +4536,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     } else {
       const exportColumns = [
         ["Receipt Code", (row) => row.receiptCode || "—"],
-        ["Date & Time", (row) => row.createdAt ? new Date(row.createdAt).toLocaleString("en-PH") : "—"],
+        ["Date & Time", (row) => (row.saleDate || row.createdAt) ? new Date(row.saleDate || row.createdAt).toLocaleString("en-PH") : "—"],
         ["Customer Name", (row) => row.customer?.fullName || "Walk-in Customer"],
         ["Sale Status", (row) => formatStatus(row.status)],
         ["Payment Status", (row) => formatStatus(row.paymentStatus)],
@@ -4531,7 +4545,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         ["Items Count", (row) => (row.items || []).length],
         ["Subtotal", (row) => Number(row.subtotal || 0)],
         ["Total Discount", (row) => Number(row.totalDiscount || 0)],
-        ["Grand Total", (row) => Number(row.grandTotal || 0)],
+        ["Grand Total", (row) => Number(row.creditAccount?.regularPriceTotalAmount || row.grandTotal || 0)],
         ["Amount Paid", (row) => Number(row.amountPaid || 0)],
         ["Change", (row) => Number(row.changeAmount || 0)],
         ["Cashier", (row) => row.cashier?.fullName || row.cashier?.username || "—"],
@@ -4539,21 +4553,30 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       ]
       exportReportExcel({
         label: "Branch Sales History",
-        filename: `Sales-History-${new Date().toISOString().slice(0, 10)}`,
+        filename: `Sales-History-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
         columns: exportColumns,
-        records: sales,
+        records: filteredSalesByDate,
         branch: activeBranch,
         generatedBy: user,
         filters: [
+          ["Date Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
           ["Price Tier", "All Price Tiers"],
           ["Search Query", salesSearch.trim() || "All"],
           ["Sale Status", salesStatus || "All Statuses"],
           ["Payment Status", paymentStatus || "All Payment Statuses"],
         ],
         totals: [
-          ["Total Sales Exported", sales.length],
-          ["Total Sales Revenue", sales.reduce((sum, s) => sum + Number(s.grandTotal || 0), 0)],
-          ["Total Amount Paid", sales.reduce((sum, s) => sum + Number(s.amountPaid || 0), 0)],
+          ["Date Period Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Total Sales Records", filteredSalesByDate.length],
+          ["Kabuuang Sale (Grand Total kasama AR, Mark Up, Interest)", detailedMetrics.kabuuangSale],
+          ["Kinita sa Parts Lang", detailedMetrics.partsRevenue],
+          ["Kinita sa Service Lang", detailedMetrics.serviceRevenue],
+          ["Kinita sa Service & Parts (Base Total)", detailedMetrics.combinedBaseRevenue],
+          ["Mark Up", detailedMetrics.totalMarkup],
+          ["Interest (Financing Charges)", detailedMetrics.totalInterest],
+          ["AR (Accounts Receivable Balanse)", detailedMetrics.totalArBalance],
+          ["Aktwal na Nakolekta (Cash & Payments)", detailedMetrics.totalCollectedCash],
+          ["Tubo (Estimated Profit)", detailedMetrics.estimatedProfit],
         ],
       })
     }
@@ -4619,23 +4642,166 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
   const totalPages = salesMeta?.totalPages || 1
 
-  const salesMetrics = useMemo(() => {
-    const totalCount = salesMeta?.total !== undefined ? salesMeta.total : sales.length
-    let totalRevenue = 0
-    let completedCount = 0
-    let totalPaid = 0
+  const filteredSalesByDate = useMemo(() => {
+    if (dateFilterPeriod === "ALL") return sales
 
-    sales.forEach((s) => {
-      const saleTotal = Number(s.creditAccount?.regularPriceTotalAmount || s.grandTotal || 0)
-      totalRevenue += saleTotal
-      if (s.status === "COMPLETED") {
-        completedCount += 1
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+
+    return sales.filter((sale) => {
+      const date = new Date(sale.saleDate || sale.createdAt)
+      if (Number.isNaN(date.getTime())) return true
+
+      if (dateFilterPeriod === "TODAY") {
+        return date >= startOfToday && date <= endOfToday
       }
-      totalPaid += Number(s.amountPaid || 0)
+      if (dateFilterPeriod === "YESTERDAY") {
+        const startOfYesterday = new Date(startOfToday)
+        startOfYesterday.setDate(startOfYesterday.getDate() - 1)
+        const endOfYesterday = new Date(endOfToday)
+        endOfYesterday.setDate(endOfYesterday.getDate() - 1)
+        return date >= startOfYesterday && date <= endOfYesterday
+      }
+      if (dateFilterPeriod === "THIS_WEEK") {
+        const startOfWeek = new Date(startOfToday)
+        startOfWeek.setDate(startOfWeek.getDate() - 6)
+        return date >= startOfWeek && date <= endOfToday
+      }
+      if (dateFilterPeriod === "THIS_MONTH") {
+        const startOfMonth = new Date(startOfToday)
+        startOfMonth.setDate(startOfMonth.getDate() - 29)
+        return date >= startOfMonth && date <= endOfToday
+      }
+      if (dateFilterPeriod === "THIS_YEAR") {
+        const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
+        return date >= startOfYear && date <= endOfToday
+      }
+      return true
+    })
+  }, [sales, dateFilterPeriod])
+
+  const detailedMetrics = useMemo(() => {
+    let totalTransactions = 0
+    let completedCount = 0
+
+    // Revenue categories
+    let partsRevenue = 0 // Kinita sa parts lang
+    let serviceRevenue = 0 // Kinita sa service lang
+    let combinedBaseRevenue = 0 // Kinita sa service and parts
+
+    // Margin, Markup, and Profit
+    let totalMarkup = 0 // Mark up
+    let totalCost = 0 // Cost ng pisa
+    let estimatedProfit = 0 // Tubo / Net Margin
+
+    // Financing & Credit
+    let totalInterest = 0 // Interest / financing charges
+    let totalArBalance = 0 // Accounts Receivable (unpaid balance)
+    let totalCollectedCash = 0 // Aktwal na perang nakolekta
+
+    // Grand Total
+    let kabuuangSale = 0 // Kabuuang sale kasama ang AR, Markup, Interest
+
+    filteredSalesByDate.forEach((sale) => {
+      if (sale.status === "CANCELLED") return
+
+      totalTransactions += 1
+      if (sale.status === "COMPLETED") completedCount += 1
+
+      const effectiveSaleTotal = sale.creditAccount
+        ? Number(sale.creditAccount.regularPriceTotalAmount || sale.grandTotal || 0)
+        : Number(sale.grandTotal || 0)
+
+      kabuuangSale += effectiveSaleTotal
+
+      // Cash & collected
+      const upfrontPaid = Number(sale.amountPaid || 0)
+      const creditCollected = sale.creditAccount ? Number(sale.creditAccount.totalCollected || 0) : 0
+      totalCollectedCash += (upfrontPaid + creditCollected)
+
+      // Credit & Interest
+      if (sale.creditAccount) {
+        const regularTotal = Number(sale.creditAccount.regularPriceTotalAmount || 0)
+        const promoTotal = Number(
+          sale.creditAccount.cashPromoTotalAmount ||
+          sale.creditAccount.sourceTotalAmountSnapshot ||
+          sale.grandTotal ||
+          0
+        )
+        const interest = Math.max(regularTotal - promoTotal, 0)
+        totalInterest += interest
+
+        const remainingAr = Number(
+          sale.creditAccount.remainingBalance ??
+          (Number(sale.creditAccount.balanceAmount || 0) - Number(sale.creditAccount.totalCollected || 0))
+        )
+        totalArBalance += Math.max(remainingAr, 0)
+      }
+
+      // Items segregation: Parts vs Service
+      const saleServiceCharge = Number(sale.serviceCharge || 0)
+      let saleServiceFromItems = 0
+      let salePartsFromItems = 0
+
+      const items = Array.isArray(sale.items) ? sale.items : []
+      items.forEach((line) => {
+        const qty = Number(line.quantity || 1)
+        const lineTotal = Number(line.lineTotal || (Number(line.unitPrice || 0) * qty) || 0)
+        const desc = String(line.description || "").toLowerCase()
+        const isServiceLine = !line.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
+
+        if (isServiceLine) {
+          saleServiceFromItems += lineTotal
+        } else {
+          salePartsFromItems += lineTotal
+
+          // Parts cost
+          const unitCost = Number(line.operationalUnitCostSnapshot || line.acquisitionUnitCostSnapshot || 0)
+          if (unitCost > 0) {
+            totalCost += (unitCost * qty)
+          }
+        }
+
+        // Markup
+        const markupPct = Number(line.markupPercent || 0)
+        const baseUnit = Number(line.baseUnitPriceSnapshot || 0)
+        const unitPrice = Number(line.unitPrice || 0)
+        if (markupPct > 0 && baseUnit > 0) {
+          totalMarkup += Math.max(unitPrice - baseUnit, 0) * qty
+        } else if (markupPct > 0 && unitPrice > 0) {
+          const approxBase = unitPrice / (1 + markupPct / 100)
+          totalMarkup += Math.max(unitPrice - approxBase, 0) * qty
+        }
+      })
+
+      if (items.length > 0) {
+        partsRevenue += salePartsFromItems
+        serviceRevenue += (saleServiceFromItems + saleServiceCharge)
+      } else {
+        serviceRevenue += saleServiceCharge
+        partsRevenue += Math.max(Number(sale.grandTotal || 0) - saleServiceCharge, 0)
+      }
     })
 
-    return { totalCount, totalRevenue, completedCount, totalPaid }
-  }, [sales, salesMeta])
+    combinedBaseRevenue = partsRevenue + serviceRevenue
+    const partsProfit = Math.max(partsRevenue - totalCost, 0)
+    estimatedProfit = partsProfit + serviceRevenue + totalInterest
+
+    return {
+      totalTransactions,
+      completedCount,
+      partsRevenue,
+      serviceRevenue,
+      combinedBaseRevenue,
+      totalMarkup,
+      totalInterest,
+      totalArBalance,
+      totalCollectedCash,
+      estimatedProfit,
+      kabuuangSale,
+    }
+  }, [filteredSalesByDate])
 
   return (
     <div className="min-w-0 space-y-4">
@@ -4704,6 +4870,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               ) : null}
             </button>
           </div>
+
+          {/* Clean 1-Button Date Range Filter */}
+          {posViewMode === "SALES_HISTORY" ? (
+            <div className="relative inline-flex items-center">
+              <select
+                aria-label="Filter by time period"
+                className="appearance-none rounded-xl border border-[var(--color-maroon)]/40 bg-[var(--color-maroon)]/5 py-2 pl-8 pr-7 text-xs font-black text-[var(--color-maroon)] outline-none hover:bg-[var(--color-maroon)]/10 transition cursor-pointer"
+                onChange={(e) => setDateFilterPeriod(e.target.value)}
+                value={dateFilterPeriod}
+              >
+                <option value="TODAY">📅 Today (Ngayong Araw)</option>
+                <option value="YESTERDAY">📅 Yesterday (Kahapon)</option>
+                <option value="THIS_WEEK">📅 1 Week (Huling 7 Araw)</option>
+                <option value="THIS_MONTH">📅 1 Month (Huling 30 Araw)</option>
+                <option value="THIS_YEAR">📅 1 Year (Kasalukuyang Taon)</option>
+                <option value="ALL">📅 All Records (Lahat)</option>
+              </select>
+              <Calendar className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-maroon)]" size={13} />
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-maroon)] text-[9px]">▼</span>
+            </div>
+          ) : null}
 
           {/* Quick Action Button */}
           {posViewMode === "REGISTER" ? (
@@ -6073,54 +6260,199 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       {/* Sales History & Customer Quotations Section (Active when in SALES_HISTORY mode) */}
       {posViewMode === "SALES_HISTORY" ? (
         <>
-          {/* 3 Summary Metric KPI Cards */}
-          <div className="grid gap-3.5 md:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
-              <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-slate-100 text-slate-700">
-                  <ReceiptText size={20} />
-                </span>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Total Transactions
-                  </p>
-                  <p className="mt-0.5 font-mono text-xl font-black text-slate-900">
-                    {salesMetrics.totalCount} Receipt{salesMetrics.totalCount === 1 ? "" : "s"}
-                  </p>
-                </div>
+          {/* Executive Filter & Date Period Header */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 p-3.5 shadow-2xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                Period Filter:
+              </span>
+              {/* Clean 1-button dropdown selector */}
+              <div className="relative inline-flex items-center">
+                <select
+                  aria-label="Filter by time period"
+                  className="appearance-none rounded-xl border border-[var(--color-maroon)]/40 bg-white py-2 pl-8 pr-8 text-xs font-black text-[var(--color-maroon)] shadow-2xs outline-none hover:border-[var(--color-maroon)] focus:ring-2 focus:ring-[var(--color-maroon)]/20 transition cursor-pointer"
+                  onChange={(e) => setDateFilterPeriod(e.target.value)}
+                  value={dateFilterPeriod}
+                >
+                  <option value="TODAY">📅 Today (Ngayong Araw)</option>
+                  <option value="YESTERDAY">📅 Yesterday (Kahapon)</option>
+                  <option value="THIS_WEEK">📅 1 Week (Huling 7 Araw)</option>
+                  <option value="THIS_MONTH">📅 1 Month (Huling 30 Araw)</option>
+                  <option value="THIS_YEAR">📅 1 Year (Kasalukuyang Taon)</option>
+                  <option value="ALL">📅 All Records (Lahat)</option>
+                </select>
+                <Calendar className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-maroon)]" size={13} />
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-maroon)] text-[9px]">▼</span>
+              </div>
+
+              {/* Quick Pills for 1-Click Fast Switching */}
+              <div className="hidden sm:inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1 text-[11px] font-bold">
+                {[
+                  ["TODAY", "Today"],
+                  ["YESTERDAY", "Yesterday"],
+                  ["THIS_WEEK", "1 Week"],
+                  ["THIS_MONTH", "1 Month"],
+                  ["THIS_YEAR", "1 Year"],
+                  ["ALL", "All"],
+                ].map(([val, lbl]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setDateFilterPeriod(val)}
+                    className={`rounded-lg px-2.5 py-1 transition ${
+                      dateFilterPeriod === val
+                        ? "bg-white text-slate-900 shadow-2xs font-black"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {lbl}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-4 shadow-2xs">
-              <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
-                  <Sparkles size={20} />
+            <div className="flex items-center gap-2 text-xs">
+              <span className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-700 shadow-2xs">
+                {detailedMetrics.totalTransactions} Resibo ({detailedMetrics.completedCount} Completed)
+              </span>
+            </div>
+          </div>
+
+          {/* Tier 1: 4 Key Financial Metric Cards */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Card 1: Kabuuang Sale */}
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                  Kabuuang Sale (Grand Total)
                 </span>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
-                    Sales Revenue (Current View)
-                  </p>
-                  <p className="mt-0.5 font-mono text-xl font-black text-emerald-900">
-                    {formatMoney(salesMetrics.totalRevenue)}
-                  </p>
-                </div>
+                <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <ReceiptText size={16} />
+                </span>
               </div>
+              <p className="mt-2 font-mono text-2xl font-black text-emerald-950">
+                {formatMoney(detailedMetrics.kabuuangSale)}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-emerald-700/90">
+                Kasama ang AR, Mark Up, at Interest
+              </p>
             </div>
 
-            <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white p-4 shadow-2xs">
-              <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
-                  <CheckCircle2 size={20} />
+            {/* Card 2: Kinita sa Parts Lang */}
+            <div className="relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">
+                  Kinita sa Parts Lang
                 </span>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-blue-700">
-                    Completed & Collected
-                  </p>
-                  <p className="mt-0.5 font-mono text-xl font-black text-blue-950">
-                    {salesMetrics.completedCount} Completed · {formatMoney(salesMetrics.totalPaid)}
-                  </p>
-                </div>
+                <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
+                  <PackageSearch size={16} />
+                </span>
               </div>
+              <p className="mt-2 font-mono text-2xl font-black text-blue-950">
+                {formatMoney(detailedMetrics.partsRevenue)}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-blue-700/90">
+                Benta mula sa mga piyesa / produkto lamang
+              </p>
+            </div>
+
+            {/* Card 3: Kinita sa Service Lang */}
+            <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                  Kinita sa Service Lang
+                </span>
+                <span className="grid size-8 place-items-center rounded-xl bg-amber-500 text-white shadow-xs">
+                  <Wrench size={16} />
+                </span>
+              </div>
+              <p className="mt-2 font-mono text-2xl font-black text-amber-950">
+                {formatMoney(detailedMetrics.serviceRevenue)}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
+                Benta mula sa labor & service charges lamang
+              </p>
+            </div>
+
+            {/* Card 4: Tubo (Gross Profit) */}
+            <div className="relative overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-800">
+                  Tubo (Gross Profit)
+                </span>
+                <span className="grid size-8 place-items-center rounded-xl bg-purple-600 text-white shadow-xs">
+                  <TrendingUp size={16} />
+                </span>
+              </div>
+              <p className="mt-2 font-mono text-2xl font-black text-purple-950">
+                {formatMoney(detailedMetrics.estimatedProfit)}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-purple-700/90">
+                Kita bawas ang cost ng pisa (+ labor & interest)
+              </p>
+            </div>
+          </div>
+
+          {/* Tier 2: 5 Breakdown Categories Strip */}
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+            {/* Strip 1: Kinita sa Service & Parts */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-[10px] font-black uppercase tracking-wider">Service & Parts</span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">Base</span>
+              </div>
+              <p className="mt-1 font-mono text-base font-black text-slate-900">
+                {formatMoney(detailedMetrics.combinedBaseRevenue)}
+              </p>
+              <p className="text-[10px] text-slate-500">Pinagsamang pisa at serbisyo</p>
+            </div>
+
+            {/* Strip 2: Mark Up */}
+            <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-teal-700">
+                <span className="text-[10px] font-black uppercase tracking-wider">Mark Up</span>
+                <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[9px] font-bold text-teal-800">Patong</span>
+              </div>
+              <p className="mt-1 font-mono text-base font-black text-teal-950">
+                {formatMoney(detailedMetrics.totalMarkup)}
+              </p>
+              <p className="text-[10px] text-teal-700/80">Ipinatong na halaga sa base price</p>
+            </div>
+
+            {/* Strip 3: Interest */}
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-indigo-700">
+                <span className="text-[10px] font-black uppercase tracking-wider">Interest</span>
+                <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-800">Hulugan</span>
+              </div>
+              <p className="mt-1 font-mono text-base font-black text-indigo-950">
+                {formatMoney(detailedMetrics.totalInterest)}
+              </p>
+              <p className="text-[10px] text-indigo-700/80">Financing fee sa installment</p>
+            </div>
+
+            {/* Strip 4: AR (Accounts Receivable) */}
+            <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-rose-700">
+                <span className="text-[10px] font-black uppercase tracking-wider">AR (Pautang Balanse)</span>
+                <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold text-rose-800">Credit</span>
+              </div>
+              <p className="mt-1 font-mono text-base font-black text-rose-950">
+                {formatMoney(detailedMetrics.totalArBalance)}
+              </p>
+              <p className="text-[10px] text-rose-700/80">Natitirang sisingilin sa accounts</p>
+            </div>
+
+            {/* Strip 5: Aktwal na Nakolekta */}
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-emerald-700">
+                <span className="text-[10px] font-black uppercase tracking-wider">Aktwal na Nakolekta</span>
+                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">Cash In</span>
+              </div>
+              <p className="mt-1 font-mono text-base font-black text-emerald-950">
+                {formatMoney(detailedMetrics.totalCollectedCash)}
+              </p>
+              <p className="text-[10px] text-emerald-700/80">Cash at payment sa kaha</p>
             </div>
           </div>
 
@@ -6183,7 +6515,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               </div>
 
               <ExportExcelButton
-                filteredCount={historyTab === "QUOTATIONS" ? quotations.length : sales.length}
+                filteredCount={historyTab === "QUOTATIONS" ? quotations.length : filteredSalesByDate.length}
                 label={historyTab === "QUOTATIONS" ? "Export Quotes (.xlsx)" : "Export Sales (.xlsx)"}
                 onExport={handleExportSalesExcel}
                 size="sm"
@@ -6318,6 +6650,19 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             <div className="flex items-center justify-center gap-2 p-8 text-xs font-bold text-slate-400"><LoaderCircle className="animate-spin" size={16} />Loading sales…</div>
           ) : sales.length === 0 ? (
             <div className="p-8 text-center"><ReceiptText className="mx-auto text-slate-300" size={32} /><p className="mt-2 text-xs font-bold text-slate-700">{salesMessage || "No sales yet"}</p><p className="mt-0.5 text-[11px] text-slate-400">Completed transactions will appear here.</p></div>
+          ) : filteredSalesByDate.length === 0 ? (
+            <div className="p-8 text-center">
+              <ReceiptText className="mx-auto text-slate-300" size={32} />
+              <p className="mt-2 text-xs font-bold text-slate-700">Walang sales record para sa {DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Subukang pumili ng ibang date filter o tingnan ang lahat ng benta.</p>
+              <button
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
+                onClick={() => setDateFilterPeriod("ALL")}
+                type="button"
+              >
+                Ipakita Lahat (All Records)
+              </button>
+            </div>
           ) : (
             <>
               <div className="hidden overflow-x-auto lg:block">
@@ -6334,7 +6679,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {sales.map((sale) => (
+                    {filteredSalesByDate.map((sale) => (
                       <tr className="hover:bg-slate-50/50 transition" key={sale.id}>
                         <td className="px-4 py-3">
                           <p className="font-mono font-bold text-slate-900">{sale.receiptCode}</p>
@@ -6476,7 +6821,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </table>
               </div>
               <div className="grid gap-2.5 p-3 lg:hidden text-xs">
-                {sales.map((sale) => (
+                {filteredSalesByDate.map((sale) => (
                   <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs" key={sale.id}>
                     <div className="flex items-start justify-between gap-2">
                       <div>
