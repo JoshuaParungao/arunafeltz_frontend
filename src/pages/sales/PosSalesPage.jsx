@@ -53,6 +53,7 @@ import {
   getServiceJobs,
   getServiceJobById,
   getServiceCatalog,
+  getServicePartsCatalog,
   updateServiceJobStatus,
   releaseServiceJob,
 } from "../../features/service-jobs/serviceJobs.api"
@@ -243,76 +244,84 @@ function createRequestKey() {
   return generateUUID()
 }
 
-function isServiceLine(line) {
+// A service part is a replacement part or material used in service / repair / job orders (from Service Parts Catalog)
+function isServicePartLine(line) {
   if (!line) return false
-  if (line.isService || line.type === "SERVICE") return true
-  const desc = String(line.description || line.itemName || "").toLowerCase()
-  return !line.itemId || desc.includes("service") || desc.includes("labor") || desc.startsWith("[jo #")
+  if (line.type === "PART" || line.type === "SERVICE_PART" || Boolean(line.servicePartId)) return true
+
+  const desc = String(
+    line.description || line.itemName || line.itemNameSnapshot || ""
+  ).toLowerCase()
+
+  // Tagged Job Order part: e.g. "[JO #1001 Part] Laptop LCD Screen"
+  if (desc.includes("[jo #") && (desc.includes("part") || desc.includes("piyesa"))) return true
+
+  // Attached as explicit replacement part
+  if (line.warrantyDuration === "REPLACEMENT PART") return true
+
+  // If this is a service / non-inventory custom line (no inventory itemId)
+  if (!line.itemId) {
+    if (
+      desc.includes("part") ||
+      desc.includes("piyesa") ||
+      desc.includes("replacement") ||
+      desc.includes("lcd screen") ||
+      desc.includes("screen panel") ||
+      desc.includes("dc jack") ||
+      desc.includes("charging port") ||
+      desc.includes("power ic") ||
+      desc.includes("ic chip") ||
+      desc.includes("battery replacement") ||
+      desc.includes("keyboard replacement") ||
+      desc.includes("thermal paste") ||
+      desc.includes("thermal pad") ||
+      desc.includes("flex cable") ||
+      desc.includes("hinge replacement") ||
+      desc.includes("caddy") ||
+      desc.includes("cmos battery")
+    ) {
+      return true
+    }
+  }
+
+  return false
 }
 
-function isPartLine(line) {
+// Service labor / fee (Labor, checkup, diagnosis, cleaning, reformat, repair labor)
+function isServiceLaborLine(line) {
   if (!line) return false
-  if (line.isPcBuildPart) return true
-
-  const text = [
-    line.description,
-    line.itemName,
-    line.itemNameSnapshot,
-    line.brandSnapshot,
-    line.modelSnapshot,
-    line.item?.itemName,
-    line.item?.category?.name,
-    line.item?.category?.categoryCode,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-
+  if (isServicePartLine(line)) return false
+  if (line.isService || line.type === "SERVICE") return true
+  const desc = String(
+    line.description || line.itemName || line.itemNameSnapshot || ""
+  ).toLowerCase()
   return (
-    text.includes("cpu") ||
-    text.includes("processor") ||
-    text.includes("ryzen") ||
-    text.includes("intel") ||
-    text.includes("core i") ||
-    text.includes("athlon") ||
-    text.includes("motherboard") ||
-    text.includes("mobo") ||
-    text.includes("ram /") ||
-    text.includes("ram memory") ||
-    text.includes("ddr3") ||
-    text.includes("ddr4") ||
-    text.includes("ddr5") ||
-    text.includes("sodimm") ||
-    text.includes("so-dimm") ||
-    text.includes("graphics card") ||
-    text.includes("geforce") ||
-    text.includes("rtx") ||
-    text.includes("gtx") ||
-    text.includes("radeon") ||
-    text.includes("gpu") ||
-    text.includes("nvme") ||
-    text.includes("sata ssd") ||
-    text.includes("internal ssd") ||
-    text.includes("internal hdd") ||
-    text.includes("power supply") ||
-    text.includes("psu") ||
-    text.includes("chassis") ||
-    text.includes("pc case") ||
-    text.includes("casing") ||
-    text.includes("cpu cooler") ||
-    text.includes("liquid cooler") ||
-    text.includes("aio cooler") ||
-    text.includes("chassis fan") ||
-    text.includes("case fan") ||
-    text.includes("thermal paste") ||
-    text.includes("cat-cpu") ||
-    text.includes("cat-mobo") ||
-    text.includes("cat-ram") ||
-    text.includes("cat-gpu") ||
-    text.includes("cat-strg-nvme") ||
-    text.includes("cat-strg-sata") ||
-    text.includes("cat-strg-hdd")
+    !line.itemId ||
+    desc.includes("service") ||
+    desc.includes("labor") ||
+    desc.includes("repair") ||
+    desc.includes("cleaning") ||
+    desc.includes("format") ||
+    desc.includes("diagnos") ||
+    desc.includes("checkup") ||
+    desc.startsWith("[jo #")
   )
+}
+
+// Inventory Product / Items (physical products sold from inventory: PCs, laptops, RAM, GPU, CPU, monitors, accessories)
+function isInventoryItemLine(line) {
+  if (!line) return false
+  if (isServicePartLine(line) || isServiceLaborLine(line)) return false
+  return true
+}
+
+// Helper aliases: isPartLine refers to Service Parts Catalog parts!
+function isPartLine(line) {
+  return isServicePartLine(line)
+}
+
+function isServiceLine(line) {
+  return isServiceLaborLine(line)
 }
 
 function isOnlinePaymentMethod(method, remarks = "", ref = "") {
@@ -2638,12 +2647,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [serviceDiscount, setServiceDiscount] = useState("0")
   const [serviceCharge, setServiceCharge] = useState("0")
 
-  // Service Catalog
+  // Service Catalog & Service Parts Catalog
   const [serviceCatalog, setServiceCatalog] = useState([])
   const [selectedServiceCatalogId, setSelectedServiceCatalogId] = useState("")
+  const [servicePartsCatalog, setServicePartsCatalog] = useState([])
+  const [selectedServicePartCatalogId, setSelectedServicePartCatalogId] = useState("")
 
   const handleSelectServiceCatalog = (catalogId) => {
     setSelectedServiceCatalogId(catalogId)
+    setSelectedServicePartCatalogId("")
     if (!catalogId) return
     const item = serviceCatalog.find((s) => s.id === catalogId)
     if (item) {
@@ -2651,6 +2663,24 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       setServiceUnitPrice(item.basePrice !== undefined && item.basePrice !== null ? String(item.basePrice) : "")
       if (item.markupPercent) {
         setServiceMarkup(String(item.markupPercent))
+      }
+    }
+  }
+
+  const handleSelectServicePartCatalog = (partId) => {
+    setSelectedServicePartCatalogId(partId)
+    setSelectedServiceCatalogId("")
+    if (!partId) return
+    const part = servicePartsCatalog.find((p) => p.id === partId)
+    if (part) {
+      const partCost = Number(part.costPrice || 0)
+      const partMarkup = Number(part.markupAmount || 0)
+      const srp = partCost + partMarkup
+      setServiceDescription(`[Service Part] ${part.name || part.description || "Replacement Part"}`)
+      setServiceUnitPrice(srp > 0 ? String(srp) : String(partCost))
+      if (partMarkup > 0 && partCost > 0) {
+        const pct = Math.round((partMarkup / partCost) * 100)
+        setServiceMarkup(String(pct))
       }
     }
   }
@@ -3115,6 +3145,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       .catch(() => {
         if (isMounted) setServiceCatalog([])
       })
+
+    getServicePartsCatalog()
+      .then((response) => {
+        if (!isMounted) return
+        const list = response?.data || response || []
+        setServicePartsCatalog(Array.isArray(list) ? list.filter((p) => p.isActive !== false) : [])
+      })
+      .catch(() => {
+        if (isMounted) setServicePartsCatalog([])
+      })
+
     return () => {
       isMounted = false
     }
@@ -5224,11 +5265,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       // Computed effective total for this sale based on Main & Sub Categories
       let effectiveSaleTotal = 0
       if (mainCategories.allSales) {
-        const itemBase = Math.max(salePhysicalTotal - salePhysicalMarkup, 0)
-        effectiveSaleTotal += itemBase
-        if (subCategories.markup) {
-          effectiveSaleTotal += salePhysicalMarkup
-        }
+        const itemBase = Math.max(saleItemsFromItems - saleItemsMarkup, 0)
+        effectiveSaleTotal += itemBase + (subCategories.markup ? saleItemsMarkup : 0)
+
+        const partBase = Math.max(salePartsFromItems - salePartsMarkup, 0)
+        effectiveSaleTotal += partBase + (subCategories.markup ? salePartsMarkup : 0)
+
         effectiveSaleTotal += (saleServiceFromItems + saleServiceCharge)
         if (hasAr && subCategories.interest) {
           effectiveSaleTotal += saleInterest
@@ -5236,17 +5278,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       } else {
         if (mainCategories.items) {
           const itemBase = Math.max(saleItemsFromItems - saleItemsMarkup, 0)
-          effectiveSaleTotal += itemBase
-          if (subCategories.markup) {
-            effectiveSaleTotal += saleItemsMarkup
-          }
+          effectiveSaleTotal += itemBase + (subCategories.markup ? saleItemsMarkup : 0)
         }
         if (mainCategories.parts) {
           const partBase = Math.max(salePartsFromItems - salePartsMarkup, 0)
-          effectiveSaleTotal += partBase
-          if (subCategories.markup) {
-            effectiveSaleTotal += salePartsMarkup
-          }
+          effectiveSaleTotal += partBase + (subCategories.markup ? salePartsMarkup : 0)
         }
         if (mainCategories.services) {
           effectiveSaleTotal += (saleServiceFromItems + saleServiceCharge)
@@ -5262,7 +5298,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         if (mainCategories.online && hasOnline) {
           if (!mainCategories.items && !mainCategories.parts && !mainCategories.services) {
             let onlineBase = Number(sale.creditAccount?.regularPriceTotalAmount || sale.grandTotal || 0)
-            if (!subCategories.markup && salePhysicalMarkup > 0) onlineBase = Math.max(onlineBase - salePhysicalMarkup, 0)
+            const totalMarkupToDeduct = (saleItemsMarkup + salePartsMarkup)
+            if (!subCategories.markup && totalMarkupToDeduct > 0) onlineBase = Math.max(onlineBase - totalMarkupToDeduct, 0)
             if (!subCategories.interest && saleInterest > 0) onlineBase = Math.max(onlineBase - saleInterest, 0)
             effectiveSaleTotal += onlineBase
           }
@@ -5341,9 +5378,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       if (mainCategories.allSales) return true
 
       const items = Array.isArray(sale.items) ? sale.items : []
-      const hasParts = items.some((it) => !isServiceLine(it) && isPartLine(it))
-      const hasItems = items.some((it) => !isServiceLine(it) && !isPartLine(it))
-      const hasServices = Number(sale.serviceCharge || 0) > 0 || items.some((it) => isServiceLine(it))
+      const hasParts = items.some((it) => isServicePartLine(it))
+      const hasItems = items.some((it) => isInventoryItemLine(it))
+      const hasServices = Number(sale.serviceCharge || 0) > 0 || items.some((it) => isServiceLaborLine(it))
       const hasAr = Boolean(sale.creditAccount)
       const hasOnline = isOnlineSale(sale)
 
@@ -6922,7 +6959,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600 cursor-pointer"
                     />
                     <span className={mainCategories.items ? "text-blue-950 font-bold" : "text-slate-600"}>
-                      Items
+                      Items (Inventory Products)
                     </span>
                   </label>
 
@@ -6934,7 +6971,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       className="size-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
                     />
                     <span className={mainCategories.parts ? "text-indigo-950 font-bold" : "text-slate-600"}>
-                      Parts
+                      Parts (Service Catalog)
                     </span>
                   </label>
 
@@ -6958,7 +6995,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       className="size-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
                     />
                     <span className={mainCategories.ar ? "text-purple-950 font-bold" : "text-slate-600"}>
-                      AR
+                      AR (Financing)
                     </span>
                   </label>
 
@@ -6970,7 +7007,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       className="size-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
                     />
                     <span className={mainCategories.services ? "text-amber-950 font-bold" : "text-slate-600"}>
-                      Services
+                      Services (Labor / Repair)
                     </span>
                   </label>
                 </div>
@@ -7202,7 +7239,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <div className="relative overflow-hidden rounded-2xl border border-indigo-300 bg-gradient-to-br from-indigo-50 via-white to-indigo-50/40 p-4 shadow-2xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black uppercase tracking-wider text-indigo-900">
-                    Parts Gross Sales
+                    Service Parts Gross (Service Catalog)
                   </span>
                   <span className="grid size-8 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
                     <Cpu size={16} />
@@ -7213,10 +7250,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </p>
                 <div className="mt-1 flex items-center justify-between">
                   <p className="text-[11px] font-semibold text-indigo-700/90">
-                    {subCategories.markup ? "Kasama ang Mark-up sa Parts" : "Puhunan lamang (Excluded Patong)"}
+                    {subCategories.markup ? "Kasama ang Mark-up sa Service Parts" : "Puhunan lamang (Excluded Patong)"}
                   </p>
                   <span className="rounded bg-indigo-100 px-1.5 py-0.2 text-[9px] font-bold text-indigo-800">
-                    ⚙️ Parts Only
+                    ⚙️ Service Parts (Catalog)
                   </span>
                 </div>
               </div>
@@ -7246,18 +7283,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <div className="relative overflow-hidden rounded-2xl border border-blue-300 bg-gradient-to-br from-blue-50 via-white to-blue-50/40 p-4 shadow-2xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
-                    Items & Parts Gross Sales
+                    Items Gross Sales (Inventory Products)
                   </span>
                   <span className="grid size-8 place-items-center rounded-xl bg-blue-600 text-white shadow-xs">
                     <PackageSearch size={16} />
                   </span>
                 </div>
                 <p className="mt-2 font-mono text-2xl font-black text-blue-950">
-                  {formatMoney(detailedMetrics.effectivePhysicalRevenue)}
+                  {formatMoney(detailedMetrics.effectiveItemsRevenue)}
                 </p>
                 <div className="mt-1 flex items-center justify-between">
                   <p className="text-[11px] font-semibold text-blue-700/90">
-                    {subCategories.markup ? "Kasama ang Mark-up sa Items & Parts" : "Puhunan / Base lamang (Excluded Patong)"}
+                    {subCategories.markup ? "Kasama ang Mark-up sa Items" : "Puhunan lamang (Excluded Patong)"}
                   </p>
                   <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${subCategories.markup ? "bg-blue-100 text-blue-800" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
                     {subCategories.markup ? "+Mark-up" : "Excl. Mark-up"}
@@ -7831,15 +7868,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                             <td className="px-4 py-3">
                               {row.isService ? (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                                  🔧 Service
+                                  🔧 Service (Labor)
                                 </span>
                               ) : row.isPart ? (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-800">
-                                  ⚙️ Part
+                                  ⚙️ Service Part (Catalog)
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-800">
-                                  📦 Item
+                                  📦 Inventory Item
                                 </span>
                               )}
                             </td>
@@ -7881,15 +7918,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                               <p className="font-mono font-bold text-slate-900">{row.receiptCode}</p>
                               {row.isService ? (
                                 <span className="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.2 text-[9px] font-bold text-amber-800">
-                                  Service
+                                  Service (Labor)
                                 </span>
                               ) : row.isPart ? (
                                 <span className="rounded bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 text-[9px] font-bold text-indigo-800">
-                                  Part
+                                  Service Part
                                 </span>
                               ) : (
                                 <span className="rounded bg-blue-50 border border-blue-200 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">
-                                  Item
+                                  Inventory Item
                                 </span>
                               )}
                             </div>
