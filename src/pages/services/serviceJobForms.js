@@ -186,11 +186,22 @@ export function extractServiceParts(job) {
   return []
 }
 
+export function cleanUserNotes(notes) {
+  if (!notes) return ""
+  return notes
+    .replace(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1|SERVICE_PARTS_V1)\]:[\s\S]*?(\n\n|$)/g, "")
+    .replace(/\[BILLED IN POS:.*?\]/g, "")
+    .replace(/\[CLIENT PULL-OUT\]:.*?(\n|$)/g, "")
+    .trim()
+}
+
 export function serializeStructuredNotes({
   intakeRecord = null,
   tasks = [],
   parts = [],
   freeNotes = "",
+  billedInPosTag = "",
+  clientPullOutTag = "",
 }) {
   const partsList = []
   if (intakeRecord) {
@@ -202,17 +213,15 @@ export function serializeStructuredNotes({
   if (Array.isArray(parts) && parts.length > 0) {
     partsList.push(`${SERVICE_PARTS_HEADER}${JSON.stringify(parts)}`)
   }
-  const cleanFree = (freeNotes || "").trim()
+  if (billedInPosTag) {
+    partsList.push(billedInPosTag.trim())
+  }
+  if (clientPullOutTag) {
+    partsList.push(clientPullOutTag.trim())
+  }
+  const cleanFree = cleanUserNotes(freeNotes)
   if (cleanFree) {
-    // strip out existing header blocks from free notes if present
-    const stripped = cleanFree
-      .replace(/\[INTAKE_RECORD_V1\]:.*?(\n\n|$)/gs, "")
-      .replace(/\[SERVICE_TASKS_V1\]:.*?(\n\n|$)/gs, "")
-      .replace(/\[SERVICE_PARTS_V1\]:.*?(\n\n|$)/gs, "")
-      .trim()
-    if (stripped) {
-      partsList.push(stripped)
-    }
+    partsList.push(cleanFree)
   }
   return partsList.join("\n\n")
 }

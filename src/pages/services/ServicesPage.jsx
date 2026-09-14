@@ -54,11 +54,38 @@ import {
   REQUESTED_MAINTENANCE_SERVICES,
   SPECIAL_ATTENTION_ITEMS,
   UNIT_TYPES,
+  cleanUserNotes,
   extractIntakeRecord,
   extractServiceTasks,
   extractServiceParts,
   serializeStructuredNotes,
 } from "./serviceJobForms"
+
+export const getEffectiveJobPaymentState = (job) => {
+  if (!job) return { paymentState: "NOT_DUE", remainingBalance: 0, isBilledInPos: false, posInvoiceCode: null }
+  const posInvoiceMatch =
+    (job.serviceNotes || "").match(/\[BILLED IN POS:\s*Invoice\s*([A-Za-z0-9_-]+)\]/i) ||
+    (job.releaseNotes || "").match(/via POS invoice\s*([A-Za-z0-9_-]+)/i) ||
+    (job.servicePerformed || "").match(/\[BILLED IN POS:\s*Invoice\s*([A-Za-z0-9_-]+)\]/i)
+  const isBilledInPos = Boolean(posInvoiceMatch) || Boolean(job.billedInPos)
+  const posInvoiceCode = posInvoiceMatch?.[1] || job.posInvoiceCode || null
+
+  if (isBilledInPos) {
+    return {
+      paymentState: "PAID",
+      remainingBalance: 0,
+      isBilledInPos: true,
+      posInvoiceCode,
+    }
+  }
+
+  return {
+    paymentState: job.paymentState || "NOT_DUE",
+    remainingBalance: Number(job.remainingBalance || 0),
+    isBilledInPos: false,
+    posInvoiceCode: null,
+  }
+}
 
 const CREATE_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "TECHNICIAN", "CASHIER"])
 const LIFECYCLE_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "CASHIER", "TECHNICIAN"])
@@ -2137,15 +2164,8 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     const isPullOut = status === "CANCELLED"
     setActionStatus(status)
     setActionForm({
-      diagnosis: selectedJob?.diagnosis || "",
-      serviceNotes: isPullOut
-        ? [
-            selectedJob?.serviceNotes?.trim() || "",
-            "[CLIENT PULL-OUT]: Unit released unrepaired / pulled out by client.",
-          ]
-            .filter(Boolean)
-            .join("\n")
-        : selectedJob?.serviceNotes || "",
+      diagnosis: cleanUserNotes(selectedJob?.diagnosis || ""),
+      serviceNotes: cleanUserNotes(selectedJob?.serviceNotes || ""),
       cancellationReason: isPullOut
         ? "Client pull-out / Unit unrepairable (Client opted for pull-out without repair)."
         : "",
@@ -2199,10 +2219,28 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     setIsSaving(true)
     setErrorMessage("")
     try {
+      const intakeRecord = extractIntakeRecord(selectedJob)
+      const tasks = extractServiceTasks(selectedJob)
+      const parts = extractServiceParts(selectedJob)
+      const posMatch = (selectedJob.serviceNotes || "").match(/\[BILLED IN POS:[^\]]*\]/)
+      const billedInPosTag = posMatch ? posMatch[0] : ""
+      const clientPullOutTag = actionStatus === "CANCELLED"
+        ? "[CLIENT PULL-OUT]: Unit released unrepaired / pulled out by client."
+        : ""
+
+      const finalServiceNotes = serializeStructuredNotes({
+        intakeRecord,
+        tasks,
+        parts,
+        billedInPosTag,
+        clientPullOutTag,
+        freeNotes: actionForm.serviceNotes,
+      })
+
       await updateServiceJobStatus(selectedJob.id, {
         status: actionStatus,
         diagnosis: actionForm.diagnosis.trim() || undefined,
-        serviceNotes: actionForm.serviceNotes.trim() || undefined,
+        serviceNotes: finalServiceNotes || undefined,
         ...(actionStatus === "CANCELLED" ? { cancellationReason: actionForm.cancellationReason.trim() } : {}),
         ...(repairType && actionStatus !== "CANCELLED" ? { repairType } : {}),
         ...(isReadyAction
@@ -2643,15 +2681,20 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       <p className="font-mono font-black text-sm text-[var(--color-maroon)]">
                         {moneyOrDash(job.finalServiceCharge)}
                       </p>
-                      <span className={`inline-flex items-center text-[10px] font-bold ${
-                        job.paymentState === "PAID"
-                          ? "text-emerald-700 dark:text-emerald-400"
-                          : job.paymentState === "PARTIALLY_PAID"
-                            ? "text-amber-700 dark:text-amber-400"
-                            : "text-slate-400"
-                      }`}>
-                        {friendly(job.paymentState)}
-                      </span>
+                      {(() => {
+                        const { paymentState: effectiveState } = getEffectiveJobPaymentState(job)
+                        return (
+                          <span className={`inline-flex items-center text-[10px] font-bold ${
+                            effectiveState === "PAID"
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : effectiveState === "PARTIALLY_PAID"
+                                ? "text-amber-700 dark:text-amber-400"
+                                : "text-slate-400"
+                          }`}>
+                            {friendly(effectiveState)}
+                          </span>
+                        )
+                      })()}
                     </div>
                   </div>
                 </button>
@@ -3486,24 +3529,37 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                         <span className="font-black text-slate-900 text-xs">Final Charge</span>
                         <span className="font-mono font-black text-[var(--color-maroon)] text-sm">{moneyOrDash(selectedJob.finalServiceCharge)}</span>
                       </div>
-                      <div className="flex justify-between items-center border-t border-slate-200/80 pt-1.5">
-                        <span className="font-bold text-slate-600">Payment Status</span>
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-black ${
-                          selectedJob.paymentState === "PAID"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : selectedJob.paymentState === "PARTIALLY_PAID"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-slate-200 text-slate-800"
-                        }`}>
-                          {friendly(selectedJob.paymentState)}
-                        </span>
-                      </div>
-                      {selectedJob.remainingBalance > 0 ? (
-                        <div className="flex justify-between items-center text-rose-700 font-bold">
-                          <span>Balance Due</span>
-                          <span className="font-mono">{money(selectedJob.remainingBalance)}</span>
-                        </div>
-                      ) : null}
+                      {(() => {
+                        const { paymentState: effectivePaymentState, remainingBalance: effectiveBalance, isBilledInPos, posInvoiceCode } = getEffectiveJobPaymentState(selectedJob)
+                        return (
+                          <>
+                            <div className="flex justify-between items-center border-t border-slate-200/80 pt-1.5">
+                              <span className="font-bold text-slate-600">Payment Status</span>
+                              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-black ${
+                                effectivePaymentState === "PAID"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : effectivePaymentState === "PARTIALLY_PAID"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-slate-200 text-slate-800"
+                              }`}>
+                                {friendly(effectivePaymentState)}
+                              </span>
+                            </div>
+                            {isBilledInPos ? (
+                              <div className="flex justify-between items-center text-emerald-700 font-bold text-[11px] pt-1 border-t border-slate-100">
+                                <span className="flex items-center gap-1"><CheckCircle2 size={13} /> Settle in POS</span>
+                                <span className="font-mono font-black">{posInvoiceCode ? `Invoice #${posInvoiceCode}` : "Billed in POS"} (Paid)</span>
+                              </div>
+                            ) : null}
+                            {effectiveBalance > 0 ? (
+                              <div className="flex justify-between items-center text-rose-700 font-bold">
+                                <span>Balance Due</span>
+                                <span className="font-mono">{money(effectiveBalance)}</span>
+                              </div>
+                            ) : null}
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -3530,7 +3586,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       Work Performed &amp; Notes
                     </p>
                     <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
-                      {(selectedJob.serviceNotes || "").replace(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1|SERVICE_PARTS_V1)\]:[\s\S]*?(\n\n|$)/g, "").trim() || "—"}
+                      {cleanUserNotes(selectedJob.serviceNotes) || "—"}
                     </p>
                     {selectedJob.releaseNotes ? (
                       <p className="text-xs text-slate-600 italic pt-2 border-t border-slate-100">
