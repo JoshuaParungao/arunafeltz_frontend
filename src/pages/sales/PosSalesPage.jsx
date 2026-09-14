@@ -55,6 +55,7 @@ import {
   getServiceJobById,
   getServiceCatalog,
   getServicePartsCatalog,
+  getServiceTechnicians,
   updateServiceJobStatus,
   releaseServiceJob,
 } from "../../features/service-jobs/serviceJobs.api"
@@ -323,6 +324,117 @@ function isPartLine(line) {
 
 function isServiceLine(line) {
   return isServiceLaborLine(line)
+}
+
+function ServiceLineStaffCombobox({
+  value,
+  staffName,
+  onChange,
+  onApplyAll,
+  serviceStaffList = [],
+  hasMultipleServiceLines = false,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setIsOpen(false)
+        setSearch("")
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return serviceStaffList
+    return serviceStaffList.filter((s) => {
+      const name = (s.fullName || s.username || "").toLowerCase()
+      return name.includes(q)
+    })
+  }, [serviceStaffList, search])
+
+  const selectedStaff = serviceStaffList.find((s) => s.id === value)
+  const displayName = staffName || selectedStaff?.fullName || selectedStaff?.username || ""
+
+  return (
+    <div className="relative text-xs" ref={ref}>
+      <div className="flex items-center gap-1.5">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] transition font-medium"
+            placeholder={displayName ? displayName : "Type 1 letter to search technician..."}
+            value={search !== "" ? search : (isOpen ? "" : displayName)}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setIsOpen(true)
+            }}
+            onFocus={() => {
+              setIsOpen(true)
+            }}
+          />
+          {displayName ? (
+            <button
+              type="button"
+              onClick={() => {
+                onChange("", "")
+                setSearch("")
+                setIsOpen(false)
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-600 p-0.5"
+              title="Clear"
+            >
+              <X size={12} />
+            </button>
+          ) : null}
+        </div>
+
+        {hasMultipleServiceLines && displayName && onApplyAll ? (
+          <button
+            type="button"
+            onClick={onApplyAll}
+            className="shrink-0 px-2 py-1.5 rounded-lg text-[10px] font-bold bg-rose-50 text-[var(--color-maroon)] border border-rose-200 hover:bg-rose-100 transition whitespace-nowrap cursor-pointer"
+            title="Apply this technician to all service lines in cart"
+          >
+            Apply all lines
+          </button>
+        ) : null}
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+          {filtered.length === 0 ? (
+            <div className="p-2.5 text-center text-xs text-slate-400">
+              No matching account found
+            </div>
+          ) : (
+            filtered.map((staff) => {
+              const name = staff.fullName || staff.username || "Staff"
+              return (
+                <button
+                  key={staff.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(staff.id, name)
+                    setSearch("")
+                    setIsOpen(false)
+                  }}
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-xs hover:bg-rose-50 transition border-b border-slate-100 last:border-b-0 cursor-pointer"
+                >
+                  <p className="font-bold text-slate-800">{name}</p>
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function isOnlinePaymentMethod(method, remarks = "", ref = "") {
@@ -3211,20 +3323,38 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       }
 
       setIsLoadingServiceStaff(true)
-      getQuotationServiceStaff({ branchId })
+      getServiceTechnicians({ branchId })
         .then((response) => {
           if (!isMounted) return
           const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []
-          setServiceStaffList(rows)
-          if (user?.id) {
-            setSelectedSalesPersonId((prev) => prev || user.id)
-            if (rows.some((staff) => staff.id === user.id)) {
-              setSelectedServiceStaffId((prev) => prev || user.id)
+          if (rows.length > 0) {
+            setServiceStaffList(rows)
+            if (user?.id) {
+              setSelectedSalesPersonId((prev) => prev || user.id)
+              if (rows.some((staff) => staff.id === user.id)) {
+                setSelectedServiceStaffId((prev) => prev || user.id)
+              }
             }
+          } else {
+            getQuotationServiceStaff({ branchId })
+              .then((qRes) => {
+                if (!isMounted) return
+                const qRows = Array.isArray(qRes?.data) ? qRes.data : Array.isArray(qRes) ? qRes : []
+                setServiceStaffList(qRows)
+              })
+              .catch(() => {})
           }
         })
         .catch(() => {
-          if (isMounted) setServiceStaffList([])
+          getQuotationServiceStaff({ branchId })
+            .then((qRes) => {
+              if (!isMounted) return
+              const qRows = Array.isArray(qRes?.data) ? qRes.data : Array.isArray(qRes) ? qRes : []
+              setServiceStaffList(qRows)
+            })
+            .catch(() => {
+              if (isMounted) setServiceStaffList([])
+            })
         })
         .finally(() => {
           if (isMounted) setIsLoadingServiceStaff(false)
@@ -3852,6 +3982,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       if (line.type === "SERVICE") {
         if (!line.description?.trim()) return "Every service/custom line needs a description."
+        if (!line.serviceStaffId && !line.serviceStaffName) {
+          return `Please select the technician/staff who performed "${line.description.trim()}".`
+        }
         const baseUnitPrice = getLineBaseUnitPrice(line)
         if (!Number.isFinite(baseUnitPrice) || baseUnitPrice < 0) return `${line.description} has an invalid base unit price.`
         if (!Number.isFinite(unitPrice) || unitPrice < 0) return `${line.description} has an invalid final unit price.`
@@ -6201,8 +6334,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                         const filteredStaff = serviceStaffList.filter((s) => {
                           const query = serviceStaffSearch.toLowerCase().trim()
                           if (!query) return true
-                          const roleName = getRoleLabel(s.role).toLowerCase()
-                          return s.fullName.toLowerCase().includes(query) || roleName.includes(query)
+                          return s.fullName.toLowerCase().includes(query) || (s.username || "").toLowerCase().includes(query)
                         })
 
                         return (
@@ -6627,7 +6759,40 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
+                        <div className="space-y-2 pt-1.5 border-t border-slate-200/60">
+                          {/* Technician Selector per line */}
+                          <div className={`p-2 rounded-xl border transition ${!line.serviceStaffId && !line.serviceStaffName ? "border-amber-300 bg-amber-50/80 dark:bg-amber-950/20" : "border-slate-200 bg-white dark:bg-slate-900"}`}>
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                                <UserRound size={12} className={!line.serviceStaffId && !line.serviceStaffName ? "text-amber-600" : "text-[var(--color-maroon)]"} />
+                                <span>Technician / Staff *</span>
+                              </span>
+                              {!line.serviceStaffId && !line.serviceStaffName ? (
+                                <span className="text-[10px] font-bold text-amber-700 bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.2 rounded">Required</span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">✓ Assigned</span>
+                              )}
+                            </div>
+                            <ServiceLineStaffCombobox
+                              value={line.serviceStaffId}
+                              staffName={line.serviceStaffName}
+                              onChange={(staffId, staffName) => {
+                                updateCartLine(line.localId, { serviceStaffId: staffId, serviceStaffName: staffName })
+                              }}
+                              onApplyAll={() => {
+                                setCart((curr) =>
+                                  curr.map((cl) =>
+                                    cl.type === "SERVICE"
+                                      ? { ...cl, serviceStaffId: line.serviceStaffId, serviceStaffName: line.serviceStaffName }
+                                      : cl
+                                  )
+                                )
+                              }}
+                              serviceStaffList={serviceStaffList}
+                              hasMultipleServiceLines={cart.filter((cl) => cl.type === "SERVICE").length > 1}
+                            />
+                          </div>
+
                           <div className="grid gap-1.5 grid-cols-4">
                             <label className="block"><span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span><input className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs" min="0.01" onChange={(event) => updateCartLine(line.localId, { quantity: event.target.value })} step="0.01" type="number" value={line.quantity} /></label>
                             <label className="block">

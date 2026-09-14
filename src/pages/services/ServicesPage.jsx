@@ -180,21 +180,7 @@ function isEligibleForRepairType() {
 }
 
 function technicianLabel(technician) {
-  const name = technician?.fullName || technician?.username || "Staff"
-  const role = technician?.role ? friendly(technician.role) : ""
-  const classification =
-    technician?.incentiveClassification &&
-    technician.incentiveClassification !== "NONE"
-      ? friendly(technician.incentiveClassification)
-      : ""
-
-  if (classification) {
-    return `${name} · ${classification}`
-  }
-  if (role) {
-    return `${name} (${role})`
-  }
-  return name
+  return technician?.fullName || technician?.username || "Staff"
 }
 
 function dateTime(value) {
@@ -596,9 +582,9 @@ function StaffCombobox({
                 <p className="font-bold text-[var(--color-text-strong)]">
                   {technicianLabel(opt)}
                 </p>
-                {opt.username ? (
+                {opt.username && opt.username !== opt.fullName ? (
                   <p className="text-[11px] text-[var(--color-muted)]">
-                    @{opt.username} · {friendly(opt.role)}
+                    @{opt.username}
                   </p>
                 ) : null}
               </button>
@@ -1943,12 +1929,8 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     const selectedAssignee = technicians.find(
       (technician) => technician.id === createForm.assignedTechnicianId,
     )
-    if (
-      createForm.assignedTechnicianId &&
-      (!selectedAssignee ||
-        (user?.role === "TECHNICIAN" && selectedAssignee.id !== user.id))
-    ) {
-      setErrorMessage("Choose an eligible staff member/technician.")
+    if (!createForm.assignedTechnicianId || !selectedAssignee) {
+      setErrorMessage("Assigned Technician / Staff is required. Please select who is handling this Job Order.")
       return
     }
 
@@ -2200,8 +2182,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     if (
       isReadyAction &&
       (!selectedPerformer ||
-        !isEligibleForRepairType(selectedPerformer, repairType) ||
-        (user?.role === "TECHNICIAN" && selectedPerformer.id !== user.id))
+        !isEligibleForRepairType(selectedPerformer, repairType))
     ) {
       setErrorMessage("Choose an eligible Service Done By performer for this repair category.")
       return
@@ -2263,8 +2244,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
         !isEligibleForRepairType(
           selectedAssignee,
           selectedJob.repairType || "ORDINARY_REPAIR",
-        ) ||
-        (user?.role === "TECHNICIAN" && selectedAssignee.id !== user.id))
+        ))
     ) {
       setErrorMessage("Choose an eligible technician for this repair category.")
       return
@@ -2480,32 +2460,18 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
   const selectedTechnicianId =
     selectedJob?.assignedTechnicianId || selectedJob?.assignedTechnician?.id
   const actionableRepairTypes = REPAIR_TYPES
-  const technicianOptionsFor = () =>
-    technicians.filter(
-      (technician) =>
-        (user?.role !== "TECHNICIAN" || technician.id === user.id),
-    )
+  const technicianOptionsFor = () => technicians
   const createTechnicianOptions = technicianOptionsFor()
   const selectedRepairType = selectedJob?.repairType || ""
   const actionRepairType = selectedRepairType || actionForm.repairType
   const assignmentTechnicianOptions = technicianOptionsFor()
   const actionPerformerOptions = technicianOptionsFor()
   const technicianCanHandleSelectedRepair = true
-  const canActOnSelected =
-    canUpdateLifecycle &&
-    technicianCanHandleSelectedRepair &&
-    (user?.role !== "TECHNICIAN" || selectedTechnicianId === user?.id)
+  const canActOnSelected = canUpdateLifecycle && selectedIsActive
   const canSelfClaim =
-    user?.role === "TECHNICIAN" &&
-    Boolean(selectedRepairType) &&
-    technicianCanHandleSelectedRepair &&
-    selectedIsActive &&
-    !selectedTechnicianId
+    selectedIsActive && !selectedTechnicianId
   const canOpenAssignment =
-    canManageAssignment &&
-    user?.role !== "TECHNICIAN" &&
-    selectedIsActive &&
-    Boolean(selectedRepairType)
+    canManageAssignment && selectedIsActive
   const canPaySelected =
     canCollectPayment &&
     !selectedJob?.creditAccount &&
@@ -2825,7 +2791,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   </select>
                 </Field>
                 <StaffCombobox
-                  label="Assigned staff / technician (optional)"
+                  label="Assigned Technician / Staff *"
                   onChange={(id) =>
                     setCreateForm((form) => ({
                       ...form,
@@ -2833,7 +2799,8 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                     }))
                   }
                   options={createTechnicianOptions}
-                  placeholder="Search or type staff / technician..."
+                  placeholder="Type 1 letter to search technician / staff..."
+                  required
                   value={createForm.assignedTechnicianId}
                 />
               </div>
