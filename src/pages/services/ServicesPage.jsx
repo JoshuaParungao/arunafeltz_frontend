@@ -1594,6 +1594,15 @@ function lifecycleChoices(job) {
   return []
 }
 
+function unwrapList(response) {
+  if (Array.isArray(response)) return response
+  if (Array.isArray(response?.data)) return response.data
+  if (Array.isArray(response?.data?.data)) return response.data.data
+  if (Array.isArray(response?.data?.items)) return response.data.items
+  if (Array.isArray(response?.items)) return response.items
+  return []
+}
+
 export default function ServicesPage({ onNavigate, selectedBranch, user }) {
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const canCreate = CREATE_ROLES.has(user?.role)
@@ -1717,14 +1726,41 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
 
   const filteredCustomers = useMemo(() => {
     const q = (createForm.customerNameSnapshot || customerSearch || "").trim().toLowerCase()
-    if (!q) return customers.slice(0, 10)
+    if (!q) return customers.slice(0, 15)
     return customers.filter((c) =>
       c.fullName?.toLowerCase().includes(q) ||
+      c.customerCode?.toLowerCase().includes(q) ||
       c.mobileNumber?.toLowerCase().includes(q) ||
       c.address?.toLowerCase().includes(q) ||
       c.companyName?.toLowerCase().includes(q)
-    ).slice(0, 10)
+    ).slice(0, 15)
   }, [customers, createForm.customerNameSnapshot, customerSearch])
+
+  useEffect(() => {
+    const term = (createForm.customerNameSnapshot || customerSearch || "").trim()
+    if (!term || term.length < 2) return
+    const timer = setTimeout(async () => {
+      try {
+        const res = await getCustomers({
+          ...(branchId ? { branchId } : {}),
+          status: "ACTIVE",
+          search: term,
+          limit: 20,
+        })
+        const items = unwrapList(res)
+        if (items.length > 0) {
+          setCustomers((prev) => {
+            const existingIds = new Set(prev.map((c) => c.id))
+            const newOnes = items.filter((c) => !existingIds.has(c.id))
+            return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+          })
+        }
+      } catch {
+        // Fallback to local filter
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [branchId, createForm.customerNameSnapshot, customerSearch])
 
   const loadJobs = useCallback(async () => {
     const response = await getServiceJobs({
@@ -1742,20 +1778,17 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
 
   const loadReferences = useCallback(async () => {
     if (!canCreate || (user?.role === "SUPER_OWNER" && !branchId)) return
-    const params = { ...(branchId ? { branchId } : {}), status: "ACTIVE", limit: 100 }
+    const params = { ...(branchId ? { branchId } : {}), status: "ACTIVE", limit: 200 }
     const [customerResponse, technicianResponse, catalogResponse, partsCatalogResponse] = await Promise.all([
       getCustomers(params),
       getServiceTechnicians(branchId ? { branchId } : {}),
       getServiceCatalog().catch(() => ({ data: [] })),
       getServicePartsCatalog().catch(() => ({ data: [] })),
     ])
-    const customerData = customerResponse?.data
-    setCustomers(Array.isArray(customerData) ? customerData : customerData?.data || [])
-    setTechnicians(Array.isArray(technicianResponse?.data) ? technicianResponse.data : [])
-    const catalogData = catalogResponse?.data || catalogResponse || []
-    setServiceCatalog(Array.isArray(catalogData) ? catalogData : [])
-    const partsCatalogData = partsCatalogResponse?.data || partsCatalogResponse || []
-    setServicePartsCatalog(Array.isArray(partsCatalogData) ? partsCatalogData : [])
+    setCustomers(unwrapList(customerResponse))
+    setTechnicians(unwrapList(technicianResponse))
+    setServiceCatalog(unwrapList(catalogResponse))
+    setServicePartsCatalog(unwrapList(partsCatalogResponse))
   }, [branchId, canCreate, user?.role])
 
   const refresh = useCallback(async () => {
@@ -2868,34 +2901,42 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                     </Field>
 
                     {/* Floating Autocomplete Dropdown */}
-                    {isCustomerDropdownOpen && filteredCustomers.length > 0 && (
+                    {isCustomerDropdownOpen && (
                       <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-white dark:bg-slate-900 shadow-xl">
-                        <div className="border-b border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                          Matching Existing Customers
+                        <div className="border-b border-[var(--color-border)] bg-[var(--color-soft)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)] flex items-center justify-between">
+                          <span>Matching Existing Customers</span>
+                          <span className="font-mono text-[10px]">{filteredCustomers.length} found</span>
                         </div>
-                        {filteredCustomers.map((cust) => (
-                          <button
-                            className="block w-full border-b border-[var(--color-border)] px-3.5 py-2 text-left text-xs transition last:border-b-0 hover:bg-blue-50 dark:hover:bg-slate-800"
-                            key={cust.id}
-                            onClick={() => {
-                              setCreateForm((form) => ({
-                                ...form,
-                                customerId: cust.id,
-                                customerNameSnapshot: cust.fullName,
-                                customerContactSnapshot: cust.mobileNumber || cust.email || form.customerContactSnapshot,
-                                customerAddressSnapshot: cust.address || form.customerAddressSnapshot,
-                              }))
-                              setCustomerSearch(cust.fullName)
-                              setIsCustomerDropdownOpen(false)
-                            }}
-                            type="button"
-                          >
-                            <p className="font-bold text-[var(--color-text-strong)]">{cust.fullName}</p>
-                            <p className="text-[11px] text-[var(--color-muted)]">
-                              {[cust.companyName, cust.mobileNumber, cust.address].filter(Boolean).join(" · ") || "No additional contact"}
-                            </p>
-                          </button>
-                        ))}
+                        {filteredCustomers.length > 0 ? (
+                          filteredCustomers.map((cust) => (
+                            <button
+                              className="block w-full border-b border-[var(--color-border)] px-3.5 py-2 text-left text-xs transition last:border-b-0 hover:bg-blue-50 dark:hover:bg-slate-800"
+                              key={cust.id}
+                              onClick={() => {
+                                setCreateForm((form) => ({
+                                  ...form,
+                                  customerId: cust.id,
+                                  customerNameSnapshot: cust.fullName,
+                                  customerContactSnapshot: cust.mobileNumber || cust.email || form.customerContactSnapshot,
+                                  customerAddressSnapshot: cust.address || form.customerAddressSnapshot,
+                                }))
+                                setCustomerSearch(cust.fullName)
+                                setIsCustomerDropdownOpen(false)
+                              }}
+                              type="button"
+                            >
+                              <p className="font-bold text-[var(--color-text-strong)]">{cust.fullName}</p>
+                              <p className="text-[11px] text-[var(--color-muted)]">
+                                {[cust.companyName, cust.mobileNumber, cust.address].filter(Boolean).join(" · ") || "No additional contact"}
+                              </p>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-xs text-[var(--color-muted)]">
+                            No registered customer found for "{createForm.customerNameSnapshot || customerSearch}".<br/>
+                            <span className="text-[11px] font-semibold text-[var(--color-maroon)]">Will proceed as Walk-in / Direct input</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
