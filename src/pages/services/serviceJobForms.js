@@ -133,6 +133,23 @@ export function extractIntakeRecord(job) {
 
 export const SERVICE_TASKS_HEADER = "[SERVICE_TASKS_V1]:"
 export const SERVICE_PARTS_HEADER = "[SERVICE_PARTS_V1]:"
+export const WARRANTY_DURATION_OPTIONS = [0, 7, 15, 30, 60, 90]
+
+export function formatWarrantyDuration(days) {
+  const normalized = Number(days)
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return "0 Days"
+  }
+  return `${normalized} Days`
+}
+
+export function normalizeWarrantyDays(value) {
+  const normalized = Number(value)
+  if (!Number.isFinite(normalized) || normalized < 0) {
+    return 0
+  }
+  return Math.max(0, Math.floor(normalized))
+}
 
 export function extractServiceTasks(job) {
   if (!job) return []
@@ -161,7 +178,8 @@ export function extractServiceTasks(job) {
         amount: amount,
         technicianId: tech?.id || "",
         technicianName: tech?.fullName || "Assigned Technician",
-        warrantyDuration: "30 DAYS SERVICE WARRANTY",
+        warrantyDays: 0,
+        warrantyDuration: "0 Days",
       },
     ]
   }
@@ -175,7 +193,7 @@ export function extractServiceParts(job) {
   if (idx !== -1) {
     try {
       const rest = notes.slice(idx + SERVICE_PARTS_HEADER.length)
-      const nextHeaderIdx = rest.search(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1)\]:/)
+      const nextHeaderIdx = rest.search(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1|BACKJOB_RECORD_V1)\]:/)
       const jsonStr = nextHeaderIdx !== -1 ? rest.slice(0, nextHeaderIdx).trim() : rest.split("\n\n")[0].trim()
       const parsed = JSON.parse(jsonStr)
       if (Array.isArray(parsed)) return parsed
@@ -186,10 +204,116 @@ export function extractServiceParts(job) {
   return []
 }
 
+export const BACKJOB_RECORD_HEADER = "[BACKJOB_RECORD_V1]:"
+
+export function extractJobWarranty(job) {
+  if (!job) return { warrantyDays: 0, warrantyExpiresAt: null, isUnderWarranty: false, daysRemaining: 0 }
+
+  if (typeof job.warrantyDays === "number" || job.warrantyExpiresAt) {
+    const warrantyDays = normalizeWarrantyDays(job.warrantyDays)
+    const warrantyExpiresAt = job.warrantyExpiresAt ? new Date(job.warrantyExpiresAt) : null
+    const isUnderWarranty = warrantyExpiresAt ? Date.now() <= warrantyExpiresAt.getTime() : warrantyDays > 0
+    const daysRemaining = isUnderWarranty && warrantyExpiresAt
+      ? Math.max(0, Math.ceil((warrantyExpiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+      : 0
+
+    return {
+      warrantyDays,
+      warrantyExpiresAt,
+      isUnderWarranty,
+      daysRemaining,
+    }
+  }
+
+  const tasks = extractServiceTasks(job)
+  let maxDays = 0
+  for (const t of tasks) {
+    if (typeof t.warrantyDays === "number") {
+      maxDays = Math.max(maxDays, t.warrantyDays)
+    } else if (t.warrantyDuration) {
+      const match = String(t.warrantyDuration).match(/(\d+)/)
+      if (match) {
+        maxDays = Math.max(maxDays, parseInt(match[1], 10))
+      }
+    }
+  }
+
+  const completionDate = job.releasedAt || job.completedAt
+  if (!completionDate || maxDays <= 0) {
+    return { warrantyDays: maxDays, warrantyExpiresAt: null, isUnderWarranty: false, daysRemaining: 0 }
+  }
+
+  const startTime = new Date(completionDate).getTime()
+  const warrantyExpiresAt = new Date(startTime + maxDays * 24 * 60 * 60 * 1000)
+  const now = Date.now()
+  const isUnderWarranty = now <= warrantyExpiresAt.getTime()
+  const daysRemaining = isUnderWarranty
+    ? Math.max(0, Math.ceil((warrantyExpiresAt.getTime() - now) / (24 * 60 * 60 * 1000)))
+    : 0
+
+  return {
+    warrantyDays: maxDays,
+    warrantyExpiresAt,
+    isUnderWarranty,
+    daysRemaining,
+  }
+}
+
+export function extractBackjobRecord(job) {
+  if (!job) return { isBackjob: false, originalJobCode: null, originalJobId: null, reason: "", warrantyDays: 0, warrantyExpiresAt: null }
+
+  if (job.isBackjob) {
+    return {
+      isBackjob: true,
+      originalJobCode: job.parentJobCode || null,
+      originalJobId: job.parentJobId || null,
+      reason: job.backjobReason || "",
+      warrantyDays: normalizeWarrantyDays(job.warrantyDays),
+      warrantyExpiresAt: job.warrantyExpiresAt || null,
+    }
+  }
+
+  const notes = job.serviceNotes || ""
+  const idx = notes.indexOf(BACKJOB_RECORD_HEADER)
+  if (idx !== -1) {
+    try {
+      const rest = notes.slice(idx + BACKJOB_RECORD_HEADER.length)
+      const nextHeaderIdx = rest.search(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1|SERVICE_PARTS_V1)\]:/)
+      const jsonStr = nextHeaderIdx !== -1 ? rest.slice(0, nextHeaderIdx).trim() : rest.split("\n\n")[0].trim()
+      const parsed = JSON.parse(jsonStr)
+      return {
+        isBackjob: true,
+        originalJobCode: parsed.originalJobCode || null,
+        originalJobId: parsed.originalJobId || null,
+        reason: parsed.reason || "",
+        warrantyDays: normalizeWarrantyDays(parsed.warrantyDays),
+        warrantyExpiresAt: parsed.warrantyExpiresAt || null,
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Fallback heuristic: check jobTitle or notes
+  const titleMatch = (job.jobTitle || "").match(/\[BACKJOB(?::\s*([A-Za-z0-9_-]+))?\]/i)
+  if (titleMatch) {
+    return {
+      isBackjob: true,
+      originalJobCode: titleMatch[1] || null,
+      originalJobId: null,
+      reason: "",
+      warrantyDays: 0,
+      warrantyExpiresAt: null,
+    }
+  }
+
+  return { isBackjob: false, originalJobCode: null, originalJobId: null, reason: "", warrantyDays: 0, warrantyExpiresAt: null }
+}
+
 export function cleanUserNotes(notes) {
   if (!notes) return ""
   return notes
-    .replace(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1|SERVICE_PARTS_V1)\]:[\s\S]*?(\n\n|$)/g, "")
+    .replace(/\[(INTAKE_RECORD_V1|SERVICE_TASKS_V1|SERVICE_PARTS_V1|BACKJOB_RECORD_V1)\]:[\s\S]*?(\n\n|$)/g, "")
     .replace(/\[BILLED IN POS:.*?\]/g, "")
     .replace(/\[CLIENT PULL-OUT\]:.*?(\n|$)/g, "")
     .trim()
@@ -202,10 +326,14 @@ export function serializeStructuredNotes({
   freeNotes = "",
   billedInPosTag = "",
   clientPullOutTag = "",
+  backjobRecord = null,
 }) {
   const partsList = []
   if (intakeRecord) {
     partsList.push(`${INTAKE_RECORD_HEADER}${JSON.stringify(intakeRecord)}`)
+  }
+  if (backjobRecord) {
+    partsList.push(`${BACKJOB_RECORD_HEADER}${JSON.stringify(backjobRecord)}`)
   }
   if (Array.isArray(tasks) && tasks.length > 0) {
     partsList.push(`${SERVICE_TASKS_HEADER}${JSON.stringify(tasks)}`)
@@ -224,6 +352,82 @@ export function serializeStructuredNotes({
     partsList.push(cleanFree)
   }
   return partsList.join("\n\n")
+}
+
+export function getEffectiveJobPaymentState(job) {
+  if (!job) {
+    return {
+      paymentState: "UNPAID",
+      remainingBalance: 0,
+      collectedAmount: 0,
+      isBilledInPos: false,
+      posInvoiceCode: null,
+      posBilledAmount: 0,
+    }
+  }
+
+  const finalCharge = Number(
+    job.finalServiceCharge ?? job.baseServiceCharge ?? job.estimatedServiceCharge ?? 0
+  )
+  const directCollected = Number(job.directCollectedAmount || 0)
+  const receivableCollected = Number(job.receivableCollectedAmount || 0)
+
+  const posRegex = /\[BILLED IN POS:\s*Invoice\s*([A-Za-z0-9_-]+)(?:\s+Amount:\s*([\d.]+))?\]/gi
+  const notesText = [
+    job.serviceNotes || "",
+    job.releaseNotes || "",
+    job.servicePerformed || "",
+  ].join("\n")
+
+  const posMatches = [...notesText.matchAll(posRegex)]
+  const billedInvoices = []
+  let posBilledAmount = 0
+  let hasTagWithoutAmount = false
+
+  for (const match of posMatches) {
+    const invCode = match[1]
+    if (!billedInvoices.includes(invCode)) {
+      billedInvoices.push(invCode)
+    }
+    if (match[2]) {
+      posBilledAmount += Number(match[2])
+    } else {
+      hasTagWithoutAmount = true
+    }
+  }
+
+  const legacyMatch = (job.releaseNotes || "").match(/via POS invoice\s*([A-Za-z0-9_-]+)/i)
+  if (legacyMatch && !billedInvoices.includes(legacyMatch[1])) {
+    billedInvoices.push(legacyMatch[1])
+    hasTagWithoutAmount = true
+  }
+
+  const isBilledInPos = billedInvoices.length > 0
+  if (isBilledInPos && posBilledAmount === 0 && hasTagWithoutAmount) {
+    posBilledAmount = finalCharge
+  }
+
+  const totalCollected = directCollected + receivableCollected + posBilledAmount
+  const remainingBalance = Math.max(0, finalCharge - totalCollected)
+
+  let paymentState = job.paymentState
+  if (isBilledInPos || totalCollected > 0) {
+    paymentState =
+      remainingBalance <= 0
+        ? "PAID"
+        : totalCollected > 0
+          ? "PARTIALLY_PAID"
+          : "UNPAID"
+  }
+
+  return {
+    paymentState,
+    remainingBalance,
+    collectedAmount: totalCollected,
+    isBilledInPos,
+    posInvoiceCode: billedInvoices.join(", ") || null,
+    posBilledAmount,
+  }
 }
 
 function detectUnitType(deviceDesc = "") {
@@ -251,4 +455,3 @@ function extractOtherText(text = "") {
   if (!text) return ""
   return text
 }
-

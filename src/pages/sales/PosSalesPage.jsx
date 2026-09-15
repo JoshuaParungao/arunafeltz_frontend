@@ -59,7 +59,7 @@ import {
   updateServiceJobStatus,
   releaseServiceJob,
 } from "../../features/service-jobs/serviceJobs.api"
-import { extractServiceTasks, extractServiceParts } from "../services/serviceJobForms"
+import { extractServiceTasks, extractServiceParts, getEffectiveJobPaymentState, extractBackjobRecord } from "../services/serviceJobForms"
 import { generateUUID } from "../../utils/uuid"
 import {
   appendSaleItems,
@@ -2345,8 +2345,9 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob, sales
       if (statusFilter === "ACTIVE" || statusFilter === "READY_FOR_RELEASE") {
         rows = rows.filter((j) => {
           if (j.status === "COMPLETED" || j.status === "CANCELLED" || j.releasedAt) return false
-          if (j.serviceNotes?.includes("[BILLED IN POS") || j.releaseNotes?.includes("Settled and released via POS invoice")) return false
-          if (isJobBilledInSales(j, sales)) return false
+          const { remainingBalance, paymentState } = getEffectiveJobPaymentState(j)
+          if (paymentState === "PAID" && remainingBalance <= 0) return false
+          if (isJobBilledInSales(j, sales) && remainingBalance <= 0) return false
           return true
         })
       }
@@ -2495,55 +2496,68 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob, sales
                   </div>
 
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto shrink-0 gap-2">
-                    <div className="text-left sm:text-right">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase block">JO Charge</span>
-                      <span className="font-mono font-black text-sm text-[var(--color-maroon)]">
-                        {formatMoney(finalPrice)}
-                      </span>
-                    </div>
                     {(() => {
-                      const matchedSale = isJobBilledInSales(job, sales)
-                      const isBilled = Boolean(
-                        matchedSale ||
-                        job.serviceNotes?.includes("[BILLED IN POS") ||
-                        job.releaseNotes?.includes("Settled and released via POS invoice")
-                      )
-                      const billedRef =
-                        matchedSale?.receiptCode ||
-                        job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ||
-                        job.releaseNotes?.match(/POS invoice\s*(\S+)/)?.[1]
+                      const { remainingBalance, collectedAmount, isBilledInPos, posInvoiceCode } = getEffectiveJobPaymentState(job)
+                      const isPartial = isBilledInPos || collectedAmount > 0
+                      const displayDue = remainingBalance > 0 ? remainingBalance : finalPrice
 
-                      if (cart.some((l) => l.isJobOrder && l.jobOrderId === job.id)) {
-                        return (
-                          <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 text-xs font-bold">
-                            <CheckCircle2 size={13} />
-                            In Cart
-                          </span>
-                        )
-                      }
-                      if (isBilled || job.status === "COMPLETED" || job.releasedAt) {
-                        return (
-                          <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 px-3 py-1.5 text-xs font-bold">
-                            {billedRef ? `Already Billed (${billedRef})` : "Already Released / Billed"}
-                          </span>
-                        )
-                      }
-                      if (job.status === "CANCELLED") {
-                        return (
-                          <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-500 px-3 py-1.5 text-xs font-bold">
-                            Cancelled
-                          </span>
-                        )
-                      }
                       return (
-                        <button
-                          type="button"
-                          onClick={() => onSelectJob(job)}
-                          className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
-                        >
-                          <Plus size={14} />
-                          Load to Cart
-                        </button>
+                        <>
+                          <div className="text-left sm:text-right">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                              {isPartial ? "Balance Due" : "JO Charge"}
+                            </span>
+                            <span className="font-mono font-black text-sm text-[var(--color-maroon)]">
+                              {formatMoney(displayDue)}
+                            </span>
+                            {isPartial && remainingBalance > 0 && collectedAmount > 0 && (
+                              <span className="text-[10px] text-emerald-700 font-bold block">
+                                Paid: {formatMoney(collectedAmount)}
+                              </span>
+                            )}
+                          </div>
+
+                          {(() => {
+                            const matchedSale = isJobBilledInSales(job, sales)
+                            const isFullySettled =
+                              (job.status === "COMPLETED" || job.releasedAt || (isPartial && remainingBalance <= 0))
+
+                            if (cart.some((l) => l.isJobOrder && l.jobOrderId === job.id)) {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 text-xs font-bold">
+                                  <CheckCircle2 size={13} />
+                                  In Cart
+                                </span>
+                              )
+                            }
+                            if (isFullySettled) {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 px-3 py-1.5 text-xs font-bold">
+                                  {posInvoiceCode || matchedSale?.receiptCode
+                                    ? `Already Billed (${posInvoiceCode || matchedSale?.receiptCode})`
+                                    : "Already Released / Billed"}
+                                </span>
+                              )
+                            }
+                            if (job.status === "CANCELLED") {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-500 px-3 py-1.5 text-xs font-bold">
+                                  Cancelled
+                                </span>
+                              )
+                            }
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => onSelectJob(job)}
+                                className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] hover:bg-[#6b0f1a] text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
+                              >
+                                <Plus size={14} />
+                                {isPartial && remainingBalance > 0 ? "Settle Balance" : "Load to Cart"}
+                              </button>
+                            )
+                          })()}
+                        </>
                       )
                     })()}
                   </div>
@@ -3698,24 +3712,26 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const handleSelectJobOrder = (job) => {
     if (!job) return
 
-    const matchedSale = isJobBilledInSales(job, sales)
-    if (
-      matchedSale ||
-      job.serviceNotes?.includes("[BILLED IN POS") ||
-      job.releaseNotes?.includes("Settled and released via POS invoice")
-    ) {
-      const ref =
-        matchedSale?.receiptCode ||
-        job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1]
-      setCartMessage(
-        `Job Order ${job.jobCode} has already been billed${ref ? ` under POS Receipt #${ref}` : ""}.`,
-      )
+    const { remainingBalance, collectedAmount, isBilledInPos, posInvoiceCode } = getEffectiveJobPaymentState(job)
+    const finalPrice = Number(job.finalServiceCharge ?? job.baseServiceCharge ?? job.estimatedServiceCharge ?? 0)
+    const isPartialSettlement = (isBilledInPos || collectedAmount > 0) && remainingBalance > 0
+
+    if (job.status === "COMPLETED" || job.releasedAt) {
+      setCartMessage(`Job Order ${job.jobCode} has already been completed and released.`)
       setShowJobOrderLookup(false)
       return
     }
 
     if (job.status === "CANCELLED") {
       setCartMessage(`Job Order ${job.jobCode} is cancelled and cannot be loaded.`)
+      setShowJobOrderLookup(false)
+      return
+    }
+
+    if (remainingBalance <= 0 && (isBilledInPos || collectedAmount > 0)) {
+      setCartMessage(
+        `Job Order ${job.jobCode} is already fully paid (₱0.00 balance)${posInvoiceCode ? ` under POS Invoice #${posInvoiceCode}` : ""}.`
+      )
       setShowJobOrderLookup(false)
       return
     }
@@ -3748,7 +3764,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     const assignedStaff = job.serviceDoneBy || job.assignedTechnician
 
     const newLines = []
-    if (tasks.length > 0) {
+
+    if (isPartialSettlement) {
+      // Load strictly the remaining balance
+      newLines.push({
+        localId: `jo-${job.id}-bal-${Date.now()}`,
+        type: "SERVICE",
+        isJobOrder: true,
+        jobOrderId: job.id,
+        jobOrderCode: job.jobCode,
+        description: `[JO #${job.jobCode}] Balance Due / Additional Tasks - ${job.deviceDescription || job.unitType || "Unit"}${job.serialNumber ? ` (S/N: ${job.serialNumber})` : ""}${assignedStaff?.fullName ? ` [Done by: ${assignedStaff.fullName}]` : ""}`,
+        quantity: "1",
+        baseUnitPrice: String(remainingBalance),
+        markupPercent: "0",
+        unitPrice: String(remainingBalance),
+        discountAmount: "0",
+        serviceStaffId: assignedStaff?.id || null,
+        serviceStaffName: assignedStaff?.fullName || null,
+        serviceStaffRole: null,
+        warrantyDuration: "0 Days Warranty",
+      })
+    } else if (tasks.length > 0) {
       tasks.forEach((task, idx) => {
         const staffName = task.technicianName || assignedStaff?.fullName || null
         const staffId = task.technicianId || assignedStaff?.id || null
@@ -3767,7 +3803,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           serviceStaffId: staffId,
           serviceStaffName: staffName,
           serviceStaffRole: null,
-          warrantyDuration: task.warrantyDuration || "30 DAYS SERVICE WARRANTY",
+          warrantyDuration: task.warrantyDuration || "0 Days Warranty",
         })
       })
     } else {
@@ -4596,11 +4632,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               }).catch(() => null)
             }
 
+            const previousInvoiceTags = (currentJob?.serviceNotes || "")
+              .match(/\[BILLED IN POS:\s*Invoice\s*[^\]]+\]/gi) || []
+            const currentTag = `[BILLED IN POS: Invoice ${sale.receiptCode} Amount: ${joLineAmount}]`
+
             const cleanNotes = (currentJob?.serviceNotes || "")
               .replace(/\[BILLED IN POS:.*?\]/g, "")
               .trim()
-            const invoiceTag = `[BILLED IN POS: Invoice ${sale.receiptCode}]`
-            const combinedNotes = cleanNotes ? `${cleanNotes}\n\n${invoiceTag}` : invoiceTag
+
+            const allTags = [...previousInvoiceTags, currentTag]
+            const combinedNotes = cleanNotes
+              ? `${cleanNotes}\n\n${allTags.join("\n")}`
+              : allTags.join("\n")
 
             const isAlreadyReleased = Boolean(currentJob?.releasedAt || currentJob?.status === "COMPLETED")
 
