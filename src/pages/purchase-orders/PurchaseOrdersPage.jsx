@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, ClipboardList, Eye, LoaderCircle, Plus, Search, Send, Trash2, X } from "lucide-react"
+import { BarChart3, Boxes, ChevronLeft, ChevronRight, ClipboardList, Eye, LoaderCircle, Plus, Search, Send, Trash2, X } from "lucide-react"
 
 import { getItems } from "../../features/items/items.api"
 import {
@@ -10,6 +10,7 @@ import {
   updatePurchaseOrderStatus,
 } from "../../features/purchase-orders/purchaseOrders.api"
 import { getSuppliers } from "../../features/suppliers/suppliers.api"
+import PurchasesReportView from "./PurchasesReportView"
 
 import {
   exportPurchaseOrderPdf,
@@ -902,6 +903,7 @@ function PurchaseOrderForm({
 }
 
 export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate }) {
+  const [viewMode, setViewMode] = useState("OPERATIONS")
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const [orders, setOrders] = useState([])
   const [pagination, setPagination] = useState({})
@@ -1074,19 +1076,61 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Supply chain</p>
-            <h1 className="mt-1 text-2xl font-black text-slate-900">Purchase Orders</h1>
-            <p className="mt-0.5 text-xs text-slate-500">Create costed drafts, order them deliberately, and track receiving progress.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Supply chain</p>
+              <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("OPERATIONS")}
+                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition ${
+                    viewMode === "OPERATIONS"
+                      ? "bg-white text-slate-800 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <Boxes size={14} />
+                  Operations & POs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("REPORTS")}
+                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition ${
+                    viewMode === "REPORTS"
+                      ? "bg-[var(--color-maroon)] text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <BarChart3 size={14} />
+                  Reports & Audit
+                </button>
+              </div>
+            </div>
+            <h1 className="mt-1 text-2xl font-black text-slate-900">
+              {viewMode === "REPORTS" ? "Purchases & Supply Chain Reports" : "Purchase Orders"}
+            </h1>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {viewMode === "REPORTS"
+                ? "Executive PO fulfillment tracking, inbound delivery audits, and supplier cost variance ledger."
+                : "Create costed drafts, order them deliberately, and track receiving progress."}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ExportExcelButton
-              filteredCount={pagination?.totalItems ?? orders.length}
-              label="Export POs (.xlsx)"
-              onExport={handleExportOrdersExcel}
-            />
-            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
-              <Plus size={15} />New PO
-            </button>
+            {viewMode === "OPERATIONS" ? (
+              <>
+                <ExportExcelButton
+                  filteredCount={pagination?.totalItems ?? orders.length}
+                  label="Export POs (.xlsx)"
+                  onExport={handleExportOrdersExcel}
+                />
+                <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
+                  <Plus size={15} />New PO
+                </button>
+              </>
+            ) : (
+              <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
+                <Plus size={15} />New PO
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -1094,7 +1138,22 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
       {message ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">{message}</div> : null}
       {notice ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{notice}</div> : null}
 
-      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
+      {viewMode === "REPORTS" ? (
+        <PurchasesReportView
+          branchId={branchId}
+          selectedBranch={selectedBranch}
+          user={user}
+          initialTab="PO_FULFILLMENT"
+          onOpenPoDetail={(order) => openDetail(order)}
+          onReceivePo={
+            onNavigate
+              ? (order) => onNavigate("receivings", user, { purchaseOrderId: order.id, autoOpen: true })
+              : undefined
+          }
+        />
+      ) : (
+        <>
+          <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
         <label className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input className="w-full rounded-xl border border-slate-200 bg-white text-slate-800 py-2 pl-9 pr-3 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="PO code, supplier, notes…" value={search} />
@@ -1208,6 +1267,8 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
           </div>
         </div>
       </section>
+      </>
+      )}
 
       {editing ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">

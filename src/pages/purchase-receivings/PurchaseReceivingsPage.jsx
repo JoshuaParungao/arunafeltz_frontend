@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Boxes, CheckCircle2, ChevronLeft, ChevronRight, Eye, LoaderCircle, PackagePlus, Plus, Search, Trash2, X } from "lucide-react"
+import { BarChart3, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Eye, LoaderCircle, PackagePlus, Plus, Search, Trash2, X } from "lucide-react"
 
 import { getItems } from "../../features/items/items.api"
 import { getPurchaseOrderById, getPurchaseOrders } from "../../features/purchase-orders/purchaseOrders.api"
+import PurchasesReportView from "../purchase-orders/PurchasesReportView"
 import {
   createPurchaseReceiving,
   getPurchaseReceivingById,
@@ -724,6 +725,7 @@ function ReceivingForm({ initial, suppliers, purchaseOrders, catalogItems, isSav
 }
 
 export default function PurchaseReceivingsPage({ initialContext, selectedBranch, user }) {
+  const [viewMode, setViewMode] = useState("OPERATIONS")
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const handledInitialContextRef = useRef(null)
   const [receivings, setReceivings] = useState([])
@@ -865,19 +867,61 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Supply chain</p>
-            <h1 className="mt-1 text-2xl font-black text-slate-900">Receiving / Deliveries</h1>
-            <p className="mt-0.5 text-xs text-slate-500">Draft, validate, and post supplier deliveries into the correct branch inventory.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Supply chain</p>
+              <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("OPERATIONS")}
+                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition ${
+                    viewMode === "OPERATIONS"
+                      ? "bg-white text-slate-800 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <Boxes size={14} />
+                  Operations & Deliveries
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("REPORTS")}
+                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition ${
+                    viewMode === "REPORTS"
+                      ? "bg-[var(--color-maroon)] text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <BarChart3 size={14} />
+                  Reports & Audit
+                </button>
+              </div>
+            </div>
+            <h1 className="mt-1 text-2xl font-black text-slate-900">
+              {viewMode === "REPORTS" ? "Inbound Deliveries & Cost Audit" : "Receiving / Deliveries"}
+            </h1>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {viewMode === "REPORTS"
+                ? "Landed goods receiving audit, PO vs actual delivery cost variances, and supplier turnaround scorecard."
+                : "Draft, validate, and post supplier deliveries into the correct branch inventory."}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ExportExcelButton
-              filteredCount={pagination?.totalItems ?? receivings.length}
-              label="Export Deliveries (.xlsx)"
-              onExport={handleExportReceivingsExcel}
-            />
-            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
-              <Plus size={15} />New Receiving
-            </button>
+            {viewMode === "OPERATIONS" ? (
+              <>
+                <ExportExcelButton
+                  filteredCount={pagination?.totalItems ?? receivings.length}
+                  label="Export Deliveries (.xlsx)"
+                  onExport={handleExportReceivingsExcel}
+                />
+                <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
+                  <Plus size={15} />New Receiving
+                </button>
+              </>
+            ) : (
+              <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
+                <Plus size={15} />New Receiving
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -885,7 +929,17 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
       {message ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">{message}</div> : null}
       {notice ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{notice}</div> : null}
 
-      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
+      {viewMode === "REPORTS" ? (
+        <PurchasesReportView
+          branchId={branchId}
+          selectedBranch={selectedBranch}
+          user={user}
+          initialTab="RECEIVINGS_LOG"
+          onOpenReceivingDetail={(rec) => openDetail(rec)}
+        />
+      ) : (
+        <>
+          <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
         <label className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input className="w-full rounded-xl border border-slate-200 bg-white text-slate-800 py-2 pl-9 pr-3 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Receiving, invoice, delivery, supplier…" value={search} />
@@ -990,6 +1044,8 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
           </div>
         </div>
       </section>
+      </>
+      )}
 
       {editing ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
