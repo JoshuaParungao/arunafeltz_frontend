@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  FileSpreadsheet,
   LoaderCircle,
   RefreshCw,
   ShieldCheck,
@@ -15,6 +16,7 @@ import { getUsers } from "../../features/users/users.api"
 import EnterpriseIncentiveMonitor from "../../features/incentives/EnterpriseIncentiveMonitor"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import IncentivesReportView from "./IncentivesReportView"
 
 const OWNER_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN"])
 const TYPES = [
@@ -69,6 +71,7 @@ function SummaryCard({ icon: Icon, label, value, note }) {
 export default function IncentivesPage({ selectedBranch, user }) {
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const isOwnerView = OWNER_ROLES.has(user?.role)
+  const [pageMode, setPageMode] = useState("operations") // "operations" | "reports"
   const [entries, setEntries] = useState([])
   const [totals, setTotals] = useState({})
   const [rules, setRules] = useState({})
@@ -241,12 +244,40 @@ export default function IncentivesPage({ selectedBranch, user }) {
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Finance</p>
-            <h1 className="mt-1 text-2xl font-black text-slate-900">Incentives</h1>
+            <h1 className="mt-1 text-2xl font-black text-slate-900">Incentives & Commissions</h1>
             <p className="mt-0.5 max-w-3xl text-xs text-slate-500">
               {isOwnerView
                 ? "Monitor settings-driven product and service incentives with direct source attribution."
                 : "Review incentives credited to your own completed work."}
             </p>
+
+            {/* Mode Switcher */}
+            <div className="mt-3.5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPageMode("operations")}
+                className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+                  pageMode === "operations"
+                    ? "bg-[var(--color-maroon)] text-white shadow-xs"
+                    : "border border-slate-200 bg-white text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <BadgePercent size={14} />
+                Incentive Operations & Monitor
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageMode("reports")}
+                className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+                  pageMode === "reports"
+                    ? "bg-[var(--color-maroon)] text-white shadow-xs"
+                    : "border border-slate-200 bg-white text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <FileSpreadsheet size={14} />
+                Reports & Commission Audit
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -257,18 +288,30 @@ export default function IncentivesPage({ selectedBranch, user }) {
             >
               <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} /> Refresh
             </button>
-            <ExportExcelButton
-              count={meta?.total || entries.length}
-              isExporting={isExporting}
-              onClick={handleExportIncentivesExcel}
-            />
+            {pageMode === "operations" && (
+              <ExportExcelButton
+                count={meta?.total || entries.length}
+                isExporting={isExporting}
+                onClick={handleExportIncentivesExcel}
+              />
+            )}
           </div>
         </div>
       </section>
 
-      <EnterpriseIncentiveMonitor selectedBranch={selectedBranch} user={user} />
+      {pageMode === "reports" ? (
+        <IncentivesReportView
+          branchId={branchId}
+          selectedBranch={selectedBranch}
+          user={user}
+          staff={staff}
+          onRefresh={loadIncentives}
+        />
+      ) : (
+        <>
+          <EnterpriseIncentiveMonitor selectedBranch={selectedBranch} user={user} />
 
-      {message ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">{message}</div> : null}
+          {message ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">{message}</div> : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={BadgePercent} label="Posted incentive" value={money(totals.totalAmount)} note={`${totals.postedEntries || 0} payable source(s)`} />
@@ -352,6 +395,8 @@ export default function IncentivesPage({ selectedBranch, user }) {
         )}
         <footer className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 p-3 text-xs text-slate-500"><p>Page {meta.page || page} of {totalPages} / {meta.total || 0} entry(s)</p><div className="flex gap-1.5"><button className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button"><ChevronLeft size={16} /></button><button className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={16} /></button></div></footer>
       </section>
+        </>
+      )}
     </div>
   )
 }
