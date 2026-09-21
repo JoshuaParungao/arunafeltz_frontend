@@ -4,6 +4,7 @@ import {
   AlertCircle,
   ArrowRight,
   Banknote,
+  BarChart3,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -48,6 +49,7 @@ import DiagnosticIntakePrint from "./DiagnosticIntakePrint"
 import MaintenanceIntakePrint from "./MaintenanceIntakePrint"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import ServicesReportView from "./ServicesReportView"
 import {
   ACCESSORIES_OPTIONS,
   BACKJOB_RECORD_HEADER,
@@ -1798,6 +1800,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     setShowCreate(true)
   }
 
+  const [servicesViewMode, setServicesViewMode] = useState("WORKSHOP") // "WORKSHOP" | "REPORTS"
   const [jobs, setJobs] = useState([])
   const [meta, setMeta] = useState({})
   const [customers, setCustomers] = useState([])
@@ -2829,20 +2832,53 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
             ) : null}
           </div>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            ["Open on this page", totals.open, Clock3],
-            ["Quick services", totals.quick, Zap],
-            ["Ready for release", totals.ready, CheckCircle2],
-            ["Released", totals.released, UserRoundCheck],
-          ].map(([label, value, Icon]) => (
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm" key={label}>
-              <Icon className="text-[var(--color-maroon)]" size={18} />
-              <p className="mt-3 text-2xl font-black text-[var(--color-text-strong)]">{value}</p>
-              <p className="text-xs font-bold text-[var(--color-muted)]">{label}</p>
-            </div>
-          ))}
+
+        {/* Top-Level View Switcher (Workshop vs Reports & Detailed Audit) */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)]/60 pt-3">
+          <div className="inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold dark:bg-slate-800">
+            <button
+              type="button"
+              onClick={() => setServicesViewMode("WORKSHOP")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition text-xs cursor-pointer ${
+                servicesViewMode === "WORKSHOP"
+                  ? "bg-white text-slate-900 shadow-2xs font-black dark:bg-slate-900 dark:text-white"
+                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              }`}
+            >
+              <Wrench size={14} />
+              Workshop &amp; Workbench
+            </button>
+            <button
+              type="button"
+              onClick={() => setServicesViewMode("REPORTS")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition text-xs cursor-pointer ${
+                servicesViewMode === "REPORTS"
+                  ? "bg-white text-slate-900 shadow-2xs font-black dark:bg-slate-900 dark:text-white"
+                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              }`}
+            >
+              <BarChart3 size={14} />
+              Reports &amp; Detailed Audit
+            </button>
+          </div>
         </div>
+
+        {servicesViewMode === "WORKSHOP" && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["Open on this page", totals.open, Clock3],
+              ["Quick services", totals.quick, Zap],
+              ["Ready for release", totals.ready, CheckCircle2],
+              ["Released", totals.released, UserRoundCheck],
+            ].map(([label, value, Icon]) => (
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm" key={label}>
+                <Icon className="text-[var(--color-maroon)]" size={18} />
+                <p className="mt-3 text-2xl font-black text-[var(--color-text-strong)]">{value}</p>
+                <p className="text-xs font-bold text-[var(--color-muted)]">{label}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {notice ? (
@@ -2856,136 +2892,161 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-card sm:p-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px_210px_auto]">
-          <label className="relative">
-            <Search className="absolute left-3.5 top-3 text-[var(--color-muted)]" size={17} />
-            <input
-              aria-label="Search job orders"
-              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[var(--color-maroon)]"
-              onChange={(event) => { setSearch(event.target.value); setPage(1) }}
-              placeholder="Search JO, customer, device, serial, or title"
-              value={search}
-            />
-          </label>
-          <select
-            aria-label="Filter service status"
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold"
-            onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}
-            value={statusFilter}
-          >
-            <option value="">All statuses</option>
-            {STATUSES.map((status) => <option key={status} value={status}>{friendly(status)}</option>)}
-          </select>
-          <select
-            aria-label="Filter repair category"
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold"
-            onChange={(event) => { setRepairTypeFilter(event.target.value); setPage(1) }}
-            value={repairTypeFilter}
-          >
-            <option value="">All repair categories</option>
-            {REPAIR_TYPES.map((repairType) => <option key={repairType.value} value={repairType.value}>{repairType.label}</option>)}
-          </select>
-          <label className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold">
-            <input checked={quickOnly} onChange={(event) => { setQuickOnly(event.target.checked); setPage(1) }} type="checkbox" /> Quick only
-          </label>
-        </div>
-
-        {isLoading ? (
-          <div className="grid min-h-64 place-items-center"><LoaderCircle className="animate-spin text-[var(--color-maroon)]" size={32} /></div>
-        ) : jobs.length === 0 ? (
-          <div className="grid min-h-64 place-items-center text-center">
-            <div><Wrench className="mx-auto text-[var(--color-muted)]" size={38} /><p className="mt-3 font-black text-[var(--color-text-strong)]">No job orders found</p><p className="mt-1 text-sm text-[var(--color-muted)]">Adjust the filters or receive a new service.</p></div>
+      {servicesViewMode === "REPORTS" ? (
+        <ServicesReportView
+          branchId={branchId}
+          selectedBranch={selectedBranch}
+          user={user}
+          technicians={technicians}
+          serviceCatalog={serviceCatalog}
+          servicePartsCatalog={servicePartsCatalog}
+          getServiceJobsApi={getServiceJobs}
+          onOpenDetail={openDetail}
+          onSendToPos={sendToPosCashiering}
+          onPrint={(job) => setPrintPreviewState({ isOpen: true, defaultDoc: "DIAGNOSTIC", isBlank: false, job })}
+        />
+      ) : (
+        <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-card sm:p-5">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px_210px_auto]">
+            <label className="relative">
+              <Search className="absolute left-3.5 top-3 text-[var(--color-muted)]" size={17} />
+              <input
+                aria-label="Search job orders"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+                onChange={(event) => { setSearch(event.target.value); setPage(1) }}
+                placeholder="Search JO, customer, device, serial, or title"
+                value={search}
+              />
+            </label>
+            <select
+              aria-label="Filter service status"
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold"
+              onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}
+              value={statusFilter}
+            >
+              <option value="">All statuses</option>
+              {STATUSES.map((status) => <option key={status} value={status}>{friendly(status)}</option>)}
+            </select>
+            <select
+              aria-label="Filter repair category"
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold"
+              onChange={(event) => { setRepairTypeFilter(event.target.value); setPage(1) }}
+              value={repairTypeFilter}
+            >
+              <option value="">All repair categories</option>
+              {REPAIR_TYPES.map((repairType) => <option key={repairType.value} value={repairType.value}>{repairType.label}</option>)}
+            </select>
+            <label className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold">
+              <input checked={quickOnly} onChange={(event) => { setQuickOnly(event.target.checked); setPage(1) }} type="checkbox" /> Quick only
+            </label>
           </div>
-        ) : (
-          <div className="mt-4 grid gap-3.5 lg:grid-cols-2">
-            {jobs.map((job) => {
-              const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in Customer"
-              const techName = job.assignedTechnician ? technicianLabel(job.assignedTechnician) : "Unassigned"
 
-              return (
-                <button
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition hover:border-[var(--color-maroon)]/50 hover:shadow-md group flex flex-col justify-between gap-3"
-                  key={job.id}
-                  onClick={() => openDetail(job)}
-                  type="button"
-                >
-                  <div className="w-full space-y-2.5">
-                    {/* Top Row: JO Code, Badges, Status */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-mono text-xs font-black text-[var(--color-maroon)] bg-[var(--color-maroon)]/10 px-2 py-0.5 rounded-md">
-                          {job.jobCode}
-                        </span>
-                        {job.isQuickService ? (
-                          <span className="rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
-                            ⚡ QUICK
+          {isLoading ? (
+            <div className="grid min-h-64 place-items-center"><LoaderCircle className="animate-spin text-[var(--color-maroon)]" size={32} /></div>
+          ) : jobs.length === 0 ? (
+            <div className="grid min-h-64 place-items-center text-center">
+              <div><Wrench className="mx-auto text-[var(--color-muted)]" size={38} /><p className="mt-3 font-black text-[var(--color-text-strong)]">No job orders found</p><p className="mt-1 text-sm text-[var(--color-muted)]">Adjust the filters or receive a new service.</p></div>
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3.5 lg:grid-cols-2">
+              {jobs.map((job) => {
+                const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in Customer"
+                const techName = job.assignedTechnician ? technicianLabel(job.assignedTechnician) : "Unassigned"
+
+                return (
+                  <button
+                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition hover:border-[var(--color-maroon)]/50 hover:shadow-md group flex flex-col justify-between gap-3"
+                    key={job.id}
+                    onClick={() => openDetail(job)}
+                    type="button"
+                  >
+                    <div className="w-full space-y-2.5">
+                      {/* Top Row: JO Code, Badges, Status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-mono text-xs font-black text-[var(--color-maroon)] bg-[var(--color-maroon)]/10 px-2 py-0.5 rounded-md">
+                            {job.jobCode}
                           </span>
-                        ) : null}
-                        <span className="rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-strong)]">
-                          {friendly(job.repairType)}
-                        </span>
+                          {job.isQuickService ? (
+                            <span className="rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
+                              ⚡ QUICK
+                            </span>
+                          ) : null}
+                          <span className="rounded-md bg-[var(--color-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-strong)]">
+                            {friendly(job.repairType)}
+                          </span>
+                        </div>
+                        <StatusBadge status={job.status} />
                       </div>
-                      <StatusBadge status={job.status} />
+
+                      {/* Middle: Title & Device Excerpt */}
+                      <div>
+                        <h3 className="font-black text-sm text-[var(--color-text-strong)] group-hover:text-[var(--color-maroon)] transition-colors truncate">
+                          {job.jobTitle}
+                        </h3>
+                        <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)] leading-relaxed">
+                          {job.deviceDescription || job.problemDescription || "No device details supplied."}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Middle: Title & Device Excerpt */}
-                    <div>
-                      <h3 className="font-black text-sm text-[var(--color-text-strong)] group-hover:text-[var(--color-maroon)] transition-colors truncate">
-                        {job.jobTitle}
-                      </h3>
-                      <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)] leading-relaxed">
-                        {job.deviceDescription || job.problemDescription || "No device details supplied."}
-                      </p>
-                    </div>
-                  </div>
+                    {/* Bottom Row: Customer, Tech, Received Date, Final Price */}
+                    <div className="w-full pt-2.5 border-t border-[var(--color-border)]/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="min-w-0 space-y-0.5">
+                        <p className="font-bold text-[var(--color-text-strong)] truncate">
+                          {customerName}
+                        </p>
+                        <p className="text-[11px] text-[var(--color-muted)] truncate">
+                          Tech: <strong className="text-slate-700 dark:text-slate-300">{techName}</strong>
+                        </p>
+                      </div>
 
-                  {/* Bottom Row: Customer, Tech, Received Date, Final Price */}
-                  <div className="w-full pt-2.5 border-t border-[var(--color-border)]/70 flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div className="min-w-0 space-y-0.5">
-                      <p className="font-bold text-[var(--color-text-strong)] truncate">
-                        {customerName}
-                      </p>
-                      <p className="text-[11px] text-[var(--color-muted)] truncate">
-                        Tech: <strong className="text-slate-700 dark:text-slate-300">{techName}</strong>
-                      </p>
+                      <div className="text-right space-y-0.5">
+                        <p className="font-mono font-black text-sm text-[var(--color-text-strong)]">
+                          {money(Number(job.finalServiceCharge || job.baseServiceCharge || 0))}
+                        </p>
+                        {(() => {
+                          const { paymentState: effectivePaymentState, remainingBalance: effectiveBalance, isBilledInPos, posInvoiceCode } = getEffectiveJobPaymentState(job)
+                          return (
+                            <div className="flex items-center justify-end gap-1.5">
+                              {isBilledInPos ? (
+                                <span className="inline-flex items-center gap-1 rounded bg-emerald-100 dark:bg-emerald-950/40 px-1.5 py-0.2 text-[10px] font-black text-emerald-800 dark:text-emerald-300">
+                                  <CheckCircle2 size={10} /> POS {posInvoiceCode ? `#${posInvoiceCode}` : "BILLED"}
+                                </span>
+                              ) : effectivePaymentState === "PAID" ? (
+                                <span className="rounded bg-emerald-100 dark:bg-emerald-950/40 px-1.5 py-0.2 text-[10px] font-black text-emerald-800 dark:text-emerald-300">
+                                  PAID
+                                </span>
+                              ) : effectiveBalance > 0 ? (
+                                <span className="rounded bg-rose-100 dark:bg-rose-950/40 px-1.5 py-0.2 text-[10px] font-black text-rose-800 dark:text-rose-300">
+                                  BAL {money(effectiveBalance)}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-[var(--color-muted)]">
+                                  {friendly(effectivePaymentState)}
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </div>
                     </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
-                    <div className="text-right shrink-0">
-                      <p className="font-mono font-black text-sm text-[var(--color-maroon)]">
-                        {moneyOrDash(job.finalServiceCharge)}
-                      </p>
-                      {(() => {
-                        const { paymentState: effectiveState } = getEffectiveJobPaymentState(job)
-                        return (
-                          <span className={`inline-flex items-center text-[10px] font-bold ${
-                            effectiveState === "PAID"
-                              ? "text-emerald-700 dark:text-emerald-400"
-                              : effectiveState === "PARTIALLY_PAID"
-                                ? "text-amber-700 dark:text-amber-400"
-                                : "text-slate-400"
-                          }`}>
-                            {friendly(effectiveState)}
-                          </span>
-                        )
-                      })()}
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
+          <div className="mt-5 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
+            <p className="text-xs font-bold text-[var(--color-muted)]">{meta.total || 0} job order{meta.total === 1 ? "" : "s"}</p>
+            <div className="flex items-center gap-2">
+              <button aria-label="Previous page" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[var(--color-text-strong)] disabled:opacity-40" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={17} /></button>
+              <span className="text-xs font-black text-[var(--color-text-strong)]">{page} / {totalPages}</span>
+              <button aria-label="Next page" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[var(--color-text-strong)] disabled:opacity-40" disabled={page >= totalPages || isLoading} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={17} /></button>
+            </div>
           </div>
-        )}
-
-        <div className="mt-5 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
-          <p className="text-xs font-bold text-[var(--color-muted)]">{meta.total || 0} job order{meta.total === 1 ? "" : "s"}</p>
-          <div className="flex items-center gap-2">
-            <button aria-label="Previous page" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[var(--color-text-strong)] disabled:opacity-40" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={17} /></button>
-            <span className="text-xs font-black text-[var(--color-text-strong)]">{page} / {totalPages}</span>
-            <button aria-label="Next page" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2 text-[var(--color-text-strong)] disabled:opacity-40" disabled={page >= totalPages || isLoading} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={17} /></button>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {showCreate ? (
         <Modal onClose={handleCloseCreateModal} title="Receive service / create Job Order" width="max-w-4xl">
