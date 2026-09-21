@@ -52,6 +52,7 @@ import {
   ACCESSORIES_OPTIONS,
   BACKJOB_RECORD_HEADER,
   INTAKE_RECORD_HEADER,
+  PARTS_WARRANTY_OPTIONS,
   PHYSICAL_CONDITIONS,
   PREVIOUS_REPAIR_ACTIONS,
   REQUESTED_MAINTENANCE_SERVICES,
@@ -113,6 +114,10 @@ const EMPTY_CREATE = {
   partDescription: "",
   isQuickService: false,
 
+  // Warranty Specification Fields
+  serviceWarrantyDays: 30,
+  serviceWarrantyDuration: "30 Days",
+
   // Intake Form Specific Fields
   intakeType: "DIAGNOSTIC", // "DIAGNOSTIC" | "MAINTENANCE"
   unitType: "Laptop",
@@ -143,6 +148,8 @@ const EMPTY_CREATE = {
   backjobReason: "",
   backjobWarrantyDays: "0",
   backjobWarrantyExpiresAt: "",
+  backjobIsUnderWarranty: false,
+  backjobDaysRemaining: 0,
 }
 
 function money(value) {
@@ -238,6 +245,7 @@ function buildBackjobFormFromJob(job) {
   const customerContact = job.customerContactSnapshot || job.customer?.mobileNumber || job.customer?.email || ""
   const customerAddress = intake.customerAddress || job.customer?.address || ""
   const technicianId = job.serviceDoneById || job.assignedTechnicianId || job.serviceDoneBy?.id || job.assignedTechnician?.id || ""
+  const isUnderWarranty = Boolean(warranty.isUnderWarranty)
 
   return {
     ...EMPTY_CREATE,
@@ -254,9 +262,9 @@ function buildBackjobFormFromJob(job) {
     customerContactSnapshot: customerContact,
     customerAddressSnapshot: customerAddress,
     assignedTechnicianId: technicianId,
-    baseServiceCharge: "0",
+    baseServiceCharge: isUnderWarranty ? "0" : (job.baseServiceCharge ? String(job.baseServiceCharge) : "0"),
     markupPercent: "0",
-    estimatedServiceCharge: "0",
+    estimatedServiceCharge: isUnderWarranty ? "0" : (job.estimatedServiceCharge ? String(job.estimatedServiceCharge) : "0"),
     pricingMode: "STANDARD",
     isQuickService: false,
     backjobOriginalJobId: job.id || "",
@@ -264,6 +272,10 @@ function buildBackjobFormFromJob(job) {
     backjobReason: backjob.reason || "",
     backjobWarrantyDays: String(normalizeWarrantyDays(warranty.warrantyDays)),
     backjobWarrantyExpiresAt: warranty.warrantyExpiresAt ? new Date(warranty.warrantyExpiresAt).toISOString() : "",
+    backjobIsUnderWarranty: isUnderWarranty,
+    backjobDaysRemaining: warranty.daysRemaining || 0,
+    serviceWarrantyDays: isUnderWarranty ? normalizeWarrantyDays(warranty.warrantyDays) : 15,
+    serviceWarrantyDuration: formatWarrantyDuration(isUnderWarranty ? normalizeWarrantyDays(warranty.warrantyDays) : 15),
   }
 }
 
@@ -1286,6 +1298,7 @@ function WorkshopTasksManager({
         costPrice: 0,
         markupAmount: 0,
         serialNumber: "",
+        warrantyDuration: "30 Days (1 Month)",
       },
     ])
     setIsDirty(true)
@@ -1616,6 +1629,14 @@ function WorkshopTasksManager({
 
         {parts.length > 0 && (
           <div className="space-y-2">
+            <div className="hidden sm:flex items-center gap-2 px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <div className="flex-1 min-w-[180px]">Part Description / Replacement Item</div>
+              <div className="w-20 text-center">Qty</div>
+              <div className="w-28 text-right pr-2">Unit Price</div>
+              <div className="w-36">Parts Warranty</div>
+              <div className="w-24 text-right">Subtotal</div>
+              {canManage && <div className="w-8"></div>}
+            </div>
             {parts.map((part, idx) => (
               <div
                 className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/60 p-2.5 text-xs"
@@ -1657,6 +1678,22 @@ function WorkshopTasksManager({
                       value={part.unitPrice}
                     />
                   </div>
+                </div>
+
+                <div className="w-36 shrink-0">
+                  <select
+                    className={`${FIELD_CLASS} text-xs font-semibold`}
+                    disabled={!canManage}
+                    onChange={(e) => handleUpdatePart(idx, { warrantyDuration: e.target.value })}
+                    title="Supplier / Parts Warranty Duration"
+                    value={part.warrantyDuration || "None"}
+                  >
+                    {PARTS_WARRANTY_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        🛡️ {opt}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="w-24 text-right font-mono font-black text-slate-700 shrink-0">
@@ -1845,6 +1882,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
   const [customerSearch, setCustomerSearch] = useState("")
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false)
   const [backjobSearch, setBackjobSearch] = useState("")
+  const [backjobRemoteResults, setBackjobRemoteResults] = useState([])
   const [serviceCatalog, setServiceCatalog] = useState([])
   const [servicePartsCatalog, setServicePartsCatalog] = useState([])
   const customerDropdownRef = useRef(null)
@@ -1877,13 +1915,22 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
 
   const completedBackjobJobs = useMemo(() => {
     const q = (backjobSearch || "").trim().toLowerCase()
-    const sourceJobs = selectedJob && selectedJob.status === "COMPLETED" && !selectedJob.isBackjob
-      ? [selectedJob, ...jobs]
-      : jobs
-    return sourceJobs
-      .filter((job) => job.status === "COMPLETED" && !job.isBackjob)
+    const pool = [
+      ...(selectedJob && selectedJob.status === "COMPLETED" && !selectedJob.isBackjob ? [selectedJob] : []),
+      ...jobs,
+      ...backjobRemoteResults,
+    ]
+    const seen = new Set()
+    const deduped = []
+    for (const j of pool) {
+      if (j && j.id && !seen.has(j.id) && j.status === "COMPLETED" && !j.isBackjob) {
+        seen.add(j.id)
+        deduped.push(j)
+      }
+    }
+    if (!q) return deduped.slice(0, 25)
+    return deduped
       .filter((job) => {
-        if (!q) return true
         const haystack = [
           job.jobCode,
           job.jobTitle,
@@ -1897,8 +1944,31 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
           .toLowerCase()
         return haystack.includes(q)
       })
-      .slice(0, 20)
-  }, [backjobSearch, jobs, selectedJob])
+      .slice(0, 25)
+  }, [backjobRemoteResults, backjobSearch, jobs, selectedJob])
+
+  useEffect(() => {
+    const q = (backjobSearch || "").trim()
+    if (!q || q.length < 2) {
+      setBackjobRemoteResults([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await getServiceJobs({
+          ...(branchId ? { branchId } : {}),
+          status: "COMPLETED",
+          search: q,
+          limit: 15,
+        })
+        const items = Array.isArray(res?.data) ? res.data : []
+        setBackjobRemoteResults(items.filter((j) => !j.isBackjob))
+      } catch {
+        // ignore
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [backjobSearch, branchId])
 
   useEffect(() => {
     const term = (createForm.customerNameSnapshot || customerSearch || "").trim()
@@ -2107,7 +2177,9 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     const isBackjob = createForm.intakeType === "BACKJOB"
     const backjobSourceJob = isBackjob
       ? jobs.find((job) => job.id === createForm.backjobOriginalJobId) ||
-        (selectedJob?.id === createForm.backjobOriginalJobId ? selectedJob : null)
+        backjobRemoteResults.find((job) => job.id === createForm.backjobOriginalJobId) ||
+        (selectedJob?.id === createForm.backjobOriginalJobId ? selectedJob : null) ||
+        (createForm.backjobOriginalJobCode ? { id: createForm.backjobOriginalJobId, jobCode: createForm.backjobOriginalJobCode } : null)
       : null
     if (isBackjob && !backjobSourceJob) {
       setErrorMessage("Select the original completed Job Order for the backjob return.")
@@ -2131,9 +2203,15 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     const baseServiceCharge = isPartsMode ? partsTotalCharge : Number(createForm.baseServiceCharge || 0)
     const markupPercent = isPartsMode ? 0 : normalizedMarkup(createForm.markupPercent)
     const finalServiceCharge = isPartsMode ? partsTotalCharge : getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
+    
+    const configuredWarrantyDays = Math.max(0, parseInt(createForm.serviceWarrantyDays ?? 30, 10) || 0)
+    const configuredWarrantyDuration = createForm.serviceWarrantyDuration || formatWarrantyDuration(configuredWarrantyDays)
+
     // Build structured intake record
     const intakeRecord = {
       intakeType: createForm.intakeType,
+      serviceWarrantyDays: configuredWarrantyDays,
+      serviceWarrantyDuration: configuredWarrantyDuration,
       customerAddress: createForm.customerAddressSnapshot.trim(),
       unitType: createForm.unitType,
       brandModel: createForm.brandModel.trim(),
@@ -2169,6 +2247,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
       reason: createForm.backjobReason.trim() || "Warranty / service return",
       warrantyDays: normalizeWarrantyDays(backjobWarranty.warrantyDays),
       warrantyExpiresAt: backjobWarranty.warrantyExpiresAt ? new Date(backjobWarranty.warrantyExpiresAt).toISOString() : null,
+      newWarrantyDays: configuredWarrantyDays,
     } : null
 
     // Compose formatted text for standard DB fields
@@ -2234,11 +2313,13 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
         markupPercent,
         estimatedServiceCharge: finalServiceCharge,
         isQuickService: createForm.isQuickService,
+        warrantyDays: configuredWarrantyDays,
         ...(isBackjob && backjobSourceJob ? {
           isBackjob: true,
           parentJobCode: backjobSourceJob.jobCode,
           parentJobId: backjobSourceJob.id,
-          warrantyDays: normalizeWarrantyDays(backjobWarranty.warrantyDays),
+          warrantyDays: configuredWarrantyDays,
+          originalWarrantyDays: normalizeWarrantyDays(backjobWarranty.warrantyDays),
           warrantyExpiresAt: backjobWarranty.warrantyExpiresAt ? new Date(backjobWarranty.warrantyExpiresAt).toISOString() : undefined,
           backjobReason: createForm.backjobReason.trim() || undefined,
         } : {}),
@@ -3055,17 +3136,30 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
               </div>
 
               {createForm.intakeType === "BACKJOB" ? (
-                <div className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50/70 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs font-black uppercase tracking-wider text-amber-900">
-                      Backjob / Warranty Return
-                    </p>
-                    <span className="text-[10px] font-bold text-amber-700">
-                      Select the original completed job to prefill customer and device details.
-                    </span>
+                <div className="space-y-3.5 rounded-2xl border border-amber-300 dark:border-amber-700/60 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/80 dark:border-amber-800/50 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-600/10 text-amber-700 dark:text-amber-400">
+                        <RotateCcw size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-amber-950 dark:text-amber-200">
+                          Backjob &amp; Warranty Verification
+                        </h4>
+                        <p className="text-[11px] text-amber-800/80 dark:text-amber-400">
+                          Select the original completed JO to verify warranty validity and prefill device details
+                        </p>
+                      </div>
+                    </div>
+                    {createForm.backjobOriginalJobCode && (
+                      <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-md bg-amber-200/80 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200">
+                        {createForm.backjobOriginalJobCode}
+                      </span>
+                    )}
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
-                    <Field label="Search original job">
+
+                  <div className="grid gap-3 sm:grid-cols-[1.2fr_1fr]">
+                    <Field label="Search Completed Job Orders">
                       <input
                         className={FIELD_CLASS}
                         onChange={(event) => setBackjobSearch(event.target.value)}
@@ -3073,7 +3167,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                         value={backjobSearch}
                       />
                     </Field>
-                    <Field label="Original completed job *">
+                    <Field label="Select Original Completed Job *">
                       <select
                         className={FIELD_CLASS}
                         onChange={(event) => {
@@ -3085,7 +3179,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                         }}
                         value={createForm.backjobOriginalJobId || ""}
                       >
-                        <option value="">— Select completed original job —</option>
+                        <option value="">— Select completed job —</option>
                         {completedBackjobJobs.map((job) => (
                           <option key={job.id} value={job.id}>
                             {job.jobCode} · {job.customerNameSnapshot || job.customer?.fullName || "Walk-in"} · {job.deviceDescription || job.jobTitle}
@@ -3094,22 +3188,51 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       </select>
                     </Field>
                   </div>
+
                   {createForm.backjobOriginalJobCode ? (
-                    <div className="rounded-xl border border-amber-200 bg-white/80 p-3 text-xs text-amber-950">
-                      <p className="font-black">Original JO: {createForm.backjobOriginalJobCode}</p>
-                      <p className="mt-1 text-amber-800">
-                        Warranty snapshot: {createForm.backjobWarrantyDays ? formatWarrantyDuration(createForm.backjobWarrantyDays) : "0 Days"}
-                        {createForm.backjobWarrantyExpiresAt ? ` · Expires ${new Date(createForm.backjobWarrantyExpiresAt).toLocaleDateString("en-PH")}` : ""}
-                      </p>
+                    <div className="space-y-2.5">
+                      {createForm.backjobIsUnderWarranty ? (
+                        <div className="rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/90 dark:bg-emerald-950/40 p-3 text-xs text-emerald-950 dark:text-emerald-200">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1.5 font-black text-emerald-800 dark:text-emerald-300">
+                              <ShieldCheck size={16} className="text-emerald-600" />
+                              ✓ Active Service Warranty Valid ({createForm.backjobDaysRemaining} days remaining)
+                            </span>
+                            <span className="rounded-md bg-emerald-200/80 dark:bg-emerald-900/60 px-2 py-0.5 font-mono text-[11px] font-black text-emerald-900 dark:text-emerald-200">
+                              Free Labor (₱0.00)
+                            </span>
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-emerald-800/90 dark:text-emerald-300">
+                            Original job #{createForm.backjobOriginalJobCode} is covered until {createForm.backjobWarrantyExpiresAt ? new Date(createForm.backjobWarrantyExpiresAt).toLocaleDateString("en-PH") : "N/A"}. Labor is complimentary under shop warranty policy.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-amber-300 dark:border-amber-700 bg-white/90 dark:bg-slate-900/90 p-3 text-xs text-amber-950 dark:text-amber-200">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1.5 font-black text-amber-800 dark:text-amber-300">
+                              <AlertCircle size={16} className="text-amber-600" />
+                              ⚠️ Warranty Expired / Out-of-Warranty Return
+                            </span>
+                            <span className="rounded-md bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-200">
+                              Billable or Discretionary Service
+                            </span>
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-amber-800/90 dark:text-amber-300">
+                            The original warranty period ({createForm.backjobWarrantyDays ? formatWarrantyDuration(createForm.backjobWarrantyDays) : "0 Days"}) has ended. You may input standard service charge below or adjust based on customer goodwill.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : null}
-                  <Field label="Backjob reason / customer note">
+
+                  <Field label="Customer Complaint / Backjob Symptom *">
                     <input
                       className={FIELD_CLASS}
                       maxLength="1000"
                       onChange={(event) => setCreateForm((form) => ({ ...form, backjobReason: event.target.value }))}
-                      placeholder="e.g. Warranty claim for recurring no power issue"
+                      placeholder="e.g. Unit returned: same symptom occurred after 3 days of release (no power / screen flickering)"
                       value={createForm.backjobReason}
+                      required
                     />
                   </Field>
                 </div>
@@ -3531,6 +3654,107 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                 </div>
               </div>
 
+              {/* Service & Labor Warranty Coverage */}
+              <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/40 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-maroon)]/10 text-[var(--color-maroon)]">
+                      <ShieldCheck size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-[var(--color-text-strong)]">
+                        Service &amp; Labor Warranty Coverage
+                      </h4>
+                      <p className="text-[11px] text-[var(--color-muted)]">
+                        Guarantees workmanship and repair validity after client release
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-maroon-soft)] px-2.5 py-0.5 text-[11px] font-black text-[var(--color-maroon)]">
+                    🛡️ {createForm.serviceWarrantyDuration || formatWarrantyDuration(createForm.serviceWarrantyDays ?? 30)}
+                  </span>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 items-end">
+                  <Field label="Warranty Policy Period">
+                    <select
+                      className={FIELD_CLASS}
+                      value={
+                        [0, 7, 15, 30, 60, 90].includes(Number(createForm.serviceWarrantyDays))
+                          ? String(createForm.serviceWarrantyDays)
+                          : "custom"
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val === "custom") {
+                          setCreateForm((f) => ({
+                            ...f,
+                            serviceWarrantyDays: f.serviceWarrantyDays || 30,
+                            serviceWarrantyDuration: "Custom",
+                          }))
+                        } else {
+                          const days = Number(val)
+                          setCreateForm((f) => ({
+                            ...f,
+                            serviceWarrantyDays: days,
+                            serviceWarrantyDuration: formatWarrantyDuration(days),
+                          }))
+                        }
+                      }}
+                    >
+                      <option value="30">30 Days (Standard Service Warranty)</option>
+                      <option value="15">15 Days (Short Workmanship Guarantee)</option>
+                      <option value="7">7 Days (Quick Service / Software / OS Reinstall)</option>
+                      <option value="60">60 Days (2 Months Extended Guarantee)</option>
+                      <option value="90">90 Days (3 Months Full Repair Warranty)</option>
+                      <option value="0">0 Days / None (As-Is / Liquid Damage / High-Risk)</option>
+                      <option value="custom">Custom Duration (Specific Number of Days)...</option>
+                    </select>
+                  </Field>
+
+                  {(![0, 7, 15, 30, 60, 90].includes(Number(createForm.serviceWarrantyDays)) ||
+                    createForm.serviceWarrantyDuration === "Custom") ? (
+                    <Field label="Custom Warranty Duration (Days)">
+                      <div className="relative">
+                        <input
+                          className={`${FIELD_CLASS} pr-14 font-mono font-bold`}
+                          type="number"
+                          min="0"
+                          max="365"
+                          value={createForm.serviceWarrantyDays || ""}
+                          onChange={(e) => {
+                            const days = Math.max(0, parseInt(e.target.value, 10) || 0)
+                            setCreateForm((f) => ({
+                              ...f,
+                              serviceWarrantyDays: days,
+                              serviceWarrantyDuration: `${days} Days`,
+                            }))
+                          }}
+                          placeholder="e.g. 45"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--color-muted)]">
+                          Days
+                        </span>
+                      </div>
+                    </Field>
+                  ) : (
+                    <div className="rounded-xl border border-[var(--color-border)] bg-white dark:bg-slate-900 p-2.5 text-xs text-slate-600 dark:text-slate-300">
+                      <p className="font-semibold text-[11px]">
+                        {Number(createForm.serviceWarrantyDays) > 0 ? (
+                          <>
+                            Coverage: <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{createForm.serviceWarrantyDays} calendar days</strong> starting from release date.
+                          </>
+                        ) : (
+                          <>
+                            Coverage: <strong className="text-amber-700 dark:text-amber-400 font-bold">No warranty</strong> (unit accepted on as-is terms).
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Pricing & Service Notes */}
               <div className="space-y-4 rounded-2xl border border-[var(--color-border)] p-4">
                 <p className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Pricing & Charges</p>
@@ -3665,18 +3889,28 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                         ⚡ Quick Service
                       </span>
                     ) : null}
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-black border ${
                       selectedJobWarranty.isUnderWarranty
-                        ? "bg-emerald-100 text-emerald-800"
+                        ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700"
                         : selectedJobWarranty.warrantyDays > 0
-                          ? "bg-rose-100 text-rose-800"
-                          : "bg-slate-100 text-slate-700"
+                          ? "bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700"
                     }`}>
-                      {selectedJobWarranty.warrantyDays > 0
-                        ? selectedJobWarranty.isUnderWarranty
-                          ? `Active Warranty${selectedJobWarranty.daysRemaining > 0 ? ` · ${selectedJobWarranty.daysRemaining}d left` : ""}`
-                          : "Expired Warranty"
-                        : "No Warranty"}
+                      {selectedJobWarranty.warrantyDays > 0 ? (
+                        selectedJobWarranty.isUnderWarranty ? (
+                          <>
+                            <ShieldCheck size={12} className="shrink-0" />
+                            Active Warranty{selectedJobWarranty.daysRemaining > 0 ? ` · ${selectedJobWarranty.daysRemaining}d left` : ""}
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle size={12} className="shrink-0" />
+                            Expired Warranty
+                          </>
+                        )
+                      ) : (
+                        "No Warranty"
+                      )}
                     </span>
                     {selectedJobBackjob.isBackjob ? (
                       <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-xs font-black">
@@ -3790,6 +4024,22 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                           ) : null}
                         </div>
                       ) : null}
+                      <div className="pt-1.5 border-t border-slate-200/60">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase text-slate-400">Service Warranty</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedJobWarranty.warrantyDays > 0
+                              ? formatWarrantyDuration(selectedJobWarranty.warrantyDays)
+                              : "None / As-Is"}
+                          </span>
+                        </div>
+                        {selectedJobWarranty.warrantyExpiresAt ? (
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Valid until {new Date(selectedJobWarranty.warrantyExpiresAt).toLocaleDateString("en-PH")}
+                            {selectedJobWarranty.isUnderWarranty ? ` (${selectedJobWarranty.daysRemaining}d left)` : " (Expired)"}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
@@ -3954,13 +4204,20 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       <UserRoundCheck size={15} /> Assign to me
                     </button>
                   ) : null}
-                  {selectedJob?.status === "COMPLETED" && selectedJobWarranty.isUnderWarranty && !selectedJobBackjob.isBackjob ? (
+                  {selectedJob?.status === "COMPLETED" && !selectedJobBackjob.isBackjob ? (
                     <button
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-black text-white shadow-2xs hover:bg-amber-700 transition cursor-pointer"
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer ${
+                        selectedJobWarranty.isUnderWarranty
+                          ? "bg-amber-600 hover:bg-amber-700"
+                          : "bg-slate-700 hover:bg-slate-800"
+                      }`}
                       onClick={() => openBackjobIntake(selectedJob)}
                       type="button"
                     >
-                      <RotateCcw size={15} /> Accept Backjob / File Service Warranty
+                      <RotateCcw size={15} />{" "}
+                      {selectedJobWarranty.isUnderWarranty
+                        ? "Accept Backjob (Under Warranty)"
+                        : "Accept Backjob (Out of Warranty)"}
                     </button>
                   ) : null}
                   {canActOnSelected

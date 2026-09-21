@@ -134,6 +134,16 @@ export function extractIntakeRecord(job) {
 export const SERVICE_TASKS_HEADER = "[SERVICE_TASKS_V1]:"
 export const SERVICE_PARTS_HEADER = "[SERVICE_PARTS_V1]:"
 export const WARRANTY_DURATION_OPTIONS = [0, 7, 15, 30, 60, 90]
+export const PARTS_WARRANTY_OPTIONS = [
+  "None",
+  "7 Days",
+  "15 Days",
+  "30 Days (1 Month)",
+  "90 Days (3 Months)",
+  "180 Days (6 Months)",
+  "1 Year (Supplier)",
+  "2 Years (Supplier)",
+]
 
 export function formatWarrantyDuration(days) {
   const normalized = Number(days)
@@ -209,8 +219,11 @@ export const BACKJOB_RECORD_HEADER = "[BACKJOB_RECORD_V1]:"
 export function extractJobWarranty(job) {
   if (!job) return { warrantyDays: 0, warrantyExpiresAt: null, isUnderWarranty: false, daysRemaining: 0 }
 
+  const intake = extractIntakeRecord(job)
+  const intakeWarrantyDays = normalizeWarrantyDays(intake?.serviceWarrantyDays)
+
   if (typeof job.warrantyDays === "number" || job.warrantyExpiresAt) {
-    const warrantyDays = normalizeWarrantyDays(job.warrantyDays)
+    const warrantyDays = normalizeWarrantyDays(job.warrantyDays) || intakeWarrantyDays
     const warrantyExpiresAt = job.warrantyExpiresAt ? new Date(job.warrantyExpiresAt) : null
     const isUnderWarranty = warrantyExpiresAt ? Date.now() <= warrantyExpiresAt.getTime() : warrantyDays > 0
     const daysRemaining = isUnderWarranty && warrantyExpiresAt
@@ -226,7 +239,7 @@ export function extractJobWarranty(job) {
   }
 
   const tasks = extractServiceTasks(job)
-  let maxDays = 0
+  let maxDays = intakeWarrantyDays
   for (const t of tasks) {
     if (typeof t.warrantyDays === "number") {
       maxDays = Math.max(maxDays, t.warrantyDays)
