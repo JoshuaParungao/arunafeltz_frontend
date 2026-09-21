@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   CheckCircle2,
   Eye,
+  FileSpreadsheet,
   PackageCheck,
   RefreshCw,
   Search,
@@ -26,6 +27,7 @@ import { getUser } from "../../lib/sessionStorage"
 import SerialScannerModal from "../../components/common/SerialScannerModal"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import StockTransfersReportView from "./StockTransfersReportView"
 
 function formatDate(value) {
   if (!value) return "—"
@@ -180,6 +182,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
   const user = userProp || getUser()
   const branchId = selectedBranch?.id || (user?.role === "SUPER_OWNER" ? "" : user?.branchId || "")
   const effectiveBranchId = branchId || user?.branchId || ""
+  const [pageMode, setPageMode] = useState("operations") // "operations" | "reports"
   const [transfers, setTransfers] = useState([])
   const [pagination, setPagination] = useState(null)
   const [statusFilter, setStatusFilter] = useState("")
@@ -631,23 +634,62 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             <p className="mt-0.5 text-xs text-slate-500">Requests remain auditable. Approval reserves no stock; fulfillment posts both branch movements atomically.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ExportExcelButton
-              filteredCount={pagination?.totalItems ?? transfers.length}
-              label="Export Transfers (.xlsx)"
-              onExport={handleExportTransfersExcel}
-            />
+            {pageMode === "operations" ? (
+              <ExportExcelButton
+                filteredCount={pagination?.totalItems ?? transfers.length}
+                label="Export Transfers (.xlsx)"
+                onExport={handleExportTransfersExcel}
+              />
+            ) : null}
             <button className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={loadTransfers} type="button">
               <RefreshCw size={14} /> Refresh
             </button>
           </div>
+        </div>
+
+        {/* Mode Navigation Tabs */}
+        <div className="mt-5 flex border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => setPageMode("operations")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition ${
+              pageMode === "operations"
+                ? "border-[var(--color-maroon)] text-[var(--color-maroon)] font-black"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            <Truck size={14} />
+            <span>Transfer Operations & Receiving</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPageMode("reports")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition ${
+              pageMode === "reports"
+                ? "border-[var(--color-maroon)] text-[var(--color-maroon)] font-black"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            <FileSpreadsheet size={14} />
+            <span>Logistics Reports & Transfer Audit</span>
+          </button>
         </div>
       </section>
 
       {errorMessage ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700 flex items-center gap-2"><AlertCircle size={15} />{errorMessage}</div> : null}
       {successMessage ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{successMessage}</div> : null}
 
-      {/* Transfer In / Out Direction Tabs */}
-      <div className="flex items-center border-b border-slate-200 gap-2 sm:gap-4 overflow-x-auto">
+      {pageMode === "reports" ? (
+        <StockTransfersReportView
+          branchId={effectiveBranchId}
+          selectedBranch={selectedBranch}
+          user={user}
+          onRefresh={loadTransfers}
+        />
+      ) : (
+        <>
+          {/* Transfer In / Out Direction Tabs */}
+          <div className="flex items-center border-b border-slate-200 gap-2 sm:gap-4 overflow-x-auto">
         <button
           className={`relative pb-2.5 pt-1 px-2 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
             directionFilter === "ALL"
@@ -790,6 +832,8 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
           </div>
         ) : null}
       </section>
+        </>
+      )}
 
       {selectedTransfer ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
