@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
+  BarChart3,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -33,6 +34,7 @@ import {
 } from "../../features/warranty-claims/warrantyClaims.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import WarrantyReportView from "./WarrantyReportView"
 
 const CREATE_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "CASHIER", "TECHNICIAN"])
 const ACTION_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "CASHIER", "TECHNICIAN"])
@@ -172,7 +174,7 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const canCreate = CREATE_ROLES.has(user?.role)
   const canAct = ACTION_ROLES.has(user?.role)
-
+  const [warrantyViewMode, setWarrantyViewMode] = useState("OPERATIONS") // "OPERATIONS" | "REPORTS"
   const [activeTab, setActiveTab] = useState("claims") // "claims", "supplier", "replaced_log"
 
   const [claims, setClaims] = useState([])
@@ -805,78 +807,37 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
             ) : null}
           </div>
         </div>
+
+        {/* View Mode Switcher (Workbench vs Reports) */}
+        <div className="mt-5 flex items-center justify-between border-t border-[var(--color-border)] pt-4 flex-wrap gap-3">
+          <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/60 p-1">
+            <button
+              type="button"
+              onClick={() => setWarrantyViewMode("OPERATIONS")}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 transition text-xs cursor-pointer ${
+                warrantyViewMode === "OPERATIONS"
+                  ? "bg-[var(--color-card)] text-[var(--color-text-strong)] shadow-xs font-black"
+                  : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)] font-bold"
+              }`}
+            >
+              <ShieldCheck size={14} />
+              Operations &amp; Workbench
+            </button>
+            <button
+              type="button"
+              onClick={() => setWarrantyViewMode("REPORTS")}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 transition text-xs cursor-pointer ${
+                warrantyViewMode === "REPORTS"
+                  ? "bg-[var(--color-card)] text-[var(--color-text-strong)] shadow-xs font-black"
+                  : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)] font-bold"
+              }`}
+            >
+              <BarChart3 size={14} />
+              Reports &amp; Detailed Audit
+            </button>
+          </div>
+        </div>
       </section>
-
-      {/* Minimalist 4 Metrics Strip */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div
-          onClick={() => setActiveTab("claims")}
-          className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
-            activeTab === "claims"
-              ? "border-[var(--color-maroon)] bg-[var(--color-soft)]/50"
-              : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="grid size-10 place-items-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              <ShieldCheck size={20} />
-            </span>
-            <span className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider">In Store</span>
-          </div>
-          <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.active}</p>
-          <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Active In-Store Claims</p>
-        </div>
-
-        <div
-          onClick={() => setActiveTab("supplier")}
-          className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
-            activeTab === "supplier"
-              ? "border-violet-500/50 bg-violet-500/10"
-              : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="grid size-10 place-items-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
-              <Truck size={20} />
-            </span>
-            <span className="text-xs font-bold text-violet-700 dark:text-violet-400 uppercase tracking-wider">With Suppliers</span>
-          </div>
-          <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.supplier}</p>
-          <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Dispatched for Supplier RMA</p>
-        </div>
-
-        <div
-          onClick={() => setActiveTab("claims")}
-          className="rounded-3xl p-5 border border-[var(--color-border)] bg-[var(--color-card)] shadow-card cursor-pointer hover:border-[var(--color-border-strong)] transition"
-        >
-          <div className="flex items-center justify-between">
-            <span className="grid size-10 place-items-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <PackageCheck size={20} />
-            </span>
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Ready Pickup</span>
-          </div>
-          <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.readyRelease}</p>
-          <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Repaired / Replaced for Release</p>
-        </div>
-
-        <div
-          onClick={() => setActiveTab("replaced_log")}
-          className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
-            activeTab === "replaced_log"
-              ? "border-[var(--color-maroon)] bg-[var(--color-soft)]/50"
-              : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="grid size-10 place-items-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-              <Layers size={20} />
-            </span>
-            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Audit Log</span>
-          </div>
-          <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.shrinkageOrReplaced}</p>
-          <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Swapped / Written-Off Units</p>
-        </div>
-      </div>
 
       {/* Global Notice Alert */}
       {notice ? (
@@ -896,8 +857,97 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
         </div>
       ) : null}
 
-      {/* Minimalist Segmented Tabs */}
-      <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2 overflow-x-auto">
+      {warrantyViewMode === "REPORTS" ? (
+        <WarrantyReportView
+          branchId={branchId}
+          selectedBranch={selectedBranch}
+          user={user}
+          getWarrantyClaimsApi={getWarrantyClaims}
+          onOpenDetail={openDetail}
+          onImmediateReplace={openImmediateReplacementModal}
+          onDispatchSupplier={openDispatchSupplierModal}
+          onResolveSupplier={openResolveSupplierModal}
+          onCustomerReject={openCustomerRejectModal}
+          onRelease={(claim) => {
+            setSelectedClaim(claim)
+            openRelease()
+          }}
+        />
+      ) : (
+        <>
+          {/* Minimalist 4 Metrics Strip */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div
+              onClick={() => setActiveTab("claims")}
+              className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
+                activeTab === "claims"
+                  ? "border-[var(--color-maroon)] bg-[var(--color-soft)]/50"
+                  : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="grid size-10 place-items-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <ShieldCheck size={20} />
+                </span>
+                <span className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider">In Store</span>
+              </div>
+              <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.active}</p>
+              <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Active In-Store Claims</p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab("supplier")}
+              className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
+                activeTab === "supplier"
+                  ? "border-violet-500/50 bg-violet-500/10"
+                  : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="grid size-10 place-items-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+                  <Truck size={20} />
+                </span>
+                <span className="text-xs font-bold text-violet-700 dark:text-violet-400 uppercase tracking-wider">With Suppliers</span>
+              </div>
+              <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.supplier}</p>
+              <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Dispatched for Supplier RMA</p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab("claims")}
+              className="rounded-3xl p-5 border border-[var(--color-border)] bg-[var(--color-card)] shadow-card cursor-pointer hover:border-[var(--color-border-strong)] transition"
+            >
+              <div className="flex items-center justify-between">
+                <span className="grid size-10 place-items-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  <PackageCheck size={20} />
+                </span>
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Ready Pickup</span>
+              </div>
+              <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.readyRelease}</p>
+              <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Repaired / Replaced for Release</p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab("replaced_log")}
+              className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
+                activeTab === "replaced_log"
+                  ? "border-[var(--color-maroon)] bg-[var(--color-soft)]/50"
+                  : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="grid size-10 place-items-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                  <Layers size={20} />
+                </span>
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Audit Log</span>
+              </div>
+              <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.shrinkageOrReplaced}</p>
+              <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Swapped / Written-Off Units</p>
+            </div>
+          </div>
+
+          {/* Minimalist Segmented Tabs */}
+          <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab("claims")}
@@ -1388,6 +1438,8 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
             </>
           )}
         </section>
+      )}
+        </>
       )}
 
       {/* MODAL 1: RECEIVE NEW WARRANTY CLAIM */}
