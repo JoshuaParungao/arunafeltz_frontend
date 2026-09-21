@@ -38,6 +38,10 @@ import ExportExcelButton from "../../components/common/ExportExcelButton"
 import { parseItemWarranty } from "../items/ItemsPage"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
+import {
+  CORE_SYSTEM_UNIT_PARTS,
+  validateSystemUnitCompleteness,
+} from "../../utils/pcBuildValidator"
 
 const PRICING_TERMS = {
   CASH: {
@@ -242,6 +246,11 @@ export default function QuotationsPage({ selectedBranch, user }) {
   const [pricingTerm, setPricingTerm] = useState("CASH") // "CASH" | "SRP" | "REGULAR"
   const [isPcBuild, setIsPcBuild] = useState(false)
   const [remarks, setRemarks] = useState("")
+
+  const systemUnitCompleteness = useMemo(() => {
+    if (!isPcBuild) return null
+    return validateSystemUnitCompleteness(cart)
+  }, [isPcBuild, cart])
 
   // Customer Management
   const [customers, setCustomers] = useState([])
@@ -816,6 +825,15 @@ export default function QuotationsPage({ selectedBranch, user }) {
       setBuilderMessage("Quotation cart is empty. Please add items or service lines first.")
       return
     }
+
+    if (isPcBuild) {
+      const pcBuildCheck = validateSystemUnitCompleteness(cart)
+      if (!pcBuildCheck.isComplete) {
+        setBuilderMessage(pcBuildCheck.summaryMessage)
+        return
+      }
+    }
+
     if (!selectedCustomerId && !customerSearch.trim()) {
       setBuilderMessage("Customer name is required before generating quotation.")
       customerInputRef.current?.focus()
@@ -890,6 +908,15 @@ export default function QuotationsPage({ selectedBranch, user }) {
       setBuilderMessage("Quotation cart is empty.")
       return
     }
+
+    if (isPcBuild) {
+      const pcBuildCheck = validateSystemUnitCompleteness(cart)
+      if (!pcBuildCheck.isComplete) {
+        setBuilderMessage(pcBuildCheck.summaryMessage)
+        return
+      }
+    }
+
     if (!selectedCustomerId && !customerSearch.trim()) {
       setBuilderMessage("Customer name is required.")
       customerInputRef.current?.focus()
@@ -1531,6 +1558,65 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <span className="text-[11px] font-bold text-slate-700">PC Build</span>
                 </label>
               </div>
+
+              {isPcBuild ? (
+                <div className="mx-4 mt-2 rounded-xl border border-rose-200 bg-rose-50/60 p-2 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                      🖥️ System Unit Requirements
+                    </span>
+                    {systemUnitCompleteness?.isComplete ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-800">
+                        <CheckCircle2 size={11} /> Complete (Ready)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 border border-rose-300 px-2 py-0.5 text-[9px] font-black text-rose-800">
+                        <AlertCircle size={11} /> Incomplete ({systemUnitCompleteness?.missingComponents?.length || 0} missing)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                    {CORE_SYSTEM_UNIT_PARTS.map((part) => {
+                      const isPresent = Boolean(
+                        systemUnitCompleteness?.hasPackage ||
+                        systemUnitCompleteness?.foundComponents[part.key]?.length > 0
+                      )
+                      const matchedCount = systemUnitCompleteness?.foundComponents[part.key]?.length || 0
+                      const matchedItem = systemUnitCompleteness?.foundComponents[part.key]?.[0]
+                      const titleText = matchedItem
+                        ? `${part.name}: ${matchedItem.item?.itemName || matchedItem.description || "In cart"}`
+                        : `Required: ${part.name} (Missing)`
+
+                      return (
+                        <div
+                          key={part.key}
+                          className={`flex items-center justify-between rounded-md border px-2 py-1 text-[10px] font-semibold transition ${
+                            isPresent
+                              ? "border-emerald-200 bg-emerald-50/80 text-emerald-900"
+                              : "border-rose-200 bg-white text-rose-700"
+                          }`}
+                          title={titleText}
+                        >
+                          <span className="truncate">{part.shortName}</span>
+                          {isPresent ? (
+                            <span className="flex items-center gap-0.5 shrink-0 text-emerald-600 font-bold ml-1 text-[9px]">
+                              {matchedCount > 1 ? `x${matchedCount}` : ""}
+                              <Check size={11} />
+                            </span>
+                          ) : (
+                            <span className="shrink-0 text-[8px] font-black uppercase text-rose-600 ml-1">Need</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <p className="text-[9px] text-slate-500 italic">
+                    💡 Peripherals (Monitor, Keyboard, Mouse) are optional. Only the 6 core system unit parts are required.
+                  </p>
+                </div>
+              ) : null}
 
               {/* Cart Line Items */}
               {cart.length === 0 ? (

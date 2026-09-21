@@ -81,6 +81,10 @@ import QuotationDetailDialog from "../../components/quotations/QuotationDetailDi
 import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
 import { serializeQuotationNotes } from "../../utils/quotationSettlement"
 import {
+  CORE_SYSTEM_UNIT_PARTS,
+  validateSystemUnitCompleteness,
+} from "../../utils/pcBuildValidator"
+import {
   saveFormDraft,
   getFormDraft,
   clearFormDraft,
@@ -2921,6 +2925,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     return draft?.selectedBuilderId || ""
   })
 
+  const systemUnitCompleteness = useMemo(() => {
+    if (!isPcBuild) return null
+    return validateSystemUnitCompleteness(cart)
+  }, [isPcBuild, cart])
+
   const [paymentMethod, setPaymentMethod] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.paymentMethod || "CASH"
@@ -3985,6 +3994,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const validateCart = () => {
     if (!branchId) return "Select a branch before creating a sale."
     if (cart.length === 0) return "Cart is empty."
+
+    if (isPcBuild) {
+      const pcBuildCheck = validateSystemUnitCompleteness(cart)
+      if (!pcBuildCheck.isComplete) {
+        return pcBuildCheck.summaryMessage
+      }
+    }
 
     const hasCustomer = Boolean(selectedCustomerId || customerSearch.trim())
     if (!hasCustomer) {
@@ -6564,23 +6580,83 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </header>
 
             {isPcBuild ? (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rose-200 bg-rose-50/75 px-3.5 py-2 text-xs">
-                <span className="font-bold text-[var(--color-maroon)] flex items-center gap-1.5">
-                  <Wrench size={13} />
-                  Assembled / Built By:
-                </span>
-                <select
-                  className="rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                  value={selectedBuilderId}
-                  onChange={(e) => setSelectedBuilderId(e.target.value)}
-                >
-                  <option value="">-- Select Staff / Assembler (Optional) --</option>
-                  {serviceStaffList.map((staff) => (
-                    <option key={staff.id} value={staff.id}>
-                      {staff.fullName}
-                    </option>
-                  ))}
-                </select>
+              <div className="border-b border-rose-200 bg-rose-50/75 px-3 py-2 text-xs space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-[var(--color-maroon)] flex items-center gap-1.5">
+                    <Wrench size={13} />
+                    Assembled / Built By:
+                  </span>
+                  <select
+                    className="rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                    value={selectedBuilderId}
+                    onChange={(e) => setSelectedBuilderId(e.target.value)}
+                  >
+                    <option value="">-- Select Staff / Assembler (Optional) --</option>
+                    {serviceStaffList.map((staff) => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* System Unit Completeness Checklist */}
+                <div className="rounded-xl border border-rose-200 bg-white/95 p-2 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                      🖥️ System Unit Requirements
+                    </span>
+                    {systemUnitCompleteness?.isComplete ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-800">
+                        <CheckCircle2 size={11} /> Complete (Ready)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 border border-rose-300 px-2 py-0.5 text-[9px] font-black text-rose-800">
+                        <AlertCircle size={11} /> Incomplete ({systemUnitCompleteness?.missingComponents?.length || 0} missing)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                    {CORE_SYSTEM_UNIT_PARTS.map((part) => {
+                      const isPresent = Boolean(
+                        systemUnitCompleteness?.hasPackage ||
+                        systemUnitCompleteness?.foundComponents[part.key]?.length > 0
+                      )
+                      const matchedCount = systemUnitCompleteness?.foundComponents[part.key]?.length || 0
+                      const matchedItem = systemUnitCompleteness?.foundComponents[part.key]?.[0]
+                      const titleText = matchedItem
+                        ? `${part.name}: ${matchedItem.item?.itemName || matchedItem.description || "In cart"}`
+                        : `Required: ${part.name} (Missing)`
+
+                      return (
+                        <div
+                          key={part.key}
+                          className={`flex items-center justify-between rounded-md border px-2 py-1 text-[10px] font-semibold transition ${
+                            isPresent
+                              ? "border-emerald-200 bg-emerald-50/80 text-emerald-900"
+                              : "border-rose-200 bg-rose-50/40 text-rose-700"
+                          }`}
+                          title={titleText}
+                        >
+                          <span className="truncate">{part.shortName}</span>
+                          {isPresent ? (
+                            <span className="flex items-center gap-0.5 shrink-0 text-emerald-600 font-bold ml-1 text-[9px]">
+                              {matchedCount > 1 ? `x${matchedCount}` : ""}
+                              <Check size={11} />
+                            </span>
+                          ) : (
+                            <span className="shrink-0 text-[8px] font-black uppercase text-rose-600 ml-1">Need</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <p className="text-[9px] text-slate-500 italic">
+                    💡 Peripherals (Monitor, Keyboard, Mouse) are optional. Only the 6 core system unit parts are required.
+                  </p>
+                </div>
               </div>
             ) : null}
 
