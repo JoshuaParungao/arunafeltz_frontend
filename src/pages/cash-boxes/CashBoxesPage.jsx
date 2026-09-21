@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  FileSpreadsheet,
   HandCoins,
   Landmark,
   Lightbulb,
@@ -40,6 +41,7 @@ import { getUsers } from "../../features/users/users.api"
 import { getRoleLabel } from "../../constants/roles"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import CashBoxesReportView from "./CashBoxesReportView"
 
 const OWNER_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN"])
 const CASH_IN_TYPES = new Set(["CASH_IN", "ADJUSTMENT_IN", "SALE_PAYMENT", "CREDIT_COLLECTION", "SERVICE_PAYMENT"])
@@ -122,6 +124,7 @@ export default function CashBoxesPage({
   const [salesRecords, setSalesRecords] = useState([])
   const [serviceRecords, setServiceRecords] = useState([])
 
+  const [pageMode, setPageMode] = useState("operations") // "operations" | "reports"
   const [tab, setTab] = useState("all") // "all" | "expenses" | "cashless" | "handovers"
   const [transactionPage, setTransactionPage] = useState(1)
   const [handoverPage, setHandoverPage] = useState(1)
@@ -790,6 +793,34 @@ export default function CashBoxesPage({
             <p className="mt-1 max-w-2xl text-sm text-[var(--color-muted)]">
               Complete multi-channel monitoring for physical cash in drawer, cashless e-wallets, bank deposits, store expenses, and shift handovers.
             </p>
+
+            {/* Mode Switcher */}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPageMode("operations")}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
+                  pageMode === "operations"
+                    ? "bg-[var(--color-maroon)] text-white shadow-sm"
+                    : "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                }`}
+              >
+                <Banknote size={15} />
+                Cashier Operations & Drawer
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageMode("reports")}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
+                  pageMode === "reports"
+                    ? "bg-[var(--color-maroon)] text-white shadow-sm"
+                    : "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
+                }`}
+              >
+                <FileSpreadsheet size={15} />
+                Executive Reports & Shift Audit
+              </button>
+            </div>
           </div>
 
           {/* Quick Actions */}
@@ -804,11 +835,13 @@ export default function CashBoxesPage({
               Refresh
             </button>
 
-            <ExportExcelButton
-              count={tab === "handovers" ? (handoverMeta?.total || handovers.length) : (transactionMeta?.total || transactions.length)}
-              isExporting={isExporting}
-              onClick={handleExportCashExcel}
-            />
+            {pageMode === "operations" && (
+              <ExportExcelButton
+                count={tab === "handovers" ? (handoverMeta?.total || handovers.length) : (transactionMeta?.total || transactions.length)}
+                isExporting={isExporting}
+                onClick={handleExportCashExcel}
+              />
+            )}
 
             {canManage && (
               <>
@@ -867,8 +900,19 @@ export default function CashBoxesPage({
         </div>
       )}
 
-      {/* THE 3 BIG PILLARS OF CASH FLOW */}
-      <section className="grid gap-5 lg:grid-cols-3">
+      {pageMode === "reports" ? (
+        <CashBoxesReportView
+          branchId={branchId}
+          selectedBranch={selectedBranch}
+          user={user}
+          boxes={boxes}
+          staff={staff}
+          onRefresh={refresh}
+        />
+      ) : (
+        <>
+          {/* THE 3 BIG PILLARS OF CASH FLOW */}
+          <section className="grid gap-5 lg:grid-cols-3">
         {/* PILLAR 1: TOTAL CASH IN DRAWER */}
         <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-[var(--color-card)] to-[var(--color-card)] p-6 shadow-card">
           <div className="flex items-center justify-between">
@@ -1546,6 +1590,8 @@ export default function CashBoxesPage({
           </div>
         )}
       </section>
+        </>
+      )}
 
       {/* ========================================================================= */}
       {/* MODALS */}
