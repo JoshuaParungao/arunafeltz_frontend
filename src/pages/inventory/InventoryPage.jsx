@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, CheckCircle2, PackageSearch, Plus, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react"
+import { AlertCircle, BarChart3, Boxes, CheckCircle2, PackageSearch, Plus, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { getBranches } from "../../features/branches/branches.api"
@@ -7,6 +7,7 @@ import { getItemCategories } from "../../features/items/items.api"
 import StockAdjustmentPanel from "./StockAdjustmentPanel"
 import InventoryDetailModal from "./InventoryDetailModal"
 import AddStockModal from "./AddStockModal"
+import InventoryReportView from "./InventoryReportView"
 import {
   createStockAdjustment,
   createStockTransferRequest,
@@ -138,6 +139,7 @@ function InventoryMobileCard({ item, canAdjust, onView, onAdjust }) {
 }
 
 export default function InventoryPage({ initialContext, selectedBranch, user }) {
+  const [inventoryViewMode, setInventoryViewMode] = useState("OPERATIONS")
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
   const [searchText, setSearchText] = useState(initialContext?.search || "")
@@ -978,69 +980,189 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     <div className="space-y-5">
       <section className="flex flex-col gap-4 rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-[var(--color-accent)]">Inventory</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm font-bold text-[var(--color-accent)]">Inventory</p>
+            <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setInventoryViewMode("OPERATIONS")}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition ${
+                  inventoryViewMode === "OPERATIONS"
+                    ? "bg-white text-slate-800 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Boxes size={14} />
+                Operations & Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => setInventoryViewMode("REPORTS")}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition ${
+                  inventoryViewMode === "REPORTS"
+                    ? "bg-[var(--color-maroon)] text-white shadow-xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <BarChart3 size={14} />
+                Reports & Audit
+              </button>
+            </div>
+          </div>
           <h1 className="mt-1 text-2xl font-bold text-[var(--color-text-strong)]">
-            Branch Stock Overview
+            {inventoryViewMode === "REPORTS" ? "Inventory & Valuation Reports" : "Branch Stock Overview"}
           </h1>
           <p className="mt-2 text-sm font-semibold text-[var(--color-muted)]">
-            Monitor available stock, batches, serial count, and low-stock items.
+            {inventoryViewMode === "REPORTS"
+              ? "Comprehensive stock valuation, capital vs retail pricing, serial hardware tracking, and movements audit."
+              : "Monitor available stock, batches, serial count, and low-stock items."}
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {canAdjustStock ? (
-            <button
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-black text-white transition hover:bg-[var(--color-maroon-hover)] shadow-xs"
-              onClick={() => setIsAddStockOpen(true)}
-              type="button"
-            >
-              <Plus size={16} />
-              Add Stock
-            </button>
-          ) : null}
-          {canOpenStockRequest ? (
-            <button
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 transition"
-              onClick={() => {
-                setRequestSourceBranchId(requestSourceOptions[0]?.id || "")
-                setBulkSearchText("")
-                setBulkRequestItems([])
-                setRequestMessage("")
-                setRequestFulfillmentMethod("PICKUP")
-                setRequestDeliveryCharge("0")
-                setIsBulkRequestOpen(true)
-              }}
-              type="button"
-            >
-              Request stock
-            </button>
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            <ExportExcelButton
-              filteredCount={pagination?.totalItems ?? items.length}
-              label="Export Excel (.xlsx)"
-              onExport={handleExportInventoryExcel}
-            />
-            <button
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-              onClick={handleExportInventoryPdf}
-              type="button"
-            >
-              Export PDF
-            </button>
-            <button
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
-              onClick={loadInventory}
-              type="button"
-            >
-              <RefreshCw size={16} />
-              Refresh
-            </button>
+        {inventoryViewMode === "OPERATIONS" ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {canAdjustStock ? (
+              <button
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-black text-white transition hover:bg-[var(--color-maroon-hover)] shadow-xs"
+                onClick={() => setIsAddStockOpen(true)}
+                type="button"
+              >
+                <Plus size={16} />
+                Add Stock
+              </button>
+            ) : null}
+            {canOpenStockRequest ? (
+              <button
+                className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 transition"
+                onClick={() => {
+                  setRequestSourceBranchId(requestSourceOptions[0]?.id || "")
+                  setBulkSearchText("")
+                  setBulkRequestItems([])
+                  setRequestMessage("")
+                  setRequestFulfillmentMethod("PICKUP")
+                  setRequestDeliveryCharge("0")
+                  setIsBulkRequestOpen(true)
+                }}
+                type="button"
+              >
+                Request stock
+              </button>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <ExportExcelButton
+                filteredCount={pagination?.totalItems ?? items.length}
+                label="Export Excel (.xlsx)"
+                onExport={handleExportInventoryExcel}
+              />
+              <button
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                onClick={handleExportInventoryPdf}
+                type="button"
+              >
+                Export PDF
+              </button>
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                onClick={loadInventory}
+                type="button"
+              >
+                <RefreshCw size={16} />
+                Refresh
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            {canAdjustStock ? (
+              <button
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-black text-white transition hover:bg-[var(--color-maroon-hover)] shadow-xs"
+                onClick={() => setIsAddStockOpen(true)}
+                type="button"
+              >
+                <Plus size={16} />
+                Add Stock
+              </button>
+            ) : null}
+          </div>
+        )}
       </section>
 
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card space-y-3.5">
+      {noticeMessage ? (
+        <section className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold text-emerald-800">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="shrink-0 text-emerald-600" size={16} />
+            <span>{noticeMessage}</span>
+          </div>
+          <button onClick={() => setNoticeMessage("")} type="button" className="text-emerald-600 hover:text-emerald-900">
+            <X size={14} />
+          </button>
+        </section>
+      ) : null}
+
+      {errorMessage ? (
+        <section className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-semibold leading-6 text-red-700">
+          <AlertCircle className="mt-0.5 shrink-0" size={18} />
+          <span>{errorMessage}</span>
+        </section>
+      ) : null}
+
+      {/* View Details Modal */}
+      {adjustItem && adjustMode === "VIEW" ? (
+        <InventoryDetailModal
+          item={adjustItem}
+          batches={adjustBatches}
+          availableSerials={adjustAvailableSerials}
+          stockMovements={stockMovements}
+          isLoadingMovements={isLoadingMovements}
+          movementMessage={movementMessage}
+          canAdjust={canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id)}
+          canViewCost={canViewInventoryCosts}
+          onAdjust={() => setAdjustMode("ADJUST")}
+          onClose={closeAdjustModal}
+        />
+      ) : null}
+
+      {/* Adjust Stock Modal */}
+      {adjustItem && adjustMode === "ADJUST" && canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id) ? (
+        <StockAdjustmentPanel
+          item={adjustItem}
+          batches={adjustBatches}
+          batchId={adjustBatchId}
+          type={adjustType}
+          quantity={adjustQuantity}
+          referenceNo={adjustReferenceNo}
+          remarks={adjustRemarks}
+          serialNumbersText={adjustSerialNumbersText}
+          availableSerials={adjustAvailableSerials}
+          onBatchChange={setAdjustBatchId}
+          onTypeChange={setAdjustType}
+          onQuantityChange={setAdjustQuantity}
+          onReferenceNoChange={setAdjustReferenceNo}
+          onRemarksChange={setAdjustRemarks}
+          onSerialNumbersChange={setAdjustSerialNumbersText}
+          message={adjustMessage}
+          isSaving={isAdjusting}
+          onSave={submitStockAdjustment}
+          onClose={closeAdjustModal}
+        />
+      ) : null}
+
+      {inventoryViewMode === "REPORTS" ? (
+        <InventoryReportView
+          branchId={viewingBranchId}
+          selectedBranch={viewingBranch || selectedBranch}
+          user={user}
+          categories={categoryOptions}
+          getInventoryOverviewApi={getInventoryOverview}
+          getInventorySerialsApi={getInventorySerials}
+          getInventoryMovementsApi={getInventoryMovements}
+          onOpenDetail={(item) => openAdjustModal(item, "VIEW")}
+          onOpenAdjustment={(item) => openAdjustModal(item, "ADJUST")}
+          onAddStock={() => setIsAddStockOpen(true)}
+        />
+      ) : (
+        <>
+          <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card space-y-3.5">
         {/* Row 1: Search, result count, toggle detailed filters, clear filters */}
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative min-w-0 flex-1">
@@ -1391,66 +1513,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           </div>
         ) : null}
       </section>
-
-      {noticeMessage ? (
-        <section className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold text-emerald-800">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="shrink-0 text-emerald-600" size={16} />
-            <span>{noticeMessage}</span>
-          </div>
-          <button onClick={() => setNoticeMessage("")} type="button" className="text-emerald-600 hover:text-emerald-900">
-            <X size={14} />
-          </button>
-        </section>
-      ) : null}
-
-      {errorMessage ? (
-        <section className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-semibold leading-6 text-red-700">
-          <AlertCircle className="mt-0.5 shrink-0" size={18} />
-          <span>{errorMessage}</span>
-        </section>
-      ) : null}
-
-      {/* View Details Modal */}
-      {adjustItem && adjustMode === "VIEW" ? (
-        <InventoryDetailModal
-          item={adjustItem}
-          batches={adjustBatches}
-          availableSerials={adjustAvailableSerials}
-          stockMovements={stockMovements}
-          isLoadingMovements={isLoadingMovements}
-          movementMessage={movementMessage}
-          canAdjust={canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id)}
-          canViewCost={canViewInventoryCosts}
-          onAdjust={() => setAdjustMode("ADJUST")}
-          onClose={closeAdjustModal}
-        />
-      ) : null}
-
-      {/* Adjust Stock Modal */}
-      {adjustItem && adjustMode === "ADJUST" && canAdjustStock && (user?.role === "SUPER_OWNER" || adjustItem.branch?.id === selectedBranch?.id) ? (
-        <StockAdjustmentPanel
-          item={adjustItem}
-          batches={adjustBatches}
-          batchId={adjustBatchId}
-          type={adjustType}
-          quantity={adjustQuantity}
-          referenceNo={adjustReferenceNo}
-          remarks={adjustRemarks}
-          serialNumbersText={adjustSerialNumbersText}
-          availableSerials={adjustAvailableSerials}
-          onBatchChange={setAdjustBatchId}
-          onTypeChange={setAdjustType}
-          onQuantityChange={setAdjustQuantity}
-          onReferenceNoChange={setAdjustReferenceNo}
-          onRemarksChange={setAdjustRemarks}
-          onSerialNumbersChange={setAdjustSerialNumbersText}
-          message={adjustMessage}
-          isSaving={isAdjusting}
-          onSave={submitStockAdjustment}
-          onClose={closeAdjustModal}
-        />
-      ) : null}
 
       <section className="rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
         {isLoading ? (
@@ -2019,6 +2081,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           </div>
         </section>
       ) : null}
+      </>
+      )}
 
       {/* Add Stock Modal */}
       <AddStockModal
