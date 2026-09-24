@@ -621,6 +621,10 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
     setResolveTargetClaim(claim)
     setResolveForm({
       outcome: "REPLACED_BY_SUPPLIER",
+      replacementItemId: claim.itemId || "",
+      newSerial: "",
+      creditMemoNumber: "",
+      creditMemoAmount: "",
       rejectionReason: "",
       actionTaken: "Supplier approved & replaced unit.",
       remarks: "",
@@ -636,6 +640,10 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
     try {
       const response = await resolveSupplierRma(resolveTargetClaim.id, {
         outcome: resolveForm.outcome,
+        replacementItemId: resolveForm.outcome === "CHANGE_MODEL" ? resolveForm.replacementItemId : undefined,
+        newSerial: resolveForm.newSerial.trim() || undefined,
+        creditMemoNumber: resolveForm.outcome === "CREDIT_MEMO" ? resolveForm.creditMemoNumber.trim() : undefined,
+        creditMemoAmount: resolveForm.outcome === "CREDIT_MEMO" && resolveForm.creditMemoAmount ? Number(resolveForm.creditMemoAmount) : undefined,
         rejectionReason: resolveForm.rejectionReason.trim() || undefined,
         actionTaken: resolveForm.actionTaken.trim() || undefined,
         remarks: resolveForm.remarks.trim() || undefined,
@@ -644,10 +652,16 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
       if (selectedClaim?.id === resolveTargetClaim.id) {
         setSelectedClaim(response?.data || resolveTargetClaim)
       }
-      const msg =
-        resolveForm.outcome === "REJECTED"
-          ? `⚠️ Supplier rejected RMA for ${resolveTargetClaim.claimCode}. Defective unit written off to Shrinkage Loss.`
-          : `✅ Supplier resolved ${resolveTargetClaim.claimCode}. Unit received and replenished to stock (WARRANTY_RETURN).`
+      let msg = `✅ Supplier resolved ${resolveTargetClaim.claimCode}.`
+      if (resolveForm.outcome === "REJECTED") {
+        msg = `⚠️ Supplier rejected RMA for ${resolveTargetClaim.claimCode}. Defective unit written off to Shrinkage Loss.`
+      } else if (resolveForm.outcome === "CHANGE_MODEL") {
+        msg = `✅ Supplier replaced ${resolveTargetClaim.claimCode} with a new model. 1 unit added to inventory as fresh stock.`
+      } else if (resolveForm.outcome === "CREDIT_MEMO") {
+        msg = `✅ Supplier issued Credit Memo #${resolveForm.creditMemoNumber || "N/A"} for ${resolveTargetClaim.claimCode}. Applied to deduct from supplier payables.`
+      } else {
+        msg = `✅ Supplier resolved ${resolveTargetClaim.claimCode}. Unit received and replenished to stock (WARRANTY_RETURN).`
+      }
       setNotice(msg)
       await loadClaims()
     } catch (error) {
@@ -1878,37 +1892,134 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
         >
           <form onSubmit={submitResolveSupplier}>
             <div className="space-y-4 p-5 sm:p-6 text-xs">
-              <Field label="Supplier Outcome" required>
-                <div className="mt-2 grid grid-cols-3 gap-2">
+              <Field label="Supplier Outcome & Resolution Scenario" required>
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {[
-                    { id: "REPLACED_BY_SUPPLIER", label: "✅ Replaced Unit" },
-                    { id: "REPAIRED", label: "🔧 Repaired Unit" },
-                    { id: "REJECTED", label: "❌ Supplier Rejected" },
+                    { id: "REPLACED_BY_SUPPLIER", label: "📦 Same Item Replaced", desc: "Same model returns to stock" },
+                    { id: "CHANGE_MODEL", label: "🔄 Change Model", desc: "Phased out -> New model stock" },
+                    { id: "CREDIT_MEMO", label: "📄 Credit Memo (CM)", desc: "Deduct from AP payables" },
+                    { id: "REPAIRED", label: "🔧 Repaired Unit", desc: "Fixed unit returns to stock" },
+                    { id: "REJECTED", label: "❌ Supplier Rejected", desc: "Write-off / Shrinkage loss" },
                   ].map((opt) => (
                     <button
                       key={opt.id}
                       type="button"
                       onClick={() => setResolveForm((prev) => ({ ...prev, outcome: opt.id }))}
-                      className={`rounded-xl p-3 text-xs font-black text-center transition border ${
+                      className={`rounded-xl p-2.5 text-left transition border ${
                         resolveForm.outcome === opt.id
                           ? opt.id === "REJECTED"
-                            ? "border-rose-600 bg-rose-50 text-rose-800 shadow-2xs"
-                            : "border-emerald-600 bg-emerald-50 text-emerald-800 shadow-2xs"
+                            ? "border-rose-600 bg-rose-50 text-rose-900 shadow-2xs font-bold"
+                            : opt.id === "CREDIT_MEMO"
+                              ? "border-blue-600 bg-blue-50 text-blue-900 shadow-2xs font-bold"
+                              : opt.id === "CHANGE_MODEL"
+                                ? "border-amber-600 bg-amber-50 text-amber-900 shadow-2xs font-bold"
+                                : "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-2xs font-bold"
                           : "border-slate-200 bg-white hover:bg-slate-50"
                       }`}
                     >
-                      {opt.label}
+                      <p className="text-xs font-black">{opt.label}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{opt.desc}</p>
                     </button>
                   ))}
                 </div>
               </Field>
+
+              {resolveForm.outcome === "CHANGE_MODEL" ? (
+                <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-3.5 space-y-3">
+                  <div>
+                    <h5 className="text-xs font-black uppercase tracking-wider text-amber-900">
+                      Scenario 2: Change Model (Phased-Out Replacement)
+                    </h5>
+                    <p className="text-[11px] text-amber-800">
+                      Since the original item is phased out, select the replacement model provided by the supplier. 1 unit will be replenished into the new model's inventory stock.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Select New Model Item from Catalog *" required>
+                      <select
+                        className={FIELD_CLASS}
+                        value={resolveForm.replacementItemId}
+                        onChange={(e) => setResolveForm((prev) => ({ ...prev, replacementItemId: e.target.value }))}
+                        required
+                      >
+                        <option value="">Select replacement model...</option>
+                        {items.map((it) => (
+                          <option key={it.id} value={it.id}>
+                            {it.itemCode} · {it.itemName} {it.isSerialized ? "(Serialized)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="New Replacement Serial Number (Optional)">
+                      <input
+                        className={FIELD_CLASS}
+                        placeholder="Scan or type new serial barcode..."
+                        value={resolveForm.newSerial}
+                        onChange={(e) => setResolveForm((prev) => ({ ...prev, newSerial: e.target.value }))}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ) : null}
+
+              {resolveForm.outcome === "CREDIT_MEMO" ? (
+                <div className="rounded-2xl border border-blue-300 bg-blue-50/70 p-3.5 space-y-3">
+                  <div>
+                    <h5 className="text-xs font-black uppercase tracking-wider text-blue-900">
+                      Scenario 3: Supplier Credit Memo (CM)
+                    </h5>
+                    <p className="text-[11px] text-blue-800">
+                      Supplier issued a Credit Memo instead of physical stock replacement. This CM will be logged to deduct from your accounts payable (AP) balance with this supplier.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Credit Memo Reference / Number *" required>
+                      <input
+                        className={FIELD_CLASS}
+                        placeholder="e.g. CM-2026-0041"
+                        required
+                        value={resolveForm.creditMemoNumber}
+                        onChange={(e) => setResolveForm((prev) => ({ ...prev, creditMemoNumber: e.target.value }))}
+                      />
+                    </Field>
+                    <Field label="Credit Memo Amount (₱) *" required>
+                      <input
+                        className={`${FIELD_CLASS} font-mono font-bold`}
+                        min="0"
+                        placeholder="0.00"
+                        required
+                        step="0.01"
+                        type="number"
+                        value={resolveForm.creditMemoAmount}
+                        onChange={(e) => setResolveForm((prev) => ({ ...prev, creditMemoAmount: e.target.value }))}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ) : null}
+
+              {resolveForm.outcome === "REPLACED_BY_SUPPLIER" || resolveForm.outcome === "REPAIRED" ? (
+                <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5 space-y-2">
+                  <p className="text-xs font-bold text-emerald-900">
+                    <strong>Scenario 1: Stock Replenishment:</strong> Receiving the replaced/repaired unit automatically replenishes 1 unit back into branch stock via <code className="font-mono">WARRANTY_RETURN</code>.
+                  </p>
+                  <Field label="Replacement Unit Serial Number (Optional)">
+                    <input
+                      className={FIELD_CLASS}
+                      placeholder="Scan or type new serial barcode if replaced with new serial..."
+                      value={resolveForm.newSerial}
+                      onChange={(e) => setResolveForm((prev) => ({ ...prev, newSerial: e.target.value }))}
+                    />
+                  </Field>
+                </div>
+              ) : null}
 
               {resolveForm.outcome === "REJECTED" ? (
                 <div className="rounded-2xl border border-rose-300 bg-rose-50 p-3.5 space-y-2">
                   <p className="text-xs font-bold text-rose-900">
                     <strong>Inventory Shrinkage Loss:</strong> The supplier rejected the claim. This unit will be logged as a write-off / shrinkage loss.
                   </p>
-                  <Field label="Mandatory Supplier Rejection Reason" required>
+                  <Field label="Mandatory Supplier Rejection Reason *" required>
                     <textarea
                       required
                       className={FIELD_CLASS}
@@ -1919,13 +2030,7 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                     />
                   </Field>
                 </div>
-              ) : (
-                <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5">
-                  <p className="text-xs font-bold text-emerald-900">
-                    <strong>Stock Replenishment:</strong> Receiving the repaired/replaced unit automatically replenishes 1 unit back into branch stock via <code className="font-mono">WARRANTY_RETURN</code>.
-                  </p>
-                </div>
-              )}
+              ) : null}
 
               <Field label="Action Taken Notes">
                 <textarea
