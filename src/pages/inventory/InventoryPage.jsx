@@ -978,113 +978,115 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
 
   return (
     <div className="space-y-5">
-      <section className="flex flex-col gap-4 rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card xl:flex-row xl:items-center xl:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm font-bold text-[var(--color-accent)]">Inventory</p>
-            <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setInventoryViewMode("OPERATIONS")}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition ${
-                  inventoryViewMode === "OPERATIONS"
-                    ? "bg-white text-slate-800 shadow-xs"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <Boxes size={14} />
-                Operations & Stock
-              </button>
-              <button
-                type="button"
-                onClick={() => setInventoryViewMode("REPORTS")}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition ${
-                  inventoryViewMode === "REPORTS"
-                    ? "bg-[var(--color-maroon)] text-white shadow-xs"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <BarChart3 size={14} />
-                Reports & Audit
-              </button>
+      <section className="rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
+        <div className="flex flex-col gap-3.5 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                Inventory
+              </span>
+              <div className="inline-flex p-1 bg-slate-100/80 rounded-xl border border-slate-200/60">
+                <button
+                  type="button"
+                  onClick={() => setInventoryViewMode("OPERATIONS")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                    inventoryViewMode === "OPERATIONS"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <Boxes size={13} />
+                  Operations &amp; Stock
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInventoryViewMode("REPORTS")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                    inventoryViewMode === "REPORTS"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <BarChart3 size={13} />
+                  Reports &amp; Audit
+                </button>
+              </div>
             </div>
+            <h1 className="mt-1.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+              {inventoryViewMode === "REPORTS" ? "Inventory & Valuation Reports" : "Branch Stock Overview"}
+            </h1>
+            <p className="mt-0.5 text-xs text-slate-500 max-w-2xl">
+              {inventoryViewMode === "REPORTS"
+                ? "Comprehensive stock valuation, capital vs retail pricing, serial hardware tracking, and movements audit."
+                : "Monitor available stock, batches, serial count, and low-stock items in real time."}
+            </p>
           </div>
-          <h1 className="mt-1 text-2xl font-bold text-[var(--color-text-strong)]">
-            {inventoryViewMode === "REPORTS" ? "Inventory & Valuation Reports" : "Branch Stock Overview"}
-          </h1>
-          <p className="mt-2 text-sm font-semibold text-[var(--color-muted)]">
-            {inventoryViewMode === "REPORTS"
-              ? "Comprehensive stock valuation, capital vs retail pricing, serial hardware tracking, and movements audit."
-              : "Monitor available stock, batches, serial count, and low-stock items."}
-          </p>
-        </div>
 
-        {inventoryViewMode === "OPERATIONS" ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            {canAdjustStock ? (
-              <button
-                className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-black text-white transition hover:bg-[var(--color-maroon-hover)] shadow-xs"
-                onClick={() => setIsAddStockOpen(true)}
-                type="button"
-              >
-                <Plus size={16} />
-                Add Stock
-              </button>
-            ) : null}
-            {canOpenStockRequest ? (
-              <button
-                className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 transition"
-                onClick={() => {
-                  setRequestSourceBranchId(requestSourceOptions[0]?.id || "")
-                  setBulkSearchText("")
-                  setBulkRequestItems([])
-                  setRequestMessage("")
-                  setRequestFulfillmentMethod("PICKUP")
-                  setRequestDeliveryCharge("0")
-                  setIsBulkRequestOpen(true)
-                }}
-                type="button"
-              >
-                Request stock
-              </button>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
+          {inventoryViewMode === "OPERATIONS" ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {canAdjustStock ? (
+                <button
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[var(--color-maroon)] px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-[#6b0810] transition cursor-pointer"
+                  onClick={() => setIsAddStockOpen(true)}
+                  type="button"
+                >
+                  <Plus size={15} />
+                  Add Stock
+                </button>
+              ) : null}
+              {canOpenStockRequest ? (
+                <button
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                  onClick={() => {
+                    setRequestSourceBranchId(requestSourceOptions[0]?.id || "")
+                    setBulkSearchText("")
+                    setBulkRequestItems([])
+                    setRequestMessage("")
+                    setRequestFulfillmentMethod("PICKUP")
+                    setRequestDeliveryCharge("0")
+                    setIsBulkRequestOpen(true)
+                  }}
+                  type="button"
+                >
+                  Request Stock
+                </button>
+              ) : null}
               <ExportExcelButton
                 filteredCount={pagination?.totalItems ?? items.length}
-                label="Export Excel (.xlsx)"
+                label="Export (.xlsx)"
                 onExport={handleExportInventoryExcel}
               />
               <button
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
                 onClick={handleExportInventoryPdf}
                 type="button"
               >
                 Export PDF
               </button>
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
                 onClick={loadInventory}
                 type="button"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={14} />
                 Refresh
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            {canAdjustStock ? (
-              <button
-                className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--color-maroon)] px-4 py-3 text-sm font-black text-white transition hover:bg-[var(--color-maroon-hover)] shadow-xs"
-                onClick={() => setIsAddStockOpen(true)}
-                type="button"
-              >
-                <Plus size={16} />
-                Add Stock
-              </button>
-            ) : null}
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-2">
+              {canAdjustStock ? (
+                <button
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[var(--color-maroon)] px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-[#6b0810] transition cursor-pointer"
+                  onClick={() => setIsAddStockOpen(true)}
+                  type="button"
+                >
+                  <Plus size={15} />
+                  Add Stock
+                </button>
+              ) : null}
+            </div>
+          )}
+        </div>
       </section>
 
       {noticeMessage ? (
@@ -1162,40 +1164,40 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         />
       ) : (
         <>
-          <section className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-card space-y-3.5">
+          <section className="rounded-xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-2xs space-y-3">
         {/* Row 1: Search, result count, toggle detailed filters, clear filters */}
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative min-w-0 flex-1">
             <Search
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]"
-              size={18}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={15}
             />
             <input
-              className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] py-3 pl-11 pr-4 text-sm font-semibold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+              className="w-full h-9 rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs text-slate-900 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]/20 placeholder:text-slate-400"
               onChange={(event) => {
                 setSearchText(event.target.value)
                 setPage(1)
               }}
-              placeholder="Search item code, item name, brand, or model"
+              placeholder="Search item code, item name, brand, or model..."
               value={searchText}
             />
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="rounded-2xl bg-[var(--color-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-muted)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex h-9 items-center rounded-lg bg-slate-50 border border-slate-200/80 px-3 text-xs font-medium text-slate-600">
               Showing {displayedItems.length} of {pagination?.totalItems ?? items.length} item(s)
             </div>
 
             <button
-              className={`rounded-2xl border px-4 py-3 text-sm font-bold transition inline-flex items-center gap-2 ${
+              className={`h-9 rounded-lg border px-3 text-xs font-semibold transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer ${
                 isDetailedFiltersOpen || activeDetailedFilterCount > 0
                   ? "border-[var(--color-maroon)] bg-[var(--color-maroon)]/5 text-[var(--color-maroon)]"
-                  : "border-[var(--color-border)] bg-white text-[var(--color-text-strong)] hover:bg-[var(--color-soft)]"
+                  : "border-slate-200/90 bg-white text-slate-700 hover:bg-slate-50"
               }`}
               onClick={() => setIsDetailedFiltersOpen((prev) => !prev)}
               type="button"
             >
-              <SlidersHorizontal size={15} />
+              <SlidersHorizontal size={13} />
               Detailed Filters
               {activeDetailedFilterCount > 0 ? (
                 <span className="rounded-full bg-[var(--color-maroon)] text-white text-[10px] font-black px-1.5 py-0.2">
@@ -1205,7 +1207,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
             </button>
 
             <button
-              className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)]"
+              className="h-9 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 shadow-2xs cursor-pointer"
               onClick={clearFilters}
               type="button"
             >
@@ -1215,13 +1217,13 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         </div>
 
         {/* Row 2: Category Drilldown & Brand Selectors */}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Main Category
             </span>
             <select
-              className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+              className="mt-1 w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
               onChange={(event) => {
                 setMainCatFilter(event.target.value)
                 setSubCatFilter("")
@@ -1239,11 +1241,11 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           </label>
 
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Subcategory / Product Type
             </span>
             <select
-              className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white disabled:opacity-50"
+              className="mt-1 w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] disabled:opacity-50"
               disabled={subcategoryOptions.length === 0}
               onChange={(event) => {
                 setSubCatFilter(event.target.value)
@@ -1265,13 +1267,13 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           </label>
 
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Brand
             </span>
-            <div className="relative mt-1.5">
+            <div className="relative mt-1">
               <input
                 list="brand-suggestions-inventory"
-                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white placeholder:text-slate-400 placeholder:font-normal"
+                className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
                 onChange={(event) => {
                   setBrandFilter(event.target.value)
                   setPage(1)
@@ -1288,11 +1290,11 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           </label>
 
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Viewing Branch
             </span>
             <select
-              className="mt-1.5 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white"
+              className="mt-1 w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
               onChange={(event) => {
                 setViewingBranchId(event.target.value)
                 setPage(1)

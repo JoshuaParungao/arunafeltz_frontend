@@ -945,8 +945,8 @@ export default function ServicesReportView({
       ) : viewMode === "SUMMARY" ? (
         /* ================= MODE A: JOB ORDERS SUMMARY VIEW ================= */
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[1100px] text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/50">
                   <th className="px-3.5 py-3">JO Code &amp; Date</th>
@@ -1160,8 +1160,8 @@ export default function ServicesReportView({
       ) : (
         /* ================= MODE B: ITEMIZED CONSUMED SERVICES & PARTS VIEW ================= */
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[1250px] text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/50">
                   <th className="px-3.5 py-3">JO Ref &amp; Date</th>

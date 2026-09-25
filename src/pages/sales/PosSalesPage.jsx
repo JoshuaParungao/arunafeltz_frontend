@@ -1160,8 +1160,8 @@ function SaleDetailDialog({
                 </div>
 
                 {/* Items Table with Exact Columns & Style */}
-                <div className="overflow-x-auto my-2">
-                  <table className="w-full text-left text-xs border-collapse">
+                <div className="overflow-x-auto w-full my-2">
+                  <table className="w-full min-w-[540px] text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-t-2 border-b-2 border-slate-900 text-slate-900 font-bold uppercase text-[11px]">
                         <th className="py-2 px-2 w-[15%]">ITEM CODE</th>
@@ -1915,8 +1915,8 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
               </div>
 
               {items.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  <table className="w-full text-left text-xs">
+                <div className="overflow-x-auto w-full rounded-xl border border-slate-200">
+                  <table className="w-full min-w-[580px] text-left text-xs">
                     <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-600">
                       <tr>
                         <th className="p-2.5">Item</th>

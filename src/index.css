@@ -116,27 +116,43 @@ a {
   touch-action: pan-x pan-y;
 }
 
+/* Minimalist sleek scrollbars */
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
 .overflow-x-auto::-webkit-scrollbar,
 .table-responsive::-webkit-scrollbar,
 .table-wrapper::-webkit-scrollbar {
-  height: 6px;
+  height: 5px;
 }
 .overflow-x-auto::-webkit-scrollbar-track,
 .table-responsive::-webkit-scrollbar-track,
 .table-wrapper::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.02);
   border-radius: 9999px;
 }
 .overflow-x-auto::-webkit-scrollbar-thumb,
 .table-responsive::-webkit-scrollbar-thumb,
 .table-wrapper::-webkit-scrollbar-thumb {
-  background: rgba(122, 31, 43, 0.28);
+  background: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
 }
 .overflow-x-auto::-webkit-scrollbar-thumb:hover,
 .table-responsive::-webkit-scrollbar-thumb:hover,
 .table-wrapper::-webkit-scrollbar-thumb:hover {
-  background: rgba(122, 31, 43, 0.55);
+  background: rgba(100, 116, 139, 0.65);
 }
 
 /* Ensure modal card wrappers never exceed viewport width */

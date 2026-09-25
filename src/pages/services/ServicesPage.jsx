@@ -518,11 +518,11 @@ function Modal({ children, onClose, title, width = "max-w-3xl" }) {
       <section
         aria-label={title}
         aria-modal="true"
-        className={`my-auto w-full ${width} overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-2xl`}
+        className={`my-auto w-full ${width} max-h-[92vh] flex flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white text-slate-800 shadow-2xl`}
         role="dialog"
       >
-        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
-          <h2 className="text-base font-black text-slate-900 leading-tight">{title}</h2>
+        <header className="shrink-0 flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
+          <h2 className="text-base font-bold text-slate-900 leading-tight">{title}</h2>
           <button
             aria-label="Close"
             className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
@@ -2795,18 +2795,29 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-card sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
+        <div className="flex flex-col gap-3.5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--color-maroon)]">Operations</p>
-            <h1 className="mt-2 text-2xl font-black text-[var(--color-text-strong)]">Services / Job Orders</h1>
-            <p className="mt-1 max-w-2xl text-sm text-[var(--color-muted)]">
-              Receive repairs and quick technical work, separate the performer from each action actor, release with an explicit outcome, and retain a printable audit trail.
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                Operations
+              </span>
+            </div>
+            <h1 className="mt-1.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+              Services &amp; Job Orders
+            </h1>
+            <p className="mt-0.5 text-xs text-slate-500 max-w-2xl">
+              Receive repairs, track technician labor, configure warranties, and process clean backjob returns with audit logs.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold" disabled={isLoading} onClick={refresh} type="button">
-              <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} /> Refresh
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+              disabled={isLoading}
+              onClick={refresh}
+              type="button"
+            >
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} /> Refresh
             </button>
             <ExportExcelButton
               count={meta?.total || jobs.length}
@@ -2814,50 +2825,50 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
               onClick={handleExportServicesExcel}
             />
             <button
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-soft)] shadow-sm"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
               onClick={() => setPrintPreviewState({ isOpen: true, defaultDoc: "DIAGNOSTIC", isBlank: true, job: null })}
               type="button"
             >
-              <Printer size={16} /> Blank Intake Forms (A4)
+              <Printer size={14} /> Blank Intake (A4)
             </button>
             {canCreate ? (
               <button
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-maroon)] px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-[#6b0810] transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={user?.role === "SUPER_OWNER" && !branchId}
                 onClick={() => setShowCreate(true)}
                 type="button"
               >
-                <Plus size={17} /> New job order
+                <Plus size={15} /> New Job Order
               </button>
             ) : null}
           </div>
         </div>
 
         {/* Top-Level View Switcher (Workshop vs Reports & Detailed Audit) */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)]/60 pt-3">
-          <div className="inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold dark:bg-slate-800">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+          <div className="inline-flex p-1 bg-slate-100/80 rounded-xl border border-slate-200/60">
             <button
               type="button"
               onClick={() => setServicesViewMode("WORKSHOP")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition text-xs cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                 servicesViewMode === "WORKSHOP"
-                  ? "bg-white text-slate-900 shadow-2xs font-black dark:bg-slate-900 dark:text-white"
-                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  ? "bg-white text-slate-900 shadow-2xs font-bold"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              <Wrench size={14} />
+              <Wrench size={13} />
               Workshop &amp; Workbench
             </button>
             <button
               type="button"
               onClick={() => setServicesViewMode("REPORTS")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition text-xs cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                 servicesViewMode === "REPORTS"
-                  ? "bg-white text-slate-900 shadow-2xs font-black dark:bg-slate-900 dark:text-white"
-                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  ? "bg-white text-slate-900 shadow-2xs font-bold"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              <BarChart3 size={14} />
+              <BarChart3 size={13} />
               Reports &amp; Detailed Audit
             </button>
           </div>
@@ -2871,10 +2882,17 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
               ["Ready for release", totals.ready, CheckCircle2],
               ["Released", totals.released, UserRoundCheck],
             ].map(([label, value, Icon]) => (
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm" key={label}>
-                <Icon className="text-[var(--color-maroon)]" size={18} />
-                <p className="mt-3 text-2xl font-black text-[var(--color-text-strong)]">{value}</p>
-                <p className="text-xs font-bold text-[var(--color-muted)]">{label}</p>
+              <div
+                className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs flex items-center justify-between gap-3"
+                key={label}
+              >
+                <div>
+                  <p className="text-[11px] font-medium text-slate-500">{label}</p>
+                  <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900 font-mono">{value}</p>
+                </div>
+                <div className="size-9 rounded-lg bg-slate-50 border border-slate-100 grid place-items-center text-[var(--color-maroon)] shrink-0">
+                  <Icon size={16} />
+                </div>
               </div>
             ))}
           </div>
@@ -2882,13 +2900,13 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
       </section>
 
       {notice ? (
-        <div className="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-700 dark:text-emerald-300">
-          <span>{notice}</span><button onClick={() => setNotice("")} type="button"><X size={16} /></button>
+        <div className="flex items-center justify-between rounded-xl border border-emerald-500/25 bg-emerald-50/80 px-4 py-2.5 text-xs font-medium text-emerald-800">
+          <span>{notice}</span><button onClick={() => setNotice("")} type="button"><X size={14} /></button>
         </div>
       ) : null}
       {errorMessage ? (
-        <div className="flex items-start gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300">
-          <CircleAlert className="mt-0.5 shrink-0" size={17} /><span>{errorMessage}</span>
+        <div className="flex items-start gap-2 rounded-xl border border-rose-500/25 bg-rose-50/80 px-4 py-2.5 text-xs font-medium text-rose-800">
+          <CircleAlert className="mt-0.5 shrink-0" size={15} /><span>{errorMessage}</span>
         </div>
       ) : null}
 
@@ -2906,21 +2924,21 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
           onPrint={(job) => setPrintPreviewState({ isOpen: true, defaultDoc: "DIAGNOSTIC", isBlank: false, job })}
         />
       ) : (
-        <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-card sm:p-5">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px_210px_auto]">
+        <section className="rounded-xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-2xs">
+          <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_180px_200px_auto]">
             <label className="relative">
-              <Search className="absolute left-3.5 top-3 text-[var(--color-muted)]" size={17} />
+              <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
               <input
                 aria-label="Search job orders"
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[var(--color-maroon)]"
+                className="w-full h-9 rounded-lg border border-slate-200 bg-white text-slate-900 py-1.5 pl-9 pr-3 text-xs outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]/20 transition"
                 onChange={(event) => { setSearch(event.target.value); setPage(1) }}
-                placeholder="Search JO, customer, device, serial, or title"
+                placeholder="Search JO code, customer, device, serial, or title..."
                 value={search}
               />
             </label>
             <select
               aria-label="Filter service status"
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold"
+              className="h-9 rounded-lg border border-slate-200 bg-white text-slate-800 px-3 text-xs font-medium outline-none focus:border-[var(--color-maroon)] transition"
               onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}
               value={statusFilter}
             >
@@ -2929,15 +2947,15 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
             </select>
             <select
               aria-label="Filter repair category"
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold"
+              className="h-9 rounded-lg border border-slate-200 bg-white text-slate-800 px-3 text-xs font-medium outline-none focus:border-[var(--color-maroon)] transition"
               onChange={(event) => { setRepairTypeFilter(event.target.value); setPage(1) }}
               value={repairTypeFilter}
             >
               <option value="">All repair categories</option>
               {REPAIR_TYPES.map((repairType) => <option key={repairType.value} value={repairType.value}>{repairType.label}</option>)}
             </select>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-strong)] px-3.5 py-2.5 text-sm font-bold">
-              <input checked={quickOnly} onChange={(event) => { setQuickOnly(event.target.checked); setPage(1) }} type="checkbox" /> Quick only
+            <label className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 px-3 text-xs font-medium text-slate-700 cursor-pointer hover:bg-slate-100/50 transition">
+              <input checked={quickOnly} onChange={(event) => { setQuickOnly(event.target.checked); setPage(1) }} type="checkbox" className="rounded text-[var(--color-maroon)]" /> Quick only
             </label>
           </div>
 
@@ -2955,7 +2973,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
 
                 return (
                   <button
-                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-left transition hover:border-[var(--color-maroon)]/50 hover:shadow-md group flex flex-col justify-between gap-3"
+                    className="rounded-xl border border-slate-200/90 bg-white p-3.5 sm:p-4 text-left transition hover:border-[var(--color-maroon)]/40 hover:shadow-xs group flex flex-col justify-between gap-3 shadow-2xs cursor-pointer"
                     key={job.id}
                     onClick={() => openDetail(job)}
                     type="button"

@@ -773,33 +773,33 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <section className="relative overflow-hidden rounded-3xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-card)] via-[var(--color-soft)]/40 to-[var(--color-card)] p-6 shadow-card">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <section className="relative overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded-xl bg-[var(--color-maroon)]/10 px-3 py-1 text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
-                Warranty & RMA
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Warranty &amp; RMA
               </span>
-              <span className="rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-[var(--color-text-strong)]">
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                 {branchName}
               </span>
             </div>
-            <h1 className="mt-2.5 text-3xl font-black tracking-tight text-[var(--color-text-strong)]">
-              Warranty & Claims Management
+            <h1 className="mt-1 text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+              Warranty &amp; Claims Management
             </h1>
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
-              Manage customer claims, instant replacement swaps, distributor RMA monitoring, and audited releases.
+            <p className="mt-0.5 text-xs text-slate-500">
+              Customer claims intake, 7-day outright replacement swaps, distributor RMA tracking, and audited releases.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              className="inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-5 py-3 text-sm font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50"
               disabled={isLoading}
               onClick={refresh}
               type="button"
             >
-              <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} />
               {isLoading ? "Refreshing..." : "Refresh"}
             </button>
 
@@ -811,27 +811,27 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
 
             {canCreate ? (
               <button
-                className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-5 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)]"
                 onClick={() => setShowCreate(true)}
                 type="button"
               >
-                <Plus size={16} />
-                + Receive Customer Claim
+                <Plus size={14} />
+                Receive Customer Claim
               </button>
             ) : null}
           </div>
         </div>
 
         {/* View Mode Switcher (Workbench vs Reports) */}
-        <div className="mt-5 flex items-center justify-between border-t border-[var(--color-border)] pt-4 flex-wrap gap-3">
-          <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)]/60 p-1">
+        <div className="mt-3.5 flex items-center justify-between border-t border-slate-100 pt-3 flex-wrap gap-2">
+          <div className="inline-flex p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs">
             <button
               type="button"
               onClick={() => setWarrantyViewMode("OPERATIONS")}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 transition text-xs cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition cursor-pointer ${
                 warrantyViewMode === "OPERATIONS"
-                  ? "bg-[var(--color-card)] text-[var(--color-text-strong)] shadow-xs font-black"
-                  : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)] font-bold"
+                  ? "bg-white text-slate-900 shadow-2xs font-bold"
+                  : "text-slate-500 hover:text-slate-800 font-medium"
               }`}
             >
               <ShieldCheck size={14} />
@@ -840,10 +840,10 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
             <button
               type="button"
               onClick={() => setWarrantyViewMode("REPORTS")}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 transition text-xs cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition cursor-pointer ${
                 warrantyViewMode === "REPORTS"
-                  ? "bg-[var(--color-card)] text-[var(--color-text-strong)] shadow-xs font-black"
-                  : "text-[var(--color-muted)] hover:text-[var(--color-text-strong)] font-bold"
+                  ? "bg-white text-slate-900 shadow-2xs font-bold"
+                  : "text-slate-500 hover:text-slate-800 font-medium"
               }`}
             >
               <BarChart3 size={14} />
@@ -890,153 +890,155 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
       ) : (
         <>
           {/* Minimalist 4 Metrics Strip */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div
               onClick={() => setActiveTab("claims")}
-              className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
+              className={`cursor-pointer rounded-xl p-3.5 border transition shadow-2xs ${
                 activeTab === "claims"
-                  ? "border-[var(--color-maroon)] bg-[var(--color-soft)]/50"
-                  : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
+                  ? "border-slate-900 bg-slate-50/80 ring-1 ring-slate-900/10"
+                  : "border-slate-200/80 bg-white hover:border-slate-300"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="grid size-10 place-items-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                  <ShieldCheck size={20} />
+                <span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                  <ShieldCheck size={16} />
                 </span>
-                <span className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider">In Store</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">In Store</span>
               </div>
-              <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.active}</p>
-              <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Active In-Store Claims</p>
+              <p className="mt-2 font-mono text-2xl font-black text-slate-900">{pageSummary.active}</p>
+              <p className="mt-0.5 text-xs text-slate-500">Active In-Store Claims</p>
             </div>
 
             <div
               onClick={() => setActiveTab("supplier")}
-              className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
+              className={`cursor-pointer rounded-xl p-3.5 border transition shadow-2xs ${
                 activeTab === "supplier"
-                  ? "border-violet-500/50 bg-violet-500/10"
-                  : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
+                  ? "border-slate-900 bg-slate-50/80 ring-1 ring-slate-900/10"
+                  : "border-slate-200/80 bg-white hover:border-slate-300"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="grid size-10 place-items-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
-                  <Truck size={20} />
+                <span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                  <Truck size={16} />
                 </span>
-                <span className="text-xs font-bold text-violet-700 dark:text-violet-400 uppercase tracking-wider">With Suppliers</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">With Suppliers</span>
               </div>
-              <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.supplier}</p>
-              <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Dispatched for Supplier RMA</p>
+              <p className="mt-2 font-mono text-2xl font-black text-slate-900">{pageSummary.supplier}</p>
+              <p className="mt-0.5 text-xs text-slate-500">Dispatched for Supplier RMA</p>
             </div>
 
             <div
               onClick={() => setActiveTab("claims")}
-              className="rounded-3xl p-5 border border-[var(--color-border)] bg-[var(--color-card)] shadow-card cursor-pointer hover:border-[var(--color-border-strong)] transition"
+              className="cursor-pointer rounded-xl p-3.5 border border-slate-200/80 bg-white shadow-2xs hover:border-slate-300 transition"
             >
               <div className="flex items-center justify-between">
-                <span className="grid size-10 place-items-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  <PackageCheck size={20} />
+                <span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                  <PackageCheck size={16} />
                 </span>
-                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Ready Pickup</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ready Pickup</span>
               </div>
-              <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.readyRelease}</p>
-              <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Repaired / Replaced for Release</p>
+              <p className="mt-2 font-mono text-2xl font-black text-slate-900">{pageSummary.readyRelease}</p>
+              <p className="mt-0.5 text-xs text-slate-500">Repaired / Replaced Units</p>
             </div>
 
             <div
               onClick={() => setActiveTab("replaced_log")}
-              className={`cursor-pointer rounded-3xl p-5 border transition shadow-card ${
+              className={`cursor-pointer rounded-xl p-3.5 border transition shadow-2xs ${
                 activeTab === "replaced_log"
-                  ? "border-[var(--color-maroon)] bg-[var(--color-soft)]/50"
-                  : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-border-strong)]"
+                  ? "border-slate-900 bg-slate-50/80 ring-1 ring-slate-900/10"
+                  : "border-slate-200/80 bg-white hover:border-slate-300"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="grid size-10 place-items-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                  <Layers size={20} />
+                <span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                  <Layers size={16} />
                 </span>
-                <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Audit Log</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Audit Log</span>
               </div>
-              <p className="mt-3 font-mono text-2xl font-black text-[var(--color-text-strong)]">{pageSummary.shrinkageOrReplaced}</p>
-              <p className="mt-0.5 text-xs font-medium text-[var(--color-muted)]">Swapped / Written-Off Units</p>
+              <p className="mt-2 font-mono text-2xl font-black text-slate-900">{pageSummary.shrinkageOrReplaced}</p>
+              <p className="mt-0.5 text-xs text-slate-500">Swapped / Written-Off</p>
             </div>
           </div>
 
           {/* Minimalist Segmented Tabs */}
-          <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setActiveTab("claims")}
-          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
-            activeTab === "claims"
-              ? "bg-[var(--color-maroon)] text-white shadow-soft"
-              : "text-[var(--color-muted)] hover:bg-[var(--color-soft)] hover:text-[var(--color-text-strong)]"
-          }`}
-        >
-          <ShieldCheck size={15} />
-          <span>Active Claims ({activeClaims.length})</span>
-        </button>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2 overflow-x-auto">
+            <div className="inline-flex p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveTab("claims")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition ${
+                  activeTab === "claims"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800 font-medium"
+                }`}
+              >
+                <ShieldCheck size={14} />
+                <span>Active Claims ({activeClaims.length})</span>
+              </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("supplier")}
-          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
-            activeTab === "supplier"
-              ? "bg-violet-700 text-white shadow-soft"
-              : "text-[var(--color-muted)] hover:bg-[var(--color-soft)] hover:text-[var(--color-text-strong)]"
-          }`}
-        >
-          <Truck size={15} />
-          <span>Supplier RMA Hub ({supplierClaims.length})</span>
-        </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("supplier")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition ${
+                  activeTab === "supplier"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800 font-medium"
+                }`}
+              >
+                <Truck size={14} />
+                <span>Supplier RMA Hub ({supplierClaims.length})</span>
+              </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("replaced_log")}
-          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
-            activeTab === "replaced_log"
-              ? "bg-slate-800 dark:bg-slate-700 text-white shadow-soft"
-              : "text-[var(--color-muted)] hover:bg-[var(--color-soft)] hover:text-[var(--color-text-strong)]"
-          }`}
-        >
-          <Layers size={15} />
-          <span>Replacements & Shrinkage Ledger ({replacedAndShrinkageClaims.length})</span>
-        </button>
-      </div>
-
-      {/* TAB 1: ACTIVE CLAIMS */}
-      {activeTab === "claims" && (
-        <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">
-          {/* Search & Filter Header */}
-          <div className="grid gap-3 border-b border-[var(--color-border)] p-4 md:grid-cols-[1fr_240px]">
-            <label className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={16} />
-              <input
-                aria-label="Search warranty claims"
-                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] py-3 pl-10 pr-4 text-sm text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setPage(1)
-                }}
-                placeholder="Search claim code, customer, serial, or issue..."
-                value={search}
-              />
-            </label>
-            <select
-              aria-label="Filter warranty status"
-              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
-              onChange={(event) => {
-                setStatusFilter(event.target.value)
-                setPage(1)
-              }}
-              value={statusFilter}
-            >
-              <option value="">All active statuses</option>
-              {STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {formatStatus(status)}
-                </option>
-              ))}
-            </select>
+              <button
+                type="button"
+                onClick={() => setActiveTab("replaced_log")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition ${
+                  activeTab === "replaced_log"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800 font-medium"
+                }`}
+              >
+                <Layers size={14} />
+                <span>Replacements Ledger ({replacedAndShrinkageClaims.length})</span>
+              </button>
+            </div>
           </div>
+
+          {/* TAB 1: ACTIVE CLAIMS */}
+          {activeTab === "claims" && (
+            <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs">
+              {/* Search & Filter Header */}
+              <div className="grid gap-2.5 border-b border-slate-100 p-2.5 md:grid-cols-[1fr_220px]">
+                <label className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input
+                    aria-label="Search warranty claims"
+                    className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-800 outline-none focus:border-slate-400"
+                    onChange={(event) => {
+                      setSearch(event.target.value)
+                      setPage(1)
+                    }}
+                    placeholder="Search claim code, customer, serial, or issue..."
+                    value={search}
+                  />
+                </label>
+                <select
+                  aria-label="Filter warranty status"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-slate-400"
+                  onChange={(event) => {
+                    setStatusFilter(event.target.value)
+                    setPage(1)
+                  }}
+                  value={statusFilter}
+                >
+                  <option value="">All active statuses</option>
+                  {STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {formatStatus(status)}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
           {isLoading ? (
             <div className="p-12 text-center text-sm font-semibold text-[var(--color-muted)]">
@@ -1049,71 +1051,71 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
             </div>
           ) : (
             <>
-              <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[950px] text-left text-sm">
-                  <thead className="bg-[var(--color-soft)] text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
+              <div className="hidden overflow-x-auto lg:block w-full">
+                <table className="w-full min-w-[850px] text-left text-xs">
+                  <thead className="bg-slate-50/75 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     <tr>
-                      <th className="px-5 py-4">Claim No.</th>
-                      <th className="px-5 py-4">Customer</th>
-                      <th className="px-5 py-4">Product & Serial</th>
-                      <th className="px-5 py-4">Reported Issue</th>
-                      <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Received Date</th>
-                      <th className="px-5 py-4 text-right">Actions</th>
+                      <th className="px-3.5 py-2.5">Claim No.</th>
+                      <th className="px-3.5 py-2.5">Customer</th>
+                      <th className="px-3.5 py-2.5">Product &amp; Serial</th>
+                      <th className="px-3.5 py-2.5">Reported Issue</th>
+                      <th className="px-3.5 py-2.5">Status</th>
+                      <th className="px-3.5 py-2.5">Received Date</th>
+                      <th className="px-3.5 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]">
+                  <tbody className="divide-y divide-slate-100">
                     {claims.map((claim) => {
                       const isOutright = calculateAgingDays(claim.sale?.saleDate) <= 7 && claim.sale?.saleDate
                       return (
-                        <tr className="transition hover:bg-[var(--color-soft)]/50" key={claim.id}>
-                          <td className="px-5 py-4">
+                        <tr className="transition-colors hover:bg-slate-50/50" key={claim.id}>
+                          <td className="px-3.5 py-2.5 whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => openDetail(claim)}
-                              className="font-mono font-bold text-sm text-[var(--color-maroon)] hover:underline text-left block"
+                              className="font-mono font-bold text-xs text-[var(--color-maroon)] hover:underline text-left block"
                             >
                               {claim.claimCode}
                             </button>
                             {isOutright ? (
-                              <span className="inline-block mt-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.2 text-[9px] font-black">
+                              <span className="inline-block mt-0.5 rounded-md bg-emerald-50 border border-emerald-200/60 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold">
                                 ⚡ 7D Outright
                               </span>
                             ) : null}
                           </td>
-                          <td className="px-5 py-4">
-                            <p className="font-bold text-sm text-[var(--color-text-strong)]">
+                          <td className="px-3.5 py-2.5">
+                            <p className="font-bold text-xs text-slate-800 max-w-40 truncate">
                               {claim.customer?.fullName || "Walk-in Customer"}
                             </p>
                             {claim.customer?.mobileNumber ? (
-                              <p className="text-xs text-[var(--color-muted)]">{claim.customer.mobileNumber}</p>
+                              <p className="text-[11px] text-slate-400">{claim.customer.mobileNumber}</p>
                             ) : null}
                           </td>
-                          <td className="px-5 py-4">
-                            <p className="font-bold text-xs text-[var(--color-text-strong)] max-w-xs truncate">
+                          <td className="px-3.5 py-2.5">
+                            <p className="font-semibold text-xs text-slate-900 max-w-xs truncate">
                               {claim.item?.itemName || claim.saleItem?.itemNameSnapshot || "Unlinked Product"}
                             </p>
-                            <p className="mt-0.5 text-xs font-mono text-[var(--color-muted)]">
-                              S/N: <strong>{claim.serial?.serialNumber || "No serial"}</strong>
+                            <p className="text-[11px] font-mono text-slate-500">
+                              S/N: <strong className="text-slate-800">{claim.serial?.serialNumber || "No serial"}</strong>
                             </p>
                           </td>
-                          <td className="px-5 py-4 text-xs text-[var(--color-muted)] max-w-xs">
-                            <p className="line-clamp-2">{claim.issueDescription || "—"}</p>
+                          <td className="px-3.5 py-2.5 text-xs text-slate-500 max-w-xs">
+                            <p className="line-clamp-1">{claim.issueDescription || "—"}</p>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-3.5 py-2.5 whitespace-nowrap">
                             <StatusBadge status={claim.status} />
                           </td>
-                          <td className="px-5 py-4 text-xs text-[var(--color-muted)]">
+                          <td className="px-3.5 py-2.5 text-xs text-slate-500 whitespace-nowrap">
                             {dateOnly(claim.receivedAt)}
                           </td>
-                          <td className="px-5 py-4 text-right">
-                            <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                          <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => openDetail(claim)}
-                                className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
                               >
-                                <Eye size={13} />
+                                <Eye size={12} />
                                 <span>Details</span>
                               </button>
 
@@ -1278,61 +1280,61 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
 
       {/* TAB 2: SENT TO SUPPLIER (SUPPLIER RMA HUB) */}
       {activeTab === "supplier" && (
-        <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">
-          <div className="border-b border-[var(--color-border)] p-5 flex items-center justify-between gap-3">
+        <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs">
+          <div className="border-b border-slate-100 p-3.5 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black text-[var(--color-text-strong)]">Supplier RMA Monitoring Hub</h2>
-              <p className="text-xs text-[var(--color-muted)]">
+              <h2 className="text-sm font-bold text-slate-900">Supplier RMA Monitoring Hub</h2>
+              <p className="text-xs text-slate-500">
                 Units dispatched to distributors and suppliers awaiting replacement or repair outcome.
               </p>
             </div>
-            <span className="rounded-full bg-violet-100 dark:bg-violet-950/60 px-3 py-1 text-xs font-black text-violet-800 dark:text-violet-300">
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
               {supplierClaims.length} Active RMA(s)
             </span>
           </div>
 
           {supplierClaims.length === 0 ? (
-            <div className="p-12 text-center text-sm font-semibold text-[var(--color-muted)]">
-              <Truck className="mx-auto mb-2 text-[var(--color-muted)]" size={32} />
+            <div className="p-10 text-center text-xs font-medium text-slate-500">
+              <Truck className="mx-auto mb-2 text-slate-300" size={28} />
               No claims currently aging with suppliers.
             </div>
           ) : (
-            <div className="divide-y divide-[var(--color-border)]">
+            <div className="divide-y divide-slate-100">
               {supplierClaims.map((claim) => {
                 const agingDays = calculateAgingDays(claim.sentToSupplierAt || claim.receivedAt)
                 return (
-                  <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:bg-[var(--color-soft)]/40" key={claim.id}>
+                  <div className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors hover:bg-slate-50/50" key={claim.id}>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono font-black text-sm text-[var(--color-maroon)]">
+                        <span className="font-mono font-bold text-xs text-[var(--color-maroon)]">
                           {claim.claimCode}
                         </span>
-                        <span className="rounded-md bg-violet-100 dark:bg-violet-950/60 px-2 py-0.5 text-xs font-bold text-violet-800 dark:text-violet-300">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
                           {claim.supplierName || "Unspecified Supplier"}
                         </span>
                         {claim.supplierReferenceNo ? (
-                          <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-mono text-[var(--color-text-strong)]">
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-mono text-slate-600">
                             Ref: {claim.supplierReferenceNo}
                           </span>
                         ) : null}
                         <span
-                          className={`rounded-md px-2 py-0.5 text-xs font-black ${
+                          className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
                             agingDays >= 14
-                              ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200/60"
                               : agingDays >= 7
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-                                : "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200/60"
+                                : "bg-slate-100 text-slate-700"
                           }`}
                         >
-                          ⏱️ {agingDays} day(s) aging
+                          {agingDays}d aging
                         </span>
                       </div>
 
-                      <h3 className="mt-1 font-black text-sm text-[var(--color-text-strong)]">
+                      <h3 className="mt-1 font-bold text-xs text-slate-900">
                         {claim.item?.itemName || claim.saleItem?.itemNameSnapshot || claim.issueDescription}
                       </h3>
-                      <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-                        Serial: <span className="font-mono font-bold">{claim.serial?.serialNumber || "—"}</span> · Dispatched: {dateTime(claim.sentToSupplierAt || claim.receivedAt)}
+                      <p className="text-[11px] text-slate-400">
+                        Serial: <span className="font-mono font-bold text-slate-700">{claim.serial?.serialNumber || "—"}</span> · Dispatched: {dateTime(claim.sentToSupplierAt || claim.receivedAt)}
                       </p>
                     </div>
 
@@ -1340,7 +1342,7 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                       <button
                         type="button"
                         onClick={() => openResolveSupplierModal(claim)}
-                        className="rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-xs font-black text-white shadow-soft transition"
+                        className="rounded-lg bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition"
                       >
                         Receive Supplier Outcome
                       </button>
@@ -1355,65 +1357,65 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
 
       {/* TAB 3: REPLACED ITEMS & SHRINKAGE LOSS LEDGER */}
       {activeTab === "replaced_log" && (
-        <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">
-          <div className="border-b border-[var(--color-border)] p-5">
-            <h2 className="text-lg font-black text-[var(--color-text-strong)]">Replacements & Shrinkage Loss Ledger</h2>
-            <p className="text-xs text-[var(--color-muted)]">
+        <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs">
+          <div className="border-b border-slate-100 p-3.5">
+            <h2 className="text-sm font-bold text-slate-900">Replacements &amp; Shrinkage Loss Ledger</h2>
+            <p className="text-xs text-slate-500">
               Audit ledger of replacement units issued from stock (<code className="font-mono">WARRANTY_OUT</code>) and supplier write-offs.
             </p>
           </div>
 
           {replacedAndShrinkageClaims.length === 0 ? (
-            <div className="p-12 text-center text-sm font-semibold text-[var(--color-muted)]">
+            <div className="p-10 text-center text-xs font-medium text-slate-500">
               No replacements or shrinkage losses recorded yet.
             </div>
           ) : (
             <>
-              <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[850px] text-left text-sm">
-                  <thead className="bg-[var(--color-soft)] text-xs font-black uppercase tracking-wider text-[var(--color-muted)]">
+              <div className="hidden overflow-x-auto lg:block w-full">
+                <table className="w-full min-w-[850px] text-left text-xs">
+                  <thead className="bg-slate-50/75 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     <tr>
-                      <th className="px-5 py-4">Claim / Date</th>
-                      <th className="px-5 py-4">Classification</th>
-                      <th className="px-5 py-4">Customer & Product</th>
-                      <th className="px-5 py-4">Original Serial</th>
-                      <th className="px-5 py-4">Resolution Notes</th>
-                      <th className="px-5 py-4">Status</th>
+                      <th className="px-3.5 py-2.5">Claim / Date</th>
+                      <th className="px-3.5 py-2.5">Classification</th>
+                      <th className="px-3.5 py-2.5">Customer &amp; Product</th>
+                      <th className="px-3.5 py-2.5">Original Serial</th>
+                      <th className="px-3.5 py-2.5">Resolution Notes</th>
+                      <th className="px-3.5 py-2.5">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]">
+                  <tbody className="divide-y divide-slate-100">
                     {replacedAndShrinkageClaims.map((claim) => (
-                      <tr className="hover:bg-[var(--color-soft)]/50 transition" key={claim.id}>
-                        <td className="px-5 py-4 font-mono font-bold text-xs text-[var(--color-maroon)]">
+                      <tr className="hover:bg-slate-50/50 transition-colors" key={claim.id}>
+                        <td className="px-3.5 py-2.5 font-mono font-bold text-xs text-[var(--color-maroon)] whitespace-nowrap">
                           <div>{claim.claimCode}</div>
-                          <div className="text-[10px] font-normal text-[var(--color-muted)]">{dateOnly(claim.replacedAt || claim.rejectedAt || claim.createdAt)}</div>
+                          <div className="text-[10px] font-normal text-slate-400">{dateOnly(claim.replacedAt || claim.rejectedAt || claim.createdAt)}</div>
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-3.5 py-2.5 whitespace-nowrap">
                           {claim.status === "REPLACED" ? (
-                            <span className="rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 text-xs font-black">
+                            <span className="rounded-md bg-emerald-50 border border-emerald-200/60 text-emerald-800 px-2 py-0.5 text-[11px] font-bold">
                               🔄 Replacement Unit Out
                             </span>
                           ) : claim.status === "REJECTED" ? (
-                            <span className="rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 px-2 py-0.5 text-xs font-black">
-                              ❌ Shrinkage Loss Write-Off
+                            <span className="rounded-md bg-rose-50 border border-rose-200/60 text-rose-800 px-2 py-0.5 text-[11px] font-bold">
+                              ❌ Shrinkage Write-Off
                             </span>
                           ) : (
-                            <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-bold">
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
                               {claim.status}
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-xs">
-                          <p className="font-bold text-[var(--color-text-strong)]">{claim.item?.itemName || claim.saleItem?.itemNameSnapshot}</p>
-                          <p className="text-[11px] text-[var(--color-muted)]">{claim.customer?.fullName || "Walk-in"}</p>
+                        <td className="px-3.5 py-2.5">
+                          <p className="font-bold text-xs text-slate-800 max-w-44 truncate">{claim.item?.itemName || claim.saleItem?.itemNameSnapshot}</p>
+                          <p className="text-[11px] text-slate-400">{claim.customer?.fullName || "Walk-in"}</p>
                         </td>
-                        <td className="px-5 py-4 font-mono text-xs font-bold text-[var(--color-text-strong)]">
+                        <td className="px-3.5 py-2.5 font-mono text-xs font-semibold text-slate-800 whitespace-nowrap">
                           {claim.serial?.serialNumber || "—"}
                         </td>
-                        <td className="px-5 py-4 text-xs text-[var(--color-muted)] max-w-xs truncate">
+                        <td className="px-3.5 py-2.5 text-xs text-slate-500 max-w-xs truncate">
                           {claim.actionTaken || claim.diagnosis || claim.remarks || "—"}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-3.5 py-2.5 whitespace-nowrap">
                           <StatusBadge status={claim.status} />
                         </td>
                       </tr>

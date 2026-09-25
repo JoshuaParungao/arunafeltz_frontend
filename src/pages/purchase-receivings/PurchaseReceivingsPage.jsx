@@ -997,62 +997,23 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
   const totalPages = Math.max(1, pagination.totalPages || 1)
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      {/* MINIMALIST HEADER & VIEW SWITCHER */}
+      <section className="rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">Supply chain</p>
-              <div className="flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("OPERATIONS")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition ${
-                    viewMode === "OPERATIONS"
-                      ? "bg-white text-slate-800 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <Boxes size={14} />
-                  Deliveries & Inbound PO
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("SUPPLIER_WARRANTY")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition ${
-                    viewMode === "SUPPLIER_WARRANTY"
-                      ? "bg-violet-700 text-white shadow-xs font-black"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <Truck size={14} />
-                  Supplier Warranty (RMA / RTV)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("REPORTS")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition ${
-                    viewMode === "REPORTS"
-                      ? "bg-[var(--color-maroon)] text-white shadow-xs font-black"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <BarChart3 size={14} />
-                  Reports & Audit
-                </button>
-              </div>
-            </div>
-            <h1 className="mt-1 text-2xl font-black text-slate-900">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Purchases &amp; Supply Chain</p>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
               {viewMode === "REPORTS"
                 ? "Inbound Deliveries & Cost Audit"
                 : viewMode === "SUPPLIER_WARRANTY"
-                  ? "Purchases & Delivery · Supplier Warranty & RMA Hub"
+                  ? "Supplier Warranty (RMA / RTV)"
                   : "Receiving / Deliveries"}
             </h1>
             <p className="mt-0.5 text-xs text-slate-500">
               {viewMode === "REPORTS"
                 ? "Landed goods receiving audit, PO vs actual delivery cost variances, and supplier turnaround scorecard."
                 : viewMode === "SUPPLIER_WARRANTY"
-                  ? "Track defective store items dispatched to suppliers (RTV) and resolve with: Same Item Replacement, Change Model (New Model Stock), or Credit Memo (AP Deduction)."
+                  ? "Track defective items sent to suppliers and resolve via: Same Item, Change Model, or Credit Memo."
                   : "Draft, validate, and post supplier deliveries into the correct branch inventory."}
             </p>
           </div>
@@ -1061,27 +1022,79 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
               <>
                 <ExportExcelButton
                   filteredCount={pagination?.totalItems ?? receivings.length}
-                  label="Export Deliveries (.xlsx)"
+                  label="Export (.xlsx)"
                   onExport={handleExportReceivingsExcel}
                 />
-                <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
-                  <Plus size={15} />New Receiving
+                <button
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)]"
+                  onClick={() => setEditing({})}
+                  type="button"
+                >
+                  <Plus size={15} /> New Receiving
                 </button>
               </>
             ) : viewMode === "SUPPLIER_WARRANTY" ? (
               <button
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                 onClick={loadSupplierClaims}
                 disabled={isLoadingSupplierClaims}
                 type="button"
               >
-                <RefreshCw size={14} className={isLoadingSupplierClaims ? "animate-spin" : ""} /> Refresh RMAs
+                <RefreshCw size={13} className={isLoadingSupplierClaims ? "animate-spin" : ""} /> Refresh
               </button>
             ) : (
-              <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
-                <Plus size={15} />New Receiving
+              <button
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)]"
+                onClick={() => setEditing({})}
+                type="button"
+              >
+                <Plus size={15} /> New Receiving
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Unified Minimalist Segment Switcher */}
+        <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+          <div className="inline-flex p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode("OPERATIONS")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition ${
+                viewMode === "OPERATIONS"
+                  ? "bg-white text-slate-900 font-bold shadow-2xs"
+                  : "text-slate-500 hover:text-slate-800 font-medium"
+              }`}
+            >
+              <Boxes size={14} /> Deliveries &amp; Inbound PO
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("SUPPLIER_WARRANTY")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition ${
+                viewMode === "SUPPLIER_WARRANTY"
+                  ? "bg-white text-slate-900 font-bold shadow-2xs"
+                  : "text-slate-500 hover:text-slate-800 font-medium"
+              }`}
+            >
+              <Truck size={14} /> Supplier Warranty (RMA / RTV)
+              {supplierClaims.length > 0 ? (
+                <span className="ml-1 rounded-full bg-slate-200/80 text-slate-800 px-1.5 py-0.2 text-[10px] font-bold">
+                  {supplierClaims.length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("REPORTS")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition ${
+                viewMode === "REPORTS"
+                  ? "bg-white text-slate-900 font-bold shadow-2xs"
+                  : "text-slate-500 hover:text-slate-800 font-medium"
+              }`}
+            >
+              <BarChart3 size={14} /> Reports &amp; Audit
+            </button>
           </div>
         </div>
       </section>
@@ -1099,74 +1112,74 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
         />
       ) : viewMode === "SUPPLIER_WARRANTY" ? (
         <div className="space-y-4">
-          {/* Summary Strip */}
+          {/* Minimalist Summary Strip */}
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-violet-700">Active With Suppliers</span>
-                <Truck size={18} className="text-violet-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">With Suppliers</span>
+                <Truck size={16} className="text-slate-400" />
               </div>
-              <p className="mt-2 font-mono text-2xl font-black text-violet-950">{supplierClaims.length}</p>
-              <p className="mt-0.5 text-[11px] text-violet-700 font-medium">Defective units out for RMA</p>
+              <p className="mt-1 font-mono text-2xl font-black text-slate-900">{supplierClaims.length}</p>
+              <p className="text-[11px] text-slate-500">Units pending return / resolution</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tracked Suppliers</span>
-                <Boxes size={18} className="text-slate-400" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active Suppliers</span>
+                <Boxes size={16} className="text-slate-400" />
               </div>
-              <p className="mt-2 font-mono text-2xl font-black text-slate-900">
+              <p className="mt-1 font-mono text-2xl font-black text-slate-900">
                 {new Set(supplierClaims.map((c) => c.supplierName).filter(Boolean)).size}
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-500 font-medium">Distinct supplier RMA channels</p>
+              <p className="text-[11px] text-slate-500">Distinct supplier RMA channels</p>
             </div>
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+            <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Supported Outcomes</span>
-                <ShieldCheck size={18} className="text-emerald-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Settlement</span>
+                <ShieldCheck size={16} className="text-slate-400" />
               </div>
-              <p className="mt-2 text-xs font-black text-emerald-950">3 Settlement Scenarios</p>
-              <p className="mt-0.5 text-[11px] text-emerald-800">Same Item, Change Model, or Credit Memo (AP)</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">3 Scenarios Supported</p>
+              <p className="text-[11px] text-slate-500">Same Item, Change Model, or Credit Memo</p>
             </div>
           </div>
 
           {/* Search bar */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
+          <section className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs">
             <label className="relative block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input
-                className="w-full rounded-xl border border-slate-200 bg-white text-slate-800 py-2 pl-9 pr-3 text-xs outline-none focus:border-[var(--color-maroon)]"
+                className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200 text-slate-800 placeholder:text-slate-400"
                 onChange={(e) => setSupplierRmaSearch(e.target.value)}
-                placeholder="Search RMA code, supplier name, item, serial number, or reference..."
+                placeholder="Search RMA code, supplier, item, serial, or reference..."
                 value={supplierRmaSearch}
               />
             </label>
           </section>
 
           {/* RMA Claims Table */}
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+          <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full min-w-[760px] text-left text-xs">
+                <thead className="border-b border-slate-100 bg-slate-50/75 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   <tr>
-                    <th className="px-4 py-3">RMA Code</th>
-                    <th className="px-4 py-3">Supplier &amp; Ref #</th>
-                    <th className="px-4 py-3">Defective Item &amp; S/N</th>
-                    <th className="px-4 py-3">Dispatched</th>
-                    <th className="px-4 py-3">Days with Supplier</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-3.5 py-2.5">RMA Code</th>
+                    <th className="px-3.5 py-2.5">Supplier &amp; Ref #</th>
+                    <th className="px-3.5 py-2.5">Defective Item &amp; S/N</th>
+                    <th className="px-3.5 py-2.5">Dispatched</th>
+                    <th className="px-3.5 py-2.5">Aging</th>
+                    <th className="px-3.5 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-slate-100">
                   {isLoadingSupplierClaims ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 font-bold">
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 font-semibold">
                         Loading supplier RMA claims…
                       </td>
                     </tr>
                   ) : null}
                   {!isLoadingSupplierClaims && filteredSupplierClaims.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 font-bold">
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 font-semibold">
                         No defective units currently out with suppliers.
                       </td>
                     </tr>
@@ -1175,41 +1188,41 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
                     ? filteredSupplierClaims.map((claim) => {
                         const days = claim.daysElapsed || 0
                         return (
-                          <tr key={claim.id} className="hover:bg-slate-50/60 transition">
-                            <td className="px-4 py-3">
+                          <tr key={claim.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-3.5 py-2.5">
                               <span className="font-mono font-bold text-slate-900 text-xs">{claim.claimCode}</span>
                               <p className="text-[10px] text-slate-500 max-w-44 truncate">{claim.issueDescription || "Defective unit"}</p>
                             </td>
-                            <td className="px-4 py-3">
-                              <p className="font-bold text-slate-800">{claim.supplierName || "Direct Supplier"}</p>
-                              <p className="font-mono text-[10px] text-slate-500">Ref: {claim.supplierReferenceNo || "—"}</p>
+                            <td className="px-3.5 py-2.5">
+                              <p className="font-bold text-slate-800 max-w-40 truncate">{claim.supplierName || "Direct Supplier"}</p>
+                              <p className="font-mono text-[10px] text-slate-400">Ref: {claim.supplierReferenceNo || "—"}</p>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-3.5 py-2.5">
                               <p className="font-semibold text-slate-900 max-w-xs truncate">{claim.item?.itemName || "Item"}</p>
-                              <p className="font-mono text-[10px] text-slate-500">S/N: <strong>{claim.serial?.serialNumber || "Non-serialized"}</strong></p>
+                              <p className="font-mono text-[10px] text-slate-500">S/N: <span className="font-bold">{claim.serial?.serialNumber || "Non-serialized"}</span></p>
                             </td>
-                            <td className="px-4 py-3 text-slate-600">
+                            <td className="px-3.5 py-2.5 text-slate-600 whitespace-nowrap">
                               {claim.sentToSupplierAt ? new Date(claim.sentToSupplierAt).toLocaleDateString("en-PH") : "—"}
                             </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-black ${
+                            <td className="px-3.5 py-2.5 whitespace-nowrap">
+                              <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${
                                 days > 14
-                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200/60"
                                   : days > 7
-                                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200/60"
                                     : "bg-slate-100 text-slate-700"
                               }`}>
-                                {days} day{days === 1 ? "" : "s"}
+                                {days}d out
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-right">
+                            <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={() => openResolveSupplier(claim)}
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-violet-700 hover:bg-violet-800 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition"
                               >
-                                <PackageCheck size={14} />
-                                <span>Resolve RMA</span>
+                                <PackageCheck size={13} />
+                                <span>Resolve Outcome</span>
                               </button>
                             </td>
                           </tr>
@@ -1223,12 +1236,12 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
         </div>
       ) : (
         <>
-          <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
+          <section className="grid gap-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs sm:grid-cols-[1fr_200px]">
         <label className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-          <input className="w-full rounded-xl border border-slate-200 bg-white text-slate-800 py-2 pl-9 pr-3 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Receiving, invoice, delivery, supplier…" value={search} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+          <input className="w-full rounded-lg border border-slate-200 bg-white text-slate-800 py-1.5 pl-8 pr-3 text-xs outline-none focus:border-slate-400" onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search receiving, invoice, delivery, supplier…" value={search} />
         </label>
-        <select className="rounded-xl border border-slate-200 bg-white text-slate-800 px-3 py-2 text-xs outline-none focus:border-[var(--color-maroon)] font-semibold" onChange={(event) => { setStatus(event.target.value); setPage(1) }} value={status}>
+        <select className="rounded-lg border border-slate-200 bg-white text-slate-800 px-3 py-1.5 text-xs outline-none focus:border-slate-400 font-semibold" onChange={(event) => { setStatus(event.target.value); setPage(1) }} value={status}>
           <option value="">All statuses</option>
           <option value="DRAFT">Draft</option>
           <option value="POSTED">Posted</option>
@@ -1236,50 +1249,50 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
         </select>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+      <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs">
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 p-10 text-xs font-bold text-slate-500">
-            <LoaderCircle className="animate-spin" size={16} />Loading deliveries…
+            <LoaderCircle className="animate-spin text-slate-400" size={16} />Loading deliveries…
           </div>
         ) : receivings.length === 0 ? (
           <div className="p-10 text-center">
-            <Boxes className="mx-auto text-slate-300" size={36} />
+            <Boxes className="mx-auto text-slate-300" size={32} />
             <p className="mt-2 text-xs font-bold text-slate-800">No matching receivings</p>
           </div>
         ) : (
           <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[960px] text-left text-xs">
-                <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+            <div className="hidden overflow-x-auto lg:block w-full">
+              <table className="w-full min-w-[850px] text-left text-xs">
+                <thead className="bg-slate-50/75 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   <tr>
-                    <th className="px-4 py-3">Receiving</th>
-                    <th className="px-4 py-3">Supplier / PO</th>
-                    <th className="px-4 py-3">References</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Total</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-3.5 py-2.5">Receiving</th>
+                    <th className="px-3.5 py-2.5">Supplier / PO</th>
+                    <th className="px-3.5 py-2.5">References</th>
+                    <th className="px-3.5 py-2.5">Status</th>
+                    <th className="px-3.5 py-2.5 text-right">Total</th>
+                    <th className="px-3.5 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-slate-100">
                   {receivings.map((receiving) => (
-                    <tr key={receiving.id} className="hover:bg-slate-50/50 transition">
-                      <td className="px-4 py-3">
+                    <tr key={receiving.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
                         <p className="font-mono font-bold text-slate-900">{receiving.receivingCode}</p>
-                        <p className="text-[11px] text-slate-500">{dateOnly(receiving.receivingDate)} · {receiving.branch?.code}</p>
+                        <p className="text-[11px] text-slate-400">{dateOnly(receiving.receivingDate)} · {receiving.branch?.code}</p>
                       </td>
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-slate-800">{receiving.supplierNameSnapshot}</p>
-                        <p className="text-[11px] text-slate-500">{receiving.purchaseOrder?.poCode || "Standalone"}</p>
+                      <td className="px-3.5 py-2.5">
+                        <p className="font-semibold text-slate-800 max-w-44 truncate">{receiving.supplierNameSnapshot}</p>
+                        <p className="text-[11px] text-slate-400">{receiving.purchaseOrder?.poCode || "Standalone"}</p>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{receiving.supplierInvoiceNo || receiving.supplierDeliveryNo || receiving.referenceNo || "—"}</td>
-                      <td className="px-4 py-3"><Status value={receiving.status} /></td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">{money(receiving.grandTotal)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3.5 py-2.5 text-slate-600 max-w-36 truncate">{receiving.supplierInvoiceNo || receiving.supplierDeliveryNo || receiving.referenceNo || "—"}</td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap"><Status value={receiving.status} /></td>
+                      <td className="px-3.5 py-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{money(receiving.grandTotal)}</td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
                         <div className="flex justify-end gap-1.5">
-                          <button className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 transition" onClick={() => openDetail(receiving)} type="button"><Eye size={14} /></button>
+                          <button className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 transition" onClick={() => openDetail(receiving)} type="button"><Eye size={14} /></button>
                           {receiving.status === "DRAFT" ? (
                             <>
-                              <button className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100 transition" onClick={() => setEditing(receiving)} type="button">Edit</button>
+                              <button className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => setEditing(receiving)} type="button">Edit</button>
                               <button className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition" disabled={isSaving} onClick={() => changeStatus(receiving, "POSTED")} type="button">Post Stock</button>
                               <button className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 transition" disabled={isSaving} onClick={() => changeStatus(receiving, "CANCELLED")} type="button">Cancel</button>
                             </>
@@ -1444,11 +1457,11 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
 
       {/* MODAL: RESOLVE SUPPLIER RMA (3 SCENARIOS) */}
       {showResolveSupplierModal && resolveTargetClaim ? (
-        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
-          <section className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs">
+          <section className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+            <header className="shrink-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-3.5">
               <div>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-violet-700">Supplier RMA Resolution</span>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Supplier RMA Resolution</span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
                   Resolve Supplier Claim: {resolveTargetClaim.claimCode}
                 </h3>
@@ -1462,10 +1475,10 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
               </button>
             </header>
 
-            <form onSubmit={handleConfirmSupplierResolve}>
-              <div className="space-y-4 p-5 sm:p-6 text-xs max-h-[75vh] overflow-y-auto">
+            <form onSubmit={handleConfirmSupplierResolve} className="flex-1 flex flex-col min-h-0">
+              <div className="space-y-4 p-5 sm:p-6 text-xs overflow-y-auto flex-1">
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block mb-1.5">
                     Select Supplier Outcome Scenario *
                   </label>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -1480,16 +1493,12 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
                         key={opt.id}
                         type="button"
                         onClick={() => setResolveForm((prev) => ({ ...prev, outcome: opt.id }))}
-                        className={`rounded-xl p-2.5 text-left transition border ${
+                        className={`rounded-xl p-3 text-left transition border ${
                           resolveForm.outcome === opt.id
                             ? opt.id === "REJECTED"
                               ? "border-rose-600 bg-rose-50 text-rose-900 shadow-2xs font-bold"
-                              : opt.id === "CREDIT_MEMO"
-                                ? "border-blue-600 bg-blue-50 text-blue-900 shadow-2xs font-bold"
-                                : opt.id === "CHANGE_MODEL"
-                                  ? "border-amber-600 bg-amber-50 text-amber-900 shadow-2xs font-bold"
-                                  : "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-2xs font-bold"
-                            : "border-slate-200 bg-white hover:bg-slate-50"
+                              : "border-slate-900 bg-slate-50 text-slate-900 shadow-2xs font-bold ring-1 ring-slate-900/10"
+                            : "border-slate-200/90 bg-white hover:bg-slate-50/80 text-slate-700"
                         }`}
                       >
                         <p className="text-xs font-black">{opt.label}</p>
@@ -1624,17 +1633,17 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
                 </label>
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-slate-200 p-4 sm:px-6 bg-slate-50/50">
+              <div className="shrink-0 flex items-center justify-end gap-2 border-t border-slate-100 p-4 sm:px-6 bg-slate-50/70">
                 <button
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
                   onClick={() => setShowResolveSupplierModal(false)}
                   type="button"
                 >
                   Cancel
                 </button>
                 <button
-                  className={`rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-soft transition ${
-                    resolveForm.outcome === "REJECTED" ? "bg-rose-700 hover:bg-rose-800" : "bg-violet-700 hover:bg-violet-800"
+                  className={`rounded-xl px-4 py-2 text-xs font-bold text-white shadow-2xs transition ${
+                    resolveForm.outcome === "REJECTED" ? "bg-rose-700 hover:bg-rose-800" : "bg-slate-900 hover:bg-slate-800"
                   }`}
                   disabled={isSaving}
                   type="submit"
