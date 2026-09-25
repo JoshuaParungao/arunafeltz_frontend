@@ -763,6 +763,7 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
   const [notice, setNotice] = useState("")
   const [detail, setDetail] = useState(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const [editing, setEditing] = useState(null)
 
   // Supplier Warranty & RMA Tracking State (Purchases & Delivery)
   const [supplierClaims, setSupplierClaims] = useState([])
@@ -857,9 +858,16 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
   }
 
   const filteredSupplierClaims = useMemo(() => {
-    if (!supplierRmaSearch.trim()) return supplierClaims
+    const now = Date.now()
+    const list = (supplierClaims || []).map((c) => ({
+      ...c,
+      daysElapsed: c.sentToSupplierAt
+        ? Math.max(0, Math.floor((now - new Date(c.sentToSupplierAt).getTime()) / 86400000))
+        : 0,
+    }))
+    if (!supplierRmaSearch.trim()) return list
     const q = supplierRmaSearch.toLowerCase().trim()
-    return supplierClaims.filter((c) => {
+    return list.filter((c) => {
       const code = String(c.claimCode || "").toLowerCase()
       const sup = String(c.supplierName || "").toLowerCase()
       const ref = String(c.supplierReferenceNo || "").toLowerCase()
@@ -1165,9 +1173,7 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
                   ) : null}
                   {!isLoadingSupplierClaims
                     ? filteredSupplierClaims.map((claim) => {
-                        const days = claim.sentToSupplierAt
-                          ? Math.max(0, Math.floor((Date.now() - new Date(claim.sentToSupplierAt).getTime()) / (1000 * 60 * 60 * 24)))
-                          : 0
+                        const days = claim.daysElapsed || 0
                         return (
                           <tr key={claim.id} className="hover:bg-slate-50/60 transition">
                             <td className="px-4 py-3">
