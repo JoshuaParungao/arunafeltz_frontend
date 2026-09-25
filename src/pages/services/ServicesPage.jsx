@@ -1401,96 +1401,84 @@ function WorkshopTasksManager({
       )}
 
       {job.status === "READY_FOR_RELEASE" && (
-        <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="text-purple-700 shrink-0" size={18} />
-            <div>
-              <h4 className="text-xs font-black uppercase tracking-wider text-purple-900">
-                Stage 4: Service Done &amp; Ready for Cashier
-              </h4>
-              <p className="text-xs text-purple-800">
-                The unit is ready for release! Cashier can settle and release J.O. #{job.jobCode} in POS cashiering.
-              </p>
-              <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                {job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") || job.status === "COMPLETED" || job.releasedAt ? (
-                  <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 text-xs font-black text-emerald-800 shadow-xs">
-                    <CheckCircle2 size={14} /> Billed in POS Cashiering {job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(Invoice #${job.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
-                  </div>
+        <div className="rounded-xl border border-purple-200/90 bg-purple-50/40 dark:bg-purple-950/20 p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <CheckCircle2 className="text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" size={17} />
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-black uppercase tracking-wider text-purple-950 dark:text-purple-200">
+                  Stage 4: Ready for Release
+                </span>
+                {jobPayment.isBilledInPos || job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") || job.status === "COMPLETED" || job.releasedAt ? (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    <Check size={12} className="text-emerald-600 dark:text-emerald-400" />
+                    Billed in POS {jobPayment.posInvoiceCode ? `#${jobPayment.posInvoiceCode}` : ""}
+                    {jobPayment.posBilledAmount > 0 ? ` · ${money(jobPayment.posBilledAmount)}` : ""}
+                  </span>
                 ) : null}
                 {jobPayment.remainingBalance > 0 ? (
-                  <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 border border-amber-300 px-3.5 py-1.5 text-xs font-black text-amber-800 shadow-xs">
-                    <AlertCircle size={14} /> Balance due: {money(jobPayment.remainingBalance)}
-                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                    <AlertCircle size={12} className="text-amber-600 dark:text-amber-400" />
+                    Balance: {money(jobPayment.remainingBalance)}
+                  </span>
                 ) : null}
                 {typeof onSyncPosBilling === "function" && (
                   <button
                     type="button"
                     onClick={() => onSyncPosBilling(job)}
                     disabled={isSyncingBilling}
-                    title="Check if this Job Order was already billed in POS cashiering"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 text-xs font-bold text-purple-900 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                    title="Check / Re-sync POS Invoice"
+                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-purple-700 hover:text-purple-900 hover:bg-purple-100/60 dark:text-purple-300 dark:hover:bg-purple-900/40 transition cursor-pointer disabled:opacity-50"
                   >
-                    <RefreshCw size={13} className={isSyncingBilling ? "animate-spin" : ""} />
-                    {isSyncingBilling ? "Checking POS..." : "Check / Sync POS Invoice"}
+                    <RefreshCw size={11} className={isSyncingBilling ? "animate-spin" : ""} />
+                    {!jobPayment.isBilledInPos ? "Check POS" : ""}
                   </button>
                 )}
               </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-normal">
+                {jobPayment.remainingBalance <= 0
+                  ? "Service completed and settled in POS. Ready for customer release."
+                  : `Service completed. Settle remaining balance (${money(jobPayment.remainingBalance)}) in POS cashiering.`}
+              </p>
             </div>
           </div>
-          {job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") ? (
-            typeof onCompleteRelease === "function" && jobPayment.remainingBalance <= 0 ? (
-              <button
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
-                disabled={isSaving}
-                onClick={() => onCompleteRelease(job)}
-                type="button"
-              >
-                <CheckCircle2 size={15} /> Mark Released &amp; Completed
-              </button>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
+
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+            {jobPayment.remainingBalance <= 0 ? (
+              typeof onCompleteRelease === "function" && (
                 <button
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
-                  onClick={() => onPayInPos(job)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2 text-xs font-bold shadow-2xs transition cursor-pointer"
+                  disabled={isSaving}
+                  onClick={() => onCompleteRelease(job)}
                   type="button"
                 >
-                  <Banknote size={15} /> Settle Remaining Balance in POS Cashiering
+                  <CheckCircle2 size={14} /> Mark Released &amp; Completed
                 </button>
+              )
+            ) : (
+              <>
+                {typeof onPayInPos === "function" && (
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2 text-xs font-bold shadow-2xs transition cursor-pointer"
+                    onClick={() => onPayInPos(job)}
+                    type="button"
+                  >
+                    <Banknote size={14} /> Settle in POS
+                  </button>
+                )}
                 {typeof onPullOut === "function" && (
                   <button
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3.5 py-2 text-xs font-bold shadow-xs transition cursor-pointer shrink-0"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 text-xs font-semibold shadow-2xs transition cursor-pointer"
                     disabled={isSaving}
                     onClick={onPullOut}
                     type="button"
                   >
-                    <ArrowRight size={14} /> Released – Client Pull-Out / Unit Unrepairable
+                    <ArrowRight size={13} /> Pull-Out
                   </button>
                 )}
-              </div>
-            )
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              {typeof onPayInPos === "function" && job.status !== "COMPLETED" && (
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
-                  onClick={() => onPayInPos(job)}
-                  type="button"
-                >
-                  <Banknote size={15} /> Settle &amp; Release in POS Cashiering
-                </button>
-              )}
-              {typeof onPullOut === "function" && (
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3.5 py-2 text-xs font-bold shadow-xs transition cursor-pointer shrink-0"
-                  disabled={isSaving}
-                  onClick={onPullOut}
-                  type="button"
-                >
-                  <ArrowRight size={14} /> Released – Client Pull-Out / Unit Unrepairable
-                </button>
-              )}
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -4514,55 +4502,48 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                         </button>
                       ))
                     : null}
-                  {selectedJob?.serviceNotes?.includes("[BILLED IN POS") || selectedJob?.releaseNotes?.includes("Settled and released via POS invoice") || selectedJob?.status === "COMPLETED" || selectedJob?.releasedAt ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-300 px-3.5 py-2 text-xs font-black text-emerald-700 shadow-2xs">
-                      <CheckCircle2 size={14} /> Billed in POS {selectedJob?.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(#${selectedJob.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
+                  {selectedJobPayment.isBilledInPos || selectedJob?.serviceNotes?.includes("[BILLED IN POS") || selectedJob?.releaseNotes?.includes("Settled and released via POS invoice") || selectedJob?.status === "COMPLETED" || selectedJob?.releasedAt ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400" />
+                      Billed in POS {selectedJobPayment.posInvoiceCode ? `#${selectedJobPayment.posInvoiceCode}` : ""}
                     </span>
                   ) : null}
                   {canActOnSelected && selectedIsActive ? (
                     selectedJob?.status === "READY_FOR_RELEASE" ? (
-                      selectedJob?.serviceNotes?.includes("[BILLED IN POS") ||
-                      selectedJob?.releaseNotes?.includes("Settled and released via POS invoice") ? (
-                        selectedJobPayment.remainingBalance <= 0 ? (
-                          <button
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
-                            disabled={isSaving}
-                            onClick={() => handleCompleteRelease(selectedJob)}
-                            type="button"
-                          >
-                            <CheckCircle2 size={15} /> Mark Released &amp; Completed
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 border border-amber-300 px-3.5 py-2 text-xs font-black text-amber-800 shadow-2xs">
-                              <AlertCircle size={15} /> Balance due: {money(selectedJobPayment.remainingBalance)}
-                            </span>
-                            <button
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
-                              onClick={() => sendToPosCashiering(selectedJob)}
-                              type="button"
-                            >
-                              <Banknote size={15} /> Settle in POS Cashiering
-                            </button>
-                          </div>
-                        )
-                      ) : (
+                      selectedJobPayment.remainingBalance <= 0 && (selectedJobPayment.isBilledInPos || selectedJob?.serviceNotes?.includes("[BILLED IN POS") || selectedJob?.releaseNotes?.includes("Settled and released via POS invoice")) ? (
                         <button
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
-                          onClick={() => sendToPosCashiering(selectedJob)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition cursor-pointer"
+                          disabled={isSaving}
+                          onClick={() => handleCompleteRelease(selectedJob)}
                           type="button"
                         >
-                          <Banknote size={15} /> Settle &amp; Release in POS Cashiering
+                          <CheckCircle2 size={14} /> Mark Released &amp; Completed
                         </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {selectedJobPayment.remainingBalance > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2.5 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                              <AlertCircle size={13} className="text-amber-600 dark:text-amber-400" />
+                              Balance: {money(selectedJobPayment.remainingBalance)}
+                            </span>
+                          ) : null}
+                          <button
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition cursor-pointer"
+                            onClick={() => sendToPosCashiering(selectedJob)}
+                            type="button"
+                          >
+                            <Banknote size={14} /> Settle in POS
+                          </button>
+                        </div>
                       )
                     ) : (
                       <button
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] hover:opacity-90 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-maroon)] hover:opacity-90 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition cursor-pointer"
                         disabled={isSaving}
                         onClick={() => handleReleaseToCashier(selectedJob)}
                         type="button"
                       >
-                        <CheckCircle2 size={15} /> Ready for Cashier Release
+                        <CheckCircle2 size={14} /> Ready for Cashier Release
                       </button>
                     )
                   ) : null}
