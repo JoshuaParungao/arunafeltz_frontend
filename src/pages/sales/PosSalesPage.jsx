@@ -4625,6 +4625,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     currentJob?.estimatedServiceCharge ??
                     0,
                   )
+            const joLineAmount = totalJoAmount > 0 ? totalJoAmount : finalCharge
 
             const repairType = currentJob?.repairType || "ORDINARY_REPAIR"
 
@@ -4661,13 +4662,35 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               ? `${cleanNotes}\n\n${allTags.join("\n")}`
               : allTags.join("\n")
 
+            // Calculate total billed across POS invoices to verify if balance remains
+            const posRegex = /\[BILLED IN POS:\s*Invoice\s*([A-Za-z0-9_-]+)(?:\s+Amount:\s*([\d.]+))?\]/gi
+            const allPosMatches = [...combinedNotes.matchAll(posRegex)]
+            let totalBilledInPos = 0
+            for (const m of allPosMatches) {
+              if (m[2]) {
+                totalBilledInPos += Number(m[2])
+              }
+            }
+            const directCollected = Number(currentJob?.directCollectedAmount || 0)
+            const receivableCollected = Number(currentJob?.receivableCollectedAmount || 0)
+            const totalPaidSoFar = directCollected + receivableCollected + totalBilledInPos
+            const effectiveFinalCharge = Number(
+              currentJob?.finalServiceCharge ??
+              currentJob?.baseServiceCharge ??
+              currentJob?.estimatedServiceCharge ??
+              finalCharge
+            )
+            const remainingBalanceAfterSale = Math.max(0, effectiveFinalCharge - totalPaidSoFar)
+
             const isAlreadyReleased = Boolean(currentJob?.releasedAt || currentJob?.status === "COMPLETED")
 
-            if (isAlreadyReleased) {
+            if (isAlreadyReleased || remainingBalanceAfterSale > 0) {
               await updateServiceJobStatus(joId, {
+                repairType,
+                ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
                 serviceNotes: combinedNotes,
               }).catch((err) => {
-                console.warn(`Could not update service notes for completed Job Order ${joId}:`, err)
+                console.warn(`Could not update service notes for Job Order ${joId}:`, err)
               })
             } else {
               const releasePayload = {

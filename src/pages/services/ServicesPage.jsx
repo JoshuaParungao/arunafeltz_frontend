@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 
 import { getCustomers } from "../../features/customers/customers.api"
+import { getSales } from "../../features/sales/sales.api"
 import { generateUUID } from "../../utils/uuid"
 import { saveFormDraft, getFormDraft, clearFormDraft } from "../../lib/sessionStorage"
 import {
@@ -1211,11 +1212,13 @@ function WorkshopTasksManager({
   serviceCatalog = [],
   servicePartsCatalog = [],
   isSaving = false,
+  isSyncingBilling = false,
   onSaveTasks,
   onStatusChange,
   onPayInPos,
   onCompleteRelease,
   onPullOut,
+  onSyncPosBilling,
   canManage = false,
 }) {
   const initialTasks = useMemo(() => extractServiceTasks(job), [job])
@@ -1408,16 +1411,30 @@ function WorkshopTasksManager({
               <p className="text-xs text-purple-800">
                 The unit is ready for release! Cashier can settle and release J.O. #{job.jobCode} in POS cashiering.
               </p>
-              {job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") || job.status === "COMPLETED" || job.releasedAt ? (
-                <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 text-xs font-black text-emerald-800 shadow-xs">
-                  <CheckCircle2 size={14} /> Billed in POS Cashiering {job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(Invoice #${job.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
-                </div>
-              ) : null}
-              {jobPayment.remainingBalance > 0 ? (
-                <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-amber-100 border border-amber-300 px-3.5 py-1.5 text-xs font-black text-amber-800 shadow-xs">
-                  <AlertCircle size={14} /> Balance due: {money(jobPayment.remainingBalance)}
-                </div>
-              ) : null}
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                {job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") || job.status === "COMPLETED" || job.releasedAt ? (
+                  <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 text-xs font-black text-emerald-800 shadow-xs">
+                    <CheckCircle2 size={14} /> Billed in POS Cashiering {job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1] ? `(Invoice #${job.serviceNotes.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)[1]})` : ""}
+                  </div>
+                ) : null}
+                {jobPayment.remainingBalance > 0 ? (
+                  <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 border border-amber-300 px-3.5 py-1.5 text-xs font-black text-amber-800 shadow-xs">
+                    <AlertCircle size={14} /> Balance due: {money(jobPayment.remainingBalance)}
+                  </div>
+                ) : null}
+                {typeof onSyncPosBilling === "function" && (
+                  <button
+                    type="button"
+                    onClick={() => onSyncPosBilling(job)}
+                    disabled={isSyncingBilling}
+                    title="Check if this Job Order was already billed in POS cashiering"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 text-xs font-bold text-purple-900 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw size={13} className={isSyncingBilling ? "animate-spin" : ""} />
+                    {isSyncingBilling ? "Checking POS..." : "Check / Sync POS Invoice"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           {job.serviceNotes?.includes("[BILLED IN POS") || job.releaseNotes?.includes("Settled and released via POS invoice") ? (
@@ -1431,20 +1448,48 @@ function WorkshopTasksManager({
                 <CheckCircle2 size={15} /> Mark Released &amp; Completed
               </button>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 border border-amber-300 px-4 py-2 text-xs font-black text-amber-800 shrink-0">
-                <AlertCircle size={15} /> Settle remaining balance before release
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
+                  onClick={() => onPayInPos(job)}
+                  type="button"
+                >
+                  <Banknote size={15} /> Settle Remaining Balance in POS Cashiering
+                </button>
+                {typeof onPullOut === "function" && (
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3.5 py-2 text-xs font-bold shadow-xs transition cursor-pointer shrink-0"
+                    disabled={isSaving}
+                    onClick={onPullOut}
+                    type="button"
+                  >
+                    <ArrowRight size={14} /> Released – Client Pull-Out / Unit Unrepairable
+                  </button>
+                )}
+              </div>
             )
           ) : (
-            typeof onPayInPos === "function" && job.status !== "COMPLETED" && (
-              <button
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
-                onClick={() => onPayInPos(job)}
-                type="button"
-              >
-                <Banknote size={15} /> Settle &amp; Release in POS Cashiering
-              </button>
-            )
+            <div className="flex flex-wrap items-center gap-2">
+              {typeof onPayInPos === "function" && job.status !== "COMPLETED" && (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black shadow-xs transition cursor-pointer shrink-0"
+                  onClick={() => onPayInPos(job)}
+                  type="button"
+                >
+                  <Banknote size={15} /> Settle &amp; Release in POS Cashiering
+                </button>
+              )}
+              {typeof onPullOut === "function" && (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3.5 py-2 text-xs font-bold shadow-xs transition cursor-pointer shrink-0"
+                  disabled={isSaving}
+                  onClick={onPullOut}
+                  type="button"
+                >
+                  <ArrowRight size={14} /> Released – Client Pull-Out / Unit Unrepairable
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -1816,6 +1861,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [notice, setNotice] = useState("")
+  const [isSyncingBilling, setIsSyncingBilling] = useState(false)
 
   const [createForm, setCreateForm] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`service_create_draft_${user.id}_${branchId}`) : null
@@ -2145,13 +2191,144 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     return () => window.clearTimeout(timer)
   }, [refresh])
 
+  const checkAndSyncPosBilling = async (targetJob, { silent = false } = {}) => {
+    if (!targetJob?.id || !targetJob?.jobCode) return
+    const currentPayment = getEffectiveJobPaymentState(targetJob)
+    if (currentPayment.isBilledInPos && currentPayment.remainingBalance <= 0) {
+      if (!silent) {
+        setNotice(`Job Order #${targetJob.jobCode} is already fully billed in POS (${currentPayment.posInvoiceCode || "Settled"}).`)
+      }
+      return
+    }
+
+    setIsSyncingBilling(true)
+    try {
+      const searchTarget = targetJob.jobCode.toUpperCase()
+      const branchToQuery = targetJob.branchId || branchId
+
+      const checkSaleMatches = (sale) => {
+        if (!sale || sale.status === "CANCELLED") return false
+        return (sale.items || []).some((item) => {
+          const desc = String(item.description || "").toUpperCase()
+          return desc.includes(searchTarget)
+        })
+      }
+
+      let matchedSales = []
+
+      // 1. Try search query
+      const salesRes = await getSales({
+        branchId: branchToQuery,
+        search: targetJob.jobCode,
+        limit: 25,
+      }).catch(() => null)
+
+      const salesList = Array.isArray(salesRes?.data)
+        ? salesRes.data
+        : Array.isArray(salesRes)
+          ? salesRes
+          : []
+
+      matchedSales = salesList.filter(checkSaleMatches)
+
+      // 2. If no direct search match, scan recent 50 sales for this branch
+      if (matchedSales.length === 0) {
+        const recentRes = await getSales({
+          branchId: branchToQuery,
+          limit: 50,
+        }).catch(() => null)
+
+        const recentList = Array.isArray(recentRes?.data)
+          ? recentRes.data
+          : Array.isArray(recentRes)
+            ? recentRes
+            : []
+
+        matchedSales = recentList.filter(checkSaleMatches)
+      }
+
+      if (matchedSales.length === 0) {
+        if (!silent) {
+          setNotice(`No POS cashiering sales record found matching Job Order #${targetJob.jobCode}.`)
+        }
+        return
+      }
+
+      // Collect all invoices and amounts for this JO from matched sales
+      const newInvoiceTags = []
+      for (const sale of matchedSales) {
+        const matchingLines = (sale.items || []).filter((item) =>
+          String(item.description || "").toUpperCase().includes(searchTarget)
+        )
+        const saleTotalForJo = matchingLines.reduce(
+          (sum, line) => sum + Number(line.unitPrice || 0) * Number(line.quantity || 1),
+          0
+        )
+        const joAmount =
+          saleTotalForJo > 0
+            ? saleTotalForJo
+            : Number(targetJob.finalServiceCharge ?? targetJob.baseServiceCharge ?? targetJob.estimatedServiceCharge ?? 0)
+
+        const tag = `[BILLED IN POS: Invoice ${sale.receiptCode} Amount: ${joAmount}]`
+        newInvoiceTags.push({ tag, receiptCode: sale.receiptCode, amount: joAmount })
+      }
+
+      // Existing tags in notes
+      const existingNotes = targetJob.serviceNotes || ""
+      const existingTags = existingNotes.match(/\[BILLED IN POS:\s*Invoice\s*[^\]]+\]/gi) || []
+
+      const tagsToAdd = newInvoiceTags.filter(
+        (item) => !existingTags.some((ex) => ex.toLowerCase().includes(item.receiptCode.toLowerCase()))
+      )
+
+      if (tagsToAdd.length === 0) {
+        if (!silent) {
+          setNotice(`Job Order #${targetJob.jobCode} POS invoice billing is already up to date.`)
+        }
+        return
+      }
+
+      const cleanNotes = existingNotes
+        .replace(/\[BILLED IN POS:.*?\]/g, "")
+        .trim()
+      const allTags = [...existingTags, ...tagsToAdd.map((t) => t.tag)]
+      const combinedNotes = cleanNotes
+        ? `${cleanNotes}\n\n${allTags.join("\n")}`
+        : allTags.join("\n")
+
+      await updateServiceJobStatus(targetJob.id, {
+        serviceNotes: combinedNotes,
+      })
+
+      const invoiceCodes = tagsToAdd.map((t) => t.receiptCode).join(", ")
+      setNotice(`Synced POS Invoice #${invoiceCodes} for Job Order #${targetJob.jobCode}!`)
+      await Promise.all([reloadSelected(targetJob.id), loadJobs()])
+    } catch (err) {
+      console.warn("Could not sync POS billing:", err)
+      if (!silent) {
+        setErrorMessage("Unable to sync POS cashiering records at this moment.")
+      }
+    } finally {
+      setIsSyncingBilling(false)
+    }
+  }
+
   const openDetail = async (job) => {
     setSelectedJob(job)
     setIsDetailLoading(true)
     setErrorMessage("")
     try {
       const response = await getServiceJobById(job.id)
-      setSelectedJob(response?.data || job)
+      const freshJob = response?.data || job
+      setSelectedJob(freshJob)
+      if (
+        freshJob &&
+        !freshJob.releasedAt &&
+        freshJob.status !== "COMPLETED" &&
+        freshJob.status !== "CANCELLED"
+      ) {
+        checkAndSyncPosBilling(freshJob, { silent: true })
+      }
     } catch (error) {
       setErrorMessage(apiError(error, "Could not load job order details."))
     } finally {
@@ -2595,6 +2772,16 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
   const handleCompleteRelease = async (targetJob) => {
     const job = targetJob || selectedJob
     if (!job || isSaving) return
+
+    // Strict guard: Job orders with remaining balance CANNOT be released as completed (only client pull-out is permitted)
+    const { remainingBalance } = getEffectiveJobPaymentState(job)
+    if (remainingBalance > 0) {
+      setErrorMessage(
+        `Cannot release: Job Order #${job.jobCode} still has an unpaid balance of ₱${remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}. Full payment is required before completing release, unless released as Client Pull-Out / Unit Unrepairable.`
+      )
+      return
+    }
+
     setIsSaving(true)
     setErrorMessage("")
     try {
@@ -2637,10 +2824,8 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     if (!job || isSaving) return
 
     if (job.status === "READY_FOR_RELEASE") {
-      if (
-        job.serviceNotes?.includes("[BILLED IN POS") ||
-        job.releaseNotes?.includes("Settled and released via POS invoice")
-      ) {
+      const { remainingBalance, isBilledInPos } = getEffectiveJobPaymentState(job)
+      if (isBilledInPos && remainingBalance <= 0) {
         await handleCompleteRelease(job)
         return
       }
@@ -4182,12 +4367,14 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                 <WorkshopTasksManager
                   canManage={canUpdateLifecycle}
                   isSaving={isSaving}
+                  isSyncingBilling={isSyncingBilling}
                   job={selectedJob}
                   onCompleteRelease={handleCompleteRelease}
                   onPullOut={() => beginLifecycleAction("CANCELLED")}
                   onPayInPos={sendToPosCashiering}
                   onSaveTasks={handleSaveWorkshopTasks}
                   onStatusChange={handleWorkshopStatusChange}
+                  onSyncPosBilling={checkAndSyncPosBilling}
                   serviceCatalog={serviceCatalog}
                   servicePartsCatalog={servicePartsCatalog}
                   technicians={technicians}
@@ -4346,9 +4533,18 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                             <CheckCircle2 size={15} /> Mark Released &amp; Completed
                           </button>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 border border-amber-300 px-4 py-2 text-xs font-black text-amber-800 shadow-2xs">
-                            <AlertCircle size={15} /> Balance due: {money(selectedJobPayment.remainingBalance)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 border border-amber-300 px-3.5 py-2 text-xs font-black text-amber-800 shadow-2xs">
+                              <AlertCircle size={15} /> Balance due: {money(selectedJobPayment.remainingBalance)}
+                            </span>
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-2xs transition cursor-pointer"
+                              onClick={() => sendToPosCashiering(selectedJob)}
+                              type="button"
+                            >
+                              <Banknote size={15} /> Settle in POS Cashiering
+                            </button>
+                          </div>
                         )
                       ) : (
                         <button
