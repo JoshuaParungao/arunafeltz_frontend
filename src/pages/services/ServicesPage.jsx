@@ -1552,7 +1552,7 @@ function WorkshopTasksManager({
                   onClick={() => onCompleteRelease(job)}
                   type="button"
                 >
-                  <CheckCircle2 size={14} /> Mark Released &amp; Completed
+                  <CheckCircle2 size={14} /> Complete and Release
                 </button>
               )
             ) : (
@@ -2910,6 +2910,16 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     try {
       const finalPrice = Number(job.finalServiceCharge ?? job.baseServiceCharge ?? 0)
       const tasks = extractServiceTasks(job)
+      const parts = extractServiceParts(job)
+      const partsCost = parts.reduce((sum, p) => sum + (Number(p.unitCost || 0) * Number(p.quantity || 1)), 0)
+      const partsMarkup = parts.reduce((sum, p) => sum + (Number(p.markupAmount || 0) * Number(p.quantity || 1)), 0)
+      const partsSum = parts.reduce((sum, p) => sum + (Number(p.unitPrice || 0) * Number(p.quantity || 1)), 0)
+
+      const tasksSum = tasks.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+      const serviceRate = tasksSum > 0 ? tasksSum : Math.max(0, finalPrice - partsSum)
+
+      const predefinedTechFee = tasks.reduce((sum, t) => sum + Number(t.techFee || 0), 0)
+      let technicianFee = predefinedTechFee
       const taskTech = tasks.find((t) => t.technicianId)
       const primaryTechId =
         job.serviceDoneById ||
@@ -2919,6 +2929,14 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
         technicians[0]?.id ||
         user?.id
 
+      if (technicianFee === 0 && serviceRate > 0) {
+        const tech = technicians.find((t) => t.id === primaryTechId) || job.serviceDoneBy || job.assignedTechnician
+        const techRate = getTechnicianRatePercent(tech, job.repairType)
+        if (techRate > 0) {
+          technicianFee = Number(((serviceRate * techRate) / 100).toFixed(2))
+        }
+      }
+
       const invoiceMatch = job.serviceNotes?.match(/\[BILLED IN POS:\s*Invoice\s*([^\]]+)\]/)?.[1]
       const releaseNotes = invoiceMatch
         ? `Settled in POS cashiering (Invoice #${invoiceMatch}) & released to customer.`
@@ -2927,9 +2945,13 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
       await releaseServiceJob(job.id, {
         releaseOutcome: "SERVICE_COMPLETED",
         repairType: job.repairType || "ORDINARY_REPAIR",
-        baseServiceCharge: finalPrice,
+        baseServiceCharge: partsCost + serviceRate > 0 ? partsCost + serviceRate : finalPrice,
         finalServiceCharge: finalPrice,
         markupPercent: 0,
+        serviceRate,
+        partsCost,
+        partsMarkup,
+        technicianFee,
         ...(primaryTechId ? { serviceDoneById: primaryTechId } : {}),
         releaseNotes,
       })
@@ -4693,14 +4715,14 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   ) : null}
                   {canActOnSelected && selectedIsActive ? (
                     selectedJob?.status === "READY_FOR_RELEASE" ? (
-                      selectedJobPayment.remainingBalance <= 0 && (selectedJobPayment.isBilledInPos || selectedJob?.serviceNotes?.includes("[BILLED IN POS") || selectedJob?.releaseNotes?.includes("Settled and released via POS invoice")) ? (
+                      selectedJobPayment.remainingBalance <= 0 ? (
                         <button
                           className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition cursor-pointer"
                           disabled={isSaving}
                           onClick={() => handleCompleteRelease(selectedJob)}
                           type="button"
                         >
-                          <CheckCircle2 size={14} /> Mark Released &amp; Completed
+                          <CheckCircle2 size={14} /> Complete and Release
                         </button>
                       ) : (
                         <div className="flex items-center gap-2">

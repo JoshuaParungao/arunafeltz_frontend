@@ -4746,61 +4746,33 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
             const isAlreadyReleased = Boolean(currentJob?.releasedAt || currentJob?.status === "COMPLETED")
 
-            if (isAlreadyReleased || remainingBalanceAfterSale > 0) {
+            // Do NOT auto-release the Job Order on POS cashiering checkout.
+            // Paying/billing in POS records the payment and sets the status to READY_FOR_RELEASE,
+            // but the physical device release must be explicitly confirmed via "Complete and Release" in Services.
+            await updateServiceJobStatus(joId, {
+              status: isAlreadyReleased ? undefined : "READY_FOR_RELEASE",
+              repairType,
+              baseServiceCharge: partsCost + serviceRate > 0 ? partsCost + serviceRate : finalCharge,
+              finalServiceCharge: finalCharge,
+              serviceRate,
+              partsCost,
+              partsMarkup,
+              technicianFee,
+              ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
+              serviceNotes: combinedNotes,
+            }).catch(async (updateErr) => {
+              console.warn(`Status update for Job Order ${joId} with full payload failed, falling back:`, updateErr)
               await updateServiceJobStatus(joId, {
+                status: isAlreadyReleased ? undefined : "READY_FOR_RELEASE",
                 repairType,
                 ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
                 serviceNotes: combinedNotes,
-              }).catch((err) => {
-                console.warn(`Could not update service notes for Job Order ${joId}:`, err)
+              }).catch((fallbackErr) => {
+                console.warn(`Fallback status update for Job Order ${joId} failed:`, fallbackErr)
               })
-            } else {
-              const releasePayload = {
-                releaseOutcome: "SERVICE_COMPLETED",
-                repairType,
-                baseServiceCharge: partsCost + serviceRate > 0 ? partsCost + serviceRate : finalCharge,
-                finalServiceCharge: finalCharge,
-                markupPercent: 0,
-                serviceRate,
-                partsCost,
-                partsMarkup,
-                technicianFee,
-                ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
-                releaseNotes: `Settled and released via POS invoice ${sale.receiptCode}`,
-                serviceNotes: combinedNotes,
-              }
-
-              const releaseResult = await releaseServiceJob(joId, releasePayload).catch((err) => {
-                console.warn(`Primary auto-release failed for Job Order ${joId}:`, err)
-                return null
-              })
-
-              if (!releaseResult) {
-                // Secondary fallback attempt with branch technician or current user
-                const fallbackDoneBy =
-                  effectiveDoneBy ||
-                  branchTech?.id ||
-                  currentJob?.assignedTechnicianId ||
-                  currentJob?.serviceDoneById ||
-                  user?.id ||
-                  undefined
-
-                await releaseServiceJob(joId, {
-                  ...releasePayload,
-                  ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
-                }).catch(async (fallbackErr) => {
-                  console.warn(`Fallback auto-release failed for Job Order ${joId}:`, fallbackErr)
-                  // If release endpoint still failed, save the billing note and mark ready for immediate claim
-                  await updateServiceJobStatus(joId, {
-                    repairType,
-                    ...(fallbackDoneBy ? { serviceDoneById: fallbackDoneBy } : {}),
-                    serviceNotes: combinedNotes,
-                  }).catch(() => null)
-                })
-              }
-            }
+            })
           } catch (releaseErr) {
-            console.warn(`Could not auto-release Job Order ${joId}:`, releaseErr)
+            console.warn(`Could not update Job Order ${joId} upon POS sale:`, releaseErr)
           }
         }
       }
