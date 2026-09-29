@@ -3801,6 +3801,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           localId: `jo-${job.id}-task-${task.id || idx}-${Date.now()}-${idx}`,
           type: "SERVICE",
           isJobOrder: true,
+          isJobOrderService: true,
+          taskTechFee: task.techFee,
           jobOrderId: job.id,
           jobOrderCode: job.jobCode,
           description: `[JO #${job.jobCode}] ${task.title || "Service"} - ${job.deviceDescription || job.unitType || "Unit"}${job.serialNumber ? ` (S/N: ${job.serialNumber})` : ""}${staffName ? ` [Done by: ${staffName}]` : ""}`,
@@ -3826,6 +3828,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         localId: `jo-${job.id}-${Date.now()}`,
         type: "SERVICE",
         isJobOrder: true,
+        isJobOrderService: true,
         jobOrderId: job.id,
         jobOrderCode: job.jobCode,
         description: `[JO #${job.jobCode}] ${job.jobTitle || job.repairType?.replace(/_/g, " ") || "Service"} - ${job.deviceDescription || job.unitType || "Unit"}${job.serialNumber ? ` (S/N: ${job.serialNumber})` : ""}${assignedStaff?.fullName ? ` [Done by: ${assignedStaff.fullName}]` : ""}`,
@@ -3847,6 +3850,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           localId: `jo-${job.id}-part-${part.id || pIdx}-${Date.now()}-${pIdx}`,
           type: "SERVICE",
           isJobOrder: true,
+          isJobOrderPart: true,
+          partCost: Number(part.unitCost || 0),
+          partMarkup: Number(part.markupAmount || 0),
           jobOrderId: job.id,
           jobOrderCode: job.jobCode,
           description: `[JO #${job.jobCode} Part] ${part.partName || "Replacement Part"} (x${part.quantity || 1})`,
@@ -4612,6 +4618,64 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               user?.id ||
               undefined
 
+            const repairType = currentJob?.repairType || "ORDINARY_REPAIR"
+
+            // Extract stored parts from job notes envelope if any
+            const storedParts = extractServiceParts(currentJob)
+            const storedPartsCost = storedParts.reduce((s, p) => s + (Number(p.unitCost || 0) * Number(p.quantity || 1)), 0)
+            const storedPartsMarkup = storedParts.reduce((s, p) => s + (Number(p.markupAmount || 0) * Number(p.quantity || 1)), 0)
+
+            const partLines = joLines.filter((l) => l.isJobOrderPart || l.localId?.includes("-part-") || l.description?.includes(" Part]"))
+            const serviceLines = joLines.filter((l) => !partLines.includes(l))
+
+            let partsCost = 0
+            let partsMarkup = 0
+            let serviceRate = 0
+
+            if (partLines.length > 0) {
+              partLines.forEach((l) => {
+                const qty = Number(l.quantity || 1)
+                const unitPrice = Number(l.unitPrice ?? l.baseUnitPrice ?? 0)
+                const cost = Number(l.partCost ?? 0) * qty
+                const markup = Number(l.partMarkup ?? Math.max(0, unitPrice * qty - cost))
+                partsCost += cost
+                partsMarkup += markup
+              })
+            } else {
+              partsCost = storedPartsCost
+              partsMarkup = storedPartsMarkup
+            }
+
+            if (serviceLines.length > 0) {
+              serviceLines.forEach((l) => {
+                const qty = Number(l.quantity || 1)
+                const unitPrice = Number(l.unitPrice ?? l.baseUnitPrice ?? 0)
+                serviceRate += (unitPrice * qty)
+              })
+              if (partLines.length === 0 && (partsCost > 0 || partsMarkup > 0)) {
+                serviceRate = Math.max(0, serviceRate - partsCost - partsMarkup)
+              }
+            } else {
+              const totalAmount = joLines.reduce((sum, l) => sum + Number(l.unitPrice ?? l.baseUnitPrice ?? 0) * Number(l.quantity || 1), 0)
+              serviceRate = Math.max(0, totalAmount - partsCost - partsMarkup)
+            }
+
+            // Find tech and resolve tech rate %
+            const techStaff = serviceStaffList.find((s) => s.id === effectiveDoneBy) || currentJob?.serviceDoneBy || currentJob?.assignedTechnician
+            const techPercent = repairType === "BOARD_LEVEL_REPAIR"
+              ? (techStaff?.boardRepairRatePercent !== null && techStaff?.boardRepairRatePercent !== undefined ? Number(techStaff.boardRepairRatePercent) : 0)
+              : (techStaff?.ordinaryRepairRatePercent !== null && techStaff?.ordinaryRepairRatePercent !== undefined ? Number(techStaff.ordinaryRepairRatePercent) : 0)
+
+            let technicianFee = 0
+            if (techPercent > 0 && serviceRate > 0) {
+              technicianFee = Number(((serviceRate * techPercent) / 100).toFixed(2))
+            } else {
+              const predefinedTechFee = tasks.reduce((sum, t) => sum + Number(t.techFee || 0), 0)
+              if (predefinedTechFee > 0) {
+                technicianFee = predefinedTechFee
+              }
+            }
+
             const totalJoAmount = joLines.reduce(
               (sum, l) => sum + Number(l.unitPrice || 0) * Number(l.quantity || 1),
               0,
@@ -4623,11 +4687,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     currentJob?.finalServiceCharge ??
                     currentJob?.baseServiceCharge ??
                     currentJob?.estimatedServiceCharge ??
-                    0,
+                    (partsCost + partsMarkup + serviceRate),
                   )
             const joLineAmount = totalJoAmount > 0 ? totalJoAmount : finalCharge
-
-            const repairType = currentJob?.repairType || "ORDINARY_REPAIR"
 
             // 1. Ensure Job Order is in a valid state for release (IN_PROGRESS / READY_FOR_RELEASE)
             if (currentJob && currentJob.status === "PENDING") {
@@ -4696,9 +4758,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               const releasePayload = {
                 releaseOutcome: "SERVICE_COMPLETED",
                 repairType,
-                baseServiceCharge: finalCharge,
+                baseServiceCharge: partsCost + serviceRate > 0 ? partsCost + serviceRate : finalCharge,
                 finalServiceCharge: finalCharge,
                 markupPercent: 0,
+                serviceRate,
+                partsCost,
+                partsMarkup,
+                technicianFee,
                 ...(effectiveDoneBy ? { serviceDoneById: effectiveDoneBy } : {}),
                 releaseNotes: `Settled and released via POS invoice ${sale.receiptCode}`,
                 serviceNotes: combinedNotes,

@@ -1153,11 +1153,11 @@ export default function EmployeesPage({ selectedBranch, user }) {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Ordinary Repair Commission (Labor / Repair Cost Pool)</p>
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">Repair Pool</span>
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Technician Labor Rate % — Standard / Ordinary Repair</p>
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">Standard Labor %</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Komisyon sa karaniwang repairs, formatting, at cleaning. Kinakaltas mula sa Repair Cost Pool % (ang matitira ay Company Share).
+                          Automatikong kukunin ang fee ni technician mula sa Service / Labor Rate (hindi kasama ang parts cost at markup). Ang matitira sa service charge ay mananatiling Shop Labor Profit.
                         </p>
                       </div>
                     </div>
@@ -1176,7 +1176,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   {incentiveForm.ordinaryRepairEnabled ? (
                     <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 space-y-2">
                       <div className="flex flex-wrap items-center gap-3">
-                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Commission Rate (%):</label>
+                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Technician Cut (%):</label>
                         <div className="relative max-w-[140px]">
                           <input
                             type="number"
@@ -1190,10 +1190,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           />
                           <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                         </div>
-                        <span className="text-[11px] text-slate-500 font-medium">mula sa Ordinary Repair Cost Pool</span>
+                        <span className="text-[11px] text-slate-500 font-medium">mula sa Service / Labor Rate (Labor Only)</span>
                       </div>
                       <p className="text-[11px] text-emerald-700 font-semibold">
-                        ✓ Kukuhanin sa Ordinary Repair Cost Pool; ang matitira ay mananatili bilang Company Share.
+                        ✓ Kukuhanin lamang sa Service / Labor Rate; ang Parts Cost at Shop Markup ay 100% buo para sa shop.
                       </p>
                     </div>
                   ) : null}
@@ -1208,11 +1208,11 @@ export default function EmployeesPage({ selectedBranch, user }) {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Board Level Repair Commission (Micro-soldering / Chip Pool)</p>
-                          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-black text-purple-700">Board Pool</span>
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Technician Labor Rate % — Board-Level / Advanced Repair</p>
+                          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-black text-purple-700">Board-Level Labor %</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Komisyon sa micro-soldering, motherboard level, at chip repair. Kinakaltas mula sa Board Level Repair Cost Pool % (ang matitira ay Company Share).
+                          Automatikong kukunin ang fee ni technician mula sa Service / Labor Rate para sa micro-soldering at specialized repair (hindi kasama ang parts cost at markup).
                         </p>
                       </div>
                     </div>
@@ -1231,7 +1231,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   {incentiveForm.boardRepairEnabled ? (
                     <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 space-y-2">
                       <div className="flex flex-wrap items-center gap-3">
-                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Commission Rate (%):</label>
+                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Technician Cut (%):</label>
                         <div className="relative max-w-[140px]">
                           <input
                             type="number"
@@ -1245,10 +1245,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           />
                           <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                         </div>
-                        <span className="text-[11px] text-slate-500 font-medium">mula sa Board Level Repair Cost Pool</span>
+                        <span className="text-[11px] text-slate-500 font-medium">mula sa Service / Labor Rate (Labor Only)</span>
                       </div>
                       <p className="text-[11px] text-emerald-700 font-semibold">
-                        ✓ Kukuhanin sa Board Level Repair Cost Pool; ang matitira ay mananatili bilang Company Share.
+                        ✓ Kukuhanin lamang sa Service / Labor Rate; ang Parts Cost at Shop Markup ay 100% buo para sa shop.
                       </p>
                     </div>
                   ) : null}

@@ -110,6 +110,7 @@ const EMPTY_CREATE = {
   baseServiceCharge: "",
   markupPercent: "",
   pricingMode: "STANDARD",
+  serviceRate: "",
   technicianFee: "",
   partsCost: "",
   partsMarkup: "",
@@ -688,6 +689,18 @@ function StaffCombobox({
   )
 }
 
+function getTechnicianRatePercent(technician, repairType) {
+  if (!technician) return 0
+  if (repairType === "BOARD_LEVEL_REPAIR") {
+    return technician.boardRepairEnabled && technician.boardRepairRatePercent !== null
+      ? Number(technician.boardRepairRatePercent)
+      : 0
+  }
+  return technician.ordinaryRepairEnabled && technician.ordinaryRepairRatePercent !== null
+    ? Number(technician.ordinaryRepairRatePercent)
+    : 0
+}
+
 function ServicePricingFields({
   baseServiceCharge,
   markupPercent,
@@ -696,17 +709,27 @@ function ServicePricingFields({
   isOptional = false,
   pricingMode = "STANDARD",
   onPricingModeChange,
+  serviceRate = "",
   technicianFee = "",
   partsCost = "",
   partsMarkup = "",
   servicePartId = "",
+  partDescription = "",
+  onServiceRateChange,
   onTechnicianFeeChange,
   onPartsCostChange,
   onPartsMarkupChange,
   onServicePartChange,
   servicePartsCatalog = [],
+  assignedTechnician = null,
+  repairType = "ORDINARY_REPAIR",
 }) {
   const isPartsMode = pricingMode === "PARTS_BREAKDOWN"
+
+  const techRatePercent = useMemo(
+    () => getTechnicianRatePercent(assignedTechnician, repairType),
+    [assignedTechnician, repairType]
+  )
 
   // Standard calculations
   const baseIsValid = isValidBaseServiceCharge(baseServiceCharge)
@@ -718,17 +741,28 @@ function ServicePricingFields({
   const numericBase = baseIsValid ? Number(baseServiceCharge || 0) : 0
 
   // Parts breakdown calculations
+  const serviceRateNum = Number(serviceRate || 0)
   const techFeeNum = Number(technicianFee || 0)
   const partsCostNum = Number(partsCost || 0)
   const partsMarkupNum = Number(partsMarkup || 0)
   const partsSrpNum = partsCostNum + partsMarkupNum
-  const partsModeTotal = techFeeNum + partsCostNum + partsMarkupNum
+  const partsModeTotal = serviceRateNum + partsCostNum + partsMarkupNum
 
   const finalCustomerPrice = isPartsMode ? partsModeTotal : standardFinalPrice
   const isUndetermined = !isPartsMode && numericBase === 0
 
+  const shopLaborProfit = Math.max(0, serviceRateNum - techFeeNum)
+  const totalShopProfit = shopLaborProfit + partsMarkupNum
+
+  const handleApplyTechRate = () => {
+    if (techRatePercent > 0 && serviceRateNum > 0 && onTechnicianFeeChange) {
+      const calculated = Number(((serviceRateNum * techRatePercent) / 100).toFixed(2))
+      onTechnicianFeeChange(String(calculated))
+    }
+  }
+
   return (
-    <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
+    <div className="space-y-3.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
       {/* Mode Switcher */}
       {onPricingModeChange && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
@@ -763,8 +797,8 @@ function ServicePricingFields({
       )}
 
       {isPartsMode ? (
-        /* 3-Tier Parts Breakdown Mode (LCD Replacement, IC chips, etc.) */
-        <div className="space-y-3">
+        /* 4-Tier Parts & Labor Breakdown Mode (LCD Replacement, IC chips, etc.) */
+        <div className="space-y-3.5">
           {/* Part Selection from Catalog */}
           {servicePartsCatalog.length > 0 && onServicePartChange && (
             <Field label="Select from Service Parts Catalog (Optional auto-fill)">
@@ -791,10 +825,42 @@ function ServicePricingFields({
             </Field>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="👨‍🔧 Technician Labor Fee (₱) *">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="🛠️ Service / Labor Rate (₱)">
               <input
-                className={`${FIELD_CLASS} font-mono`}
+                className={`${FIELD_CLASS} font-mono font-bold text-slate-900`}
+                min="0"
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (onServiceRateChange) onServiceRateChange(val)
+                }}
+                placeholder="0.00 (Diagnosis / Checking)"
+                step="0.01"
+                type="number"
+                value={serviceRate}
+              />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Customer labor fee (₱0 if for checkup)</span>
+            </Field>
+
+            <Field
+              label={
+                <span className="flex items-center justify-between">
+                  <span>👨‍🔧 Tech Labor Fee (₱)</span>
+                  {techRatePercent > 0 ? (
+                    <button
+                      className="text-[9.5px] font-black uppercase text-blue-700 bg-blue-100 hover:bg-blue-200 px-1.5 py-0.5 rounded transition cursor-pointer"
+                      onClick={handleApplyTechRate}
+                      title="Click to recalculate based on technician's rate"
+                      type="button"
+                    >
+                      ⚡ {techRatePercent}% Cut
+                    </button>
+                  ) : null}
+                </span>
+              }
+            >
+              <input
+                className={`${FIELD_CLASS} font-mono font-bold text-blue-900 bg-blue-50/30 border-blue-200 focus:bg-white`}
                 min="0"
                 onChange={(e) => onTechnicianFeeChange && onTechnicianFeeChange(e.target.value)}
                 placeholder="0.00"
@@ -802,10 +868,12 @@ function ServicePricingFields({
                 type="number"
                 value={technicianFee}
               />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Technician labor compensation</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                {techRatePercent > 0 ? `Auto: ${techRatePercent}% of Labor · Editable` : "Technician labor cut"}
+              </span>
             </Field>
 
-            <Field label="📦 Part Cost (₱) *">
+            <Field label="📦 Replacement Part Cost (₱)">
               <input
                 className={`${FIELD_CLASS} font-mono text-amber-900 font-bold`}
                 min="0"
@@ -815,10 +883,10 @@ function ServicePricingFields({
                 type="number"
                 value={partsCost}
               />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Purchase cost of the replacement part</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Shop puhunan (no tech cut)</span>
             </Field>
 
-            <Field label="🏢 Shop Markup (₱)">
+            <Field label="🏢 Shop Part Markup (₱)">
               <input
                 className={`${FIELD_CLASS} font-mono text-emerald-900 font-bold`}
                 min="0"
@@ -828,47 +896,67 @@ function ServicePricingFields({
                 type="number"
                 value={partsMarkup}
               />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Shop profit margin on the part</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Shop margin on part (no tech cut)</span>
             </Field>
           </div>
 
           {/* Internal Transparency Box */}
-          <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-2 text-xs">
-            <div className="flex items-center justify-between border-b border-amber-200/70 pb-1.5">
-              <span className="font-black uppercase tracking-wider text-amber-900 text-[10px] flex items-center gap-1">
-                🔒 Shop Internal Breakdown (Hidden from customer receipt):
+          <div className="rounded-2xl border border-amber-200/90 bg-amber-50/70 p-3.5 space-y-2.5 text-xs shadow-2xs">
+            <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+              <span className="font-black uppercase tracking-wider text-amber-900 text-[10px] flex items-center gap-1.5">
+                🔒 Shop Internal Profit &amp; Cost Breakdown (Hidden from customer receipt):
               </span>
-              <span className="text-[10px] font-bold text-slate-500">
+              <span className="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-amber-200">
                 Part SRP: {money(partsSrpNum)}
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
-              <div className="rounded-lg bg-white p-2 border border-amber-200/80">
-                <p className="text-[10px] font-bold text-amber-800">Part Cost</p>
-                <p className="mt-0.5 font-mono font-black text-amber-950">{money(partsCostNum)}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px]">
+              <div className="rounded-xl bg-white p-2.5 border border-amber-200 shadow-2xs">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Part Wholesale Cost</p>
+                <p className="mt-1 font-mono font-black text-sm text-amber-950">{money(partsCostNum)}</p>
+                <p className="text-[9.5px] text-slate-400 mt-0.5">Shop puhunan</p>
               </div>
 
-              <div className="rounded-lg bg-white p-2 border border-blue-200/80">
-                <p className="text-[10px] font-bold text-blue-800">Technician Fee</p>
-                <p className="mt-0.5 font-mono font-black text-blue-950">{money(techFeeNum)}</p>
+              <div className="rounded-xl bg-white p-2.5 border border-emerald-200 shadow-2xs">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Part Shop Markup</p>
+                <p className="mt-1 font-mono font-black text-sm text-emerald-950">+{money(partsMarkupNum)}</p>
+                <p className="text-[9.5px] text-emerald-600 mt-0.5">100% shop profit</p>
               </div>
 
-              <div className="rounded-lg bg-white p-2 border border-emerald-200/80">
-                <p className="text-[10px] font-bold text-emerald-800">Shop Profit</p>
-                <p className="mt-0.5 font-mono font-black text-emerald-950">{money(partsMarkupNum)}</p>
+              <div className="rounded-xl bg-white p-2.5 border border-blue-200 shadow-2xs">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-800">
+                  Tech Fee {techRatePercent > 0 ? `(${techRatePercent}%)` : ""}
+                </p>
+                <p className="mt-1 font-mono font-black text-sm text-blue-950">{money(techFeeNum)}</p>
+                <p className="text-[9.5px] text-blue-600 mt-0.5">Payout from labor only</p>
+              </div>
+
+              <div className="rounded-xl bg-white p-2.5 border border-indigo-200 shadow-2xs">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Shop Net Labor</p>
+                <p className="mt-1 font-mono font-black text-sm text-indigo-950">+{money(shopLaborProfit)}</p>
+                <p className="text-[9.5px] text-indigo-600 mt-0.5">Labor minus tech fee</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-amber-200/70">
-              <span className="font-bold text-slate-700">Total Customer Price:</span>
-              <span className="font-mono font-black text-base text-[var(--color-maroon)]">
-                {money(finalCustomerPrice)}
-              </span>
+            <div className="flex flex-wrap items-center justify-between pt-2 border-t border-amber-200/80 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-700">Total Net Shop Earnings:</span>
+                <span className="font-mono font-black text-emerald-800 text-sm bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  {money(totalShopProfit)}
+                </span>
+                <span className="text-[10px] text-slate-400">({money(shopLaborProfit)} labor + {money(partsMarkupNum)} parts)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-700">Total Charged to Customer:</span>
+                <span className="font-mono font-black text-base text-[var(--color-maroon)]">
+                  {money(finalCustomerPrice)}
+                </span>
+              </div>
             </div>
 
-            <p className="text-[10px] text-slate-500 italic">
-              ℹ️ Customer View: Receipts and claim stubs display only the consolidated total of <strong>{money(finalCustomerPrice)}</strong> without internal cost breakdown.
+            <p className="text-[10px] text-slate-500 italic bg-white/70 p-2 rounded-lg border border-amber-200/60">
+              ℹ️ <strong>Customer Receipt View:</strong> Displays only the <strong>Service Charge ({money(serviceRateNum)})</strong> and <strong>Replacement Part ({money(partsSrpNum)})</strong> for a total of <strong>{money(finalCustomerPrice)}</strong>. The technician cut ({money(techFeeNum)}) and part puhunan cost ({money(partsCostNum)}) are strictly private shop internals.
             </p>
           </div>
         </div>
@@ -903,6 +991,21 @@ function ServicePricingFields({
           {!markupIsValid ? (
             <p className="text-xs font-bold text-rose-500">Markup must be at least 0% and less than 100%.</p>
           ) : null}
+
+          {numericBase > 0 && techRatePercent > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-blue-50/70 border border-blue-200/80 px-3.5 py-2 text-xs shadow-2xs">
+              <div className="flex items-center gap-1.5 text-blue-900">
+                <span className="font-bold">👨‍🔧 Assigned Tech Cut ({techRatePercent}%):</span>
+                <span className="font-mono text-blue-950 font-black">{money((numericBase * techRatePercent) / 100)}</span>
+                <span className="text-[10px] text-blue-600">({repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"})</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-emerald-900">
+                <span className="font-bold">🏢 Shop Labor Profit:</span>
+                <span className="font-mono text-emerald-950 font-black">+{money(numericBase - (numericBase * techRatePercent) / 100)}</span>
+              </div>
+            </div>
+          )}
+
           <div className="grid gap-2 text-xs sm:grid-cols-3">
             <div><p className="font-bold text-[var(--color-muted)]">Base</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(numericBase)}</p></div>
             <div><p className="font-bold text-[var(--color-muted)]">Markup amount</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(Math.max(finalCustomerPrice - numericBase, 0))}</p></div>
@@ -2360,12 +2463,13 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     }
 
     const isPartsMode = createForm.pricingMode === "PARTS_BREAKDOWN"
+    const serviceRate = Number(createForm.serviceRate || 0)
     const techFee = Number(createForm.technicianFee || 0)
     const partsCost = Number(createForm.partsCost || 0)
     const partsMarkup = Number(createForm.partsMarkup || 0)
-    const partsTotalCharge = techFee + partsCost + partsMarkup
+    const partsTotalCharge = serviceRate + partsCost + partsMarkup
 
-    const baseServiceCharge = isPartsMode ? partsTotalCharge : Number(createForm.baseServiceCharge || 0)
+    const baseServiceCharge = isPartsMode ? (serviceRate + partsCost) : Number(createForm.baseServiceCharge || 0)
     const markupPercent = isPartsMode ? 0 : normalizedMarkup(createForm.markupPercent)
     const finalServiceCharge = isPartsMode ? partsTotalCharge : getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
     
@@ -2449,10 +2553,41 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
           createForm.problemDescription ? `Notes: ${createForm.problemDescription}` : "",
         ].filter(Boolean).join(" ")
 
+    const partsItems = isPartsMode && (partsCost > 0 || partsMarkup > 0)
+      ? [
+          {
+            id: createForm.servicePartId || `part-${Date.now()}`,
+            partName: createForm.partDescription?.trim() || "Replacement Part",
+            unitCost: partsCost,
+            markupAmount: partsMarkup,
+            unitPrice: partsCost + partsMarkup,
+            quantity: 1,
+            warrantyDuration: "REPLACEMENT PART",
+          },
+        ]
+      : []
+
+    const taskItems = isPartsMode
+      ? [
+          {
+            id: `task-${Date.now()}`,
+            title: createForm.jobTitle.trim() || "Service Labor",
+            amount: serviceRate,
+            technicianId: createForm.assignedTechnicianId,
+            technicianName: selectedAssignee?.fullName,
+            techFee: techFee,
+            warrantyDays: configuredWarrantyDays,
+            warrantyDuration: configuredWarrantyDuration,
+          },
+        ]
+      : []
+
     // Serialize intake record into serviceNotes with structured header
     const structuredNotes = serializeStructuredNotes({
       intakeRecord,
       backjobRecord,
+      tasks: taskItems,
+      parts: partsItems,
       freeNotes: createForm.serviceNotes.trim(),
     })
 
@@ -2489,9 +2624,10 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
           backjobReason: createForm.backjobReason.trim() || undefined,
         } : {}),
         ...(isPartsMode ? {
+          serviceRate,
           technicianFee: techFee,
-          partsCost: partsCost,
-          partsMarkup: partsMarkup,
+          partsCost,
+          partsMarkup,
           servicePartId: createForm.servicePartId || undefined,
           partDescription: createForm.partDescription?.trim() || undefined,
         } : {}),
@@ -3379,10 +3515,19 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                     className={FIELD_CLASS}
                     onChange={(event) => {
                       const repairType = event.target.value
-                      setCreateForm((form) => ({
-                        ...form,
-                        repairType,
-                      }))
+                      setCreateForm((form) => {
+                        const selectedTech = technicians.find((t) => t.id === form.assignedTechnicianId)
+                        const techRate = getTechnicianRatePercent(selectedTech, repairType)
+                        const sRate = Number(form.serviceRate || 0)
+                        const newTechFee = techRate > 0 && sRate > 0
+                          ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                          : (sRate === 0 ? "0" : form.technicianFee)
+                        return {
+                          ...form,
+                          repairType,
+                          technicianFee: newTechFee,
+                        }
+                      })
                     }}
                     required
                     value={createForm.repairType}
@@ -3397,10 +3542,19 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                 <StaffCombobox
                   label="Assigned Technician / Staff *"
                   onChange={(id) =>
-                    setCreateForm((form) => ({
-                      ...form,
-                      assignedTechnicianId: id,
-                    }))
+                    setCreateForm((form) => {
+                      const selectedTech = technicians.find((t) => t.id === id)
+                      const techRate = getTechnicianRatePercent(selectedTech, form.repairType)
+                      const sRate = Number(form.serviceRate || 0)
+                      const newTechFee = techRate > 0 && sRate > 0
+                        ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                        : (sRate === 0 ? "0" : form.technicianFee)
+                      return {
+                        ...form,
+                        assignedTechnicianId: id,
+                        technicianFee: newTechFee,
+                      }
+                    })
                   }
                   options={createTechnicianOptions}
                   placeholder="Type 1 letter to search technician / staff..."
@@ -4033,6 +4187,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
               <div className="space-y-4 rounded-2xl border border-[var(--color-border)] p-4">
                 <p className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Pricing & Charges</p>
                 <ServicePricingFields
+                  assignedTechnician={technicians.find((t) => t.id === createForm.assignedTechnicianId)}
                   baseServiceCharge={createForm.baseServiceCharge}
                   isOptional={true}
                   markupPercent={createForm.markupPercent}
@@ -4040,10 +4195,9 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   onMarkupChange={(value) => setCreateForm((form) => ({ ...form, markupPercent: value }))}
                   onPartsCostChange={(value) => {
                     setCreateForm((form) => {
-                      const tech = Number(form.technicianFee || 0)
                       const cost = Number(value || 0)
-                      const markup = Number(form.partsMarkup || 0)
-                      const total = tech + cost + markup
+                      const serviceRate = Number(form.serviceRate || 0)
+                      const total = cost + serviceRate
                       return {
                         ...form,
                         partsCost: value,
@@ -4052,17 +4206,10 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                     })
                   }}
                   onPartsMarkupChange={(value) => {
-                    setCreateForm((form) => {
-                      const tech = Number(form.technicianFee || 0)
-                      const cost = Number(form.partsCost || 0)
-                      const markup = Number(value || 0)
-                      const total = tech + cost + markup
-                      return {
-                        ...form,
-                        partsMarkup: value,
-                        baseServiceCharge: total > 0 ? String(total) : "",
-                      }
-                    })
+                    setCreateForm((form) => ({
+                      ...form,
+                      partsMarkup: value,
+                    }))
                   }}
                   onPricingModeChange={(mode) => setCreateForm((form) => ({ ...form, pricingMode: mode }))}
                   onServicePartChange={(part) => {
@@ -4075,10 +4222,10 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       return
                     }
                     setCreateForm((form) => {
-                      const tech = Number(form.technicianFee || 0)
                       const cost = Number(part.costPrice || 0)
                       const markup = Number(part.markupAmount || 0)
-                      const total = tech + cost + markup
+                      const serviceRate = Number(form.serviceRate || 0)
+                      const total = cost + serviceRate
                       return {
                         ...form,
                         servicePartId: part.id,
@@ -4089,25 +4236,39 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       }
                     })
                   }}
-                  onTechnicianFeeChange={(value) => {
+                  onServiceRateChange={(value) => {
                     setCreateForm((form) => {
-                      const tech = Number(value || 0)
+                      const sRate = Number(value || 0)
                       const cost = Number(form.partsCost || 0)
-                      const markup = Number(form.partsMarkup || 0)
-                      const total = tech + cost + markup
+                      const total = cost + sRate
+                      const tech = technicians.find((t) => t.id === form.assignedTechnicianId)
+                      const techRate = getTechnicianRatePercent(tech, form.repairType)
+                      const autoTechFee = techRate > 0 && sRate > 0
+                        ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                        : (sRate === 0 ? "0" : form.technicianFee)
                       return {
                         ...form,
-                        technicianFee: value,
+                        serviceRate: value,
+                        technicianFee: autoTechFee,
                         baseServiceCharge: total > 0 ? String(total) : "",
                       }
                     })
+                  }}
+                  onTechnicianFeeChange={(value) => {
+                    setCreateForm((form) => ({
+                      ...form,
+                      technicianFee: value,
+                    }))
                   }}
                   partDescription={createForm.partDescription}
                   partsCost={createForm.partsCost}
                   partsMarkup={createForm.partsMarkup}
                   pricingMode={createForm.pricingMode}
+                  repairType={createForm.repairType}
                   servicePartId={createForm.servicePartId}
                   servicePartsCatalog={servicePartsCatalog}
+                  serviceRate={createForm.serviceRate}
+                  technicianFee={createForm.technicianFee}
                 />
                 <Field label="Additional internal service notes"><textarea className={FIELD_CLASS} maxLength="2000" onChange={(event) => setCreateForm((form) => ({ ...form, serviceNotes: event.target.value }))} placeholder="Internal remarks not printed on customer receipt..." rows="2" value={createForm.serviceNotes} /></Field>
               </div>

@@ -468,3 +468,15 @@ function extractOtherText(text = "") {
   if (!text) return ""
   return text
 }
+
+export function getTechnicianRatePercent(technician, repairType) {
+  if (!technician) return 0
+  if (repairType === "BOARD_LEVEL_REPAIR") {
+    return (technician.boardRepairEnabled !== false && technician.boardRepairRatePercent !== null && technician.boardRepairRatePercent !== undefined)
+      ? Number(technician.boardRepairRatePercent)
+      : 0
+  }
+  return (technician.ordinaryRepairEnabled !== false && technician.ordinaryRepairRatePercent !== null && technician.ordinaryRepairRatePercent !== undefined)
+    ? Number(technician.ordinaryRepairRatePercent)
+    : 0
+}
