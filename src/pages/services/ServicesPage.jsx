@@ -990,8 +990,8 @@ function JobOrderPrintPreview({ defaultDoc = "RECEIPT", isBlank = false, job = {
 
   const activeJob = isBlank ? {} : (job || {})
   const subTitle = isBlank
-    ? "Blank Physical Paperwork for Customer · Print as PDF / A4 Ready"
-    : `JO #${job?.jobCode || "—"} · A4 Ready`
+    ? "Blank Physical Paperwork for Clipboard · Print as PDF / A4 Ready"
+    : `JO #${job?.jobCode || "—"} · Official Service Receipt (A4 Ready)`
 
   return createPortal(
     <div aria-label="Printable job order" aria-modal="true" className="job-order-print-overlay" role="dialog">
@@ -999,32 +999,27 @@ function JobOrderPrintPreview({ defaultDoc = "RECEIPT", isBlank = false, job = {
         <div className="job-order-print-actions">
           <div className="flex flex-wrap items-center gap-3">
             <div>
-              <p className="font-black text-white">{isBlank ? "Blank Forms Print Center" : "Official Print Center"}</p>
+              <p className="font-black text-white">{isBlank ? "Blank Forms Print Center" : "Official Job Order Receipt"}</p>
               <p className="text-xs text-white/70">{subTitle}</p>
             </div>
-            <div className="flex rounded-xl bg-black/40 p-1 border border-white/20">
-              <button
-                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "RECEIPT" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}
-                onClick={() => setDocType("RECEIPT")}
-                type="button"
-              >
-                {isBlank ? "Blank Job Order Receipt" : "Job Order Receipt (A4)"}
-              </button>
-              <button
-                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "DIAGNOSTIC" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}
-                onClick={() => setDocType("DIAGNOSTIC")}
-                type="button"
-              >
-                {isBlank ? "Blank Diagnostic Form" : "Diagnostic Intake Form"}
-              </button>
-              <button
-                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "MAINTENANCE" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}
-                onClick={() => setDocType("MAINTENANCE")}
-                type="button"
-              >
-                {isBlank ? "Blank Maintenance Form" : "Maintenance & Upgrade Form"}
-              </button>
-            </div>
+            {isBlank ? (
+              <div className="flex rounded-xl bg-black/40 p-1 border border-white/20">
+                <button
+                  className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "DIAGNOSTIC" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}
+                  onClick={() => setDocType("DIAGNOSTIC")}
+                  type="button"
+                >
+                  Blank Diagnostic Form
+                </button>
+                <button
+                  className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${docType === "MAINTENANCE" ? "bg-white text-[var(--color-maroon)] shadow" : "text-white/80 hover:text-white"}`}
+                  onClick={() => setDocType("MAINTENANCE")}
+                  type="button"
+                >
+                  Blank Maintenance Form
+                </button>
+              </div>
+            ) : null}
           </div>
           <div className="flex gap-2">
             <button className="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white hover:bg-white/10" onClick={onClose} type="button">
@@ -1037,12 +1032,14 @@ function JobOrderPrintPreview({ defaultDoc = "RECEIPT", isBlank = false, job = {
         </div>
 
         <article className="job-order-print-document">
-          {docType === "RECEIPT" ? (
-            <JobOrderReceiptPrint isBlank={isBlank} job={activeJob} />
-          ) : docType === "DIAGNOSTIC" ? (
-            <DiagnosticIntakePrint isBlank={isBlank} job={activeJob} />
+          {isBlank ? (
+            docType === "MAINTENANCE" ? (
+              <MaintenanceIntakePrint isBlank={true} job={{}} />
+            ) : (
+              <DiagnosticIntakePrint isBlank={true} job={{}} />
+            )
           ) : (
-            <MaintenanceIntakePrint isBlank={isBlank} job={activeJob} />
+            <JobOrderReceiptPrint isBlank={false} job={activeJob} />
           )}
         </article>
       </div>
@@ -2515,7 +2512,9 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
         setSelectedJob(created)
         setPrintPreviewState({
           isOpen: true,
-          defaultDoc: createForm.intakeType === "DIAGNOSTIC" ? "DIAGNOSTIC" : "MAINTENANCE",
+          defaultDoc: "RECEIPT",
+          isBlank: false,
+          job: created,
         })
       }
     } catch (error) {
@@ -3000,9 +2999,18 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
             <button
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
               onClick={() => setPrintPreviewState({ isOpen: true, defaultDoc: "DIAGNOSTIC", isBlank: true, job: null })}
+              title="Print blank diagnostic intake form for customer"
               type="button"
             >
-              <Printer size={14} /> Blank Intake (A4)
+              <Printer size={13} /> Print Blank Diagnostic
+            </button>
+            <button
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+              onClick={() => setPrintPreviewState({ isOpen: true, defaultDoc: "MAINTENANCE", isBlank: true, job: null })}
+              title="Print blank maintenance & upgrade form for customer"
+              type="button"
+            >
+              <Printer size={13} /> Print Blank Maintenance
             </button>
             {canCreate ? (
               <button
@@ -3094,7 +3102,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
           getServiceJobsApi={getServiceJobs}
           onOpenDetail={openDetail}
           onSendToPos={sendToPosCashiering}
-          onPrint={(job) => setPrintPreviewState({ isOpen: true, defaultDoc: "DIAGNOSTIC", isBlank: false, job })}
+          onPrint={(job) => setPrintPreviewState({ isOpen: true, defaultDoc: "RECEIPT", isBlank: false, job })}
         />
       ) : (
         <section className="rounded-xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-2xs">
@@ -3249,18 +3257,32 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   <Printer size={16} className="shrink-0 text-sky-700 dark:text-sky-300" />
                   <span><strong>Customer waiting at counter?</strong> Print a blank A4 sheet for them to fill out with pen on a clipboard first.</span>
                 </div>
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-sky-700 px-3 py-1.5 font-bold text-white shadow hover:bg-sky-800"
-                  onClick={() => setPrintPreviewState({
-                    isOpen: true,
-                    defaultDoc: createForm.intakeType === "MAINTENANCE" ? "MAINTENANCE" : "DIAGNOSTIC",
-                    isBlank: true,
-                    job: null,
-                  })}
-                  type="button"
-                >
-                  <Printer size={14} /> Print Blank {createForm.intakeType === "MAINTENANCE" ? "Maintenance" : "Diagnostic"} Form (A4)
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-sky-700 hover:bg-sky-800 px-3 py-1.5 text-xs font-bold text-white shadow transition cursor-pointer"
+                    onClick={() => setPrintPreviewState({
+                      isOpen: true,
+                      defaultDoc: "DIAGNOSTIC",
+                      isBlank: true,
+                      job: null,
+                    })}
+                    type="button"
+                  >
+                    <Printer size={13} /> Print Blank Diagnostic
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-sky-600 bg-white dark:bg-slate-800 text-sky-900 dark:text-sky-100 hover:bg-sky-50 dark:hover:bg-slate-700 px-3 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer"
+                    onClick={() => setPrintPreviewState({
+                      isOpen: true,
+                      defaultDoc: "MAINTENANCE",
+                      isBlank: true,
+                      job: null,
+                    })}
+                    type="button"
+                  >
+                    <Printer size={13} /> Print Blank Maintenance
+                  </button>
+                </div>
               </div>
 
               {/* Service Catalog Template Quick Selector */}
@@ -4172,11 +4194,11 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-black text-white shadow-xs hover:opacity-90 transition"
-                      onClick={() => setPrintPreviewState({ isOpen: true, defaultDoc: "RECEIPT" })}
+                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-black text-white shadow-xs hover:opacity-90 transition cursor-pointer"
+                      onClick={() => setPrintPreviewState({ isOpen: true, defaultDoc: "RECEIPT", isBlank: false, job: selectedJob })}
                       type="button"
                     >
-                      <Printer size={15} /> Print JO / Intake (A4)
+                      <Printer size={15} /> Print Job Order Receipt (A4)
                     </button>
                   </div>
                 </div>
@@ -4679,11 +4701,11 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
         </Modal>
       ) : null}
 
-      {printPreviewState.isOpen && (selectedJob || printPreviewState.isBlank) ? (
+      {printPreviewState.isOpen && (printPreviewState.job || selectedJob || printPreviewState.isBlank) ? (
         <JobOrderPrintPreview
           defaultDoc={printPreviewState.defaultDoc}
           isBlank={Boolean(printPreviewState.isBlank)}
-          job={printPreviewState.isBlank ? (printPreviewState.job || {}) : selectedJob}
+          job={printPreviewState.isBlank ? {} : (printPreviewState.job || selectedJob || {})}
           onClose={() => setPrintPreviewState({ isOpen: false, defaultDoc: "RECEIPT", isBlank: false, job: null })}
         />
       ) : null}

@@ -1,19 +1,15 @@
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { AlertCircle, LoaderCircle, Printer, X } from "lucide-react"
+import { AlertCircle, LoaderCircle, Printer } from "lucide-react"
 import { getServiceJobById } from "../../features/service-jobs/serviceJobs.api"
 import JobOrderReceiptPrint from "../../pages/services/JobOrderReceiptPrint"
-import DiagnosticIntakePrint from "../../pages/services/DiagnosticIntakePrint"
-import MaintenanceIntakePrint from "../../pages/services/MaintenanceIntakePrint"
 
 export default function JobOrderReceiptModal({
   job: initialJob,
   jobId,
-  defaultDoc = "RECEIPT",
   onClose,
 }) {
   const [job, setJob] = useState(initialJob || null)
-  const [docType, setDocType] = useState(defaultDoc)
   const [isLoading, setIsLoading] = useState(!initialJob && Boolean(jobId))
   const [errorMessage, setErrorMessage] = useState("")
 
@@ -67,41 +63,6 @@ export default function JobOrderReceiptModal({
               <p className="font-black text-white">Official Job Order Receipt</p>
               <p className="text-xs text-white/70">{subTitle}</p>
             </div>
-            <div className="flex rounded-xl bg-black/40 p-1 border border-white/20">
-              <button
-                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${
-                  docType === "RECEIPT"
-                    ? "bg-white text-[var(--color-maroon)] shadow"
-                    : "text-white/80 hover:text-white"
-                }`}
-                onClick={() => setDocType("RECEIPT")}
-                type="button"
-              >
-                Job Order Receipt (A4)
-              </button>
-              <button
-                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${
-                  docType === "DIAGNOSTIC"
-                    ? "bg-white text-[var(--color-maroon)] shadow"
-                    : "text-white/80 hover:text-white"
-                }`}
-                onClick={() => setDocType("DIAGNOSTIC")}
-                type="button"
-              >
-                Diagnostic Form
-              </button>
-              <button
-                className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${
-                  docType === "MAINTENANCE"
-                    ? "bg-white text-[var(--color-maroon)] shadow"
-                    : "text-white/80 hover:text-white"
-                }`}
-                onClick={() => setDocType("MAINTENANCE")}
-                type="button"
-              >
-                Maintenance & Upgrade
-              </button>
-            </div>
           </div>
           <div className="flex gap-2">
             <button
@@ -133,15 +94,7 @@ export default function JobOrderReceiptModal({
               <span>{errorMessage}</span>
             </div>
           ) : (
-            <>
-              {docType === "RECEIPT" ? (
-                <JobOrderReceiptPrint isBlank={false} job={activeJob} />
-              ) : docType === "DIAGNOSTIC" ? (
-                <DiagnosticIntakePrint isBlank={false} job={activeJob} />
-              ) : (
-                <MaintenanceIntakePrint isBlank={false} job={activeJob} />
-              )}
-            </>
+            <JobOrderReceiptPrint isBlank={false} job={activeJob} />
           )}
         </article>
       </div>
