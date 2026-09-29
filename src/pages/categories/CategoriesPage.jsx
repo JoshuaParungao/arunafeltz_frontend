@@ -918,7 +918,6 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   <th className="px-5 py-3.5">Category Code</th>
                   <th className="px-5 py-3.5">Category Name</th>
                   <th className="px-5 py-3.5">Classification</th>
-                  <th className="px-5 py-3.5">Specifications Template</th>
                   <th className="px-5 py-3.5">Description</th>
                   <th className="px-5 py-3.5 text-center">Status</th>
                   <th className="px-5 py-3.5 text-right">Created</th>
@@ -928,7 +927,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center">
+                    <td colSpan={7} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <LoaderCircle
                           className="animate-spin text-[var(--color-maroon)]"
@@ -942,7 +941,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   </tr>
                 ) : categories.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center">
+                    <td colSpan={7} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
                         <Tag size={32} />
                         <p className="text-sm font-bold text-slate-700">
@@ -958,7 +957,6 @@ export default function CategoriesPage({ selectedBranch, user }) {
                   </tr>
                 ) : (
                   categories.map((cat) => {
-                    const hasSpecs = Array.isArray(cat.attributeSchema) && cat.attributeSchema.length > 0
                     return (
                       <tr
                         key={cat.id}
@@ -984,15 +982,6 @@ export default function CategoriesPage({ selectedBranch, user }) {
                             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200">
                               Main Category
                             </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {hasSpecs ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-bold text-indigo-800 border border-indigo-200">
-                              {cat.attributeSchema.length} specs defined
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">None</span>
                           )}
                         </td>
                         <td className="px-5 py-3.5 text-slate-600 max-w-xs truncate">
@@ -1418,172 +1407,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                 </label>
               </div>
 
-              {/* Step 3: Attributes & Specifications */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                      <Sparkles size={14} className="text-[#7A1F2B]" />
-                      3. Product Specifications / Attributes
-                    </span>
-                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                      Required technical specifications enforced when encoding items under this category.
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
-                    {catForm.attributeSchema?.length || 0} attributes
-                  </span>
-                </div>
 
-                {/* Helpful Note for Main Category */}
-                {!catForm.parentId ? (
-                  <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 leading-snug">
-                    <HelpCircle size={15} className="text-amber-700 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold">How do Main Categories work? </span>
-                      Specific attributes like <em>Capacity</em> or <em>Speed</em> are typically configured on <strong>Subcategories</strong> (e.g. <em>Desktop RAM</em>). You may also define attributes here if applicable, or leave empty.
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Current Specifications List */}
-                {catForm.attributeSchema?.length > 0 ? (
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                    {catForm.attributeSchema.map((spec, idx) => (
-                      <div
-                        key={spec.name || idx}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5 shadow-2xs transition hover:border-slate-300"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-slate-900">{spec.name}</span>
-                            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800 border border-emerald-200 uppercase">
-                              Required
-                            </span>
-                          </div>
-                          {spec.suggestions?.length > 0 ? (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {spec.suggestions.slice(0, 6).map((sug, sIdx) => (
-                                <span
-                                  key={sIdx}
-                                  className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
-                                >
-                                  {sug}
-                                </span>
-                              ))}
-                              {spec.suggestions.length > 6 ? (
-                                <span className="text-[10px] text-slate-400 font-medium self-center">
-                                  +{spec.suggestions.length - 6} more
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <p className="text-[10px] text-slate-400 italic mt-0.5">
-                              Free text (Encoder enters value freely)
-                            </p>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSpecField(idx)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                          title={`Remove ${spec.name}`}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-4 text-center">
-                    <p className="text-xs font-semibold text-slate-600">
-                      No specifications defined for this category yet.
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Click any 1-Click Quick Preset below or type a custom specification name.
-                    </p>
-                  </div>
-                )}
-
-                {/* 1-Click Popular Presets */}
-                <div className="space-y-1.5 pt-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    ⚡ 1-Click Quick Presets (Click to add):
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {POPULAR_ATTRIBUTE_PRESETS.map((preset) => {
-                      const isAlreadyAdded = catForm.attributeSchema?.some(
-                        (s) => s.name.toLowerCase() === preset.name.toLowerCase()
-                      )
-                      return (
-                        <button
-                          key={preset.name}
-                          type="button"
-                          disabled={isAlreadyAdded}
-                          onClick={() => handleAddPresetSpec(preset)}
-                          className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
-                            isAlreadyAdded
-                              ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-default"
-                              : "bg-white text-slate-700 border border-slate-200 hover:border-[#7A1F2B] hover:text-[#7A1F2B] hover:bg-[#7A1F2B]/5 shadow-2xs"
-                          }`}
-                        >
-                          {isAlreadyAdded ? <Check size={11} className="text-emerald-600" /> : <Plus size={11} />}
-                          {preset.name}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Add Custom Attribute Card */}
-                <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 block">
-                    + Add Custom Specification
-                  </span>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <input
-                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-900 outline-none focus:border-[#7A1F2B] hover:border-slate-300"
-                      onChange={(e) => setNewSpecName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          handleAddSpecField()
-                        }
-                      }}
-                      placeholder="Specification Name (e.g. CAS Latency, Heatsink)"
-                      type="text"
-                      value={newSpecName}
-                    />
-                    <input
-                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-900 outline-none focus:border-[#7A1F2B] hover:border-slate-300"
-                      onChange={(e) => setNewSpecSuggestions(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          handleAddSpecField()
-                        }
-                      }}
-                      placeholder="Suggested Values (comma-separated, e.g. CL16, CL18)"
-                      type="text"
-                      value={newSpecSuggestions}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-slate-400">
-                      Press Enter or click Add to append to specification schema.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleAddSpecField}
-                      disabled={!newSpecName.trim()}
-                      className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 disabled:opacity-40 transition"
-                    >
-                      <Plus size={12} />
-                      Add Spec
-                    </button>
-                  </div>
-                </div>
-              </div>
 
               {/* Footer Buttons & Error Feedback */}
               <footer className="flex flex-col gap-3 border-t border-slate-100 pt-3">
