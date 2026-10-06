@@ -692,11 +692,15 @@ function StaffCombobox({
 function getTechnicianRatePercent(technician, repairType) {
   if (!technician) return 0
   if (repairType === "BOARD_LEVEL_REPAIR") {
-    return technician.boardRepairEnabled && technician.boardRepairRatePercent !== null
+    return technician.boardRepairEnabled !== false &&
+      technician.boardRepairRatePercent !== null &&
+      technician.boardRepairRatePercent !== undefined
       ? Number(technician.boardRepairRatePercent)
       : 0
   }
-  return technician.ordinaryRepairEnabled && technician.ordinaryRepairRatePercent !== null
+  return technician.ordinaryRepairEnabled !== false &&
+    technician.ordinaryRepairRatePercent !== null &&
+    technician.ordinaryRepairRatePercent !== undefined
     ? Number(technician.ordinaryRepairRatePercent)
     : 0
 }
@@ -756,7 +760,7 @@ function ServicePricingFields({
 
   const handleApplyTechRate = () => {
     if (techRatePercent > 0 && serviceRateNum > 0 && onTechnicianFeeChange) {
-      const calculated = Number(((serviceRateNum * techRatePercent) / 100).toFixed(2))
+      const calculated = Math.round(serviceRateNum * techRatePercent) / 100
       onTechnicianFeeChange(String(calculated))
     }
   }
@@ -2595,7 +2599,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     setErrorMessage("")
     try {
       const response = await createServiceJob({
-        ...(user?.role === "SUPER_OWNER" && branchId ? { branchId } : {}),
+        ...(branchId ? { branchId } : {}),
         jobTitle: createForm.jobTitle.trim(),
         customerId: createForm.customerId || undefined,
         customerNameSnapshot: !createForm.customerId ? createForm.customerNameSnapshot.trim() || undefined : undefined,
@@ -3464,20 +3468,30 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       const item = serviceCatalog.find((c) => c.id === selectedId)
                       if (item) {
                         const isBoard = item.repairType === "BOARD_LEVEL_REPAIR"
-                        setCreateForm((form) => ({
-                          ...form,
-                          jobTitle: item.name,
-                          repairType: item.repairType || form.repairType,
-                          intakeType: isBoard ? "DIAGNOSTIC" : "MAINTENANCE",
-                          baseServiceCharge: String(item.basePrice || 0),
-                          markupPercent: String(item.markupPercent || 0),
-                          isQuickService: Boolean(item.isQuickService),
-                          unitType: item.deviceType || form.unitType,
-                          problemDescription:
-                            item.description && !form.problemDescription
-                              ? item.description
-                              : form.problemDescription,
-                        }))
+                        const nextRepairType = item.repairType || "ORDINARY_REPAIR"
+                        setCreateForm((form) => {
+                          const selectedTech = technicians.find((t) => t.id === form.assignedTechnicianId)
+                          const techRate = getTechnicianRatePercent(selectedTech, nextRepairType)
+                          const sRate = Number(form.serviceRate || item.basePrice || 0)
+                          const newTechFee = techRate > 0 && sRate > 0
+                            ? String(Math.round(sRate * techRate) / 100)
+                            : form.technicianFee
+                          return {
+                            ...form,
+                            jobTitle: item.name,
+                            repairType: nextRepairType,
+                            technicianFee: newTechFee,
+                            intakeType: isBoard ? "DIAGNOSTIC" : "MAINTENANCE",
+                            baseServiceCharge: String(item.basePrice || 0),
+                            markupPercent: String(item.markupPercent || 0),
+                            isQuickService: Boolean(item.isQuickService),
+                            unitType: item.deviceType || form.unitType,
+                            problemDescription:
+                              item.description && !form.problemDescription
+                                ? item.description
+                                : form.problemDescription,
+                          }
+                        })
                       }
                       e.target.value = ""
                     }}
@@ -3542,7 +3556,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                         const techRate = getTechnicianRatePercent(selectedTech, repairType)
                         const sRate = Number(form.serviceRate || 0)
                         const newTechFee = techRate > 0 && sRate > 0
-                          ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                          ? String(Math.round(sRate * techRate) / 100)
                           : (sRate === 0 ? "0" : form.technicianFee)
                         return {
                           ...form,
@@ -3569,7 +3583,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       const techRate = getTechnicianRatePercent(selectedTech, form.repairType)
                       const sRate = Number(form.serviceRate || 0)
                       const newTechFee = techRate > 0 && sRate > 0
-                        ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                        ? String(Math.round(sRate * techRate) / 100)
                         : (sRate === 0 ? "0" : form.technicianFee)
                       return {
                         ...form,
@@ -4210,6 +4224,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                 <p className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Pricing & Charges</p>
                 <ServicePricingFields
                   assignedTechnician={technicians.find((t) => t.id === createForm.assignedTechnicianId)}
+                  repairType={createForm.repairType}
                   baseServiceCharge={createForm.baseServiceCharge}
                   isOptional={true}
                   markupPercent={createForm.markupPercent}
@@ -4266,7 +4281,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       const tech = technicians.find((t) => t.id === form.assignedTechnicianId)
                       const techRate = getTechnicianRatePercent(tech, form.repairType)
                       const autoTechFee = techRate > 0 && sRate > 0
-                        ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                        ? String(Math.round(sRate * techRate) / 100)
                         : (sRate === 0 ? "0" : form.technicianFee)
                       return {
                         ...form,
@@ -4824,6 +4839,8 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   />
                   {actionRepairType === "BOARD_LEVEL_REPAIR" ? <p className="text-xs font-bold text-sky-800">Only Senior Technicians / Specialists are available for specialized work. Backend eligibility checks remain authoritative.</p> : null}
                   <ServicePricingFields
+                    assignedTechnician={technicians.find((t) => t.id === actionForm.serviceDoneById)}
+                    repairType={actionRepairType}
                     baseServiceCharge={actionForm.baseServiceCharge}
                     markupPercent={actionForm.markupPercent}
                     onBaseChange={(value) => setActionForm((form) => ({ ...form, baseServiceCharge: value }))}
