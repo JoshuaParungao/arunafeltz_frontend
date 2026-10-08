@@ -223,7 +223,7 @@ export default function DatabaseBackupRecoverySection({ user }) {
       return
     }
     const confirmed = window.confirm(
-      "Are you absolutely sure you want to reset all operational transactions? This will delete all Job Orders, Sales, Invoices, Quotations, Cash Transactions, Stock Transfers, and test Incentives. All user accounts, branches, products, and configurations will be kept safe."
+      "CRITICAL: Are you absolutely sure you want to reset all data? This will delete all Products, Categories, Units, Inventory, Customers, Suppliers, Job Orders, Sales, Quotations, Cash Transactions, and all staff/sub-accounts. Only Super Owner and Developer accounts and branch structures will be preserved."
     )
     if (!confirmed) return
 
@@ -519,22 +519,22 @@ export default function DatabaseBackupRecoverySection({ user }) {
                   <div className="rounded-xl bg-white/70 p-2 border border-red-200 text-red-800">
                     <p className="font-bold text-red-900 mb-0.5">Deleted (Clean Slate):</p>
                     <ul className="list-disc pl-4 space-y-0.5">
+                      <li>Items, Products, Categories & Units</li>
+                      <li>Customers & Suppliers</li>
                       <li>Job Orders & Service Payments</li>
-                      <li>Sales, POS Invoices & Items</li>
-                      <li>Quotations & Revisions</li>
+                      <li>Sales, POS Invoices & Quotations</li>
+                      <li>Inventory Batches, Movements & Serials</li>
                       <li>Cash Drawer Transactions & Handovers</li>
-                      <li>Stock Transfers & Test Incentives</li>
+                      <li>Admin, Cashier & Tech Staff Accounts</li>
                       <li>Audit Logs</li>
                     </ul>
                   </div>
                   <div className="rounded-xl bg-white/70 p-2 border border-emerald-200 text-emerald-800">
                     <p className="font-bold text-emerald-900 mb-0.5">Strictly Preserved:</p>
                     <ul className="list-disc pl-4 space-y-0.5">
-                      <li>All User Accounts (Super Owner, Admin, Cashiers, Technicians)</li>
-                      <li>Branches & Roles</li>
-                      <li>Technician Incentive Configurations</li>
-                      <li>Product Catalog & Categories</li>
-                      <li>Cash Boxes & Settings</li>
+                      <li>Super Owner & Developer Accounts</li>
+                      <li>Branch Structures</li>
+                      <li>System Default Settings</li>
                     </ul>
                   </div>
                 </div>
