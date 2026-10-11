@@ -4,6 +4,7 @@ import { AlertCircle, AlertTriangle, Check, CheckCircle2, Edit3, Layers, Package
 import { USER_ROLES } from "../../constants/roles"
 import { createItem, getItemCategories, getItems, getUnits, updateItemById } from "../../features/items/items.api"
 import { createItemCategory } from "../../features/categories/categories.api"
+import { createUnit } from "../../features/units/units.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import {
@@ -525,6 +526,7 @@ function ItemEditorModal({
   units,
   onCategoryCreated,
   effectiveBranchId,
+  onUnitCreated,
 }) {
   const formCategoryId = form?.categoryId
 
@@ -560,6 +562,98 @@ function ItemEditorModal({
   const [isCreatingInlineCat, setIsCreatingInlineCat] = useState(false)
   const [isCreatingInlineSubCat, setIsCreatingInlineSubCat] = useState(false)
   const [inlineCatError, setInlineCatError] = useState("")
+
+  // Unit inline search/creation states
+  const [unitSearch, setUnitSearch] = useState("")
+  const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false)
+  const [isCreatingInlineUnit, setIsCreatingInlineUnit] = useState(false)
+  const [inlineUnitError, setInlineUnitError] = useState("")
+
+  const selectedUnit = useMemo(() => {
+    if (!form?.unitId) return null
+    return units.find((u) => u.id === form.unitId) || null
+  }, [units, form?.unitId])
+
+  useEffect(() => {
+    if (selectedUnit) {
+      setUnitSearch(selectedUnit.name || selectedUnit.unitCode)
+    } else {
+      setUnitSearch("")
+    }
+  }, [selectedUnit])
+
+  const filteredUnits = useMemo(() => {
+    const q = (unitSearch || "").trim().toLowerCase()
+    if (!q) return units
+    return units.filter(
+      (u) =>
+        (u.name && u.name.toLowerCase().includes(q)) ||
+        (u.unitCode && u.unitCode.toLowerCase().includes(q))
+    )
+  }, [units, unitSearch])
+
+  const canCreateNewUnit = useMemo(() => {
+    const q = unitSearch.trim()
+    if (!q) return false
+    return !units.some(
+      (u) =>
+        u.name.toLowerCase() === q.toLowerCase() ||
+        u.unitCode.toLowerCase() === q.toUpperCase()
+    )
+  }, [units, unitSearch])
+
+  const handleCreateUnitInline = async (rawInput) => {
+    const trimmed = (rawInput || unitSearch).trim()
+    if (!trimmed) return
+
+    setInlineUnitError("")
+    setIsCreatingInlineUnit(true)
+    try {
+      const code = trimmed.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) || "UNIT"
+      const existing = units.find(
+        (u) =>
+          u.name.toLowerCase() === trimmed.toLowerCase() ||
+          u.unitCode.toUpperCase() === code
+      )
+      if (existing) {
+        onChange("unitId", existing.id)
+        setUnitSearch(existing.name || existing.unitCode)
+        setIsUnitDropdownOpen(false)
+        return
+      }
+
+      const res = await createUnit({
+        name: trimmed,
+        unitCode: code,
+      })
+      const newUnit = res?.data || res
+      if (onUnitCreated) {
+        onUnitCreated(newUnit)
+      }
+      onChange("unitId", newUnit.id)
+      setUnitSearch(newUnit.name || newUnit.unitCode)
+      setIsUnitDropdownOpen(false)
+    } catch (err) {
+      console.error("Inline unit error:", err)
+      const msg = err?.response?.data?.message || err?.message || "Failed to create unit"
+      if (msg.includes("already exists") || msg.includes("ALREADY_EXISTS")) {
+        const found = units.find(
+          (u) =>
+            u.name.toLowerCase() === trimmed.toLowerCase() ||
+            u.unitCode.toUpperCase() === trimmed.toUpperCase()
+        )
+        if (found) {
+          onChange("unitId", found.id)
+          setUnitSearch(found.name)
+          setIsUnitDropdownOpen(false)
+          return
+        }
+      }
+      setInlineUnitError(msg)
+    } finally {
+      setIsCreatingInlineUnit(false)
+    }
+  }
 
   useEffect(() => {
     if (selectedMainCategory) {
@@ -736,6 +830,13 @@ function ItemEditorModal({
             <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
               <AlertCircle className="mt-0.5 shrink-0" size={15} />
               <span>{inlineCatError}</span>
+            </div>
+          ) : null}
+
+          {inlineUnitError ? (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+              <AlertCircle className="mt-0.5 shrink-0" size={15} />
+              <span>{inlineUnitError}</span>
             </div>
           ) : null}
 
@@ -958,27 +1059,122 @@ function ItemEditorModal({
             </label>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {/* UNIT */}
-              <label className="block">
-                <span className={labelClass}>
-                  Unit <span className="text-red-500">*</span>
-                </span>
-                <select
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("unitId", event.target.value)
-                  }
-                  required
-                  value={form.unitId}
-                >
-                  <option value="">Select unit</option>
-                  {units.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {/* UNIT (SEARCHABLE + CREATE NEW) */}
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <span className={labelClass}>
+                    Unit <span className="text-red-500">*</span>
+                  </span>
+                  {selectedUnit ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      {selectedUnit.unitCode}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="relative mt-1">
+                  <input
+                    className={`${inputClass} pr-8`}
+                    value={unitSearch}
+                    onChange={(e) => {
+                      setUnitSearch(e.target.value)
+                      setIsUnitDropdownOpen(true)
+                    }}
+                    onFocus={() => setIsUnitDropdownOpen(true)}
+                    placeholder="Search or type unit (e.g. PIECE, BOX)…"
+                  />
+                  {unitSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUnitSearch("")
+                        onChange("unitId", "")
+                        setIsUnitDropdownOpen(true)
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                    >
+                      <X size={13} />
+                    </button>
+                  ) : null}
+                </div>
+
+                {/* Dropdown list */}
+                {isUnitDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsUnitDropdownOpen(false)}
+                    />
+                    <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg text-xs">
+                      {canCreateNewUnit && (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-lg bg-amber-50/80 px-2.5 py-2 text-left font-bold text-amber-900 hover:bg-amber-100 transition border border-amber-200 mb-1"
+                          onClick={() => handleCreateUnitInline(unitSearch)}
+                          disabled={isCreatingInlineUnit}
+                        >
+                          <Plus size={14} className="text-amber-700 shrink-0" />
+                          <span>
+                            {isCreatingInlineUnit
+                              ? "Creating…"
+                              : `+ Add "${unitSearch.trim()}" as new unit`}
+                          </span>
+                        </button>
+                      )}
+
+                      {filteredUnits.length > 0 ? (
+                        filteredUnits.map((u) => {
+                          const isSelected = u.id === form.unitId
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left transition ${
+                                isSelected
+                                  ? "bg-[var(--color-maroon)] text-white font-bold"
+                                  : "text-slate-700 hover:bg-slate-100 font-medium"
+                              }`}
+                              onClick={() => {
+                                onChange("unitId", u.id)
+                                setUnitSearch(u.name || u.unitCode)
+                                setIsUnitDropdownOpen(false)
+                              }}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-bold">{u.unitCode}</span>
+                                {u.name && u.name !== u.unitCode && (
+                                  <span className={`text-[11px] ${isSelected ? "text-white/80" : "text-slate-500"}`}>
+                                    ({u.name})
+                                  </span>
+                                )}
+                              </div>
+                              {isSelected && <Check size={13} />}
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <div className="p-2 space-y-1.5">
+                          <p className="text-[11px] text-slate-400 font-medium text-center">
+                            Or select standard unit to add:
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {["PIECE", "BOX", "SET", "UNIT", "KIT", "METER", "PAIR", "ROLL"].map((presetCode) => (
+                              <button
+                                key={presetCode}
+                                type="button"
+                                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100 transition"
+                                onClick={() => handleCreateUnitInline(presetCode)}
+                              >
+                                + {presetCode}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* ITEM NOTES */}
               <label className="block">
@@ -2405,6 +2601,12 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
           setCategoryOptions((prev) => {
             if (prev.some((c) => c.id === newCat.id)) return prev
             return [...prev, newCat]
+          })
+        }}
+        onUnitCreated={(newUnit) => {
+          setUnitOptions((prev) => {
+            if (prev.some((u) => u.id === newUnit.id)) return prev
+            return [...prev, newUnit]
           })
         }}
         effectiveBranchId={selectedBranchId || user?.branchId}
