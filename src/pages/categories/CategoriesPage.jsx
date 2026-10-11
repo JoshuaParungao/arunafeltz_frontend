@@ -420,15 +420,18 @@ export default function CategoriesPage({ selectedBranch, user }) {
   }
 
   const handleClearAllCategories = async () => {
+    const branchLabel = selectedBranch?.name || "this branch"
     const confirmed = window.confirm(
-      "CRITICAL: Are you sure you want to delete ALL categories and subcategories? This will completely clear all category records."
+      `CRITICAL: Are you sure you want to clear all categories in ${branchLabel}? This will ONLY clear categories in ${branchLabel} and will NOT affect other branches.`
     )
     if (!confirmed) return
 
     try {
       setIsLoading(true)
-      const res = await clearAllCategories()
-      setNoticeMessage(res?.message || "All categories have been cleared successfully.")
+      const res = await clearAllCategories(
+        effectiveBranchId ? { branchId: effectiveBranchId } : {}
+      )
+      setNoticeMessage(res?.message || `Categories in ${branchLabel} have been cleared successfully.`)
       loadCategories(1)
       setTimeout(() => setNoticeMessage(""), 5000)
     } catch (err) {

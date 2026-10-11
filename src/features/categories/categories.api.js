@@ -25,8 +25,8 @@ export async function deleteItemCategoryById(categoryId) {
   return response.data
 }
 
-export async function clearAllCategories() {
-  const response = await apiClient.delete("/item-categories/clear-all")
+export async function clearAllCategories(params = {}) {
+  const response = await apiClient.delete("/item-categories/clear-all", { params })
   return response.data
 }
 
