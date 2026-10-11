@@ -29,3 +29,8 @@ export async function clearAllCategories() {
   const response = await apiClient.delete("/item-categories/clear-all")
   return response.data
 }
+
+export async function syncItemCategories() {
+  const response = await apiClient.post("/item-categories/sync")
+  return response.data
+}

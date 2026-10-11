@@ -27,6 +27,7 @@ import {
   createItemCategory,
   deleteItemCategoryById,
   getItemCategories,
+  syncItemCategories,
   updateItemCategoryById,
 } from "../../features/categories/categories.api"
 import {
@@ -441,6 +442,26 @@ export default function CategoriesPage({ selectedBranch, user }) {
     }
   }
 
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  const handleSyncBranches = async () => {
+    try {
+      setIsSyncing(true)
+      const res = await syncItemCategories()
+      setNoticeMessage(res?.message || "Categories synchronized across all active branches successfully!")
+      loadCategories(catPagination.page)
+      setTimeout(() => setNoticeMessage(""), 4000)
+    } catch (err) {
+      console.error("Sync categories error:", err)
+      setErrorMessage(
+        err?.response?.data?.message || err?.message || "Failed to sync categories across branches."
+      )
+      setTimeout(() => setErrorMessage(""), 6000)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   // Unit Modal Handlers
   const handleOpenCreateUnitModal = () => {
     setEditingUnit(null)
@@ -565,6 +586,18 @@ export default function CategoriesPage({ selectedBranch, user }) {
             <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} />
             Refresh
           </button>
+          {activeTab === "categories" ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-soft transition hover:bg-slate-50 disabled:opacity-50"
+              disabled={isSyncing || isLoading}
+              onClick={handleSyncBranches}
+              title="Sync all categories to other branches"
+              type="button"
+            >
+              <GitBranch className={isSyncing ? "animate-spin" : ""} size={14} />
+              Sync Branches
+            </button>
+          ) : null}
           {activeTab === "categories" ? (
             <div className="flex items-center gap-2">
               {categories.length > 0 ? (
