@@ -24,7 +24,6 @@ import {
   CAPACITY_PRESETS,
   formatSpecs,
   matchesItemAttributes,
-  POPULAR_BRANDS,
   SPEED_PRESETS,
   TYPE_PRESETS,
 } from "../../utils/attributeFilter"
@@ -1266,28 +1265,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
             </select>
           </label>
 
-          <label className="block">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              Brand
-            </span>
-            <div className="relative mt-1">
-              <input
-                list="brand-suggestions-inventory"
-                className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
-                onChange={(event) => {
-                  setBrandFilter(event.target.value)
-                  setPage(1)
-                }}
-                placeholder="All Brands or type brand..."
-                value={brandFilter}
-              />
-              <datalist id="brand-suggestions-inventory">
-                {POPULAR_BRANDS.map((b) => (
-                  <option key={b} value={b} />
-                ))}
-              </datalist>
-            </div>
-          </label>
 
           <label className="block">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">

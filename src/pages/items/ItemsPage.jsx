@@ -11,7 +11,6 @@ import {
   CAPACITY_PRESETS,
   formatSpecs,
   matchesItemAttributes,
-  POPULAR_BRANDS,
   SPEED_PRESETS,
   TYPE_PRESETS,
 } from "../../utils/attributeFilter"
@@ -2201,28 +2200,6 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
             </select>
           </label>
 
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-              Brand
-            </span>
-            <div className="relative mt-1.5">
-              <input
-                list="brand-suggestions-items"
-                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-strong)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white placeholder:text-slate-400 placeholder:font-normal"
-                onChange={(event) => {
-                  setBrandFilter(event.target.value)
-                  setPage(1)
-                }}
-                placeholder="All Brands or type brand..."
-                value={brandFilter}
-              />
-              <datalist id="brand-suggestions-items">
-                {POPULAR_BRANDS.map((b) => (
-                  <option key={b} value={b} />
-                ))}
-              </datalist>
-            </div>
-          </label>
 
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
