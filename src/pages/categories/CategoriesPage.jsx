@@ -24,7 +24,9 @@ import {
 
 import { USER_ROLES } from "../../constants/roles"
 import {
+  clearAllCategories,
   createItemCategory,
+  deleteItemCategoryById,
   getItemCategories,
   updateItemCategoryById,
 } from "../../features/categories/categories.api"
@@ -418,6 +420,53 @@ export default function CategoriesPage({ selectedBranch, user }) {
     }
   }
 
+  const handleDeleteCategory = async (category) => {
+    const isSub = Boolean(category.parentId)
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${isSub ? "subcategory" : "category"} "${category.name}"?`
+    )
+    if (!confirmed) return
+
+    try {
+      setIsLoading(true)
+      const res = await deleteItemCategoryById(category.id)
+      setNoticeMessage(res?.message || `Category "${category.name}" deleted successfully.`)
+      loadCategories(catPagination.page)
+      setTimeout(() => setNoticeMessage(""), 4000)
+    } catch (err) {
+      console.error("Delete category error:", err)
+      setErrorMessage(
+        err?.response?.data?.message || err?.message || "Failed to delete category."
+      )
+      setTimeout(() => setErrorMessage(""), 6000)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleClearAllCategories = async () => {
+    const confirmed = window.confirm(
+      "CRITICAL: Are you sure you want to delete ALL categories and subcategories? This will completely clear all category records."
+    )
+    if (!confirmed) return
+
+    try {
+      setIsLoading(true)
+      const res = await clearAllCategories()
+      setNoticeMessage(res?.message || "All categories have been cleared successfully.")
+      loadCategories(1)
+      setTimeout(() => setNoticeMessage(""), 5000)
+    } catch (err) {
+      console.error("Clear all categories error:", err)
+      setErrorMessage(
+        err?.response?.data?.message || err?.message || "Failed to clear categories."
+      )
+      setTimeout(() => setErrorMessage(""), 6000)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Unit Modal Handlers
   const handleOpenCreateUnitModal = () => {
     setEditingUnit(null)
@@ -601,14 +650,27 @@ export default function CategoriesPage({ selectedBranch, user }) {
             Refresh
           </button>
           {activeTab === "categories" ? (
-            <button
-              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
-              onClick={handleOpenCreateCategoryModal}
-              type="button"
-            >
-              <Plus size={15} />
-              Add Category
-            </button>
+            <div className="flex items-center gap-2">
+              {categories.length > 0 ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-bold text-red-700 shadow-soft transition hover:bg-red-100"
+                  onClick={handleClearAllCategories}
+                  title="Delete all categories"
+                  type="button"
+                >
+                  <Trash2 size={14} />
+                  Clear All
+                </button>
+              ) : null}
+              <button
+                className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
+                onClick={handleOpenCreateCategoryModal}
+                type="button"
+              >
+                <Plus size={15} />
+                Add Category
+              </button>
+            </div>
           ) : (
             <button
               className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)]"
@@ -1022,6 +1084,14 @@ export default function CategoriesPage({ selectedBranch, user }) {
                             >
                               <Edit3 size={13} />
                               Edit
+                            </button>
+                            <button
+                              className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50/70 p-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100 hover:text-red-800"
+                              onClick={() => handleDeleteCategory(cat)}
+                              title="Delete category"
+                              type="button"
+                            >
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>

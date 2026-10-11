@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, AlertTriangle, CheckCircle2, Edit3, Layers, PackageSearch, Plus, RefreshCw, Save, Search, SlidersHorizontal, Sparkles, Tag, X } from "lucide-react"
-import { useCallback } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
+import { AlertCircle, AlertTriangle, Check, CheckCircle2, Edit3, Layers, PackageSearch, Plus, RefreshCw, Save, Search, SlidersHorizontal, Sparkles, Tag, X } from "lucide-react"
 
 import { USER_ROLES } from "../../constants/roles"
 import { createItem, getItemCategories, getItems, getUnits, updateItemById } from "../../features/items/items.api"
+import { createItemCategory } from "../../features/categories/categories.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import {
@@ -523,6 +523,8 @@ function ItemEditorModal({
   onNavigate,
   onSave,
   units,
+  onCategoryCreated,
+  effectiveBranchId,
 }) {
   const formCategoryId = form?.categoryId
 
@@ -540,14 +542,141 @@ function ItemEditorModal({
     return selectedCategory.parentId || selectedCategory.id
   }, [selectedCategory])
 
+  const selectedMainCategory = useMemo(() => {
+    if (!effectiveMainCatId) return null
+    return categories.find((c) => c.id === effectiveMainCatId) || null
+  }, [categories, effectiveMainCatId])
+
   const subcategoryOptions = useMemo(() => {
     if (!effectiveMainCatId) return []
     return categories.filter((c) => c.parentId === effectiveMainCatId)
   }, [categories, effectiveMainCatId])
 
-  const isUnalignedLegacyItem = Boolean(
-    selectedCategory && !selectedCategory.parentId && subcategoryOptions.length > 0
-  )
+  // Category and Subcategory inline search/creation states
+  const [catSearch, setCatSearch] = useState("")
+  const [subCatSearch, setSubCatSearch] = useState("")
+  const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false)
+  const [isSubDropdownOpen, setIsSubDropdownOpen] = useState(false)
+  const [isCreatingInlineCat, setIsCreatingInlineCat] = useState(false)
+  const [isCreatingInlineSubCat, setIsCreatingInlineSubCat] = useState(false)
+  const [inlineCatError, setInlineCatError] = useState("")
+
+  useEffect(() => {
+    if (selectedMainCategory) {
+      setCatSearch(selectedMainCategory.name)
+    } else {
+      setCatSearch("")
+    }
+
+    if (selectedCategory && selectedCategory.parentId) {
+      setSubCatSearch(selectedCategory.name)
+    } else {
+      setSubCatSearch("")
+    }
+  }, [selectedMainCategory, selectedCategory])
+
+  const filteredMainCategories = useMemo(() => {
+    const q = (catSearch || "").trim().toLowerCase()
+    if (!q) return mainCategories
+    return mainCategories.filter((c) => c.name.toLowerCase().includes(q))
+  }, [mainCategories, catSearch])
+
+  const filteredSubcategories = useMemo(() => {
+    const q = (subCatSearch || "").trim().toLowerCase()
+    if (!q) return subcategoryOptions
+    return subcategoryOptions.filter((c) => c.name.toLowerCase().includes(q))
+  }, [subcategoryOptions, subCatSearch])
+
+  const canCreateNewMainCat = useMemo(() => {
+    const q = catSearch.trim()
+    if (!q) return false
+    return !mainCategories.some(
+      (c) => c.name.toLowerCase() === q.toLowerCase()
+    )
+  }, [mainCategories, catSearch])
+
+  const canCreateNewSubCat = useMemo(() => {
+    const q = subCatSearch.trim()
+    if (!q || !effectiveMainCatId) return false
+    return !subcategoryOptions.some(
+      (c) => c.name.toLowerCase() === q.toLowerCase()
+    )
+  }, [subcategoryOptions, subCatSearch, effectiveMainCatId])
+
+  const handleCreateCategoryInline = async (nameToCreate) => {
+    const trimmed = (nameToCreate || catSearch).trim()
+    if (!trimmed) return
+
+    setInlineCatError("")
+    setIsCreatingInlineCat(true)
+    try {
+      const res = await createItemCategory({
+        name: trimmed,
+        parentId: null,
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+      })
+      const newCat = res?.data || res
+      if (onCategoryCreated) {
+        onCategoryCreated(newCat)
+      }
+      setCatSearch(newCat.name)
+      onChange("categoryId", newCat.id)
+      setIsCatDropdownOpen(false)
+    } catch (err) {
+      console.error("Inline category error:", err)
+      setInlineCatError(
+        err?.response?.data?.message || err?.message || "Failed to create category"
+      )
+    } finally {
+      setIsCreatingInlineCat(false)
+    }
+  }
+
+  const handleCreateSubcategoryInline = async (nameToCreate) => {
+    const trimmed = (nameToCreate || subCatSearch).trim()
+    if (!trimmed) return
+    if (!effectiveMainCatId) {
+      setInlineCatError("Please select a category first.")
+      return
+    }
+
+    setInlineCatError("")
+    setIsCreatingInlineSubCat(true)
+    try {
+      const res = await createItemCategory({
+        name: trimmed,
+        parentId: effectiveMainCatId,
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+      })
+      const newSubCat = res?.data || res
+      if (onCategoryCreated) {
+        onCategoryCreated(newSubCat)
+      }
+      setSubCatSearch(newSubCat.name)
+      onChange("categoryId", newSubCat.id)
+      setIsSubDropdownOpen(false)
+    } catch (err) {
+      console.error("Inline subcategory error:", err)
+      setInlineCatError(
+        err?.response?.data?.message || err?.message || "Failed to create subcategory"
+      )
+    } finally {
+      setIsCreatingInlineSubCat(false)
+    }
+  }
+
+  const handleSelectMainCat = (mainCat) => {
+    setCatSearch(mainCat.name)
+    setIsCatDropdownOpen(false)
+    const subs = categories.filter((c) => c.parentId === mainCat.id)
+    if (subs.length > 0) {
+      onChange("categoryId", subs[0].id)
+      setSubCatSearch(subs[0].name)
+    } else {
+      onChange("categoryId", mainCat.id)
+      setSubCatSearch("")
+    }
+  }
 
   if (!form) return null
 
@@ -555,19 +684,6 @@ function ItemEditorModal({
     "mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
 
   const labelClass = "text-[11px] font-bold uppercase tracking-wider text-slate-600"
-
-  const handleMainCatChange = (mainId) => {
-    if (!mainId) {
-      onChange("categoryId", "")
-      return
-    }
-    const subs = categories.filter((c) => c.parentId === mainId)
-    if (subs.length > 0) {
-      onChange("categoryId", subs[0].id)
-    } else {
-      onChange("categoryId", mainId)
-    }
-  }
 
   const WARRANTY_PRESETS = [
     { label: "1 Year", duration: "1 YEAR WARRANTY" },
@@ -594,9 +710,7 @@ function ItemEditorModal({
               {isEditing ? "Edit Product" : "New Product"}
             </h2>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              {isEditing && form.itemCode
-                ? `Item Code: ${form.itemCode}`
-                : "Fill in product specifications and pricing"}
+              Fill in product details, warranty, and pricing
             </p>
           </div>
 
@@ -618,137 +732,215 @@ function ItemEditorModal({
             </div>
           ) : null}
 
-          {/* 1. Category & Classification */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                1. Category & Classification
-              </span>
-              {onNavigate ? (
-                <button
-                  className="text-[11px] font-semibold text-[var(--color-maroon)] hover:underline"
-                  onClick={() => onNavigate("categories")}
-                  type="button"
-                >
-                  Manage Categories ↗
-                </button>
-              ) : null}
+          {inlineCatError ? (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+              <AlertCircle className="mt-0.5 shrink-0" size={15} />
+              <span>{inlineCatError}</span>
             </div>
+          ) : null}
 
-            {isUnalignedLegacyItem ? (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                <span>
-                  Currently assigned to top-level category (<strong>{selectedCategory?.name}</strong>). Please select a <strong>Subcategory</strong> below.
-                </span>
-              </div>
-            ) : null}
-
+          {/* 1. Category & Subcategory */}
+          <section className="space-y-2">
             <div className="grid gap-3 sm:grid-cols-2">
-              {/* MAIN CATEGORY */}
-              <label className="block">
-                <span className={labelClass}>Main Category</span>
-                <select
-                  className={inputClass}
-                  onChange={(event) => handleMainCatChange(event.target.value)}
-                  value={effectiveMainCatId}
-                >
-                  <option value="">Select main category</option>
-                  {mainCategories.map((mainCat) => (
-                    <option key={mainCat.id} value={mainCat.id}>
-                      {mainCat.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {/* CATEGORY (SEARCHABLE + CREATE NEW) */}
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <span className={labelClass}>
+                    Category <span className="text-red-500">*</span>
+                  </span>
+                  {selectedMainCategory ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      Selected
+                    </span>
+                  ) : null}
+                </div>
 
-              {/* SUBCATEGORY */}
-              <label className="block">
-                <span className={labelClass}>
-                  Subcategory <span className="text-red-500">*</span>
-                </span>
-                {subcategoryOptions.length > 0 ? (
-                  <select
-                    className={`${inputClass} ${
-                      isUnalignedLegacyItem
-                        ? "border-amber-400 bg-amber-50/30"
-                        : ""
-                    }`}
-                    onChange={(event) =>
-                      onChange("categoryId", event.target.value)
-                    }
-                    required
-                    value={isUnalignedLegacyItem ? "" : form.categoryId}
-                  >
-                    <option value="">
-                      {isUnalignedLegacyItem
-                        ? `Select subcategory (e.g. ${subcategoryOptions[0]?.name})`
-                        : "Select subcategory"}
-                    </option>
-                    {subcategoryOptions.map((subCat) => (
-                      <option key={subCat.id} value={subCat.id}>
-                        {subCat.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <input
-                      className={`${inputClass} bg-slate-50 text-slate-500 cursor-not-allowed`}
-                      disabled
-                      value={selectedCategory?.name || "No subcategories"}
+                <div className="relative mt-1">
+                  <input
+                    className={`${inputClass} pr-8`}
+                    value={catSearch}
+                    onChange={(e) => {
+                      setCatSearch(e.target.value)
+                      setIsCatDropdownOpen(true)
+                    }}
+                    onFocus={() => setIsCatDropdownOpen(true)}
+                    placeholder="Search or type new category…"
+                  />
+                  {catSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCatSearch("")
+                        onChange("categoryId", "")
+                        setIsCatDropdownOpen(true)
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                    >
+                      <X size={13} />
+                    </button>
+                  ) : null}
+                </div>
+
+                {/* Dropdown list */}
+                {isCatDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsCatDropdownOpen(false)}
                     />
-                    {onNavigate ? (
-                      <button
-                        type="button"
-                        onClick={() => onNavigate("categories")}
-                        className="shrink-0 mt-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-maroon)] hover:bg-slate-50"
-                        title="Manage in File Maintenance"
-                      >
-                        + Add
-                      </button>
-                    ) : null}
-                  </div>
+                    <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg text-xs">
+                      {canCreateNewMainCat && (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-lg bg-amber-50/80 px-2.5 py-2 text-left font-bold text-amber-900 hover:bg-amber-100 transition border border-amber-200 mb-1"
+                          onClick={() => handleCreateCategoryInline(catSearch)}
+                          disabled={isCreatingInlineCat}
+                        >
+                          <Plus size={14} className="text-amber-700 shrink-0" />
+                          <span>
+                            {isCreatingInlineCat
+                              ? "Creating…"
+                              : `+ Add "${catSearch.trim()}" as new Category`}
+                          </span>
+                        </button>
+                      )}
+
+                      {filteredMainCategories.length > 0 ? (
+                        filteredMainCategories.map((mainCat) => {
+                          const isSelected = mainCat.id === effectiveMainCatId
+                          return (
+                            <button
+                              key={mainCat.id}
+                              type="button"
+                              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left transition ${
+                                isSelected
+                                  ? "bg-[var(--color-maroon)] text-white font-bold"
+                                  : "text-slate-700 hover:bg-slate-100 font-medium"
+                              }`}
+                              onClick={() => handleSelectMainCat(mainCat)}
+                            >
+                              <span>{mainCat.name}</span>
+                              {isSelected && <Check size={13} />}
+                            </button>
+                          )
+                        })
+                      ) : !canCreateNewMainCat ? (
+                        <div className="p-3 text-center text-slate-400 text-xs font-medium">
+                          No categories found
+                        </div>
+                      ) : null}
+                    </div>
+                  </>
                 )}
-              </label>
+              </div>
+
+              {/* SUBCATEGORY (SEARCHABLE + CREATE NEW) */}
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <span className={labelClass}>
+                    Subcategory <span className="text-red-500">*</span>
+                  </span>
+                  {selectedCategory && selectedCategory.parentId ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      Selected
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="relative mt-1">
+                  <input
+                    className={`${inputClass} pr-8 ${!effectiveMainCatId ? "bg-slate-50 cursor-not-allowed opacity-60" : ""}`}
+                    disabled={!effectiveMainCatId}
+                    value={subCatSearch}
+                    onChange={(e) => {
+                      setSubCatSearch(e.target.value)
+                      setIsSubDropdownOpen(true)
+                    }}
+                    onFocus={() => {
+                      if (effectiveMainCatId) setIsSubDropdownOpen(true)
+                    }}
+                    placeholder={
+                      effectiveMainCatId
+                        ? "Search or type new subcategory…"
+                        : "Select category first"
+                    }
+                  />
+                  {subCatSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSubCatSearch("")
+                        onChange("categoryId", effectiveMainCatId)
+                        setIsSubDropdownOpen(true)
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                    >
+                      <X size={13} />
+                    </button>
+                  ) : null}
+                </div>
+
+                {/* Dropdown list */}
+                {isSubDropdownOpen && effectiveMainCatId && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsSubDropdownOpen(false)}
+                    />
+                    <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg text-xs">
+                      {canCreateNewSubCat && (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-lg bg-amber-50/80 px-2.5 py-2 text-left font-bold text-amber-900 hover:bg-amber-100 transition border border-amber-200 mb-1"
+                          onClick={() => handleCreateSubcategoryInline(subCatSearch)}
+                          disabled={isCreatingInlineSubCat}
+                        >
+                          <Plus size={14} className="text-amber-700 shrink-0" />
+                          <span>
+                            {isCreatingInlineSubCat
+                              ? "Creating…"
+                              : `+ Add "${subCatSearch.trim()}" under ${selectedMainCategory?.name || "Category"}`}
+                          </span>
+                        </button>
+                      )}
+
+                      {filteredSubcategories.length > 0 ? (
+                        filteredSubcategories.map((subCat) => {
+                          const isSelected = subCat.id === formCategoryId
+                          return (
+                            <button
+                              key={subCat.id}
+                              type="button"
+                              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left transition ${
+                                isSelected
+                                  ? "bg-[var(--color-maroon)] text-white font-bold"
+                                  : "text-slate-700 hover:bg-slate-100 font-medium"
+                              }`}
+                              onClick={() => {
+                                onChange("categoryId", subCat.id)
+                                setSubCatSearch(subCat.name)
+                                setIsSubDropdownOpen(false)
+                              }}
+                            >
+                              <span>{subCat.name}</span>
+                              {isSelected && <Check size={13} />}
+                            </button>
+                          )
+                        })
+                      ) : !canCreateNewSubCat ? (
+                        <div className="p-3 text-center text-slate-400 text-xs font-medium">
+                          No subcategories yet. Type above to add!
+                        </div>
+                      ) : null}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </section>
 
-          {/* 2. Product Identity & Details */}
-          <section className="space-y-2.5 pt-2 border-t border-slate-100">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              2. Product Identity & Details
-            </span>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {/* ITEM CODE */}
-              <label className="block">
-                <span className={labelClass}>Item Code</span>
-                <input
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("itemCode", event.target.value.toUpperCase())
-                  }
-                  placeholder={isEditing ? "Item Code" : "Auto-generated"}
-                  value={form.itemCode}
-                />
-              </label>
-
-              {/* BARCODE */}
-              <label className="block">
-                <span className={labelClass}>Barcode</span>
-                <input
-                  autoComplete="off"
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("barcode", event.target.value)
-                  }
-                  placeholder="Scan or type barcode"
-                  value={form.barcode}
-                />
-              </label>
-            </div>
-
+          {/* 2. Product Name, Unit & Item Notes */}
+          <section className="space-y-3 pt-2 border-t border-slate-100">
             {/* PRODUCT NAME */}
             <label className="block">
               <span className={labelClass}>
@@ -764,34 +956,6 @@ function ItemEditorModal({
                 value={form.itemName}
               />
             </label>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {/* BRAND */}
-              <label className="block">
-                <span className={labelClass}>Brand</span>
-                <input
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("brand", event.target.value)
-                  }
-                  placeholder="e.g. Intel, Asus, Kingston"
-                  value={form.brand}
-                />
-              </label>
-
-              {/* MODEL */}
-              <label className="block">
-                <span className={labelClass}>Model</span>
-                <input
-                  className={inputClass}
-                  onChange={(event) =>
-                    onChange("modelName", event.target.value)
-                  }
-                  placeholder="e.g. B660M, 3200MHz"
-                  value={form.modelName}
-                />
-              </label>
-            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               {/* UNIT */}
@@ -816,7 +980,7 @@ function ItemEditorModal({
                 </select>
               </label>
 
-              {/* OPTIONAL NOTES / DESCRIPTION */}
+              {/* ITEM NOTES */}
               <label className="block">
                 <span className={labelClass}>Item Notes (Optional)</span>
                 <input
@@ -833,40 +997,20 @@ function ItemEditorModal({
 
           {/* 3. Tracking, Warranty & Status */}
           <section className="space-y-2.5 pt-2 border-t border-slate-100">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              3. Tracking, Warranty & Status
-            </span>
-
-            <div className="grid gap-3 sm:grid-cols-2 items-start">
-              {/* SERIALIZED */}
-              <div>
-                <span className={labelClass}>Tracking</span>
-                <label className="mt-1 flex h-[38px] items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/50 px-3 text-xs font-medium text-slate-700 cursor-pointer hover:bg-slate-50 transition">
-                  <input
-                    type="checkbox"
-                    className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
-                    checked={Boolean(form.isSerialized)}
-                    onChange={(event) =>
-                      onChange("isSerialized", event.target.checked)
-                    }
-                  />
-                  <span>Serialized item (scans serials)</span>
-                </label>
-              </div>
-
-              {/* STATUS */}
-              <label className="block">
-                <span className={labelClass}>Status</span>
-                <select
-                  className={inputClass}
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Tracking & Warranty
+              </span>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  className="rounded text-[var(--color-maroon)] focus:ring-[var(--color-maroon)]"
+                  checked={Boolean(form.isSerialized)}
                   onChange={(event) =>
-                    onChange("status", event.target.value)
+                    onChange("isSerialized", event.target.checked)
                   }
-                  value={form.status || "ACTIVE"}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
+                />
+                <span>Serialized item (scans serials)</span>
               </label>
             </div>
 
@@ -2257,6 +2401,13 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
         onNavigate={onNavigate}
         onSave={saveItem}
         units={unitOptions}
+        onCategoryCreated={(newCat) => {
+          setCategoryOptions((prev) => {
+            if (prev.some((c) => c.id === newCat.id)) return prev
+            return [...prev, newCat]
+          })
+        }}
+        effectiveBranchId={selectedBranchId || user?.branchId}
       />
 
       <ItemDetailModal

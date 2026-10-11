@@ -19,3 +19,13 @@ export async function updateItemCategoryById(categoryId, payload) {
   const response = await apiClient.patch(`/item-categories/${categoryId}`, payload)
   return response.data
 }
+
+export async function deleteItemCategoryById(categoryId) {
+  const response = await apiClient.delete(`/item-categories/${categoryId}`)
+  return response.data
+}
+
+export async function clearAllCategories() {
+  const response = await apiClient.delete("/item-categories/clear-all")
+  return response.data
+}
