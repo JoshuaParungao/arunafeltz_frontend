@@ -1152,25 +1152,11 @@ function ItemEditorModal({
                             </button>
                           )
                         })
-                      ) : (
-                        <div className="p-2 space-y-1.5">
-                          <p className="text-[11px] text-slate-400 font-medium text-center">
-                            Or select standard unit to add:
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {["PIECE", "BOX", "SET", "UNIT", "KIT", "METER", "PAIR", "ROLL"].map((presetCode) => (
-                              <button
-                                key={presetCode}
-                                type="button"
-                                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100 transition"
-                                onClick={() => handleCreateUnitInline(presetCode)}
-                              >
-                                + {presetCode}
-                              </button>
-                            ))}
-                          </div>
+                      ) : !canCreateNewUnit ? (
+                        <div className="p-3 text-center text-slate-400 text-xs font-medium">
+                          No units found
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </>
                 )}
