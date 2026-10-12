@@ -95,13 +95,13 @@ function formatStatus(value) {
 }
 
 function tone(status) {
-  if (["ACTIVE", "POSTED", "RECEIVED", "COMPLETED"].includes(status)) return "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300"
-  if (["CANCELLED", "INACTIVE", "REJECTED"].includes(status)) return "bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300"
-  return "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300"
+  if (["ACTIVE", "POSTED", "RECEIVED", "COMPLETED"].includes(status)) return "bg-emerald-50 text-emerald-800 border border-emerald-200"
+  if (["CANCELLED", "INACTIVE", "REJECTED"].includes(status)) return "bg-rose-50 text-rose-800 border border-rose-200"
+  return "bg-amber-50 text-amber-800 border border-amber-200"
 }
 
 function Status({ value }) {
-  return <span className={`rounded-full px-2.5 py-0.5 text-xs font-black ${tone(value)}`}>{formatStatus(value)}</span>
+  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${tone(value)}`}>{formatStatus(value)}</span>
 }
 
 export default function CashBoxesPage({
@@ -774,64 +774,37 @@ export default function CashBoxesPage({
   const handoverPages = Math.max(1, handoverMeta.totalPages || 1)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Top Header Banner */}
-      <section className="relative overflow-hidden rounded-3xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-card)] via-[var(--color-soft)]/50 to-[var(--color-card)] p-6 shadow-card">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-xl bg-[var(--color-maroon)]/10 px-3 py-1 text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
                 Finance & Cash Flow
               </span>
-              <span className="rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-[var(--color-text-strong)]">
+              <span className="text-slate-300">·</span>
+              <span className="text-[11px] font-semibold text-slate-500">
                 {branchName}
               </span>
             </div>
-            <h1 className="mt-2.5 text-3xl font-black tracking-tight text-[var(--color-text-strong)]">
+            <h1 className="mt-1 text-2xl font-black text-slate-900 tracking-tight">
               Cash Register & Vault Center
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-[var(--color-muted)]">
-              Complete multi-channel monitoring for physical cash in drawer, cashless e-wallets, bank deposits, store expenses, and shift handovers.
+            <p className="mt-0.5 text-xs text-slate-500">
+              Multi-channel monitoring for physical cash in drawer, cashless e-wallets, bank deposits, store expenses, and shift handovers.
             </p>
-
-            {/* Mode Switcher */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPageMode("operations")}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-                  pageMode === "operations"
-                    ? "bg-[var(--color-maroon)] text-white shadow-sm"
-                    : "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
-                }`}
-              >
-                <Banknote size={15} />
-                Cashier Operations & Drawer
-              </button>
-              <button
-                type="button"
-                onClick={() => setPageMode("reports")}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-                  pageMode === "reports"
-                    ? "bg-[var(--color-maroon)] text-white shadow-sm"
-                    : "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted)] hover:text-[var(--color-text-strong)]"
-                }`}
-              >
-                <FileSpreadsheet size={15} />
-                Executive Reports & Shift Audit
-              </button>
-            </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              className="inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] transition hover:bg-[var(--color-soft)] shadow-sm"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
               disabled={isLoading}
               onClick={refresh}
               type="button"
             >
-              <RefreshCw className={isLoading ? "animate-spin" : ""} size={16} />
+              <RefreshCw className={isLoading ? "animate-spin" : ""} size={14} />
               Refresh
             </button>
 
@@ -846,43 +819,71 @@ export default function CashBoxesPage({
             {canManage && (
               <>
                 <button
-                  className="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-rose-700"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100 transition shadow-2xs"
                   onClick={() => setModalType("EXPENSE")}
                   type="button"
                 >
-                  <Receipt size={16} />
+                  <Receipt size={14} className="text-rose-600" />
                   Record Expense
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-sky-700"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-2 text-xs font-bold text-sky-800 hover:bg-sky-100 transition shadow-2xs"
                   onClick={() => setModalType("BANK_DEPOSIT")}
                   type="button"
                 >
-                  <Building2 size={16} />
+                  <Building2 size={14} className="text-sky-600" />
                   Deposit to Bank
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-800"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition shadow-2xs"
                   onClick={() => setModalType("CASH_IN")}
                   type="button"
                 >
-                  <Plus size={16} />
+                  <Plus size={14} />
                   Add Cash Float
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-gold)] px-4 py-3 text-sm font-black text-slate-900 shadow-md transition hover:opacity-90"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-2xs"
                   onClick={() => setModalType("HANDOVER")}
                   type="button"
                 >
-                  <HandCoins size={16} />
+                  <HandCoins size={14} className="text-amber-700" />
                   Shift Handover
                 </button>
               </>
             )}
           </div>
+        </div>
+
+        {/* Mode Switcher Tabs */}
+        <div className="mt-5 flex border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => setPageMode("operations")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition ${
+              pageMode === "operations"
+                ? "border-[var(--color-maroon)] text-[var(--color-maroon)] font-black"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <Banknote size={14} />
+            <span>Cashier Operations & Drawer</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPageMode("reports")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition ${
+              pageMode === "reports"
+                ? "border-[var(--color-maroon)] text-[var(--color-maroon)] font-black"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <FileSpreadsheet size={14} />
+            <span>Executive Reports & Shift Audit</span>
+          </button>
         </div>
       </section>
 
@@ -911,367 +912,375 @@ export default function CashBoxesPage({
         />
       ) : (
         <>
-          {/* THE 3 BIG PILLARS OF CASH FLOW */}
-          <section className="grid gap-5 lg:grid-cols-3">
-        {/* PILLAR 1: TOTAL CASH IN DRAWER */}
-        <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-[var(--color-card)] to-[var(--color-card)] p-6 shadow-card">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid size-11 place-items-center rounded-2xl bg-emerald-600 text-white shadow-md">
-                <Banknote size={22} />
-              </span>
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                  Total Physical Cash
-                </p>
-                <p className="text-xs font-semibold text-[var(--color-muted)]">
-                  Drawer & Vault Holding
-                </p>
-              </div>
-            </div>
-            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-3 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300">
-              Drawer Active
-            </span>
-          </div>
-
-          <div className="mt-5">
-            <p className="font-mono text-3xl font-black text-[var(--color-text-strong)]">
-              {money(cashPillar.currentBalance)}
-            </p>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">
-              Real-time physical currency ready in cashier drawer
-            </p>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-2 border-t border-[var(--color-border)] pt-4 text-xs">
-            <div className="rounded-xl bg-[var(--color-soft)] p-2.5">
-              <p className="font-bold text-[var(--color-muted)]">Inflow Collections</p>
-              <p className="mt-1 font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                +{money(cashPillar.totalInflow)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-[var(--color-soft)] p-2.5">
-              <p className="font-bold text-[var(--color-muted)]">Expenses & Outflow</p>
-              <p className="mt-1 font-mono font-bold text-rose-600 dark:text-rose-400">
-                -{money(cashPillar.totalOutflow)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* PILLAR 2: TOTAL CASHLESS & DIGITAL WALLETS */}
-        <div className="relative overflow-hidden rounded-3xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 via-[var(--color-card)] to-[var(--color-card)] p-6 shadow-card">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid size-11 place-items-center rounded-2xl bg-sky-600 text-white shadow-md">
-                <Smartphone size={22} />
-              </span>
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-sky-700 dark:text-sky-400">
-                  Total Cashless & Digital
-                </p>
-                <p className="text-xs font-semibold text-[var(--color-muted)]">
-                  GCash, Bank & Financing
-                </p>
-              </div>
-            </div>
-            <span className="rounded-full bg-sky-100 dark:bg-sky-950/60 px-3 py-1 text-xs font-black text-sky-800 dark:text-sky-300">
-              Online/AR
-            </span>
-          </div>
-
-          <div className="mt-5">
-            <p className="font-mono text-3xl font-black text-[var(--color-text-strong)]">
-              {money(cashlessPillar.totalCashless)}
-            </p>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">
-              Total digital collections from sales and service jobs
-            </p>
-          </div>
-
-          <div className="mt-5 grid grid-cols-3 gap-2 border-t border-[var(--color-border)] pt-4 text-xs">
-            <div className="rounded-xl bg-[var(--color-soft)] p-2 text-center">
-              <p className="font-bold text-[var(--color-muted)]">📱 GCash/Maya</p>
-              <p className="mt-1 font-mono font-bold text-sky-600 dark:text-sky-400 truncate">
-                {money(cashlessPillar.gcashTotal)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-[var(--color-soft)] p-2 text-center">
-              <p className="font-bold text-[var(--color-muted)]">🏦 Bank Trans</p>
-              <p className="mt-1 font-mono font-bold text-sky-600 dark:text-sky-400 truncate">
-                {money(cashlessPillar.bankTransferTotal)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-[var(--color-soft)] p-2 text-center">
-              <p className="font-bold text-[var(--color-muted)]">💳 Cards & AR</p>
-              <p className="mt-1 font-mono font-bold text-sky-600 dark:text-sky-400 truncate">
-                {money(cashlessPillar.cardArTotal)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* PILLAR 3: TOTAL OF BOTH (COMBINED CASH FLOW) */}
-        <div className="relative overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-[var(--color-card)] to-[var(--color-card)] p-6 shadow-card">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid size-11 place-items-center rounded-2xl bg-purple-600 text-white shadow-md">
-                <Sparkles size={22} />
-              </span>
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-purple-700 dark:text-purple-400">
-                  Total of Both (Combined)
-                </p>
-                <p className="text-xs font-semibold text-[var(--color-muted)]">
-                  Gross Business Cash Flow
-                </p>
-              </div>
-            </div>
-            <span className="rounded-full bg-purple-100 dark:bg-purple-950/60 px-3 py-1 text-xs font-black text-purple-800 dark:text-purple-300">
-              Cash + Cashless
-            </span>
-          </div>
-
-          <div className="mt-5">
-            <p className="font-mono text-3xl font-black text-purple-900 dark:text-purple-200">
-              {money(totalBothInflow)}
-            </p>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">
-              Combined cash in drawer + all verified digital receipts
-            </p>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-2 border-t border-[var(--color-border)] pt-4 text-xs">
-            <div className="rounded-xl bg-[var(--color-soft)] p-2.5">
-              <p className="font-bold text-[var(--color-muted)]">Store Expenses Total</p>
-              <p className="mt-1 font-mono font-bold text-rose-600 dark:text-rose-400">
-                {money(cashPillar.totalExpenses)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-[var(--color-soft)] p-2.5">
-              <p className="font-bold text-[var(--color-muted)]">Bank Deposits</p>
-              <p className="mt-1 font-mono font-bold text-sky-600 dark:text-sky-400">
-                {money(cashPillar.totalDepositedBank)}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TABS & LEDGER CONTAINER */}
-      <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-card">
-        {/* Tab Headers */}
-        <div className="flex flex-wrap border-b border-[var(--color-border)] bg-[var(--color-soft)]/50 p-2 gap-1">
-          <button
-            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition ${
-              tab === "all"
-                ? "bg-[var(--color-maroon)] text-white shadow-sm"
-                : "text-[var(--color-muted)] hover:bg-[var(--color-card)] hover:text-[var(--color-text-strong)]"
-            }`}
-            onClick={() => setTab("all")}
-            type="button"
-          >
-            <Banknote size={16} />
-            All Movements & Ledger
-          </button>
-
-          <button
-            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition ${
-              tab === "expenses"
-                ? "bg-[var(--color-maroon)] text-white shadow-sm"
-                : "text-[var(--color-muted)] hover:bg-[var(--color-card)] hover:text-[var(--color-text-strong)]"
-            }`}
-            onClick={() => setTab("expenses")}
-            type="button"
-          >
-            <Receipt size={16} />
-            Store Expenses Tracker ({expenseTransactions.length})
-          </button>
-
-          <button
-            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition ${
-              tab === "cashless"
-                ? "bg-[var(--color-maroon)] text-white shadow-sm"
-                : "text-[var(--color-muted)] hover:bg-[var(--color-card)] hover:text-[var(--color-text-strong)]"
-            }`}
-            onClick={() => setTab("cashless")}
-            type="button"
-          >
-            <Smartphone size={16} />
-            Cashless & Bank Log ({cashlessPillar.digitalTransactions.length})
-          </button>
-
-          <button
-            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition ${
-              tab === "handovers"
-                ? "bg-[var(--color-maroon)] text-white shadow-sm"
-                : "text-[var(--color-muted)] hover:bg-[var(--color-card)] hover:text-[var(--color-text-strong)]"
-            }`}
-            onClick={() => setTab("handovers")}
-            type="button"
-          >
-            <HandCoins size={16} />
-            Shift Handovers
-          </button>
-        </div>
-
-        {/* TAB 1: ALL CASH MOVEMENTS & LEDGER */}
-        {tab === "all" && (
-          <div>
-            <div className="grid gap-3 border-b border-[var(--color-border)] p-4 md:grid-cols-2">
-              <label className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={16} />
-                <input
-                  className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] py-3 pl-10 pr-4 text-sm text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
-                  onChange={(event) => {
-                    setTransactionSearch(event.target.value)
-                    setTransactionPage(1)
-                  }}
-                  placeholder="Search transaction code, reference, description..."
-                  value={transactionSearch}
-                />
-              </label>
-
-              <select
-                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
-                onChange={(event) => {
-                  setTransactionType(event.target.value)
-                  setTransactionPage(1)
-                }}
-                value={transactionType}
-              >
-                <option value="">All transaction types</option>
-                {["CASH_IN", "CASH_OUT", "SALE_PAYMENT", "CREDIT_COLLECTION", "SERVICE_PAYMENT", "HANDOVER_OUT", "ADJUSTMENT_IN", "ADJUSTMENT_OUT"].map((value) => (
-                  <option key={value} value={value}>{formatStatus(value)}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="divide-y divide-[var(--color-border)]">
-              {transactions.map((entry) => {
-                const isIn = CASH_IN_TYPES.has(entry.type)
-                const isExpense = entry.description?.startsWith("[EXPENSE:")
-                const isBankDeposit = entry.description?.startsWith("[BANK DEPOSIT")
-
-                return (
-                  <article className="grid gap-4 p-4.5 md:grid-cols-[1fr_auto_auto] md:items-center hover:bg-[var(--color-soft)]/40 transition" key={entry.id}>
-                    <div className="flex min-w-0 items-start gap-3.5">
-                      <span className={`grid size-11 shrink-0 place-items-center rounded-2xl shadow-sm ${
-                        isExpense
-                          ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                          : isBankDeposit
-                            ? "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300"
-                            : isIn
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                              : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                      }`}>
-                        {isExpense ? <Receipt size={18} /> : isBankDeposit ? <Building2 size={18} /> : isIn ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono font-black text-sm text-[var(--color-text-strong)]">
-                            {entry.transactionCode}
-                          </p>
-                          {entry.referenceNo ? (
-                            <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-mono text-[var(--color-muted)]">
-                              Ref: {entry.referenceNo}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-sm font-semibold text-[var(--color-text-strong)] line-clamp-1">
-                          {entry.description}
-                        </p>
-                        <p className="mt-1 text-xs text-[var(--color-muted)]">
-                          {dateTime(entry.transactionDate)} · {formatStatus(entry.type)} · Encoder: {entry.createdBy?.fullName || "System"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="text-left md:text-right">
-                      <p className={`font-mono text-base font-black ${isIn ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                        {isIn ? "+" : "−"}{money(entry.amount)}
-                      </p>
-                      <div className="mt-1">
-                        <Status value={entry.status} />
-                      </div>
-                    </div>
-
-                    {canManage && entry.status === "POSTED" && entry.source === "MANUAL" ? (
-                      <button
-                        className="rounded-xl border border-rose-200 bg-rose-50/50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
-                        disabled={isSaving}
-                        onClick={() => reverseTransaction(entry)}
-                        type="button"
-                      >
-                        Void / Reverse
-                      </button>
-                    ) : (
-                      <span className="w-16" />
-                    )}
-                  </article>
-                )
-              })}
-
-              {!isLoading && transactions.length === 0 && (
-                <div className="p-12 text-center">
-                  <Banknote className="mx-auto text-[var(--color-muted)]" size={36} />
-                  <p className="mt-2 font-bold text-[var(--color-text-strong)]">No cash transactions found</p>
-                  <p className="text-xs text-[var(--color-muted)]">Adjust filters or post a new cash movement.</p>
+          {/* THE 3 CLEAN PILLARS OF CASH FLOW */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* PILLAR 1: TOTAL PHYSICAL CASH IN DRAWER */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-slate-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-8 place-items-center rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700">
+                    <Banknote size={16} />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      Physical Cash
+                    </p>
+                    <p className="text-[10px] font-medium text-slate-400">
+                      Drawer & Vault Holding
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+                <span className="rounded-full bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                  Drawer Active
+                </span>
+              </div>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between border-t border-[var(--color-border)] p-4">
-              <p className="text-xs font-bold text-[var(--color-muted)]">
-                Page {transactionMeta.page || transactionPage} of {transactionPages}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  className="rounded-xl border border-[var(--color-border)] p-2 disabled:opacity-30 hover:bg-[var(--color-soft)]"
-                  disabled={transactionPage <= 1}
-                  onClick={() => setTransactionPage((p) => Math.max(1, p - 1))}
-                  type="button"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  className="rounded-xl border border-[var(--color-border)] p-2 disabled:opacity-30 hover:bg-[var(--color-soft)]"
-                  disabled={transactionPage >= transactionPages}
-                  onClick={() => setTransactionPage((p) => p + 1)}
-                  type="button"
-                >
-                  <ChevronRight size={16} />
-                </button>
+              <div className="mt-4">
+                <p className="font-mono text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  {money(cashPillar.currentBalance)}
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Physical currency available in cashier drawer
+                </p>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs">
+                <div className="rounded-lg bg-slate-50 p-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Inflow Collections</p>
+                  <p className="mt-0.5 font-mono font-bold text-emerald-700">
+                    +{money(cashPillar.totalInflow)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Expenses & Outflow</p>
+                  <p className="mt-0.5 font-mono font-bold text-rose-700">
+                    -{money(cashPillar.totalOutflow)}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+
+            {/* PILLAR 2: TOTAL CASHLESS & DIGITAL WALLETS */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-slate-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-8 place-items-center rounded-lg bg-sky-50 border border-sky-100 text-sky-700">
+                    <Smartphone size={16} />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      Cashless & Digital
+                    </p>
+                    <p className="text-[10px] font-medium text-slate-400">
+                      GCash, Bank, Cards
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-sky-50 border border-sky-200/60 px-2 py-0.5 text-[10px] font-bold text-sky-800">
+                  Verified AR
+                </span>
+              </div>
+
+              <div className="mt-4">
+                <p className="font-mono text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  {money(cashlessPillar.totalCashless)}
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Digital receipts from sales & service jobs
+                </p>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-1.5 border-t border-slate-100 pt-3 text-xs">
+                <div className="rounded-lg bg-slate-50 p-1.5 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase truncate">GCash/Maya</p>
+                  <p className="mt-0.5 font-mono font-bold text-slate-800 truncate">
+                    {money(cashlessPillar.gcashTotal)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-1.5 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase truncate">Bank Trans</p>
+                  <p className="mt-0.5 font-mono font-bold text-slate-800 truncate">
+                    {money(cashlessPillar.bankTransferTotal)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-1.5 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase truncate">Cards & AR</p>
+                  <p className="mt-0.5 font-mono font-bold text-slate-800 truncate">
+                    {money(cashlessPillar.cardArTotal)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* PILLAR 3: TOTAL COMBINED CASH FLOW */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-slate-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-8 place-items-center rounded-lg bg-purple-50 border border-purple-100 text-purple-700">
+                    <Sparkles size={16} />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      Total Gross Inflow
+                    </p>
+                    <p className="text-[10px] font-medium text-slate-400">
+                      Combined Business Revenue
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-purple-50 border border-purple-200/60 px-2 py-0.5 text-[10px] font-bold text-purple-800">
+                  Cash + Digital
+                </span>
+              </div>
+
+              <div className="mt-4">
+                <p className="font-mono text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  {money(totalBothInflow)}
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Combined drawer cash + verified digital receipts
+                </p>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs">
+                <div className="rounded-lg bg-slate-50 p-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Store Expenses</p>
+                  <p className="mt-0.5 font-mono font-bold text-rose-700">
+                    {money(cashPillar.totalExpenses)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Bank Deposits</p>
+                  <p className="mt-0.5 font-mono font-bold text-sky-700">
+                    {money(cashPillar.totalDepositedBank)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* TABS & LEDGER CONTAINER */}
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+            {/* Tab Headers */}
+            <div className="flex items-center border-b border-slate-200 px-4 pt-1 gap-2 sm:gap-6 overflow-x-auto bg-white">
+              <button
+                className={`flex items-center gap-1.5 pb-3 pt-2 text-xs transition border-b-2 whitespace-nowrap ${
+                  tab === "all"
+                    ? "border-[var(--color-maroon)] text-[var(--color-maroon)] font-black"
+                    : "border-transparent text-slate-500 hover:text-slate-800 font-bold"
+                }`}
+                onClick={() => setTab("all")}
+                type="button"
+              >
+                <Banknote size={14} />
+                <span>All Movements & Ledger</span>
+              </button>
+
+              <button
+                className={`flex items-center gap-1.5 pb-3 pt-2 text-xs transition border-b-2 whitespace-nowrap ${
+                  tab === "expenses"
+                    ? "border-[var(--color-maroon)] text-[var(--color-maroon)] font-black"
+                    : "border-transparent text-slate-500 hover:text-slate-800 font-bold"
+                }`}
+                onClick={() => setTab("expenses")}
+                type="button"
+              >
+                <Receipt size={14} />
+                <span>Store Expenses Tracker</span>
+                <span className="rounded-full bg-slate-100 px-1.5 py-0.2 text-[10px] font-mono text-slate-600">
+                  {expenseTransactions.length}
+                </span>
+              </button>
+
+              <button
+                className={`flex items-center gap-1.5 pb-3 pt-2 text-xs transition border-b-2 whitespace-nowrap ${
+                  tab === "cashless"
+                    ? "border-[var(--color-maroon)] text-[var(--color-maroon)] font-black"
+                    : "border-transparent text-slate-500 hover:text-slate-800 font-bold"
+                }`}
+                onClick={() => setTab("cashless")}
+                type="button"
+              >
+                <Smartphone size={14} />
+                <span>Cashless & Bank Log</span>
+                <span className="rounded-full bg-slate-100 px-1.5 py-0.2 text-[10px] font-mono text-slate-600">
+                  {cashlessPillar.digitalTransactions.length}
+                </span>
+              </button>
+
+              <button
+                className={`flex items-center gap-1.5 pb-3 pt-2 text-xs transition border-b-2 whitespace-nowrap ${
+                  tab === "handovers"
+                    ? "border-[var(--color-maroon)] text-[var(--color-maroon)] font-black"
+                    : "border-transparent text-slate-500 hover:text-slate-800 font-bold"
+                }`}
+                onClick={() => setTab("handovers")}
+                type="button"
+              >
+                <HandCoins size={14} />
+                <span>Shift Handovers</span>
+              </button>
+            </div>
+
+            {/* TAB 1: ALL CASH MOVEMENTS & LEDGER */}
+            {tab === "all" && (
+              <div>
+                <div className="grid gap-3 border-b border-slate-200 bg-slate-50/50 p-3 sm:grid-cols-[1fr_220px]">
+                  <label className="relative block">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                      onChange={(event) => {
+                        setTransactionSearch(event.target.value)
+                        setTransactionPage(1)
+                      }}
+                      placeholder="Search transaction code, reference, description..."
+                      value={transactionSearch}
+                    />
+                  </label>
+
+                  <select
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-[var(--color-maroon)]"
+                    onChange={(event) => {
+                      setTransactionType(event.target.value)
+                      setTransactionPage(1)
+                    }}
+                    value={transactionType}
+                  >
+                    <option value="">All transaction types</option>
+                    {["CASH_IN", "CASH_OUT", "SALE_PAYMENT", "CREDIT_COLLECTION", "SERVICE_PAYMENT", "HANDOVER_OUT", "ADJUSTMENT_IN", "ADJUSTMENT_OUT"].map((value) => (
+                      <option key={value} value={value}>{formatStatus(value)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {transactions.map((entry) => {
+                    const isIn = CASH_IN_TYPES.has(entry.type)
+                    const isExpense = entry.description?.startsWith("[EXPENSE:")
+                    const isBankDeposit = entry.description?.startsWith("[BANK DEPOSIT")
+
+                    return (
+                      <article className="grid gap-3 p-3.5 sm:px-4 sm:py-3 md:grid-cols-[1fr_auto_auto] md:items-center hover:bg-slate-50/70 transition" key={entry.id}>
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span className={`grid size-9 shrink-0 place-items-center rounded-xl border ${
+                            isExpense
+                              ? "bg-rose-50 text-rose-700 border-rose-100"
+                              : isBankDeposit
+                                ? "bg-sky-50 text-sky-700 border-sky-100"
+                                : isIn
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                  : "bg-amber-50 text-amber-700 border-amber-100"
+                          }`}>
+                            {isExpense ? <Receipt size={15} /> : isBankDeposit ? <Building2 size={15} /> : isIn ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-mono font-bold text-xs text-slate-900">
+                                {entry.transactionCode}
+                              </p>
+                              {entry.referenceNo ? (
+                                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-500">
+                                  Ref: {entry.referenceNo}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-0.5 text-xs font-semibold text-slate-800 line-clamp-1">
+                              {entry.description}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-slate-400">
+                              {dateTime(entry.transactionDate)} · {formatStatus(entry.type)} · Encoder: {entry.createdBy?.fullName || "System"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-left md:text-right">
+                          <p className={`font-mono text-sm font-bold ${isIn ? "text-emerald-700" : "text-rose-700"}`}>
+                            {isIn ? "+" : "−"}{money(entry.amount)}
+                          </p>
+                          <div className="mt-0.5">
+                            <Status value={entry.status} />
+                          </div>
+                        </div>
+
+                        {canManage && entry.status === "POSTED" && entry.source === "MANUAL" ? (
+                          <button
+                            className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 transition shadow-2xs"
+                            disabled={isSaving}
+                            onClick={() => reverseTransaction(entry)}
+                            type="button"
+                          >
+                            Void / Reverse
+                          </button>
+                        ) : (
+                          <span className="w-16" />
+                        )}
+                      </article>
+                    )
+                  })}
+
+                  {!isLoading && transactions.length === 0 && (
+                    <div className="p-12 text-center">
+                      <div className="size-11 rounded-2xl bg-slate-100 text-slate-400 grid place-items-center mx-auto mb-2.5">
+                        <Banknote size={20} />
+                      </div>
+                      <p className="text-xs font-bold text-slate-700">No cash transactions found</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">Adjust filters or post a new cash movement.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/50 p-3 text-xs text-slate-500">
+                  <p className="text-xs font-medium text-slate-500">
+                    Page {transactionMeta.page || transactionPage} of {transactionPages}
+                  </p>
+                  <div className="flex gap-1.5">
+                    <button
+                      className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition"
+                      disabled={transactionPage <= 1}
+                      onClick={() => setTransactionPage((p) => Math.max(1, p - 1))}
+                      type="button"
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <button
+                      className="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition"
+                      disabled={transactionPage >= transactionPages}
+                      onClick={() => setTransactionPage((p) => p + 1)}
+                      type="button"
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
         {/* TAB 2: STORE EXPENSES TRACKER */}
         {tab === "expenses" && (
           <div className="p-5 space-y-6">
             {/* Category Breakdown Cards */}
             <div>
-              <h2 className="text-sm font-black uppercase tracking-wider text-[var(--color-muted)]">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Expense Categories Summary
               </h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {expenseCategoryBreakdown.map((cat) => {
                   const IconComponent = cat.icon || Receipt
                   return (
-                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4 shadow-sm" key={cat.id}>
+                    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-slate-300" key={cat.id}>
                       <div className="flex items-center gap-2.5">
-                        <span className={`grid size-9 place-items-center rounded-xl ${cat.color || "bg-slate-200"}`}>
-                          <IconComponent size={18} />
+                        <span className={`grid size-8 place-items-center rounded-lg ${cat.color || "bg-slate-100 text-slate-700"}`}>
+                          <IconComponent size={15} />
                         </span>
-                        <p className="text-xs font-bold text-[var(--color-text-strong)] line-clamp-1">{cat.label}</p>
+                        <p className="text-xs font-semibold text-slate-800 line-clamp-1">{cat.label}</p>
                       </div>
-                      <div className="mt-3 flex items-baseline justify-between">
-                        <p className="font-mono text-lg font-black text-rose-600 dark:text-rose-400">
+                      <div className="mt-2.5 flex items-baseline justify-between border-t border-slate-100 pt-2">
+                        <p className="font-mono text-base font-bold text-rose-700">
                           {money(cat.total)}
                         </p>
-                        <span className="text-[11px] font-bold text-[var(--color-muted)]">
+                        <span className="text-[11px] font-medium text-slate-400">
                           {cat.count} entry{cat.count === 1 ? "" : "s"}
                         </span>
                       </div>
@@ -1282,37 +1291,37 @@ export default function CashBoxesPage({
             </div>
 
             {/* Expenses List Table - Desktop */}
-            <div className="hidden lg:block overflow-x-auto rounded-2xl border border-[var(--color-border)]">
+            <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full min-w-[650px] text-left text-sm">
-                <thead className="bg-[var(--color-soft)] text-xs font-black uppercase text-[var(--color-muted)]">
+                <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   <tr>
-                    <th className="p-3.5">Code / Voucher</th>
-                    <th className="p-3.5">Category & Description</th>
-                    <th className="p-3.5">Date</th>
-                    <th className="p-3.5">Encoder</th>
-                    <th className="p-3.5 text-right">Amount</th>
-                    <th className="p-3.5 text-right">Action</th>
+                    <th className="p-3">Code / Voucher</th>
+                    <th className="p-3">Category & Description</th>
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Encoder</th>
+                    <th className="p-3 text-right">Amount</th>
+                    <th className="p-3 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
+                <tbody className="divide-y divide-slate-100">
                   {expenseTransactions.map((tx) => (
-                    <tr className="hover:bg-[var(--color-soft)]/50 transition" key={tx.id}>
-                      <td className="p-3.5 font-mono font-bold text-xs text-[var(--color-text-strong)]">
+                    <tr className="hover:bg-slate-50/60 transition-colors" key={tx.id}>
+                      <td className="p-3 font-mono font-semibold text-xs text-slate-800">
                         {tx.transactionCode}
-                        {tx.referenceNo ? <p className="text-[11px] text-[var(--color-muted)]">Ref: {tx.referenceNo}</p> : null}
+                        {tx.referenceNo ? <p className="text-[11px] font-normal text-slate-400">Ref: {tx.referenceNo}</p> : null}
                       </td>
-                      <td className="p-3.5">
-                        <p className="font-bold text-sm text-[var(--color-text-strong)]">{tx.description}</p>
+                      <td className="p-3">
+                        <p className="text-xs font-medium text-slate-800">{tx.description}</p>
                       </td>
-                      <td className="p-3.5 text-xs text-[var(--color-muted)]">{dateOnly(tx.transactionDate)}</td>
-                      <td className="p-3.5 text-xs font-medium text-[var(--color-muted)]">{tx.createdBy?.fullName || "—"}</td>
-                      <td className="p-3.5 text-right font-mono font-black text-rose-600 dark:text-rose-400">
+                      <td className="p-3 text-xs text-slate-500">{dateOnly(tx.transactionDate)}</td>
+                      <td className="p-3 text-xs text-slate-500">{tx.createdBy?.fullName || "—"}</td>
+                      <td className="p-3 text-right font-mono font-bold text-xs text-rose-700">
                         -{money(tx.amount)}
                       </td>
-                      <td className="p-3.5 text-right">
+                      <td className="p-3 text-right">
                         {canManage && tx.status === "POSTED" && tx.source === "MANUAL" ? (
                           <button
-                            className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-50"
+                            className="rounded-lg border border-rose-200 bg-rose-50/50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100/60 transition"
                             disabled={isSaving}
                             onClick={() => reverseTransaction(tx)}
                             type="button"
@@ -1327,8 +1336,8 @@ export default function CashBoxesPage({
                   ))}
                   {expenseTransactions.length === 0 && (
                     <tr>
-                      <td className="p-8 text-center text-sm text-[var(--color-muted)]" colSpan={6}>
-                        No store expenses recorded yet. Click <strong>"Record Expense"</strong> above to add one.
+                      <td className="p-8 text-center text-xs text-slate-400" colSpan={6}>
+                        No store expenses recorded yet. Click <strong className="text-slate-600">"Record Expense"</strong> above to add one.
                       </td>
                     </tr>
                   )}
@@ -1337,20 +1346,20 @@ export default function CashBoxesPage({
             </div>
 
             {/* Expenses List Cards - Mobile */}
-            <div className="grid gap-3 lg:hidden">
+            <div className="grid gap-2.5 lg:hidden">
               {expenseTransactions.map((tx) => (
-                <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm space-y-2.5" key={tx.id}>
+                <article className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2" key={tx.id}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-mono font-black text-xs text-[var(--color-text-strong)]">{tx.transactionCode}</p>
-                      {tx.referenceNo ? <p className="text-[11px] text-[var(--color-muted)] font-mono">Ref: {tx.referenceNo}</p> : null}
+                      <p className="font-mono font-bold text-xs text-slate-900">{tx.transactionCode}</p>
+                      {tx.referenceNo ? <p className="text-[11px] text-slate-400 font-mono">Ref: {tx.referenceNo}</p> : null}
                     </div>
-                    <p className="font-mono font-black text-base text-rose-600 dark:text-rose-400">
+                    <p className="font-mono font-bold text-sm text-rose-700">
                       -{money(tx.amount)}
                     </p>
                   </div>
-                  <p className="font-bold text-sm text-[var(--color-text-strong)] leading-snug">{tx.description}</p>
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--color-border)] text-xs text-[var(--color-muted)]">
+                  <p className="text-xs text-slate-800 leading-snug">{tx.description}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
                     <div>
                       <span>{dateOnly(tx.transactionDate)}</span>
                       <span className="mx-1.5">·</span>
@@ -1359,7 +1368,7 @@ export default function CashBoxesPage({
                     <div>
                       {canManage && tx.status === "POSTED" && tx.source === "MANUAL" ? (
                         <button
-                          className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-50"
+                          className="rounded-lg border border-rose-200 bg-rose-50/50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100/60 transition"
                           disabled={isSaving}
                           onClick={() => reverseTransaction(tx)}
                           type="button"
@@ -1374,8 +1383,8 @@ export default function CashBoxesPage({
                 </article>
               ))}
               {expenseTransactions.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-muted)]">
-                  No store expenses recorded yet. Click <strong>"Record Expense"</strong> above to add one.
+                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
+                  No store expenses recorded yet. Click <strong className="text-slate-600">"Record Expense"</strong> above to add one.
                 </div>
               )}
             </div>
@@ -1387,60 +1396,60 @@ export default function CashBoxesPage({
           <div className="p-5 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-black text-[var(--color-text-strong)]">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600">
                   Digital Collections Breakdown
                 </h2>
-                <p className="text-xs text-[var(--color-muted)]">
+                <p className="text-xs text-slate-400">
                   Real-time verified cashless receipts from POS Cashiering and Service Job Orders.
                 </p>
               </div>
-              <div className="flex gap-2">
-                <span className="rounded-xl bg-sky-100 dark:bg-sky-950/60 px-3 py-1.5 text-xs font-mono font-black text-sky-800 dark:text-sky-300">
+              <div>
+                <span className="rounded-lg border border-sky-200/80 bg-sky-50/70 px-3 py-1.5 text-xs font-mono font-bold text-sky-800">
                   Total: {money(cashlessPillar.totalCashless)}
                 </span>
               </div>
             </div>
 
             {/* Cashless Table - Desktop */}
-            <div className="hidden lg:block overflow-x-auto rounded-2xl border border-[var(--color-border)]">
+            <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full min-w-[650px] text-left text-sm">
-                <thead className="bg-[var(--color-soft)] text-xs font-black uppercase text-[var(--color-muted)]">
+                <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   <tr>
-                    <th className="p-3.5">Receipt / Job Code</th>
-                    <th className="p-3.5">Payment Channel</th>
-                    <th className="p-3.5">Customer</th>
-                    <th className="p-3.5">Reference / Notes</th>
-                    <th className="p-3.5">Date</th>
-                    <th className="p-3.5 text-right">Amount</th>
+                    <th className="p-3">Receipt / Job Code</th>
+                    <th className="p-3">Payment Channel</th>
+                    <th className="p-3">Customer</th>
+                    <th className="p-3">Reference / Notes</th>
+                    <th className="p-3">Date</th>
+                    <th className="p-3 text-right">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
+                <tbody className="divide-y divide-slate-100">
                   {cashlessPillar.digitalTransactions.map((item) => (
-                    <tr className="hover:bg-[var(--color-soft)]/50 transition" key={item.id}>
-                      <td className="p-3.5 font-mono font-bold text-xs text-[var(--color-text-strong)]">
+                    <tr className="hover:bg-slate-50/60 transition-colors" key={item.id}>
+                      <td className="p-3 font-mono font-semibold text-xs text-slate-800">
                         {item.sourceCode}
-                        <p className="text-[11px] text-[var(--color-muted)]">{item.sourceType}</p>
+                        <p className="text-[11px] font-normal text-slate-400">{item.sourceType}</p>
                       </td>
-                      <td className="p-3.5 font-bold text-xs text-sky-700 dark:text-sky-400">
+                      <td className="p-3 font-semibold text-xs text-sky-700">
                         {item.channel}
                       </td>
-                      <td className="p-3.5 text-xs font-medium text-[var(--color-text-strong)]">
+                      <td className="p-3 text-xs font-medium text-slate-700">
                         {item.customerName}
                       </td>
-                      <td className="p-3.5 font-mono text-xs text-[var(--color-muted)]">
+                      <td className="p-3 font-mono text-xs text-slate-500">
                         {item.refNo}
                       </td>
-                      <td className="p-3.5 text-xs text-[var(--color-muted)]">
+                      <td className="p-3 text-xs text-slate-500">
                         {dateTime(item.date)}
                       </td>
-                      <td className="p-3.5 text-right font-mono font-black text-emerald-600 dark:text-emerald-400">
+                      <td className="p-3 text-right font-mono font-bold text-xs text-emerald-700">
                         +{money(item.amount)}
                       </td>
                     </tr>
                   ))}
                   {cashlessPillar.digitalTransactions.length === 0 && (
                     <tr>
-                      <td className="p-8 text-center text-sm text-[var(--color-muted)]" colSpan={6}>
+                      <td className="p-8 text-center text-xs text-slate-400" colSpan={6}>
                         No cashless digital transactions recorded for this period.
                       </td>
                     </tr>
@@ -1450,30 +1459,30 @@ export default function CashBoxesPage({
             </div>
 
             {/* Cashless Cards - Mobile */}
-            <div className="grid gap-3 lg:hidden">
+            <div className="grid gap-2.5 lg:hidden">
               {cashlessPillar.digitalTransactions.map((item) => (
-                <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm space-y-2" key={item.id}>
+                <article className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2" key={item.id}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-mono font-black text-xs text-[var(--color-text-strong)]">{item.sourceCode}</p>
-                      <p className="text-[11px] text-[var(--color-muted)]">{item.sourceType}</p>
+                      <p className="font-mono font-bold text-xs text-slate-900">{item.sourceCode}</p>
+                      <p className="text-[11px] text-slate-400">{item.sourceType}</p>
                     </div>
-                    <p className="font-mono font-black text-base text-emerald-600 dark:text-emerald-400">
+                    <p className="font-mono font-bold text-sm text-emerald-700">
                       +{money(item.amount)}
                     </p>
                   </div>
                   <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-bold text-sky-700 dark:text-sky-400">{item.channel}</span>
-                    <span className="font-medium text-[var(--color-text-strong)]">{item.customerName}</span>
+                    <span className="font-semibold text-sky-700">{item.channel}</span>
+                    <span className="font-medium text-slate-700">{item.customerName}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--color-border)] text-xs text-[var(--color-muted)]">
-                    <span className="font-mono">{item.refNo || "No ref"}</span>
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                    <span className="font-mono text-[11px]">{item.refNo || "No ref"}</span>
                     <span>{dateTime(item.date)}</span>
                   </div>
                 </article>
               ))}
               {cashlessPillar.digitalTransactions.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-muted)]">
+                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
                   No cashless digital transactions recorded for this period.
                 </div>
               )}
@@ -1484,9 +1493,9 @@ export default function CashBoxesPage({
         {/* TAB 4: SHIFT HANDOVERS */}
         {tab === "handovers" && (
           <div>
-            <div className="border-b border-[var(--color-border)] p-4">
+            <div className="border-b border-slate-200/80 p-3.5 bg-slate-50/50">
               <select
-                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-bold text-[var(--color-text-strong)] md:max-w-xs outline-none focus:border-[var(--color-maroon)]"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 md:max-w-xs outline-none focus:border-slate-400 shadow-2xs"
                 onChange={(event) => {
                   setHandoverStatus(event.target.value)
                   setHandoverPage(1)
@@ -1500,29 +1509,29 @@ export default function CashBoxesPage({
               </select>
             </div>
 
-            <div className="divide-y divide-[var(--color-border)]">
+            <div className="divide-y divide-slate-100">
               {handovers.map((handover) => (
-                <article className="grid gap-4 p-4.5 lg:grid-cols-[1fr_auto_auto] lg:items-center hover:bg-[var(--color-soft)]/40 transition" key={handover.id}>
-                  <div className="flex items-start gap-3.5">
-                    <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 shadow-sm">
-                      <HandCoins size={20} />
+                <article className="grid gap-3 p-4 lg:grid-cols-[1fr_auto_auto] lg:items-center hover:bg-slate-50/60 transition-colors" key={handover.id}>
+                  <div className="flex items-start gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-amber-200/70 bg-amber-50 text-amber-800">
+                      <HandCoins size={16} />
                     </span>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-mono font-black text-sm text-[var(--color-text-strong)]">{handover.handoverCode}</p>
+                        <p className="font-mono font-bold text-xs text-slate-900">{handover.handoverCode}</p>
                         <Status value={handover.status} />
                       </div>
-                      <p className="mt-1 text-sm text-[var(--color-muted)]">
-                        From <strong>{handover.fromUser?.fullName || "Staff"}</strong> to <strong>{handover.toUser?.fullName || "Branch Custodian / Next Shift"}</strong>
+                      <p className="mt-0.5 text-xs text-slate-600">
+                        From <strong className="text-slate-800">{handover.fromUser?.fullName || "Staff"}</strong> to <strong className="text-slate-800">{handover.toUser?.fullName || "Branch Custodian / Next Shift"}</strong>
                       </p>
-                      <p className="mt-1 text-xs text-[var(--color-muted)]">
+                      <p className="mt-0.5 text-[11px] text-slate-400">
                         {dateTime(handover.createdAt)} · {handover.remarks || "No additional remarks"}
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <p className="font-mono text-lg font-black text-[var(--color-text-strong)]">
+                    <p className="font-mono text-base font-bold text-slate-900">
                       {money(handover.amount)}
                     </p>
                   </div>
@@ -1530,23 +1539,23 @@ export default function CashBoxesPage({
                   <div className="flex gap-2">
                     {canReceive && handover.status === "PENDING" ? (
                       <button
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-black text-white shadow-sm hover:bg-emerald-700 transition"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 transition"
                         disabled={isSaving}
                         onClick={() => actOnHandover(handover, "receive")}
                         type="button"
                       >
-                        <CheckCircle2 size={15} />
+                        <CheckCircle2 size={14} />
                         Receive Cash
                       </button>
                     ) : null}
                     {canManage && handover.status === "PENDING" ? (
                       <button
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50/60 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100/60 transition"
                         disabled={isSaving}
                         onClick={() => actOnHandover(handover, "cancel")}
                         type="button"
                       >
-                        <XCircle size={15} />
+                        <XCircle size={14} />
                         Cancel
                       </button>
                     ) : null}
@@ -1555,35 +1564,35 @@ export default function CashBoxesPage({
               ))}
 
               {!isLoading && handovers.length === 0 && (
-                <div className="p-12 text-center">
-                  <HandCoins className="mx-auto text-[var(--color-muted)]" size={36} />
-                  <p className="mt-2 font-bold text-[var(--color-text-strong)]">No cash handovers recorded</p>
-                  <p className="text-xs text-[var(--color-muted)]">Shift handovers and vault remittances will appear here.</p>
+                <div className="p-10 text-center">
+                  <HandCoins className="mx-auto text-slate-300" size={30} />
+                  <p className="mt-2 text-xs font-semibold text-slate-700">No cash handovers recorded</p>
+                  <p className="text-[11px] text-slate-400">Shift handovers and vault remittances will appear here.</p>
                 </div>
               )}
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between border-t border-[var(--color-border)] p-4">
-              <p className="text-xs font-bold text-[var(--color-muted)]">
+            <div className="flex items-center justify-between border-t border-slate-100 p-3.5">
+              <p className="text-xs font-medium text-slate-500">
                 Page {handoverMeta.page || handoverPage} of {handoverPages}
               </p>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <button
-                  className="rounded-xl border border-[var(--color-border)] p-2 disabled:opacity-30 hover:bg-[var(--color-soft)]"
+                  className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition"
                   disabled={handoverPage <= 1}
                   onClick={() => setHandoverPage((p) => Math.max(1, p - 1))}
                   type="button"
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={15} />
                 </button>
                 <button
-                  className="rounded-xl border border-[var(--color-border)] p-2 disabled:opacity-30 hover:bg-[var(--color-soft)]"
+                  className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition"
                   disabled={handoverPage >= handoverPages}
                   onClick={() => setHandoverPage((p) => p + 1)}
                   type="button"
                 >
-                  <ChevronRight size={16} />
+                  <ChevronRight size={15} />
                 </button>
               </div>
             </div>
