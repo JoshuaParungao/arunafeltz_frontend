@@ -8,7 +8,9 @@ import {
   Eye,
   FileSpreadsheet,
   PackageCheck,
+  Printer,
   RefreshCw,
+  RotateCcw,
   Search,
   Truck,
   X,
@@ -19,12 +21,14 @@ import {
   getStockTransferById,
   getStockTransfers,
   receiveStockTransfer,
+  returnBorrowTransfer,
   updateStockTransferPricingById,
   updateStockTransferStatusById,
 } from "../../features/stock-transfers/stockTransfers.api"
 import { getInventorySerials } from "../../features/inventory/inventory.api"
 import { getUser } from "../../lib/sessionStorage"
 import SerialScannerModal from "../../components/common/SerialScannerModal"
+import StockLoanSlipModal from "../../components/stock-transfers/StockLoanSlipModal"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import StockTransfersReportView from "./StockTransfersReportView"
@@ -128,13 +132,36 @@ function WorkflowBadge({ transfer }) {
   )
 }
 
-function ActionButtons({ transfer, user, busy, onAction, onView, onReceive }) {
+function isBorrowTransfer(transfer) {
+  const combined = `${transfer?.notes || ""} ${transfer?.internalNotes || ""}`
+  return combined.includes("[TRANSFER_TYPE:BORROW]")
+}
+
+function getBorrowStatus(transfer) {
+  const combined = `${transfer?.notes || ""} ${transfer?.internalNotes || ""}`
+  if (!combined.includes("[TRANSFER_TYPE:BORROW]")) return null
+  if (combined.includes("[BORROW_STATUS:RETURNED]")) return "RETURNED"
+  return "ON_LOAN"
+}
+
+function ActionButtons({
+  transfer,
+  user,
+  busy,
+  onAction,
+  onView,
+  onReceive,
+  onPrintLoanSlip,
+  onReturnBorrow,
+}) {
   const isSuperOwner = user?.role === "SUPER_OWNER"
   const isSourceManager = isSuperOwner || transfer.fromBranchId === user?.branchId
   const isDestinationManager = isSuperOwner || transfer.toBranchId === user?.branchId
   const isLinkedManager = isSourceManager || isDestinationManager
   const isInTransit = transfer.fulfillmentStatus === "IN_TRANSIT"
   const isTerminal = ["POSTED", "REJECTED", "CANCELLED"].includes(transfer.status)
+  const isBorrow = isBorrowTransfer(transfer)
+  const borrowStatus = getBorrowStatus(transfer)
   const pricingComplete = (transfer.items || []).every(
     (item) => item.agreedTransferUnitPrice !== null && item.agreedTransferUnitPrice !== undefined
   )
@@ -144,6 +171,30 @@ function ActionButtons({ transfer, user, busy, onAction, onView, onReceive }) {
       <button className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition" onClick={() => onView(transfer)} type="button">
         <Eye size={13} /> Details
       </button>
+
+      {isBorrow && onPrintLoanSlip ? (
+        <button
+          className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-bold text-purple-800 hover:bg-purple-100 transition shadow-2xs"
+          onClick={() => onPrintLoanSlip(transfer)}
+          type="button"
+          title="Print 2-Copy Inter-Branch Stock Loan Slip"
+        >
+          <Printer size={13} /> Loan Slip
+        </button>
+      ) : null}
+
+      {isBorrow && borrowStatus === "ON_LOAN" && isLinkedManager && onReturnBorrow ? (
+        <button
+          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
+          disabled={busy}
+          onClick={() => onReturnBorrow(transfer)}
+          type="button"
+          title="Mark borrowed stock as returned to issuing branch"
+        >
+          <RotateCcw size={13} /> Return Stock
+        </button>
+      ) : null}
+
       {isSourceManager && transfer.status === "DRAFT" ? (
         <button className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition" disabled={busy} onClick={() => onAction(transfer, "REQUESTED")} type="button">
           Request
@@ -151,7 +202,7 @@ function ActionButtons({ transfer, user, busy, onAction, onView, onReceive }) {
       ) : null}
       {isSourceManager && transfer.status === "REQUESTED" ? (
         <>
-          <button className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:cursor-not-allowed disabled:opacity-50" disabled={busy || !pricingComplete} onClick={() => onAction(transfer, "APPROVED")} title={!pricingComplete ? "Set every agreed transfer price before approval" : undefined} type="button">
+          <button className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:cursor-not-allowed disabled:opacity-50" disabled={busy || (!isBorrow && !pricingComplete)} onClick={() => onAction(transfer, "APPROVED")} title={!pricingComplete && !isBorrow ? "Set every agreed transfer price before approval" : undefined} type="button">
             Approve
           </button>
           <button className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 transition" disabled={busy} onClick={() => onAction(transfer, "REJECTED")} type="button">
@@ -196,6 +247,14 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
   const [successMessage, setSuccessMessage] = useState("")
   const [actionTransferId, setActionTransferId] = useState("")
   const [pricingDrafts, setPricingDrafts] = useState({})
+  const [showLoanSlipModal, setShowLoanSlipModal] = useState(false)
+  const [activeLoanTransfer, setActiveLoanTransfer] = useState(null)
+  const [showReturnBorrowModal, setShowReturnBorrowModal] = useState(false)
+  const [returnBorrowTarget, setReturnBorrowTarget] = useState(null)
+  const [returnBorrowCondition, setReturnBorrowCondition] = useState("Good Condition")
+  const [returnBorrowRemarks, setReturnBorrowRemarks] = useState("")
+  const [isSubmittingReturnBorrow, setIsSubmittingReturnBorrow] = useState(false)
+
   const isSelectedSourceManager = Boolean(
     selectedTransfer &&
       (user?.role === "SUPER_OWNER" || selectedTransfer.fromBranchId === user?.branchId)
@@ -213,7 +272,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     try {
       const queryParams = {
         status: statusFilter || undefined,
-        search: searchText.trim() || undefined,
+        search: searchText.trim() || (directionFilter === "BORROW" ? "BORROW" : undefined),
         page,
         limit: 10,
       }
@@ -230,7 +289,11 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
       const response = await getStockTransfers(queryParams)
       const result = response?.data || {}
-      setTransfers(Array.isArray(result.items) ? result.items : [])
+      let items = Array.isArray(result.items) ? result.items : []
+      if (directionFilter === "BORROW") {
+        items = items.filter((item) => isBorrowTransfer(item))
+      }
+      setTransfers(items)
       setPagination(result.pagination || null)
     } catch (error) {
       setTransfers([])
@@ -240,6 +303,60 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       setIsLoading(false)
     }
   }, [directionFilter, effectiveBranchId, page, searchText, statusFilter])
+
+  const handleOpenLoanSlip = async (transfer) => {
+    try {
+      const response = await getStockTransferById(transfer.id)
+      const detail = response?.data || transfer
+      setActiveLoanTransfer(detail)
+      setShowLoanSlipModal(true)
+    } catch {
+      setActiveLoanTransfer(transfer)
+      setShowLoanSlipModal(true)
+    }
+  }
+
+  const handleOpenReturnBorrow = (transfer) => {
+    setReturnBorrowTarget(transfer)
+    setReturnBorrowCondition("Good Condition")
+    setReturnBorrowRemarks("")
+    setShowReturnBorrowModal(true)
+  }
+
+  const handleConfirmReturnBorrow = async (event) => {
+    if (event) event.preventDefault()
+    if (!returnBorrowTarget) return
+
+    setIsSubmittingReturnBorrow(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const response = await returnBorrowTransfer(returnBorrowTarget.id, {
+        condition: returnBorrowCondition,
+        remarks: returnBorrowRemarks,
+      })
+      setSuccessMessage(
+        `Stock loan ${returnBorrowTarget.transferCode} successfully marked as RETURNED.`
+      )
+      setShowReturnBorrowModal(false)
+      setReturnBorrowTarget(null)
+      setReturnBorrowCondition("Good Condition")
+      setReturnBorrowRemarks("")
+      if (selectedTransfer?.id === returnBorrowTarget.id) {
+        setSelectedTransfer(response?.data || null)
+      }
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not mark borrowed stock as returned."
+      )
+    } finally {
+      setIsSubmittingReturnBorrow(false)
+    }
+  }
 
   const openTransfer = async (transfer) => {
     setSelectedTransfer(transfer)
@@ -737,6 +854,22 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
           <ArrowDownLeft size={14} className={directionFilter === "IN" ? "text-sky-700" : ""} />
           <span>Transfer In</span>
         </button>
+
+        <button
+          className={`relative pb-2.5 pt-1 px-2 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+            directionFilter === "BORROW"
+              ? "text-purple-800 border-b-2 border-purple-700 font-black"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+          onClick={() => {
+            setDirectionFilter("BORROW")
+            setPage(1)
+          }}
+          type="button"
+        >
+          <ArrowLeftRight size={14} className={directionFilter === "BORROW" ? "text-purple-700" : ""} />
+          <span>Inter-Branch Borrow Monitoring</span>
+        </button>
       </div>
 
       <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs sm:grid-cols-[1fr_200px]">
@@ -772,30 +905,54 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             <tbody className="divide-y divide-slate-200">
               {isLoading ? <tr><td className="px-4 py-8 text-center font-bold text-slate-400" colSpan={7}>Loading stock transfers…</td></tr> : null}
               {!isLoading && transfers.length === 0 ? <tr><td className="px-4 py-8 text-center font-bold text-slate-400" colSpan={7}>No stock transfers found.</td></tr> : null}
-              {!isLoading ? transfers.map((transfer) => (
-                <tr className="hover:bg-slate-50/50 transition" key={transfer.id}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
-                      <WorkflowBadge transfer={transfer} />
-                    </div>
-                    <p className="mt-0.5 max-w-52 truncate text-[11px] text-slate-500">{transfer.notes || "No notes"}</p>
-                  </td>
-                  <td className="px-4 py-3"><StatusBadge status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
-                      <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
-                      <span className="font-semibold text-slate-800">
-                        {transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{transfer.requestedBy?.fullName || transfer.requestedBy?.username || "—"}</td>
-                  <td className="px-4 py-3 font-mono font-bold text-slate-800">{transfer.items?.length || 0}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(transfer.requestedAt || transfer.transferDate)}</td>
-                  <td className="px-4 py-3 text-right"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} onReceive={handleOpenReceive} /></td>
-                </tr>
-              )) : null}
+              {!isLoading ? transfers.map((transfer) => {
+                const isBorrow = isBorrowTransfer(transfer)
+                const borrowStatus = getBorrowStatus(transfer)
+                return (
+                  <tr className="hover:bg-slate-50/50 transition" key={transfer.id}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
+                        <WorkflowBadge transfer={transfer} />
+                        {isBorrow ? (
+                          <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                            borrowStatus === "RETURNED"
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              : "bg-purple-50 text-purple-800 border border-purple-200"
+                          }`}>
+                            {borrowStatus === "RETURNED" ? "🟢 RETURNED" : "🟣 ON LOAN"}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 max-w-52 truncate text-[11px] text-slate-500">{transfer.notes || "No notes"}</p>
+                    </td>
+                    <td className="px-4 py-3"><StatusBadge status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+                        <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
+                        <span className="font-semibold text-slate-800">
+                          {transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{transfer.requestedBy?.fullName || transfer.requestedBy?.username || "—"}</td>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-800">{transfer.items?.length || 0}</td>
+                    <td className="px-4 py-3 text-slate-500">{formatDate(transfer.requestedAt || transfer.transferDate)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <ActionButtons
+                        transfer={transfer}
+                        user={user}
+                        busy={actionTransferId === transfer.id}
+                        onAction={handleAction}
+                        onView={openTransfer}
+                        onReceive={handleOpenReceive}
+                        onPrintLoanSlip={handleOpenLoanSlip}
+                        onReturnBorrow={handleOpenReturnBorrow}
+                      />
+                    </td>
+                  </tr>
+                )
+              }) : null}
             </tbody>
           </table>
         </div>
@@ -803,23 +960,47 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         <div className="grid gap-2.5 p-3 xl:hidden">
           {isLoading ? <p className="rounded-xl bg-slate-50 p-4 text-xs font-bold text-slate-400">Loading stock transfers…</p> : null}
           {!isLoading && transfers.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-xs font-bold text-slate-400">No stock transfers found.</p> : null}
-          {!isLoading ? transfers.map((transfer) => (
-            <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs text-xs" key={transfer.id}>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
-                    <WorkflowBadge transfer={transfer} />
-                    <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
+          {!isLoading ? transfers.map((transfer) => {
+            const isBorrow = isBorrowTransfer(transfer)
+            const borrowStatus = getBorrowStatus(transfer)
+            return (
+              <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs text-xs" key={transfer.id}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
+                      <WorkflowBadge transfer={transfer} />
+                      <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
+                      {isBorrow ? (
+                        <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          borrowStatus === "RETURNED"
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : "bg-purple-50 text-purple-800 border border-purple-200"
+                        }`}>
+                          {borrowStatus === "RETURNED" ? "🟢 RETURNED" : "🟣 ON LOAN"}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-slate-500">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</p>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-slate-500">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</p>
+                  <StatusBadge status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} />
                 </div>
-                <StatusBadge status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} />
-              </div>
-              <p className="mt-2 text-[11px] text-slate-500">{transfer.items?.length || 0} line(s) · {formatDate(transfer.requestedAt || transfer.transferDate)}</p>
-              <div className="mt-3"><ActionButtons transfer={transfer} user={user} busy={actionTransferId === transfer.id} onAction={handleAction} onView={openTransfer} onReceive={handleOpenReceive} /></div>
-            </article>
-          )) : null}
+                <p className="mt-2 text-[11px] text-slate-500">{transfer.items?.length || 0} line(s) · {formatDate(transfer.requestedAt || transfer.transferDate)}</p>
+                <div className="mt-3">
+                  <ActionButtons
+                    transfer={transfer}
+                    user={user}
+                    busy={actionTransferId === transfer.id}
+                    onAction={handleAction}
+                    onView={openTransfer}
+                    onReceive={handleOpenReceive}
+                    onPrintLoanSlip={handleOpenLoanSlip}
+                    onReturnBorrow={handleOpenReturnBorrow}
+                  />
+                </div>
+              </article>
+            )
+          }) : null}
         </div>
 
         {pagination ? (
@@ -880,6 +1061,47 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs"><p className="text-[10px] font-bold uppercase text-slate-500">Payment</p><p className="mt-1 font-semibold text-slate-700">{selectedTransfer.paymentStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</p></div>
                   ) : null}
                 </div>
+
+                {isBorrowTransfer(selectedTransfer) ? (
+                  <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3.5 text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-purple-900 uppercase tracking-wide">Inter-Branch Stock Loan (Borrow)</span>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                          getBorrowStatus(selectedTransfer) === "RETURNED" ? "bg-emerald-100 text-emerald-800" : "bg-purple-100 text-purple-800"
+                        }`}>
+                          {getBorrowStatus(selectedTransfer) === "RETURNED" ? "🟢 RETURNED TO SOURCE BRANCH" : "🟣 CURRENTLY ON LOAN"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenLoanSlip(selectedTransfer)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-purple-700 px-3 py-1 text-[11px] font-bold text-white hover:bg-purple-800 transition shadow-2xs"
+                        >
+                          <Printer size={13} /> Print 2-Copy Loan Slip
+                        </button>
+                        {getBorrowStatus(selectedTransfer) === "ON_LOAN" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReturnBorrow(selectedTransfer)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-3 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 transition shadow-2xs"
+                          >
+                            <RotateCcw size={13} /> Return Stock
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-purple-800">
+                      This transfer is an equipment / inventory borrow between branches. No inter-branch monetary settlement is required. The receiving branch is obligated to return this unit.
+                    </p>
+                    {selectedTransfer.internalNotes && selectedTransfer.internalNotes.includes("[BORROW_STATUS:RETURNED]") ? (
+                      <div className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                        {selectedTransfer.internalNotes}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className="space-y-3">
                   {selectedTransfer.items?.map((item) => (
@@ -975,7 +1197,16 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   <div className="text-[11px] text-slate-500">
                     <span>Requested by: <strong className="text-slate-700">{selectedTransfer.requestedBy?.fullName || selectedTransfer.requestedBy?.username || "—"}</strong></span>
                   </div>
-                  <ActionButtons transfer={selectedTransfer} user={user} busy={actionTransferId === selectedTransfer.id} onAction={handleAction} onView={() => {}} onReceive={handleOpenReceive} />
+                  <ActionButtons
+                    transfer={selectedTransfer}
+                    user={user}
+                    busy={actionTransferId === selectedTransfer.id}
+                    onAction={handleAction}
+                    onView={() => {}}
+                    onReceive={handleOpenReceive}
+                    onPrintLoanSlip={handleOpenLoanSlip}
+                    onReturnBorrow={handleOpenReturnBorrow}
+                  />
                 </div>
               </div>
             )}
@@ -1112,6 +1343,122 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 {isReceiving ? "Confirming Receipt…" : "Confirm & Receive Stock"}
               </button>
             </footer>
+          </div>
+        </div>
+      ) : null}
+      {/* Official 2-Copy Inter-Branch Stock Loan Slip */}
+      <StockLoanSlipModal
+        isOpen={showLoanSlipModal}
+        onClose={() => {
+          setShowLoanSlipModal(false)
+          setActiveLoanTransfer(null)
+        }}
+        transfer={activeLoanTransfer}
+      />
+
+      {/* Return Borrow Modal */}
+      {showReturnBorrowModal && returnBorrowTarget ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-purple-700">
+                  Equipment Loan Turnover
+                </span>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Return Borrowed Stock: {returnBorrowTarget.transferCode}
+                </h3>
+              </div>
+              <button
+                aria-label="Close"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                disabled={isSubmittingReturnBorrow}
+                onClick={() => {
+                  setShowReturnBorrowModal(false)
+                  setReturnBorrowTarget(null)
+                }}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </header>
+
+            <form onSubmit={handleConfirmReturnBorrow}>
+              <div className="p-5 space-y-4 text-xs">
+                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-900 space-y-1">
+                  <p className="font-bold text-xs">Return Equipment to Issuing Branch</p>
+                  <p className="text-[11px] text-amber-800">
+                    Confirm that the borrowed item(s) are being physically returned and turnover is acknowledged between branches.
+                  </p>
+                  <div className="pt-1 flex items-center gap-4 text-[11px] font-semibold text-slate-700">
+                    <span>Lender: <strong className="text-slate-900">{returnBorrowTarget.fromBranch?.name || returnBorrowTarget.fromBranch?.code}</strong></span>
+                    <span>Borrower: <strong className="text-slate-900">{returnBorrowTarget.toBranch?.name || returnBorrowTarget.toBranch?.code}</strong></span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Borrowed Items</p>
+                  {(returnBorrowTarget.items || []).map((it) => (
+                    <div key={it.id} className="flex justify-between items-center text-[11px] font-medium text-slate-800">
+                      <span>{it.item?.itemName || it.description || "Item"}</span>
+                      <span className="font-mono font-bold">Qty {it.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Physical Return Condition
+                  </span>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingReturnBorrow}
+                    onChange={(e) => setReturnBorrowCondition(e.target.value)}
+                    value={returnBorrowCondition}
+                  >
+                    <option value="Good Condition">Good Condition (Normal)</option>
+                    <option value="Complete with Original Packaging">Complete with Original Packaging</option>
+                    <option value="With Minor Wear">With Minor Wear</option>
+                    <option value="Defective / Needs Inspection">Defective / Needs Inspection</option>
+                    <option value="Damaged">Damaged</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Return Remarks (Optional)
+                  </span>
+                  <textarea
+                    className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingReturnBorrow}
+                    onChange={(e) => setReturnBorrowRemarks(e.target.value)}
+                    placeholder="e.g. Returned after client demo or service loan completion..."
+                    value={returnBorrowRemarks}
+                  />
+                </label>
+              </div>
+
+              <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+                <button
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                  disabled={isSubmittingReturnBorrow}
+                  onClick={() => {
+                    setShowReturnBorrowModal(false)
+                    setReturnBorrowTarget(null)
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-purple-800 transition disabled:opacity-50"
+                  disabled={isSubmittingReturnBorrow}
+                  type="submit"
+                >
+                  {isSubmittingReturnBorrow ? "Processing..." : "Confirm Return Turnover"}
+                </button>
+              </footer>
+            </form>
           </div>
         </div>
       ) : null}

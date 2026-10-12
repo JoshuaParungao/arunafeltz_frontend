@@ -44,3 +44,14 @@ export async function rejectCustomerClaim(id, payload) {
   const response = await apiClient.post(`/warranty-claims/${id}/reject`, payload)
   return response.data
 }
+
+export async function issueLoanerUnit(id, payload) {
+  const response = await apiClient.post(`/warranty-claims/${id}/loaner`, payload)
+  return response.data
+}
+
+export async function returnLoanerUnit(id, payload) {
+  const response = await apiClient.post(`/warranty-claims/${id}/return-loaner`, payload)
+  return response.data
+}
+

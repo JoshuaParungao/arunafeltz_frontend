@@ -29,3 +29,9 @@ export async function receiveStockTransfer(stockTransferId, payload = {}) {
   const response = await apiClient.post(`/stock-transfers/${stockTransferId}/receive`, payload)
   return response.data
 }
+
+export async function returnBorrowTransfer(stockTransferId, payload = {}) {
+  const response = await apiClient.post(`/stock-transfers/${stockTransferId}/return-borrow`, payload)
+  return response.data
+}
+

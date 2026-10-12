@@ -6,11 +6,14 @@ import {
   ChevronRight,
   CircleAlert,
   Eye,
+  Handshake,
   Layers,
   LoaderCircle,
   PackageCheck,
   Plus,
+  Printer,
   RefreshCw,
+  RotateCcw,
   Search,
   ShieldCheck,
   Truck,
@@ -26,14 +29,17 @@ import {
   dispatchToSupplier,
   getWarrantyClaimById,
   getWarrantyClaims,
+  issueLoanerUnit,
   processImmediateReplacement,
   rejectCustomerClaim,
   releaseWarrantyClaim,
   resolveSupplierRma,
+  returnLoanerUnit,
   updateWarrantyClaimStatus,
 } from "../../features/warranty-claims/warrantyClaims.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
+import WarrantySlipModal from "../../components/warranty/WarrantySlipModal"
 import WarrantyReportView from "./WarrantyReportView"
 
 const CREATE_ROLES = new Set(["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "CASHIER", "TECHNICIAN"])
@@ -98,6 +104,26 @@ function statusTone(status) {
   if (status === "CHECKING")
     return "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
   return "bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800"
+}
+
+function extractSerialRows(response) {
+  if (Array.isArray(response)) return response
+  if (Array.isArray(response?.data?.data)) return response.data.data
+  if (Array.isArray(response?.data?.items)) return response.data.items
+  if (Array.isArray(response?.data?.records)) return response.data.records
+  if (Array.isArray(response?.data)) return response.data
+  if (Array.isArray(response?.items)) return response.items
+  return []
+}
+
+function getClaimLoanerData(claim) {
+  if (!claim?.remarks || !claim.remarks.includes("[LOANER_DATA]:")) return null
+  try {
+    const jsonStr = claim.remarks.split("[LOANER_DATA]:")[1]?.split("[/LOANER_DATA]")[0]
+    return jsonStr ? JSON.parse(jsonStr) : null
+  } catch {
+    return null
+  }
 }
 
 function StatusBadge({ status }) {
@@ -256,6 +282,39 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
   // Release Modal
   const [showRelease, setShowRelease] = useState(false)
   const [releaseForm, setReleaseForm] = useState({ actionTaken: "", remarks: "" })
+
+  // Print 2-Copy Slip Modal
+  const [showSlipModal, setShowSlipModal] = useState(false)
+  const [activeSlipClaim, setActiveSlipClaim] = useState(null)
+  const [activeSlipType, setActiveSlipType] = useState("CLAIM")
+  const [activeSlipOptions, setActiveSlipOptions] = useState({})
+
+  const openSlipModal = (claim, type = "CLAIM", options = {}) => {
+    setActiveSlipClaim(claim)
+    setActiveSlipType(type)
+    setActiveSlipOptions(options)
+    setShowSlipModal(true)
+  }
+
+  // Issue Service Loaner Unit Modal
+  const [showIssueLoaner, setShowIssueLoaner] = useState(false)
+  const [loanerTargetClaim, setLoanerTargetClaim] = useState(null)
+  const [loanerAvailableSerials, setLoanerAvailableSerials] = useState([])
+  const [loanerForm, setLoanerForm] = useState({
+    loanerItemId: "",
+    loanerItemName: "",
+    loanerSerialId: "",
+    loanerSerialNumber: "",
+    loanRemarks: "",
+  })
+
+  // Return Service Loaner Unit Modal
+  const [showReturnLoaner, setShowReturnLoaner] = useState(false)
+  const [returnLoanerTargetClaim, setReturnLoanerTargetClaim] = useState(null)
+  const [returnLoanerForm, setReturnLoanerForm] = useState({
+    returnCondition: "Good / Working Condition",
+    remarks: "",
+  })
 
   const loadClaims = useCallback(async () => {
     const response = await getWarrantyClaims({
@@ -433,7 +492,7 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
     setIsSaving(true)
     setErrorMessage("")
     try {
-      await createWarrantyClaim({
+      const response = await createWarrantyClaim({
         branchId,
         customerId: createForm.customerId || undefined,
         saleId: createForm.saleId || undefined,
@@ -448,12 +507,16 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
         supplierReferenceNo: createForm.supplierReferenceNo.trim() || undefined,
         remarks: createForm.remarks.trim() || undefined,
       })
+      const createdClaim = response?.data
       setShowCreate(false)
       setCreateForm(EMPTY_CREATE)
       setSelectedSale(null)
       setSaleSearchText("")
       setNotice("Customer warranty claim received successfully.")
       await loadClaims()
+      if (createdClaim) {
+        openSlipModal(createdClaim, "CLAIM")
+      }
     } catch (error) {
       setErrorMessage(apiError(error, "Could not receive warranty claim."))
     } finally {
@@ -537,14 +600,136 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
         actionTaken: replaceForm.actionTaken.trim() || undefined,
         remarks: replaceForm.remarks.trim() || undefined,
       })
+      const replacedClaim = response?.data || replaceTargetClaim
       setShowImmediateReplace(false)
       if (selectedClaim?.id === replaceTargetClaim.id) {
-        setSelectedClaim(response?.data || replaceTargetClaim)
+        setSelectedClaim(replacedClaim)
       }
       setNotice(`✅ Replacement unit issued for ${replaceTargetClaim.claimCode}. Stock automatically deducted.`)
       await loadClaims()
+      openSlipModal(replacedClaim, "REPLACEMENT", {
+        replacement: {
+          itemName: replaceForm.replacementSerialNumber ? `Replacement Unit (SN: ${replaceForm.replacementSerialNumber})` : "Replacement Unit",
+          serialNumber: replaceForm.replacementSerialNumber,
+          warrantyDuration: replaceForm.replacementWarrantyDuration,
+        },
+      })
     } catch (error) {
       setErrorMessage(apiError(error, "Could not process immediate replacement."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Handle Service Loaner Unit
+  const openIssueLoanerModal = (claim) => {
+    setLoanerTargetClaim(claim)
+    const initialItem = claim.item || null
+    setLoanerForm({
+      loanerItemId: initialItem?.id || "",
+      loanerItemName: initialItem?.itemName || "",
+      loanerSerialId: "",
+      loanerSerialNumber: "",
+      loanRemarks: "",
+    })
+    setShowIssueLoaner(true)
+    if (initialItem?.id) {
+      loadSerialsForLoaner(initialItem.id)
+    }
+  }
+
+  const loadSerialsForLoaner = async (itemId) => {
+    if (!itemId) {
+      setLoanerAvailableSerials([])
+      return
+    }
+    try {
+      const serialRes = await getInventorySerials({
+        ...(branchId ? { branchId } : {}),
+        itemId,
+        status: "AVAILABLE",
+        limit: 100,
+      })
+      const list = extractSerialRows(serialRes)
+      setLoanerAvailableSerials(list)
+    } catch (err) {
+      console.warn("Failed to load loaner serials:", err)
+      setLoanerAvailableSerials([])
+    }
+  }
+
+  const handleLoanerItemChange = (itemId) => {
+    const it = items.find((i) => i.id === itemId)
+    setLoanerForm((prev) => ({
+      ...prev,
+      loanerItemId: itemId,
+      loanerItemName: it?.itemName || "",
+      loanerSerialId: "",
+      loanerSerialNumber: "",
+    }))
+    loadSerialsForLoaner(itemId)
+  }
+
+  const submitIssueLoaner = async (e) => {
+    e.preventDefault()
+    if (!loanerTargetClaim || isSaving) return
+    if (!loanerForm.loanerItemName.trim() || !loanerForm.loanerSerialNumber.trim()) {
+      setErrorMessage("Please enter both Loaner Item Name and Serial Number.")
+      return
+    }
+    setIsSaving(true)
+    setErrorMessage("")
+    try {
+      const response = await issueLoanerUnit(loanerTargetClaim.id, {
+        loanerItemId: loanerForm.loanerItemId || undefined,
+        loanerItemName: loanerForm.loanerItemName.trim(),
+        loanerSerialId: loanerForm.loanerSerialId || undefined,
+        loanerSerialNumber: loanerForm.loanerSerialNumber.trim(),
+        loanRemarks: loanerForm.loanRemarks.trim() || undefined,
+      })
+      const updated = response?.data || loanerTargetClaim
+      setShowIssueLoaner(false)
+      if (selectedClaim?.id === loanerTargetClaim.id) {
+        setSelectedClaim(updated)
+      }
+      setNotice(`✅ Service loaner unit issued for ${loanerTargetClaim.claimCode}.`)
+      await loadClaims()
+      openSlipModal(updated, "LOANER")
+    } catch (error) {
+      setErrorMessage(apiError(error, "Could not issue service loaner unit."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const openReturnLoanerModal = (claim) => {
+    setReturnLoanerTargetClaim(claim)
+    setReturnLoanerForm({
+      returnCondition: "Good / Working Condition",
+      remarks: "",
+    })
+    setShowReturnLoaner(true)
+  }
+
+  const submitReturnLoaner = async (e) => {
+    e.preventDefault()
+    if (!returnLoanerTargetClaim || isSaving) return
+    setIsSaving(true)
+    setErrorMessage("")
+    try {
+      const response = await returnLoanerUnit(returnLoanerTargetClaim.id, {
+        returnCondition: returnLoanerForm.returnCondition.trim(),
+        remarks: returnLoanerForm.remarks.trim() || undefined,
+      })
+      const updated = response?.data || returnLoanerTargetClaim
+      setShowReturnLoaner(false)
+      if (selectedClaim?.id === returnLoanerTargetClaim.id) {
+        setSelectedClaim(updated)
+      }
+      setNotice(`✅ Service loaner unit safely returned to inventory for ${returnLoanerTargetClaim.claimCode}.`)
+      await loadClaims()
+    } catch (error) {
+      setErrorMessage(apiError(error, "Could not return service loaner unit."))
     } finally {
       setIsSaving(false)
     }
@@ -1067,6 +1252,7 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                   <tbody className="divide-y divide-slate-100">
                     {claims.map((claim) => {
                       const isOutright = calculateAgingDays(claim.sale?.saleDate) <= 7 && claim.sale?.saleDate
+                      const loanerData = getClaimLoanerData(claim)
                       return (
                         <tr className="transition-colors hover:bg-slate-50/50" key={claim.id}>
                           <td className="px-3.5 py-2.5 whitespace-nowrap">
@@ -1077,11 +1263,18 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                             >
                               {claim.claimCode}
                             </button>
-                            {isOutright ? (
-                              <span className="inline-block mt-0.5 rounded-md bg-emerald-50 border border-emerald-200/60 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold">
-                                ⚡ 7D Outright
-                              </span>
-                            ) : null}
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {isOutright ? (
+                                <span className="inline-block rounded-md bg-emerald-50 border border-emerald-200/60 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold">
+                                  ⚡ 7D Outright
+                                </span>
+                              ) : null}
+                              {loanerData?.status === "ON_LOAN" ? (
+                                <span className="inline-block rounded-md bg-amber-50 border border-amber-300 text-amber-800 px-1.5 py-0.2 text-[9px] font-bold" title={`Loaner: ${loanerData.loanerItemName} (SN: ${loanerData.loanerSerialNumber})`}>
+                                  🟡 Loaner: {loanerData.loanerSerialNumber}
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
                           <td className="px-3.5 py-2.5">
                             <p className="font-bold text-xs text-slate-800 max-w-40 truncate">
@@ -1112,6 +1305,16 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                             <div className="inline-flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
+                                onClick={() => openSlipModal(claim, "CLAIM")}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                                title="Print 2-Copy Warranty Claim Slip"
+                              >
+                                <Printer size={12} />
+                                <span>Slip</span>
+                              </button>
+
+                              <button
+                                type="button"
                                 onClick={() => openDetail(claim)}
                                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
                               >
@@ -1121,6 +1324,26 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
 
                               {canAct && !["REPLACED", "REJECTED", "OUT"].includes(claim.status) ? (
                                 <>
+                                  {loanerData?.status === "ON_LOAN" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openReturnLoanerModal(claim)}
+                                      className="inline-flex items-center gap-1 rounded-xl bg-amber-500 hover:bg-amber-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition"
+                                      title="Return service loaner unit"
+                                    >
+                                      <span>Return Loan</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => openIssueLoanerModal(claim)}
+                                      className="inline-flex items-center gap-1 rounded-xl bg-amber-600 hover:bg-amber-700 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition"
+                                      title="Issue temporary service loaner unit"
+                                    >
+                                      <span>Loan</span>
+                                    </button>
+                                  )}
+
                                   <button
                                     type="button"
                                     onClick={() => openImmediateReplacementModal(claim)}
@@ -2212,9 +2435,106 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                   </div>
                 </div>
 
+                {/* Loaner Equipment Banner in Details */}
+                {(() => {
+                  const loanerData = getClaimLoanerData(selectedClaim)
+                  if (!loanerData) return null
+                  return (
+                    <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                          <ShieldCheck size={15} /> Service Loaner Unit ({loanerData.status === "ON_LOAN" ? "Active on Loan" : "Returned"})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => openSlipModal(selectedClaim, "LOANER")}
+                          className="rounded-lg bg-amber-700 hover:bg-amber-800 text-white px-3 py-1 text-xs font-bold inline-flex items-center gap-1 shadow-2xs"
+                        >
+                          <Printer size={12} /> Print Loaner Agreement (2 Copies)
+                        </button>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-3 text-xs text-amber-950">
+                        <div>
+                          <span className="text-slate-500 block text-[10px] uppercase font-bold">Loaner Item:</span>
+                          <span className="font-bold">{loanerData.loanerItemName}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px] uppercase font-bold">Loaner Serial:</span>
+                          <span className="font-mono font-bold">{loanerData.loanerSerialNumber}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px] uppercase font-bold">Issued Date:</span>
+                          <span>{dateTime(loanerData.loanedAt)}</span>
+                        </div>
+                      </div>
+                      {loanerData.status === "RETURNED" ? (
+                        <p className="text-[11px] text-emerald-800 font-semibold">
+                          ✅ Returned on {dateTime(loanerData.returnedAt)} ({loanerData.returnCondition || "Good condition"})
+                        </p>
+                      ) : (
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={() => openReturnLoanerModal(selectedClaim)}
+                            className="rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1 text-xs font-bold inline-flex items-center gap-1 shadow-2xs"
+                          >
+                            <RotateCcw size={12} /> Return Loaner to Stock
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
                 <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3.5">
+                  <button
+                    className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2 text-xs font-bold text-slate-800 shadow-2xs transition inline-flex items-center gap-1.5"
+                    onClick={() => openSlipModal(selectedClaim, "CLAIM")}
+                    type="button"
+                  >
+                    <Printer size={14} />
+                    <span>Print Claim Slip (2 Copies)</span>
+                  </button>
+
+                  {selectedClaim.status === "REPLACED" ? (
+                    <button
+                      className="rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 text-xs font-bold text-emerald-800 shadow-2xs transition inline-flex items-center gap-1.5"
+                      onClick={() => openSlipModal(selectedClaim, "REPLACEMENT")}
+                      type="button"
+                    >
+                      <Printer size={14} />
+                      <span>Print Replacement Slip (2 Copies)</span>
+                    </button>
+                  ) : null}
+
                   {canAct && !["REPLACED", "REJECTED", "OUT"].includes(selectedClaim.status) ? (
                     <>
+                      {(() => {
+                        const lData = getClaimLoanerData(selectedClaim)
+                        if (lData?.status === "ON_LOAN") {
+                          return (
+                            <button
+                              className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-soft transition inline-flex items-center gap-1.5"
+                              onClick={() => openReturnLoanerModal(selectedClaim)}
+                              type="button"
+                            >
+                              <RotateCcw size={14} />
+                              <span>Return Loaner</span>
+                            </button>
+                          )
+                        }
+                        return (
+                          <button
+                            className="rounded-xl bg-amber-600 hover:bg-amber-700 px-4 py-2 text-xs font-bold text-white shadow-soft transition inline-flex items-center gap-1.5"
+                            onClick={() => openIssueLoanerModal(selectedClaim)}
+                            type="button"
+                          >
+                            <Handshake size={14} />
+                            <span>Issue Loaner Unit</span>
+                          </button>
+                        )
+                      })()}
+
                       <button
                         className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-soft transition"
                         onClick={() => openImmediateReplacementModal(selectedClaim)}
@@ -2386,6 +2706,186 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
           </form>
         </Modal>
       ) : null}
+
+      {/* MODAL: ISSUE SERVICE LOANER UNIT */}
+      {showIssueLoaner && loanerTargetClaim ? (
+        <Modal
+          onClose={() => setShowIssueLoaner(false)}
+          title={`Issue Service Loaner Unit: ${loanerTargetClaim.claimCode}`}
+        >
+          <form onSubmit={submitIssueLoaner}>
+            <div className="space-y-4 p-5 sm:p-6 text-xs">
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3.5 space-y-1 text-amber-900">
+                <p className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck size={14} /> Service Loaner Agreement
+                </p>
+                <p className="text-[11px] text-amber-800">
+                  Lending a temporary unit while the client's defective item is processed for warranty. The client must return this loaner unit regardless of whether the warranty claim is approved, repaired, or rejected.
+                </p>
+              </div>
+
+              <Field label="Select Loaner Item from Catalog">
+                <select
+                  className={FIELD_CLASS}
+                  value={loanerForm.loanerItemId}
+                  onChange={(e) => handleLoanerItemChange(e.target.value)}
+                >
+                  <option value="">Select an available catalog item (or enter custom below)</option>
+                  {items.map((it) => (
+                    <option key={it.id} value={it.id}>
+                      {it.itemCode} · {it.itemName}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Loaner Item Name *" required>
+                <input
+                  required
+                  className={FIELD_CLASS}
+                  placeholder="e.g. Asus GeForce RTX 3060 12GB (Store Service Unit)"
+                  value={loanerForm.loanerItemName}
+                  onChange={(e) => setLoanerForm((prev) => ({ ...prev, loanerItemName: e.target.value }))}
+                />
+              </Field>
+
+              {loanerAvailableSerials.length > 0 ? (
+                <Field label="Select Available Serial Number">
+                  <select
+                    className={FIELD_CLASS}
+                    value={loanerForm.loanerSerialId}
+                    onChange={(e) => {
+                      const sId = e.target.value
+                      const ser = loanerAvailableSerials.find((s) => s.id === sId)
+                      setLoanerForm((prev) => ({
+                        ...prev,
+                        loanerSerialId: sId,
+                        loanerSerialNumber: ser?.serialNumber || "",
+                      }))
+                    }}
+                  >
+                    <option value="">Select available stock serial</option>
+                    {loanerAvailableSerials.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.serialNumber} (Batch: {s.batch?.batchCode || "Active"})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ) : null}
+
+              <Field label="Loaner Serial Number *" required>
+                <input
+                  required
+                  className={`${FIELD_CLASS} font-mono`}
+                  placeholder="Scan or enter loaner serial number..."
+                  value={loanerForm.loanerSerialNumber}
+                  onChange={(e) => setLoanerForm((prev) => ({ ...prev, loanerSerialNumber: e.target.value }))}
+                />
+              </Field>
+
+              <Field label="Loan Remarks & Physical Condition">
+                <textarea
+                  className={FIELD_CLASS}
+                  placeholder="e.g. Unit in good working condition with minor outer scratch. Power cord included."
+                  rows="2"
+                  value={loanerForm.loanRemarks}
+                  onChange={(e) => setLoanerForm((prev) => ({ ...prev, loanRemarks: e.target.value }))}
+                />
+              </Field>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-200 p-4 sm:px-6">
+              <button
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                onClick={() => setShowIssueLoaner(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-xs font-bold text-white shadow-sm"
+                disabled={isSaving}
+                type="submit"
+              >
+                {isSaving ? "Issuing..." : "Confirm & Print 2-Copy Agreement"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {/* MODAL: RETURN SERVICE LOANER UNIT */}
+      {showReturnLoaner && returnLoanerTargetClaim ? (
+        <Modal
+          onClose={() => setShowReturnLoaner(false)}
+          title={`Return Service Loaner Unit: ${returnLoanerTargetClaim.claimCode}`}
+        >
+          <form onSubmit={submitReturnLoaner}>
+            <div className="space-y-4 p-5 sm:p-6 text-xs">
+              <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3.5 space-y-1 text-emerald-900">
+                <p className="font-bold flex items-center gap-1.5">
+                  <CheckCircle2 size={14} /> Confirm Service Loaner Return
+                </p>
+                <p className="text-[11px] text-emerald-800">
+                  Customer has returned the service loaner unit back to store inventory.
+                </p>
+              </div>
+
+              <Field label="Return Physical Condition">
+                <select
+                  className={FIELD_CLASS}
+                  value={returnLoanerForm.returnCondition}
+                  onChange={(e) => setReturnLoanerForm((prev) => ({ ...prev, returnCondition: e.target.value }))}
+                >
+                  <option value="Good / Working Condition">Good / Working Condition (Complete)</option>
+                  <option value="Minor Cosmetic Wear">Minor Cosmetic Wear (Working)</option>
+                  <option value="Damaged / Incomplete Accessories">Damaged / Incomplete Accessories</option>
+                  <option value="Defective Upon Return">Defective Upon Return</option>
+                </select>
+              </Field>
+
+              <Field label="Staff Receiving Remarks">
+                <textarea
+                  className={FIELD_CLASS}
+                  placeholder="Notes upon return inspection..."
+                  rows="2"
+                  value={returnLoanerForm.remarks}
+                  onChange={(e) => setReturnLoanerForm((prev) => ({ ...prev, remarks: e.target.value }))}
+                />
+              </Field>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-200 p-4 sm:px-6">
+              <button
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                onClick={() => setShowReturnLoaner(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-bold text-white shadow-sm"
+                disabled={isSaving}
+                type="submit"
+              >
+                {isSaving ? "Returning..." : "Confirm Return to Stock"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {/* MODAL: PRINTABLE 2-COPY WARRANTY SLIP */}
+      {showSlipModal && activeSlipClaim ? (
+        <WarrantySlipModal
+          claim={activeSlipClaim}
+          slipType={activeSlipType}
+          options={activeSlipOptions}
+          onClose={() => setShowSlipModal(false)}
+        />
+      ) : null}
     </div>
   )
 }
+

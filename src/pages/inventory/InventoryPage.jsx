@@ -194,6 +194,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [requestFulfillmentMethod, setRequestFulfillmentMethod] = useState("PICKUP")
   const [requestDeliveryCharge, setRequestDeliveryCharge] = useState("0")
   const [requestNotes, setRequestNotes] = useState("")
+  const [requestTransferType, setRequestTransferType] = useState("STANDARD") // "STANDARD" | "BORROW"
   const [requestMessage, setRequestMessage] = useState("")
   const [isRequesting, setIsRequesting] = useState(false)
 
@@ -379,6 +380,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     setRequestFulfillmentMethod("PICKUP")
     setRequestDeliveryCharge("0")
     setRequestNotes("")
+    setRequestTransferType("STANDARD")
   }
 
   const loadStockMovements = async (item) => {
@@ -853,6 +855,10 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     setIsRequesting(true)
     setRequestMessage("")
 
+    const formattedNotes = requestTransferType === "BORROW"
+      ? `[TRANSFER_TYPE:BORROW] [BORROW_STATUS:ON_LOAN] ${requestNotes.trim()}`.trim()
+      : (requestNotes.trim() || undefined)
+
     try {
       await createStockTransferRequest({
         fromBranchId: requestSourceBranchId || viewingBranchId,
@@ -861,7 +867,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         ...(requestFulfillmentMethod === "DELIVERY"
           ? { deliveryCharge }
           : {}),
-        notes: requestNotes.trim() || undefined,
+        notes: formattedNotes,
         items: [
           {
             itemId: requestItem.id,
@@ -871,12 +877,17 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         ],
       })
 
-      setRequestMessage("Stock request sent successfully.")
+      setRequestMessage(
+        requestTransferType === "BORROW"
+          ? "Stock borrow request sent successfully. Tracked under Borrow Monitoring."
+          : "Stock request sent successfully."
+      )
       setRequestItem(null)
       setRequestQuantity("1")
       setRequestFulfillmentMethod("PICKUP")
       setRequestDeliveryCharge("0")
       setRequestNotes("")
+      setRequestTransferType("STANDARD")
       await loadInventory()
     } catch (error) {
       const message =
@@ -1736,6 +1747,45 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                       </p>
                     </div>
                   </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Transfer Purpose / Type
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={isRequesting}
+                      onClick={() => setRequestTransferType("STANDARD")}
+                      className={`rounded-xl border p-2.5 text-left text-xs transition ${
+                        requestTransferType === "STANDARD"
+                          ? "border-[var(--color-maroon)] bg-[var(--color-maroon)]/5 text-[var(--color-maroon)] font-bold shadow-2xs"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <p className="font-bold">Standard Transfer</p>
+                      <p className="text-[10px] text-slate-500 font-normal mt-0.5">Commercial inter-branch transfer</p>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isRequesting}
+                      onClick={() => setRequestTransferType("BORROW")}
+                      className={`rounded-xl border p-2.5 text-left text-xs transition ${
+                        requestTransferType === "BORROW"
+                          ? "border-purple-600 bg-purple-50 text-purple-900 font-bold shadow-2xs"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <p className="font-bold">Equipment Loan (Borrow)</p>
+                      <p className="text-[10px] text-purple-700 font-normal mt-0.5">No settlement; must be returned</p>
+                    </button>
+                  </div>
+                  {requestTransferType === "BORROW" ? (
+                    <p className="text-[11px] text-purple-800 bg-purple-50 border border-purple-200 rounded-xl p-2 font-medium">
+                      Notice: Inter-branch borrow does not charge internal transfer settlement. It is monitored under the Borrow Monitoring tab in Stock Transfers.
+                    </p>
+                  ) : null}
                 </div>
 
                 <label className="block">
