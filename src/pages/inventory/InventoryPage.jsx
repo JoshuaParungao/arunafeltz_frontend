@@ -19,6 +19,7 @@ import {
 } from "../../features/inventory/inventory.api"
 
 import { exportInventoryPdf, exportReportExcel } from "../../utils/businessDocumentExport"
+import { formatSpecs } from "../../utils/attributeFilter"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 function formatNumber(value) {
@@ -680,14 +681,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         exportPage += 1
       } while (exportPage <= totalPages)
 
-      const filteredExportItems = exportItems.filter((item) =>
-        matchesItemAttributes(item, {
-          capacity: capacityFilter,
-          speed: speedFilter,
-          type: typeFilter,
-          specSearch: specSearch,
-        })
-      )
+      const filteredExportItems = exportItems
 
       const exportColumns = [
         ["Item Code", (row) => row.itemCode || "—"],

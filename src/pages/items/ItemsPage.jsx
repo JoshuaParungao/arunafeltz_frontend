@@ -6,6 +6,7 @@ import { createItem, getItemCategories, getItems, getUnits, updateItemById } fro
 import { createItemCategory } from "../../features/categories/categories.api"
 import { createUnit } from "../../features/units/units.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { formatSpecs } from "../../utils/attributeFilter"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 
@@ -1731,14 +1732,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
         exportPage += 1
       } while (exportPage <= totalPages)
 
-      const filteredExportItems = exportItems.filter((item) =>
-        matchesItemAttributes(item, {
-          capacity: capacityFilter,
-          speed: speedFilter,
-          type: typeFilter,
-          specSearch: specSearch,
-        })
-      )
+      const filteredExportItems = exportItems
 
       const exportColumns = [
         ["Item Code", (row) => row.itemCode || "—"],
@@ -2200,7 +2194,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
         </div>
 
         {/* Active Filter Chips */}
-        {mainCatFilter || subCatFilter || brandFilter || capacityFilter || speedFilter || typeFilter || specSearch || unitFilter || statusFilter || serializedFilter || warrantyFilter ? (
+        {mainCatFilter || subCatFilter || brandFilter || unitFilter || statusFilter || serializedFilter || warrantyFilter ? (
           <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
               Active Filters:
