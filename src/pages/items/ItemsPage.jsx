@@ -7,13 +7,7 @@ import { createItemCategory } from "../../features/categories/categories.api"
 import { createUnit } from "../../features/units/units.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
-import {
-  CAPACITY_PRESETS,
-  formatSpecs,
-  matchesItemAttributes,
-  SPEED_PRESETS,
-  TYPE_PRESETS,
-} from "../../utils/attributeFilter"
+
 
 const OWNER_ROLES = new Set([
   USER_ROLES.SUPER_OWNER,
@@ -1555,17 +1549,12 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
   const [mainCatFilter, setMainCatFilter] = useState("")
   const [subCatFilter, setSubCatFilter] = useState("")
   const [brandFilter, setBrandFilter] = useState("")
-  const [capacityFilter, setCapacityFilter] = useState("")
-  const [speedFilter, setSpeedFilter] = useState("")
-  const [typeFilter, setTypeFilter] = useState("")
-  const [specSearch, setSpecSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [serializedFilter, setSerializedFilter] = useState("")
   const [warrantyFilter, setWarrantyFilter] = useState("")
   const [unitFilter, setUnitFilter] = useState("")
   const [categoryOptions, setCategoryOptions] = useState([])
   const [unitOptions, setUnitOptions] = useState([])
-  const [isDetailedFiltersOpen, setIsDetailedFiltersOpen] = useState(false)
   const [page, setPage] = useState(1)
   const pageSize = 25
   const [isLoading, setIsLoading] = useState(true)
@@ -1605,30 +1594,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
 
   const effectiveCategoryId = subCatFilter || mainCatFilter || ""
 
-  const activeDetailedFilterCount = useMemo(() => {
-    let count = 0
-    if (brandFilter.trim()) count++
-    if (capacityFilter) count++
-    if (speedFilter) count++
-    if (typeFilter) count++
-    if (specSearch.trim()) count++
-    if (unitFilter) count++
-    if (statusFilter) count++
-    if (serializedFilter) count++
-    if (warrantyFilter) count++
-    return count
-  }, [brandFilter, capacityFilter, speedFilter, typeFilter, specSearch, unitFilter, statusFilter, serializedFilter, warrantyFilter])
-
-  const displayedItems = useMemo(() => {
-    return items.filter((item) =>
-      matchesItemAttributes(item, {
-        capacity: capacityFilter,
-        speed: speedFilter,
-        type: typeFilter,
-        specSearch: specSearch,
-      })
-    )
-  }, [items, capacityFilter, speedFilter, typeFilter, specSearch])
+  const displayedItems = items
 
   const loadFilterOptions = useCallback(async () => {
     try {
@@ -1725,10 +1691,6 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
     setMainCatFilter("")
     setSubCatFilter("")
     setBrandFilter("")
-    setCapacityFilter("")
-    setSpeedFilter("")
-    setTypeFilter("")
-    setSpecSearch("")
     setUnitFilter("")
     setStatusFilter("")
     setSerializedFilter("")
@@ -1810,10 +1772,6 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
         ["Status Filter", statusFilter || "All statuses"],
         ["Serialized Only", serializedFilter ? "Yes" : "All"],
       ]
-      if (capacityFilter) excelFilters.push(["Capacity Filter", capacityFilter])
-      if (speedFilter) excelFilters.push(["Speed Filter", speedFilter])
-      if (typeFilter) excelFilters.push(["Type Filter", typeFilter])
-      if (specSearch.trim()) excelFilters.push(["Spec Search", specSearch.trim()])
 
       exportReportExcel({
         label: "Product Catalog",
@@ -2271,38 +2229,7 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
                 </button>
               </span>
             ) : null}
-            {capacityFilter ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-800">
-                Capacity: {capacityFilter}
-                <button onClick={() => setCapacityFilter("")} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {speedFilter ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                Speed: {speedFilter}
-                <button onClick={() => setSpeedFilter("")} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {typeFilter ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2.5 py-1 text-xs font-semibold text-purple-800">
-                Type/Socket: {typeFilter}
-                <button onClick={() => setTypeFilter("")} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {specSearch ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                Spec: "{specSearch}"
-                <button onClick={() => setSpecSearch("")} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
+
             {unitFilter ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                 Unit: {unitOptions.find((u) => u.id === unitFilter)?.name || "Unit"}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, BarChart3, Boxes, CheckCircle2, PackageSearch, Plus, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react"
+import { AlertCircle, BarChart3, Boxes, CheckCircle2, PackageSearch, Plus, RefreshCw, Search, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { getBranches } from "../../features/branches/branches.api"
@@ -20,13 +20,7 @@ import {
 
 import { exportInventoryPdf, exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
-import {
-  CAPACITY_PRESETS,
-  formatSpecs,
-  matchesItemAttributes,
-  SPEED_PRESETS,
-  TYPE_PRESETS,
-} from "../../utils/attributeFilter"
+
 function formatNumber(value) {
   const number = Number(value || 0)
   return number.toLocaleString("en-PH")
@@ -145,14 +139,9 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [mainCatFilter, setMainCatFilter] = useState("")
   const [subCatFilter, setSubCatFilter] = useState("")
   const [brandFilter, setBrandFilter] = useState("")
-  const [capacityFilter, setCapacityFilter] = useState("")
-  const [speedFilter, setSpeedFilter] = useState("")
-  const [typeFilter, setTypeFilter] = useState("")
-  const [specSearch, setSpecSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState("")
   const [categoryOptions, setCategoryOptions] = useState([])
-  const [isDetailedFiltersOpen, setIsDetailedFiltersOpen] = useState(false)
   const [branchOptions, setBranchOptions] = useState([])
   const [viewingBranchId, setViewingBranchId] = useState(selectedBranch?.id || "")
   const [page, setPage] = useState(1)
@@ -220,28 +209,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
 
   const effectiveCategoryId = subCatFilter || mainCatFilter || ""
 
-  const activeDetailedFilterCount = useMemo(() => {
-    let count = 0
-    if (brandFilter.trim()) count++
-    if (capacityFilter) count++
-    if (speedFilter) count++
-    if (typeFilter) count++
-    if (specSearch.trim()) count++
-    if (statusFilter) count++
-    if (lowStockOnly) count++
-    return count
-  }, [brandFilter, capacityFilter, speedFilter, typeFilter, specSearch, statusFilter, lowStockOnly])
-
-  const displayedItems = useMemo(() => {
-    return items.filter((item) =>
-      matchesItemAttributes(item, {
-        capacity: capacityFilter,
-        speed: speedFilter,
-        type: typeFilter,
-        specSearch: specSearch,
-      })
-    )
-  }, [items, capacityFilter, speedFilter, typeFilter, specSearch])
+  const displayedItems = items
 
   const loadCategories = useCallback(async () => {
     try {
@@ -347,10 +315,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     setMainCatFilter("")
     setSubCatFilter("")
     setBrandFilter("")
-    setCapacityFilter("")
-    setSpeedFilter("")
-    setTypeFilter("")
-    setSpecSearch("")
     setStatusFilter("")
     setLowStockOnly("")
     setPage(1)
@@ -651,14 +615,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         exportPage += 1
       } while (exportPage <= totalPages)
 
-      const filteredExportItems = exportItems.filter((item) =>
-        matchesItemAttributes(item, {
-          capacity: capacityFilter,
-          speed: speedFilter,
-          type: typeFilter,
-          specSearch: specSearch,
-        })
-      )
+      const filteredExportItems = exportItems
 
       const pdfFilters = [
         ["Search", searchText.trim() || "All inventory items"],
@@ -670,10 +627,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         ["Status", statusFilter || "All statuses"],
         ["Low stock only", lowStockOnly === "true" ? "Yes" : "No"],
       ]
-      if (capacityFilter) pdfFilters.push(["Capacity", capacityFilter])
-      if (speedFilter) pdfFilters.push(["Speed", speedFilter])
-      if (typeFilter) pdfFilters.push(["Type", typeFilter])
-      if (specSearch.trim()) pdfFilters.push(["Spec Keyword", specSearch.trim()])
 
       exportInventoryPdf(filteredExportItems, {
         branch: viewingBranch || selectedBranch,
@@ -769,10 +722,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         ["Status", statusFilter || "All statuses"],
         ["Low stock only", lowStockOnly === "true" ? "Yes" : "No"],
       ]
-      if (capacityFilter) excelFilters.push(["Capacity", capacityFilter])
-      if (speedFilter) excelFilters.push(["Speed", speedFilter])
-      if (typeFilter) excelFilters.push(["Type", typeFilter])
-      if (specSearch.trim()) excelFilters.push(["Spec Keyword", specSearch.trim()])
 
       exportReportExcel({
         label: "Branch Inventory Status",
@@ -1188,24 +1137,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
             </div>
 
             <button
-              className={`h-9 rounded-lg border px-3 text-xs font-semibold transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer ${
-                isDetailedFiltersOpen || activeDetailedFilterCount > 0
-                  ? "border-[var(--color-maroon)] bg-[var(--color-maroon)]/5 text-[var(--color-maroon)]"
-                  : "border-slate-200/90 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
-              onClick={() => setIsDetailedFiltersOpen((prev) => !prev)}
-              type="button"
-            >
-              <SlidersHorizontal size={13} />
-              Detailed Filters
-              {activeDetailedFilterCount > 0 ? (
-                <span className="rounded-full bg-[var(--color-maroon)] text-white text-[10px] font-black px-1.5 py-0.2">
-                  {activeDetailedFilterCount}
-                </span>
-              ) : null}
-            </button>
-
-            <button
               className="h-9 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 shadow-2xs cursor-pointer"
               onClick={clearFilters}
               type="button"
@@ -1268,6 +1199,41 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
 
           <label className="block">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Status
+            </span>
+            <select
+              className="mt-1 w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+              onChange={(event) => {
+                setStatusFilter(event.target.value)
+                setPage(1)
+              }}
+              value={statusFilter}
+            >
+              <option value="">All status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Stock level
+            </span>
+            <select
+              className="mt-1 w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+              onChange={(event) => {
+                setLowStockOnly(event.target.value)
+                setPage(1)
+              }}
+              value={lowStockOnly}
+            >
+              <option value="">All stock levels</option>
+              <option value="true">Low stock only</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Viewing Branch
             </span>
             <select
@@ -1287,129 +1253,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           </label>
         </div>
 
-        {/* Detailed Specification & Attribute Shelf (Collapsible) */}
-        {isDetailedFiltersOpen ? (
-          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-3.5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
-                <SlidersHorizontal size={14} />
-                Specification & Attribute Filters
-              </span>
-              <span className="text-[11px] font-semibold text-indigo-700">
-                Drill down by GB capacity, speed, generation/socket, or custom attributes
-              </span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <label className="block">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Capacity / Storage / RAM
-                </span>
-                <select
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                  onChange={(event) => setCapacityFilter(event.target.value)}
-                  value={capacityFilter}
-                >
-                  <option value="">Any Capacity</option>
-                  {CAPACITY_PRESETS.map((cap) => (
-                    <option key={cap} value={cap}>
-                      {cap}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Speed / Frequency / Hz
-                </span>
-                <select
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                  onChange={(event) => setSpeedFilter(event.target.value)}
-                  value={speedFilter}
-                >
-                  <option value="">Any Speed</option>
-                  {SPEED_PRESETS.map((spd) => (
-                    <option key={spd} value={spd}>
-                      {spd}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Type / Generation / Socket
-                </span>
-                <select
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                  onChange={(event) => setTypeFilter(event.target.value)}
-                  value={typeFilter}
-                >
-                  <option value="">Any Type / Socket</option>
-                  {TYPE_PRESETS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Custom Attribute Search
-                </span>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
-                  onChange={(event) => setSpecSearch(event.target.value)}
-                  placeholder="e.g. Gold, White, ATX, 750W, CL16..."
-                  value={specSearch}
-                />
-              </label>
-            </div>
-
-            {/* Standard Inventory Status & Stock Level Filters */}
-            <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-indigo-100/70">
-              <label className="block">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Status
-                </span>
-                <select
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                  onChange={(event) => {
-                    setStatusFilter(event.target.value)
-                    setPage(1)
-                  }}
-                  value={statusFilter}
-                >
-                  <option value="">All status</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Stock level
-                </span>
-                <select
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                  onChange={(event) => {
-                    setLowStockOnly(event.target.value)
-                    setPage(1)
-                  }}
-                  value={lowStockOnly}
-                >
-                  <option value="">All stock levels</option>
-                  <option value="true">Low stock only</option>
-                </select>
-              </label>
-            </div>
-          </div>
-        ) : null}
-
         {/* Active Filter Chips */}
-        {mainCatFilter || subCatFilter || brandFilter || capacityFilter || speedFilter || typeFilter || specSearch || statusFilter || lowStockOnly ? (
+        {mainCatFilter || subCatFilter || brandFilter || statusFilter || lowStockOnly ? (
           <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
               Active Filters:
@@ -1434,38 +1279,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
               <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-800">
                 Brand: {brandFilter}
                 <button onClick={() => { setBrandFilter(""); setPage(1) }} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {capacityFilter ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-800">
-                Capacity: {capacityFilter}
-                <button onClick={() => setCapacityFilter("")} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {speedFilter ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                Speed: {speedFilter}
-                <button onClick={() => setSpeedFilter("")} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {typeFilter ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2.5 py-1 text-xs font-semibold text-purple-800">
-                Type/Socket: {typeFilter}
-                <button onClick={() => setTypeFilter("")} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {specSearch ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                Spec: "{specSearch}"
-                <button onClick={() => setSpecSearch("")} className="hover:text-red-600">
                   <X size={12} />
                 </button>
               </span>
