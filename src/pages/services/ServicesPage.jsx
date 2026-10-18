@@ -71,6 +71,7 @@ import {
   extractServiceParts,
   extractServiceTasks,
   getEffectiveJobPaymentState,
+  getTechnicianPartsRatePercent,
   serializeStructuredNotes,
 } from "./serviceJobForms"
 
@@ -107,6 +108,8 @@ const EMPTY_CREATE = {
   diagnosis: "",
   serviceNotes: "",
   repairType: "ORDINARY_REPAIR",
+  serviceCatalogId: "",
+  partsList: [],
   baseServiceCharge: "",
   markupPercent: "",
   pricingMode: "STANDARD",
@@ -711,123 +714,166 @@ function getTechnicianRatePercent(technician, repairType) {
 }
 
 function ServicePricingFields({
-  baseServiceCharge,
-  markupPercent,
-  onBaseChange,
-  onMarkupChange,
-  isOptional = false,
-  pricingMode = "STANDARD",
-  onPricingModeChange,
   serviceRate = "",
   technicianFee = "",
-  partsCost = "",
-  partsMarkup = "",
-  servicePartId = "",
-  partDescription = "",
   onServiceRateChange,
   onTechnicianFeeChange,
-  onPartsCostChange,
-  onPartsMarkupChange,
-  onServicePartChange,
+  serviceCatalog = [],
+  serviceCatalogId = "",
+  onServiceCatalogChange,
   servicePartsCatalog = [],
+  partsList = [],
+  onPartsListChange,
   assignedTechnician = null,
   repairType = "ORDINARY_REPAIR",
+  onRepairTypeChange,
+  onJobTitleChange,
 }) {
-  const isPartsMode = pricingMode === "PARTS_BREAKDOWN"
+  const isBoardCategory = repairType === "BOARD_LEVEL_REPAIR"
 
-  const techRatePercent = useMemo(
-    () => getTechnicianRatePercent(assignedTechnician, repairType),
-    [assignedTechnician, repairType]
-  )
-
-  const ordinaryRate = useMemo(
+  const ordinaryLaborRate = useMemo(
     () => getTechnicianRatePercent(assignedTechnician, "ORDINARY_REPAIR"),
     [assignedTechnician]
   )
-  const boardRate = useMemo(
+  const boardLaborRate = useMemo(
     () => getTechnicianRatePercent(assignedTechnician, "BOARD_LEVEL_REPAIR"),
     [assignedTechnician]
   )
-  const isBoardCategory = repairType === "BOARD_LEVEL_REPAIR"
-  const activeRatePercent = techRatePercent
+  const ordinaryPartsRate = useMemo(
+    () => getTechnicianPartsRatePercent(assignedTechnician, "ORDINARY_REPAIR"),
+    [assignedTechnician]
+  )
+  const boardPartsRate = useMemo(
+    () => getTechnicianPartsRatePercent(assignedTechnician, "BOARD_LEVEL_REPAIR"),
+    [assignedTechnician]
+  )
 
-  // Standard calculations
-  const baseIsValid = isValidBaseServiceCharge(baseServiceCharge)
-  const markupIsValid = isValidMarkup(markupPercent)
-  const standardFinalPrice =
-    baseIsValid && markupIsValid
-      ? getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
-      : 0
-  const numericBase = baseIsValid ? Number(baseServiceCharge || 0) : 0
+  const activeLaborRatePercent = isBoardCategory ? boardLaborRate : ordinaryLaborRate
 
-  // Parts breakdown calculations
+  // Labor math
   const serviceRateNum = Number(serviceRate || 0)
-  const partsCostNum = Number(partsCost || 0)
-  const partsMarkupNum = Number(partsMarkup || 0)
-  const partsSrpNum = partsCostNum + partsMarkupNum
-  const partsModeTotal = serviceRateNum + partsCostNum + partsMarkupNum
-
-  const finalCustomerPrice = isPartsMode ? partsModeTotal : standardFinalPrice
-  const isUndetermined = !isPartsMode && numericBase === 0
-
-  // Strictly auto-compute tech fee from labor rate & technician's incentive rule in Employee Hub
-  const computedTechFee = useMemo(() => {
-    if (techRatePercent > 0 && serviceRateNum > 0) {
-      return Number(((serviceRateNum * techRatePercent) / 100).toFixed(2))
+  const computedLaborTechFee = useMemo(() => {
+    if (activeLaborRatePercent > 0 && serviceRateNum > 0) {
+      return Number(((serviceRateNum * activeLaborRatePercent) / 100).toFixed(2))
     }
     return 0
-  }, [techRatePercent, serviceRateNum])
+  }, [activeLaborRatePercent, serviceRateNum])
 
-  // Synchronize auto-computed fee to parent form state
+  const shopLaborProfit = Math.max(0, serviceRateNum - computedLaborTechFee)
+
+  // Parts calculations
+  const partsSummary = useMemo(() => {
+    let totalCost = 0
+    let totalMarkup = 0
+    let totalSrp = 0
+    let totalTechPartCut = 0
+
+    const listWithCalculations = (partsList || []).map((part) => {
+      const cost = Number(part.costPrice || 0)
+      const markup = Number(part.markupAmount || 0)
+      const qty = Number(part.quantity || 1)
+      const pType = part.repairType || "ORDINARY_REPAIR"
+      const techPartRate = getTechnicianPartsRatePercent(assignedTechnician, pType)
+      const techPartCut = Number(((cost * techPartRate / 100) * qty).toFixed(2))
+      const unitSrp = cost + markup
+      const lineSrp = unitSrp * qty
+      const lineCost = cost * qty
+      const lineMarkup = markup * qty
+
+      totalCost += lineCost
+      totalMarkup += lineMarkup
+      totalSrp += lineSrp
+      totalTechPartCut += techPartCut
+
+      return {
+        ...part,
+        techPartRate,
+        techPartCut,
+        unitSrp,
+        lineSrp,
+        lineCost,
+        lineMarkup,
+      }
+    })
+
+    return {
+      items: listWithCalculations,
+      totalCost,
+      totalMarkup,
+      totalSrp,
+      totalTechPartCut,
+    }
+  }, [partsList, assignedTechnician])
+
+  const totalCustomerPrice = serviceRateNum + partsSummary.totalSrp
+  const totalTechEarnings = Number((computedLaborTechFee + partsSummary.totalTechPartCut).toFixed(2))
+  const totalShopProfit = shopLaborProfit + partsSummary.totalMarkup
+
+  // Synchronize total technician fee back to parent form state
   useEffect(() => {
     if (onTechnicianFeeChange) {
       const current = Number(technicianFee || 0)
-      if (current !== computedTechFee) {
-        onTechnicianFeeChange(String(computedTechFee))
+      if (current !== totalTechEarnings) {
+        onTechnicianFeeChange(String(totalTechEarnings))
       }
     }
-  }, [computedTechFee, technicianFee, onTechnicianFeeChange])
+  }, [totalTechEarnings, technicianFee, onTechnicianFeeChange])
 
-  const effectiveTechFee = computedTechFee
-  const shopLaborProfit = Math.max(0, serviceRateNum - effectiveTechFee)
-  const totalShopProfit = shopLaborProfit + partsMarkupNum
+  const handleAddPart = () => {
+    const newPart = {
+      id: `part-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      partCatalogId: "",
+      partName: "",
+      costPrice: "",
+      markupAmount: "",
+      repairType: "ORDINARY_REPAIR",
+      quantity: 1,
+      warrantyDuration: "REPLACEMENT PART",
+    }
+    if (onPartsListChange) {
+      onPartsListChange([...(partsList || []), newPart])
+    }
+  }
+
+  const handleUpdatePart = (idx, updates) => {
+    if (!onPartsListChange) return
+    const updated = [...partsList]
+    updated[idx] = { ...updated[idx], ...updates }
+    onPartsListChange(updated)
+  }
+
+  const handleRemovePart = (idx) => {
+    if (!onPartsListChange) return
+    const updated = partsList.filter((_, i) => i !== idx)
+    onPartsListChange(updated)
+  }
+
+  const handleSelectCatalogPart = (idx, catalogPartId) => {
+    if (!catalogPartId) {
+      handleUpdatePart(idx, {
+        partCatalogId: "",
+        partName: "",
+        costPrice: "",
+        markupAmount: "",
+        repairType: "ORDINARY_REPAIR",
+      })
+      return
+    }
+    const found = servicePartsCatalog.find((p) => p.id === catalogPartId)
+    if (found) {
+      handleUpdatePart(idx, {
+        partCatalogId: found.id,
+        partName: found.name,
+        costPrice: String(found.costPrice || 0),
+        markupAmount: String(found.markupAmount || 0),
+        repairType: found.repairType || "ORDINARY_REPAIR",
+      })
+    }
+  }
 
   return (
-    <div className="space-y-3.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
-      {/* Mode Switcher */}
-      {onPricingModeChange && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
-          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
-            Pricing Calculation Mode:
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
-                !isPartsMode
-                  ? "bg-[var(--color-maroon)] text-white shadow-xs"
-                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-              onClick={() => onPricingModeChange("STANDARD")}
-              type="button"
-            >
-              Standard Labor Charge
-            </button>
-            <button
-              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
-                isPartsMode
-                  ? "bg-[var(--color-maroon)] text-white shadow-xs"
-                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-              onClick={() => onPricingModeChange("PARTS_BREAKDOWN")}
-              type="button"
-            >
-              ⚡ With Service Parts &amp; Markup
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Technician Incentive Transparency & Live Diagnostic Card */}
+    <div className="space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
+      {/* 1. Technician Incentive Transparency Card */}
       {assignedTechnician && (
         <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-blue-50/80 p-3.5 text-xs shadow-2xs space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200/70 pb-2">
@@ -839,312 +885,332 @@ function ServicePricingFields({
                 Employee Hub Rules
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-[11px]">
-              <span
-                className={`px-2 py-0.5 rounded-md font-mono font-bold transition ${
-                  !isBoardCategory
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "bg-white text-slate-700 border border-slate-200"
-                }`}
-                title="Ordinary / Standard Repair rate from Employee Hub"
-              >
-                {!isBoardCategory ? "● " : ""}Ordinary Rate: {ordinaryRate > 0 ? `${ordinaryRate}%` : "0% (Not set)"}
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded-md font-mono font-bold transition ${
-                  isBoardCategory
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "bg-white text-slate-700 border border-slate-200"
-                }`}
-                title="Board-Level / Specialized Repair rate from Employee Hub"
-              >
-                {isBoardCategory ? "● " : ""}Board-Level Rate: {boardRate > 0 ? `${boardRate}%` : "0% (Not set)"}
-              </span>
-            </div>
+            <span className="text-[10.5px] font-bold text-blue-900 font-mono">
+              Role: {assignedTechnician.role || "Staff"}
+            </span>
           </div>
 
-          {/* Diagnostic status banner */}
-          <div className="text-[11px]">
-            {activeRatePercent > 0 ? (
-              serviceRateNum > 0 ? (
-                <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2 text-emerald-900 flex items-center justify-between gap-2">
-                  <p>
-                    ✅ <strong>Active Rate:</strong> Applying <strong>{activeRatePercent}%</strong> for{" "}
-                    <strong>{isBoardCategory ? "Specialized / Board-Level Repair" : "Standard / Ordinary Repair"}</strong>.
-                  </p>
-                  <span className="font-mono font-black text-xs text-emerald-950 bg-white px-2 py-0.5 rounded border border-emerald-200 shrink-0">
-                    {money(serviceRateNum)} × {activeRatePercent}% = {money(effectiveTechFee)}
-                  </span>
-                </div>
-              ) : (
-                <div className="rounded-xl bg-amber-50 border border-amber-300 p-2.5 text-amber-900 space-y-1">
-                  <p className="font-bold flex items-center gap-1">
-                    💡 Rate is set ({activeRatePercent}%), but Service / Labor Rate is currently ₱0.00:
-                  </p>
-                  <p className="text-[10.5px] text-amber-800">
-                    The technician fee is computed strictly from <strong>Service / Labor Rate</strong> ({money(0)} × {activeRatePercent}% = {money(0)}). Replacement parts puhunan &amp; markup do not include a technician cut. If this job includes labor, enter the amount in <strong>Service / Labor Rate (₱)</strong> below.
-                  </p>
-                </div>
-              )
-            ) : (
-              <div className="rounded-xl bg-amber-100/80 border border-amber-300 p-2.5 text-amber-950 space-y-1">
-                <p className="font-black flex items-center gap-1 text-amber-900">
-                  ⚠️ No Incentive Rate configured for {isBoardCategory ? "Specialized / Advanced Repair" : "Standard / Ordinary Repair"}!
-                </p>
-                <p className="text-[10.5px] text-amber-800">
-                  {isBoardCategory && ordinaryRate > 0 ? (
-                    <>
-                      Notice: <strong className="text-amber-950">{assignedTechnician.fullName || assignedTechnician.username}</strong> has <strong>{ordinaryRate}%</strong> configured under <em>Ordinary Repair</em>, but this Job Order is currently set to <strong>Specialized / Advanced repair</strong> (which uses Board-Level Repair rate: {boardRate}%). Either switch <strong>Repair category</strong> above to Standard, or configure the Board-Level Repair rate in Employee Hub.
-                    </>
-                  ) : !isBoardCategory && boardRate > 0 ? (
-                    <>
-                      Notice: <strong className="text-amber-950">{assignedTechnician.fullName || assignedTechnician.username}</strong> has <strong>{boardRate}%</strong> configured under <em>Board-Level Repair</em>, but this Job Order is currently set to <strong>Standard / Ordinary repair</strong> (which uses Ordinary Repair rate: {ordinaryRate}%).
-                    </>
-                  ) : (
-                    <>
-                      <strong className="text-amber-950">{assignedTechnician.fullName || assignedTechnician.username}</strong> has 0% or disabled incentive rules in Employee Hub for this repair category.
-                    </>
-                  )}
-                </p>
-              </div>
-            )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+            <div className={`p-2 rounded-xl border transition ${!isBoardCategory ? "bg-blue-600 text-white border-blue-700 shadow-xs" : "bg-white text-slate-700 border-slate-200"}`}>
+              <p className="text-[9.5px] uppercase font-bold tracking-wider opacity-85">Labor (Standard)</p>
+              <p className="font-mono font-black text-sm mt-0.5">{ordinaryLaborRate}%</p>
+              <p className="text-[9px] opacity-75">{!isBoardCategory ? "Active Job Rate" : "Ordinary repair"}</p>
+            </div>
+            <div className={`p-2 rounded-xl border transition ${isBoardCategory ? "bg-indigo-600 text-white border-indigo-700 shadow-xs" : "bg-white text-slate-700 border-slate-200"}`}>
+              <p className="text-[9.5px] uppercase font-bold tracking-wider opacity-85">Labor (Board-Level)</p>
+              <p className="font-mono font-black text-sm mt-0.5">{boardLaborRate}%</p>
+              <p className="text-[9px] opacity-75">{isBoardCategory ? "Active Job Rate" : "Specialized repair"}</p>
+            </div>
+            <div className="p-2 rounded-xl border bg-white text-slate-700 border-slate-200">
+              <p className="text-[9.5px] uppercase font-bold tracking-wider text-slate-500">Parts (Standard)</p>
+              <p className="font-mono font-black text-sm text-slate-900 mt-0.5">{ordinaryPartsRate}%</p>
+              <p className="text-[9px] text-slate-400">On wholesale cost</p>
+            </div>
+            <div className="p-2 rounded-xl border bg-white text-slate-700 border-slate-200">
+              <p className="text-[9.5px] uppercase font-bold tracking-wider text-slate-500">Parts (Board-Level)</p>
+              <p className="font-mono font-black text-sm text-slate-900 mt-0.5">{boardPartsRate}%</p>
+              <p className="text-[9px] text-slate-400">On wholesale cost</p>
+            </div>
           </div>
         </div>
       )}
 
-      {isPartsMode ? (
-        /* 4-Tier Parts & Labor Breakdown Mode (LCD Replacement, IC chips, etc.) */
-        <div className="space-y-3.5">
-          {/* Part Selection from Catalog */}
-          {servicePartsCatalog.length > 0 && onServicePartChange && (
-            <Field label="Select from Service Parts Catalog (Optional auto-fill)">
-              <select
-                className={FIELD_CLASS}
-                onChange={(e) => {
-                  const partId = e.target.value
-                  if (!partId) {
-                    onServicePartChange(null)
-                  } else {
-                    const selected = servicePartsCatalog.find((p) => p.id === partId)
-                    if (selected) onServicePartChange(selected)
-                  }
-                }}
-                value={servicePartId || ""}
-              >
-                <option value="">-- Manual Entry / Custom Service Part --</option>
-                {servicePartsCatalog.map((part) => (
-                  <option key={part.id} value={part.id}>
-                    [{part.category || "PART"}] {part.name} (Cost: {money(part.costPrice)} | Markup: {money(part.markupAmount)})
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
+      {/* 2. Service / Labor Section */}
+      <div className="space-y-3 rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+          <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+            🛠️ Labor &amp; Service Charge
+          </span>
+          <span className="text-[10px] font-bold text-slate-500">
+            Standard diagnosis &amp; work charge
+          </span>
+        </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="🛠️ Service / Labor Rate (₱)">
-              <input
-                className={`${FIELD_CLASS} font-mono font-bold text-slate-900`}
-                min="0"
-                onChange={(e) => {
-                  const val = e.target.value
-                  if (onServiceRateChange) onServiceRateChange(val)
-                }}
-                placeholder="0.00 (Diagnosis / Checking)"
-                step="0.01"
-                type="number"
-                value={serviceRate}
-              />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Customer labor fee (₱0 if for checkup)</span>
-            </Field>
-
-            <Field
-              label={
-                <span className="flex items-center justify-between">
-                  <span>👨‍🔧 Tech Labor Fee (₱)</span>
-                  <span
-                    className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded ${
-                      techRatePercent > 0
-                        ? "text-blue-800 bg-blue-100 border border-blue-200"
-                        : "text-slate-600 bg-slate-100 border border-slate-200"
-                    }`}
-                  >
-                    {techRatePercent > 0 ? `⚡ ${techRatePercent}% Cut` : "0% Rate"}
-                  </span>
-                </span>
-              }
+        {/* Pre-configured Service Catalog Picker */}
+        {serviceCatalog.length > 0 && onServiceCatalogChange && (
+          <Field label="Select from Labor & Service Rates Catalog (Auto-fills title & rate)">
+            <select
+              className={FIELD_CLASS}
+              onChange={(e) => {
+                const selectedId = e.target.value
+                const selected = serviceCatalog.find((s) => s.id === selectedId) || null
+                onServiceCatalogChange(selectedId, selected)
+              }}
+              value={serviceCatalogId || ""}
             >
-              <div className="flex h-[42px] items-center justify-between rounded-xl border border-blue-200/80 bg-blue-50/50 px-3 py-2 font-mono font-bold text-blue-950 select-none shadow-2xs">
-                <span className="text-sm font-black text-blue-900">
-                  {money(effectiveTechFee)}
+              <option value="">-- Custom / Manual Service Rate --</option>
+              {serviceCatalog.map((svc) => (
+                <option key={svc.id} value={svc.id}>
+                  [{svc.repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"}] {svc.name} — {money(svc.basePrice)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Service / Labor Rate (₱)">
+            <input
+              className={`${FIELD_CLASS} font-mono font-bold text-slate-900 text-sm`}
+              min="0"
+              onChange={(e) => {
+                if (onServiceRateChange) onServiceRateChange(e.target.value)
+              }}
+              placeholder="0.00 (Diagnosis / Checking)"
+              step="0.01"
+              type="number"
+              value={serviceRate}
+            />
+            <span className="text-[10px] text-slate-400 mt-0.5 block">
+              Customer labor fee (₱0 if for free diagnostic / checking)
+            </span>
+          </Field>
+
+          <Field
+            label={
+              <span className="flex items-center justify-between">
+                <span>👨‍🔧 Tech Labor Fee (₱)</span>
+                <span
+                  className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded ${
+                    activeLaborRatePercent > 0
+                      ? "text-blue-800 bg-blue-100 border border-blue-200"
+                      : "text-slate-600 bg-slate-100 border border-slate-200"
+                  }`}
+                >
+                  {activeLaborRatePercent > 0 ? `⚡ ${activeLaborRatePercent}% Cut` : "0% Rate"}
                 </span>
-                <span className="rounded bg-blue-100/90 px-1.5 py-0.5 text-[9.5px] font-black tracking-wider uppercase text-blue-700 font-sans">
-                  Viewing Only
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-500 mt-0.5 block">
-                {assignedTechnician ? (
-                  techRatePercent > 0 ? (
-                    <>
-                      Auto: <strong className="text-blue-700 font-bold">{techRatePercent}%</strong> of Labor from Employee Hub for{" "}
-                      <strong className="text-slate-700">{assignedTechnician.fullName || assignedTechnician.username}</strong>
-                    </>
-                  ) : (
-                    <>
-                      <strong className="text-slate-700">{assignedTechnician.fullName || assignedTechnician.username}</strong> has 0% or disabled incentive in Employee Hub
-                    </>
-                  )
+              </span>
+            }
+          >
+            <div className="flex h-[42px] items-center justify-between rounded-xl border border-blue-200/80 bg-blue-50/50 px-3 py-2 font-mono font-bold text-blue-950 select-none shadow-2xs">
+              <span className="text-sm font-black text-blue-900">
+                {money(computedLaborTechFee)}
+              </span>
+              <span className="rounded bg-blue-100/90 px-1.5 py-0.5 text-[9.5px] font-black tracking-wider uppercase text-blue-700 font-sans">
+                Viewing Only
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-500 mt-0.5 block">
+              {assignedTechnician ? (
+                activeLaborRatePercent > 0 ? (
+                  <>
+                    Auto: <strong className="text-blue-700 font-bold">{activeLaborRatePercent}%</strong> of Labor for{" "}
+                    <strong className="text-slate-700">{assignedTechnician.fullName || assignedTechnician.username}</strong>
+                    {" "}(Shop net: +{money(shopLaborProfit)})
+                  </>
                 ) : (
-                  "Select assigned technician above to auto-compute"
-                )}
-              </span>
-            </Field>
+                  <>No labor rate configured in Employee Hub for this repair category</>
+                )
+              ) : (
+                "Select assigned technician to auto-compute"
+              )}
+            </span>
+          </Field>
+        </div>
+      </div>
 
-            <Field label="📦 Replacement Part Cost (₱)">
-              <input
-                className={`${FIELD_CLASS} font-mono text-amber-900 font-bold`}
-                min="0"
-                onChange={(e) => onPartsCostChange && onPartsCostChange(e.target.value)}
-                placeholder="0.00"
-                step="0.01"
-                type="number"
-                value={partsCost}
-              />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Shop puhunan (no tech cut)</span>
-            </Field>
-
-            <Field label="🏢 Shop Part Markup (₱)">
-              <input
-                className={`${FIELD_CLASS} font-mono text-emerald-900 font-bold`}
-                min="0"
-                onChange={(e) => onPartsMarkupChange && onPartsMarkupChange(e.target.value)}
-                placeholder="0.00"
-                step="0.01"
-                type="number"
-                value={partsMarkup}
-              />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Shop margin on part (no tech cut)</span>
-            </Field>
-          </div>
-
-          {/* Internal Transparency Box */}
-          <div className="rounded-2xl border border-amber-200/90 bg-amber-50/70 p-3.5 space-y-2.5 text-xs shadow-2xs">
-            <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
-              <span className="font-black uppercase tracking-wider text-amber-900 text-[10px] flex items-center gap-1.5">
-                🔒 Shop Internal Profit &amp; Cost Breakdown (Hidden from customer receipt):
-              </span>
-              <span className="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-amber-200">
-                Part SRP: {money(partsSrpNum)}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px]">
-              <div className="rounded-xl bg-white p-2.5 border border-amber-200 shadow-2xs">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Part Wholesale Cost</p>
-                <p className="mt-1 font-mono font-black text-sm text-amber-950">{money(partsCostNum)}</p>
-                <p className="text-[9.5px] text-slate-400 mt-0.5">Shop puhunan</p>
-              </div>
-
-              <div className="rounded-xl bg-white p-2.5 border border-emerald-200 shadow-2xs">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Part Shop Markup</p>
-                <p className="mt-1 font-mono font-black text-sm text-emerald-950">+{money(partsMarkupNum)}</p>
-                <p className="text-[9.5px] text-emerald-600 mt-0.5">100% shop profit</p>
-              </div>
-
-              <div className="rounded-xl bg-white p-2.5 border border-blue-200 shadow-2xs">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-800">
-                  Tech Fee {techRatePercent > 0 ? `(${techRatePercent}%)` : ""}
-                </p>
-                <p className="mt-1 font-mono font-black text-sm text-blue-950">{money(effectiveTechFee)}</p>
-                <p className="text-[9.5px] text-blue-600 mt-0.5">Payout from labor only</p>
-              </div>
-
-              <div className="rounded-xl bg-white p-2.5 border border-indigo-200 shadow-2xs">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Shop Net Labor</p>
-                <p className="mt-1 font-mono font-black text-sm text-indigo-950">+{money(shopLaborProfit)}</p>
-                <p className="text-[9.5px] text-indigo-600 mt-0.5">Labor minus tech fee</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between pt-2 border-t border-amber-200/80 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700">Total Net Shop Earnings:</span>
-                <span className="font-mono font-black text-emerald-800 text-sm bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  {money(totalShopProfit)}
-                </span>
-                <span className="text-[10px] text-slate-400">({money(shopLaborProfit)} labor + {money(partsMarkupNum)} parts)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700">Total Charged to Customer:</span>
-                <span className="font-mono font-black text-base text-[var(--color-maroon)]">
-                  {money(finalCustomerPrice)}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[10px] text-slate-500 italic bg-white/70 p-2 rounded-lg border border-amber-200/60">
-              ℹ️ <strong>Customer Receipt View:</strong> Displays only the <strong>Service Charge ({money(serviceRateNum)})</strong> and <strong>Replacement Part ({money(partsSrpNum)})</strong> for a total of <strong>{money(finalCustomerPrice)}</strong>. The technician cut ({money(effectiveTechFee)}) and part puhunan cost ({money(partsCostNum)}) are strictly private shop internals.
+      {/* 3. Dynamic Replacement Parts Section */}
+      <div className="space-y-3 rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div>
+            <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              📦 Replacement Parts &amp; Materials
+            </span>
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              Add any screens, batteries, keyboards, ICs, or materials installed on this job
             </p>
           </div>
+          <button
+            className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:opacity-95 transition cursor-pointer"
+            onClick={handleAddPart}
+            type="button"
+          >
+            <Plus size={14} /> Add Part
+          </button>
         </div>
-      ) : (
-        /* Standard Single Base Charge + Markup % */
-        <>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={isOptional ? "Base service charge (leave ₱0.00 for diagnosis / undetermined)" : "Base service charge *"}>
-              <input
-                className={FIELD_CLASS}
-                min="0"
-                onChange={(event) => onBaseChange(event.target.value)}
-                placeholder="0.00 (Undetermined / For Diagnosis)"
-                required={!isOptional}
-                step="0.01"
-                type="number"
-                value={baseServiceCharge}
-              />
-            </Field>
-            <Field label="Markup % (optional)">
-              <input
-                className={FIELD_CLASS}
-                max="99.9999"
-                min="0"
-                onChange={(event) => onMarkupChange(event.target.value)}
-                step="0.0001"
-                type="number"
-                value={markupPercent}
-              />
-            </Field>
-          </div>
-          {!markupIsValid ? (
-            <p className="text-xs font-bold text-rose-500">Markup must be at least 0% and less than 100%.</p>
-          ) : null}
 
-          {numericBase > 0 && techRatePercent > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-blue-50/70 border border-blue-200/80 px-3.5 py-2 text-xs shadow-2xs">
-              <div className="flex items-center gap-1.5 text-blue-900">
-                <span className="font-bold">👨‍🔧 Assigned Tech Cut ({techRatePercent}%):</span>
-                <span className="font-mono text-blue-950 font-black">{money((numericBase * techRatePercent) / 100)}</span>
-                <span className="text-[10px] text-blue-600">({repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"})</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-emerald-900">
-                <span className="font-bold">🏢 Shop Labor Profit:</span>
-                <span className="font-mono text-emerald-950 font-black">+{money(numericBase - (numericBase * techRatePercent) / 100)}</span>
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-2 text-xs sm:grid-cols-3">
-            <div><p className="font-bold text-[var(--color-muted)]">Base</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(numericBase)}</p></div>
-            <div><p className="font-bold text-[var(--color-muted)]">Markup amount</p><p className="mt-1 font-black text-[var(--color-text-strong)]">{money(Math.max(finalCustomerPrice - numericBase, 0))}</p></div>
-            <div>
-              <p className="font-bold text-[var(--color-muted)]">Final customer price</p>
-              <p className="mt-1 font-black text-[var(--color-maroon)]">
-                {isUndetermined ? "₱0.00 (For Diagnosis / Undetermined)" : money(finalCustomerPrice)}
-              </p>
-            </div>
+        {partsSummary.items.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
+            No replacement parts added. (Click <strong>&quot;+ Add Part&quot;</strong> if this repair requires parts or materials).
           </div>
-        </>
-      )}
+        ) : (
+          <div className="space-y-3">
+            {partsSummary.items.map((part, idx) => (
+              <div
+                className="rounded-xl border border-slate-200/90 bg-slate-50/60 p-3 text-xs space-y-2.5 shadow-2xs relative"
+                key={part.id || idx}
+              >
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-black text-xs text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      Part #{idx + 1}
+                    </span>
+                    {part.partName && (
+                      <span className="font-bold text-slate-900 truncate max-w-[200px] sm:max-w-xs">
+                        {part.partName}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    aria-label="Remove part"
+                    className="rounded-lg p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                    onClick={() => handleRemovePart(idx)}
+                    type="button"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+
+                {/* Catalog dropdown selection */}
+                {servicePartsCatalog.length > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                      Quick Pick from Service Parts Catalog (Optional auto-fill)
+                    </label>
+                    <select
+                      className={FIELD_CLASS}
+                      onChange={(e) => handleSelectCatalogPart(idx, e.target.value)}
+                      value={part.partCatalogId || ""}
+                    >
+                      <option value="">-- Custom / Manual Part Entry --</option>
+                      {servicePartsCatalog.map((sp) => (
+                        <option key={sp.id} value={sp.id}>
+                          [{sp.category || "PART"}] {sp.name} (Cost: {money(sp.costPrice)} | Markup: {money(sp.markupAmount)} | Type: {sp.repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="sm:col-span-2">
+                    <Field label="Part Name / Description *">
+                      <input
+                        className={FIELD_CLASS}
+                        onChange={(e) => handleUpdatePart(idx, { partName: e.target.value })}
+                        placeholder="e.g. 15.6 LED Slim Screen 30pin"
+                        required
+                        type="text"
+                        value={part.partName || ""}
+                      />
+                    </Field>
+                  </div>
+
+                  <div>
+                    <Field label="Classification / Type">
+                      <select
+                        className={FIELD_CLASS}
+                        onChange={(e) => handleUpdatePart(idx, { repairType: e.target.value })}
+                        value={part.repairType || "ORDINARY_REPAIR"}
+                      >
+                        <option value="ORDINARY_REPAIR">Standard / Ordinary</option>
+                        <option value="BOARD_LEVEL_REPAIR">Board-Level / Advanced</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  <div>
+                    <Field label="Wholesale Cost (₱) [Puhunan]">
+                      <input
+                        className={`${FIELD_CLASS} font-mono font-bold text-amber-900`}
+                        min="0"
+                        onChange={(e) => handleUpdatePart(idx, { costPrice: e.target.value })}
+                        placeholder="0.00"
+                        step="0.01"
+                        type="number"
+                        value={part.costPrice ?? ""}
+                      />
+                    </Field>
+                  </div>
+
+                  <div>
+                    <Field label="Shop Markup (₱) [Tubo]">
+                      <input
+                        className={`${FIELD_CLASS} font-mono font-bold text-emerald-900`}
+                        min="0"
+                        onChange={(e) => handleUpdatePart(idx, { markupAmount: e.target.value })}
+                        placeholder="0.00"
+                        step="0.01"
+                        type="number"
+                        value={part.markupAmount ?? ""}
+                      />
+                    </Field>
+                  </div>
+                </div>
+
+                {/* Live Part Line Summary Badges */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-slate-700">
+                      Customer SRP: <strong className="font-mono text-slate-900 font-black">{money(part.lineSrp)}</strong>
+                    </span>
+                    <span className="text-slate-400">·</span>
+                    <span className="text-amber-800 font-bold">
+                      Puhunan: <span className="font-mono">{money(part.lineCost)}</span>
+                    </span>
+                    <span className="text-slate-400">·</span>
+                    <span className="text-emerald-800 font-bold">
+                      Markup: <span className="font-mono">+{money(part.lineMarkup)}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="rounded bg-blue-100 border border-blue-200 px-2 py-0.5 text-blue-900 font-bold font-mono text-[10.5px]">
+                      👨‍🔧 Tech Cut: {money(part.techPartCut)} ({part.techPartRate}% of wholesale)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 4. Unified Live Financial Distribution & Customer Total */}
+      <div className="rounded-2xl border border-amber-200/90 bg-amber-50/70 p-3.5 space-y-3 text-xs shadow-2xs">
+        <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+          <span className="font-black uppercase tracking-wider text-amber-900 text-[11px] flex items-center gap-1.5">
+            🔒 Financial Distribution &amp; Customer Billing Summary:
+          </span>
+          <span className="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-amber-200">
+            {partsSummary.items.length} Part{partsSummary.items.length === 1 ? "" : "s"} Installed
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px]">
+          <div className="rounded-xl bg-white p-2.5 border border-slate-200 shadow-2xs">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-maroon)]">Customer Total Price</p>
+            <p className="mt-1 font-mono font-black text-base text-[var(--color-maroon)]">{money(totalCustomerPrice)}</p>
+            <p className="text-[9.5px] text-slate-400 mt-0.5">Labor + Parts SRP</p>
+          </div>
+
+          <div className="rounded-xl bg-white p-2.5 border border-blue-200 shadow-2xs">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-800">Tech Total Cut</p>
+            <p className="mt-1 font-mono font-black text-base text-blue-950">{money(totalTechEarnings)}</p>
+            <p className="text-[9.5px] text-blue-600 mt-0.5">
+              Labor {money(computedLaborTechFee)} + Parts {money(partsSummary.totalTechPartCut)}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-white p-2.5 border border-emerald-200 shadow-2xs">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Shop Net Profit</p>
+            <p className="mt-1 font-mono font-black text-base text-emerald-950">+{money(totalShopProfit)}</p>
+            <p className="text-[9.5px] text-emerald-600 mt-0.5">
+              Labor net {money(shopLaborProfit)} + Markup {money(partsSummary.totalMarkup)}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-white p-2.5 border border-amber-200 shadow-2xs">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Parts Capital (Puhunan)</p>
+            <p className="mt-1 font-mono font-black text-base text-amber-950">{money(partsSummary.totalCost)}</p>
+            <p className="text-[9.5px] text-amber-600 mt-0.5">To replenish shop inventory</p>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-slate-500 italic bg-white/70 p-2 rounded-lg border border-amber-200/60 leading-relaxed">
+          ℹ️ <strong>Customer Receipt View:</strong> Displays only the <strong>Service Labor Charge ({money(serviceRateNum)})</strong> and <strong>Replacement Parts ({money(partsSummary.totalSrp)})</strong> for a total of <strong>{money(totalCustomerPrice)}</strong>. The technician cut ({money(totalTechEarnings)}) and wholesale capital ({money(partsSummary.totalCost)}) are strictly private internal records.
+        </p>
+      </div>
     </div>
   )
 }
@@ -2589,16 +2655,15 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
       return
     }
 
-    const isPartsMode = createForm.pricingMode === "PARTS_BREAKDOWN"
     const serviceRate = Number(createForm.serviceRate || 0)
-    const techFee = Number(createForm.technicianFee || 0)
-    const partsCost = Number(createForm.partsCost || 0)
-    const partsMarkup = Number(createForm.partsMarkup || 0)
-    const partsTotalCharge = serviceRate + partsCost + partsMarkup
-
-    const baseServiceCharge = isPartsMode ? (serviceRate + partsCost) : Number(createForm.baseServiceCharge || 0)
-    const markupPercent = isPartsMode ? 0 : normalizedMarkup(createForm.markupPercent)
-    const finalServiceCharge = isPartsMode ? partsTotalCharge : getMarkupAdjustedPrice(baseServiceCharge, markupPercent)
+    const partsList = Array.isArray(createForm.partsList) ? createForm.partsList : []
+    const totalPartsCost = partsList.reduce((acc, p) => acc + Number(p.costPrice || 0) * Number(p.quantity || 1), 0)
+    const totalPartsMarkup = partsList.reduce((acc, p) => acc + Number(p.markupAmount || 0) * Number(p.quantity || 1), 0)
+    const totalPartsSrp = totalPartsCost + totalPartsMarkup
+    const customerTotalCharge = serviceRate + totalPartsSrp
+    const baseServiceCharge = serviceRate + totalPartsCost
+    const markupPercent = 0
+    const finalServiceCharge = customerTotalCharge
     
     const configuredWarrantyDays = Math.max(0, parseInt(createForm.serviceWarrantyDays ?? 30, 10) || 0)
     const configuredWarrantyDuration = createForm.serviceWarrantyDuration || formatWarrantyDuration(configuredWarrantyDays)
@@ -2680,34 +2745,45 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
           createForm.problemDescription ? `Notes: ${createForm.problemDescription}` : "",
         ].filter(Boolean).join(" ")
 
-    const partsItems = isPartsMode && (partsCost > 0 || partsMarkup > 0)
-      ? [
-          {
-            id: createForm.servicePartId || `part-${Date.now()}`,
-            partName: createForm.partDescription?.trim() || "Replacement Part",
-            unitCost: partsCost,
-            markupAmount: partsMarkup,
-            unitPrice: partsCost + partsMarkup,
-            quantity: 1,
-            warrantyDuration: "REPLACEMENT PART",
-          },
-        ]
-      : []
+    const partsItems = partsList.map((p, idx) => {
+      const pCost = Number(p.costPrice || 0)
+      const pMarkup = Number(p.markupAmount || 0)
+      const pQty = Number(p.quantity || 1)
+      const pType = p.repairType || createForm.repairType || "ORDINARY_REPAIR"
+      const pRate = getTechnicianPartsRatePercent(selectedAssignee, pType)
+      const pTechFee = Number(((pCost * pRate / 100) * pQty).toFixed(2))
 
-    const taskItems = isPartsMode
-      ? [
-          {
-            id: `task-${Date.now()}`,
-            title: createForm.jobTitle.trim() || "Service Labor",
-            amount: serviceRate,
-            technicianId: createForm.assignedTechnicianId,
-            technicianName: selectedAssignee?.fullName,
-            techFee: techFee,
-            warrantyDays: configuredWarrantyDays,
-            warrantyDuration: configuredWarrantyDuration,
-          },
-        ]
-      : []
+      return {
+        id: p.id || `part-${Date.now()}-${idx}`,
+        partName: p.partName?.trim() || "Replacement Part",
+        unitCost: pCost,
+        markupAmount: pMarkup,
+        unitPrice: pCost + pMarkup,
+        quantity: pQty,
+        repairType: pType,
+        techRatePercent: pRate,
+        partTechFee: pTechFee,
+        warrantyDuration: p.warrantyDuration || "REPLACEMENT PART",
+      }
+    })
+
+    const techPartsFee = partsItems.reduce((acc, p) => acc + p.partTechFee, 0)
+    const laborTechRate = getTechnicianRatePercent(selectedAssignee, createForm.repairType)
+    const pureLaborTechFee = Number(((serviceRate * laborTechRate) / 100).toFixed(2))
+    const totalTechFee = Number((pureLaborTechFee + techPartsFee).toFixed(2))
+
+    const taskItems = [
+      {
+        id: `task-${Date.now()}`,
+        title: createForm.jobTitle.trim() || "Service Labor",
+        amount: serviceRate,
+        technicianId: createForm.assignedTechnicianId,
+        technicianName: selectedAssignee?.fullName,
+        techFee: pureLaborTechFee,
+        warrantyDays: configuredWarrantyDays,
+        warrantyDuration: configuredWarrantyDuration,
+      },
+    ]
 
     // Serialize intake record into serviceNotes with structured header
     const structuredNotes = serializeStructuredNotes({
@@ -2739,6 +2815,11 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
         baseServiceCharge,
         markupPercent,
         estimatedServiceCharge: finalServiceCharge,
+        finalServiceCharge: finalServiceCharge,
+        serviceRate,
+        technicianFee: totalTechFee,
+        partsCost: totalPartsCost,
+        partsMarkup: totalPartsMarkup,
         isQuickService: createForm.isQuickService,
         warrantyDays: configuredWarrantyDays,
         ...(isBackjob && backjobSourceJob ? {
@@ -2749,14 +2830,6 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
           originalWarrantyDays: normalizeWarrantyDays(backjobWarranty.warrantyDays),
           warrantyExpiresAt: backjobWarranty.warrantyExpiresAt ? new Date(backjobWarranty.warrantyExpiresAt).toISOString() : undefined,
           backjobReason: createForm.backjobReason.trim() || undefined,
-        } : {}),
-        ...(isPartsMode ? {
-          serviceRate,
-          technicianFee: techFee,
-          partsCost,
-          partsMarkup,
-          servicePartId: createForm.servicePartId || undefined,
-          partDescription: createForm.partDescription?.trim() || undefined,
         } : {}),
       })
       const created = response?.data
@@ -4347,85 +4420,57 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                 <p className="text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Pricing & Charges</p>
                 <ServicePricingFields
                   assignedTechnician={technicians.find((t) => t.id === createForm.assignedTechnicianId)}
-                  repairType={createForm.repairType}
-                  baseServiceCharge={createForm.baseServiceCharge}
-                  isOptional={true}
-                  markupPercent={createForm.markupPercent}
-                  onBaseChange={(value) => setCreateForm((form) => ({ ...form, baseServiceCharge: value }))}
-                  onMarkupChange={(value) => setCreateForm((form) => ({ ...form, markupPercent: value }))}
-                  onPartsCostChange={(value) => {
-                    setCreateForm((form) => {
-                      const cost = Number(value || 0)
-                      const serviceRate = Number(form.serviceRate || 0)
-                      const total = cost + serviceRate
+                  onJobTitleChange={(title) => setCreateForm((f) => ({ ...f, jobTitle: title }))}
+                  onPartsListChange={(list) => {
+                    setCreateForm((f) => {
+                      const serviceRate = Number(f.serviceRate || 0)
+                      const partsCost = (list || []).reduce((acc, p) => acc + Number(p.costPrice || 0) * Number(p.quantity || 1), 0)
+                      const totalBase = serviceRate + partsCost
                       return {
-                        ...form,
-                        partsCost: value,
-                        baseServiceCharge: total > 0 ? String(total) : "",
+                        ...f,
+                        partsList: list,
+                        baseServiceCharge: totalBase > 0 ? String(totalBase) : "",
                       }
                     })
                   }}
-                  onPartsMarkupChange={(value) => {
-                    setCreateForm((form) => ({
-                      ...form,
-                      partsMarkup: value,
-                    }))
-                  }}
-                  onPricingModeChange={(mode) => setCreateForm((form) => ({ ...form, pricingMode: mode }))}
-                  onServicePartChange={(part) => {
-                    if (!part) {
-                      setCreateForm((form) => ({
-                        ...form,
-                        servicePartId: "",
-                        partDescription: "",
-                      }))
-                      return
-                    }
-                    setCreateForm((form) => {
-                      const cost = Number(part.costPrice || 0)
-                      const markup = Number(part.markupAmount || 0)
-                      const serviceRate = Number(form.serviceRate || 0)
-                      const total = cost + serviceRate
-                      return {
-                        ...form,
-                        servicePartId: part.id,
-                        partDescription: part.name,
-                        partsCost: String(cost),
-                        partsMarkup: String(markup),
-                        baseServiceCharge: total > 0 ? String(total) : "",
+                  onRepairTypeChange={(type) => setCreateForm((f) => ({ ...f, repairType: type }))}
+                  onServiceCatalogChange={(id, selectedItem) => {
+                    setCreateForm((f) => {
+                      const next = { ...f, serviceCatalogId: id }
+                      if (selectedItem) {
+                        next.serviceRate = String(selectedItem.basePrice ?? "")
+                        if (selectedItem.repairType) {
+                          next.repairType = selectedItem.repairType
+                        }
+                        if (!f.jobTitle || serviceCatalog.some((s) => s.name === f.jobTitle)) {
+                          next.jobTitle = selectedItem.name
+                        }
+                        const partsCost = (f.partsList || []).reduce((acc, p) => acc + Number(p.costPrice || 0) * Number(p.quantity || 1), 0)
+                        const totalBase = Number(selectedItem.basePrice || 0) + partsCost
+                        next.baseServiceCharge = totalBase > 0 ? String(totalBase) : ""
                       }
+                      return next
                     })
                   }}
                   onServiceRateChange={(value) => {
-                    setCreateForm((form) => {
+                    setCreateForm((f) => {
                       const sRate = Number(value || 0)
-                      const cost = Number(form.partsCost || 0)
-                      const total = cost + sRate
-                      const tech = technicians.find((t) => t.id === form.assignedTechnicianId)
-                      const techRate = getTechnicianRatePercent(tech, form.repairType)
-                      const autoTechFee = techRate > 0 && sRate > 0
-                        ? String(Number(((sRate * techRate) / 100).toFixed(2)))
-                        : "0"
+                      const partsCost = (f.partsList || []).reduce((acc, p) => acc + Number(p.costPrice || 0) * Number(p.quantity || 1), 0)
+                      const totalBase = sRate + partsCost
                       return {
-                        ...form,
+                        ...f,
                         serviceRate: value,
-                        technicianFee: autoTechFee,
-                        baseServiceCharge: total > 0 ? String(total) : "",
+                        baseServiceCharge: totalBase > 0 ? String(totalBase) : "",
                       }
                     })
                   }}
                   onTechnicianFeeChange={(value) => {
-                    setCreateForm((form) => ({
-                      ...form,
-                      technicianFee: value,
-                    }))
+                    setCreateForm((f) => ({ ...f, technicianFee: value }))
                   }}
-                  partDescription={createForm.partDescription}
-                  partsCost={createForm.partsCost}
-                  partsMarkup={createForm.partsMarkup}
-                  pricingMode={createForm.pricingMode}
+                  partsList={createForm.partsList || []}
                   repairType={createForm.repairType}
-                  servicePartId={createForm.servicePartId}
+                  serviceCatalog={serviceCatalog}
+                  serviceCatalogId={createForm.serviceCatalogId}
                   servicePartsCatalog={servicePartsCatalog}
                   serviceRate={createForm.serviceRate}
                   technicianFee={createForm.technicianFee}

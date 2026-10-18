@@ -27,6 +27,7 @@ import {
   Save,
   Sliders,
   ShoppingBag,
+  Package,
 } from "lucide-react"
 
 import { getReport } from "../../features/reports/reports.api"
@@ -106,6 +107,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
     ordinaryRepairRatePercent: "5",
     boardRepairEnabled: false,
     boardRepairRatePercent: "10",
+    ordinaryPartsRepairEnabled: false,
+    ordinaryPartsRepairRatePercent: "5",
+    boardPartsRepairEnabled: false,
+    boardPartsRepairRatePercent: "10",
     pcBuildEnabled: false,
     pcBuildRatePercent: "2",
     notes: "",
@@ -128,6 +133,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
       ordinaryRepairRatePercent: String(config.ordinaryRepairRatePercent ?? (staff.serviceIncentivePercent || "5")),
       boardRepairEnabled: Boolean(config.boardRepairEnabled ?? (staff.boardIncentivePercent > 0)),
       boardRepairRatePercent: String(config.boardRepairRatePercent ?? (staff.boardIncentivePercent || "10")),
+      ordinaryPartsRepairEnabled: Boolean(config.ordinaryPartsRepairEnabled),
+      ordinaryPartsRepairRatePercent: String(config.ordinaryPartsRepairRatePercent ?? "5"),
+      boardPartsRepairEnabled: Boolean(config.boardPartsRepairEnabled),
+      boardPartsRepairRatePercent: String(config.boardPartsRepairRatePercent ?? "10"),
       pcBuildEnabled: Boolean(config.pcBuildEnabled ?? (staff.pcBuildIncentivePercent > 0)),
       pcBuildRatePercent: String(config.pcBuildRatePercent ?? (staff.pcBuildIncentivePercent || "2")),
       notes: config.notes || "",
@@ -173,6 +182,18 @@ export default function EmployeesPage({ selectedBranch, user }) {
       return
     }
 
+    const ordinaryParts = validateRate(incentiveForm.ordinaryPartsRepairEnabled, incentiveForm.ordinaryPartsRepairRatePercent, "Parts Replacement (Standard)")
+    if (!ordinaryParts.ok) {
+      setIncentiveModalError(ordinaryParts.message)
+      return
+    }
+
+    const boardParts = validateRate(incentiveForm.boardPartsRepairEnabled, incentiveForm.boardPartsRepairRatePercent, "Parts Replacement (Board-Level)")
+    if (!boardParts.ok) {
+      setIncentiveModalError(boardParts.message)
+      return
+    }
+
     const pcBuild = validateRate(incentiveForm.pcBuildEnabled, incentiveForm.pcBuildRatePercent, "PC Build")
     if (!pcBuild.ok) {
       setIncentiveModalError(pcBuild.message)
@@ -188,6 +209,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
       ordinaryRepairRatePercent: ordinary.value,
       boardRepairEnabled: Boolean(incentiveForm.boardRepairEnabled),
       boardRepairRatePercent: board.value,
+      ordinaryPartsRepairEnabled: Boolean(incentiveForm.ordinaryPartsRepairEnabled),
+      ordinaryPartsRepairRatePercent: ordinaryParts.value,
+      boardPartsRepairEnabled: Boolean(incentiveForm.boardPartsRepairEnabled),
+      boardPartsRepairRatePercent: boardParts.value,
       pcBuildEnabled: Boolean(incentiveForm.pcBuildEnabled),
       pcBuildRatePercent: pcBuild.value,
       repairFee: null,
@@ -1260,7 +1285,111 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   ) : null}
                 </div>
 
-                {/* 5. Custom PC Build */}
+                {/* 5. Parts Replacement - Standard / Ordinary Repair */}
+                <div className={`rounded-2xl border p-4 transition ${incentiveForm.ordinaryPartsRepairEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`grid size-9 shrink-0 place-items-center rounded-xl ${incentiveForm.ordinaryPartsRepairEnabled ? "bg-[var(--color-maroon)] text-white" : "bg-slate-200 text-slate-500"}`}>
+                        <Package size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Technician Labor Rate for Parts Replacement % — Standard / Ordinary Repair</p>
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">Standard Labor %</span>
+                        </div>
+                        <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                          Para sa pagkakabit ng Standard parts (hal. Screen, Battery, RAM, SSD, Keyboard). Kukunin ang fee ni technician mula sa cost ng standard parts.
+                        </p>
+                      </div>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                      <input
+                        type="checkbox"
+                        checked={incentiveForm.ordinaryPartsRepairEnabled}
+                        onChange={(e) => setIncentiveForm((prev) => ({ ...prev, ordinaryPartsRepairEnabled: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-maroon)]"></div>
+                    </label>
+                  </div>
+
+                  {incentiveForm.ordinaryPartsRepairEnabled ? (
+                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 space-y-2">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Parts Replacement Cut (%):</label>
+                        <div className="relative max-w-[140px]">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max="100"
+                            value={incentiveForm.ordinaryPartsRepairRatePercent}
+                            onChange={(e) => setIncentiveForm((prev) => ({ ...prev, ordinaryPartsRepairRatePercent: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                            placeholder="5.0"
+                          />
+                          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium">mula sa halaga ng Standard Parts replacement</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* 6. Parts Replacement - Board-Level / Advanced Repair */}
+                <div className={`rounded-2xl border p-4 transition ${incentiveForm.boardPartsRepairEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`grid size-9 shrink-0 place-items-center rounded-xl ${incentiveForm.boardPartsRepairEnabled ? "bg-[var(--color-maroon)] text-white" : "bg-slate-200 text-slate-500"}`}>
+                        <Cpu size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Technician Labor Rate for Parts Replacement % — Board-Level / Advanced Repair</p>
+                          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-black text-purple-700">Board-Level Labor %</span>
+                        </div>
+                        <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                          Para sa pagkakabit ng Board-Level parts (hal. Power IC, Charging IC, VRAM chip, MOSFET soldering). Kukunin ang fee mula sa halaga ng board-level parts.
+                        </p>
+                      </div>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                      <input
+                        type="checkbox"
+                        checked={incentiveForm.boardPartsRepairEnabled}
+                        onChange={(e) => setIncentiveForm((prev) => ({ ...prev, boardPartsRepairEnabled: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-maroon)]"></div>
+                    </label>
+                  </div>
+
+                  {incentiveForm.boardPartsRepairEnabled ? (
+                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 space-y-2">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Board-Level Parts Cut (%):</label>
+                        <div className="relative max-w-[140px]">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max="100"
+                            value={incentiveForm.boardPartsRepairRatePercent}
+                            onChange={(e) => setIncentiveForm((prev) => ({ ...prev, boardPartsRepairRatePercent: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                            placeholder="10.0"
+                          />
+                          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium">mula sa halaga ng Board-Level Parts replacement</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* 7. Custom PC Build */}
                 <div className={`rounded-2xl border p-4 transition ${incentiveForm.pcBuildEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">

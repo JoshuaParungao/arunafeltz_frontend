@@ -80,6 +80,7 @@ const EMPTY_PART_FORM = {
   name: "",
   deviceType: "LAPTOP",
   category: "SCREEN",
+  repairType: "ORDINARY_REPAIR",
   costPrice: "0",
   markupAmount: "0",
   description: "",
@@ -804,7 +805,7 @@ function PartEditorModal({
             />
           </label>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className={labelClass}>Device Category</span>
               <select
@@ -817,6 +818,18 @@ function PartEditorModal({
                     {device}
                   </option>
                 ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className={labelClass}>Type / Classification *</span>
+              <select
+                className={inputClass}
+                onChange={(event) => onChange("repairType", event.target.value)}
+                value={form.repairType || "ORDINARY_REPAIR"}
+              >
+                <option value="ORDINARY_REPAIR">Standard / Ordinary</option>
+                <option value="BOARD_LEVEL_REPAIR">Board-Level / Advanced</option>
               </select>
             </label>
 
@@ -1443,6 +1456,7 @@ export default function ServicesMaintenancePage({ user }) {
       name: item.name || "",
       deviceType: item.deviceType || "LAPTOP",
       category: item.category || "SCREEN",
+      repairType: item.repairType || "ORDINARY_REPAIR",
       costPrice: item.costPrice != null ? String(item.costPrice) : "0",
       markupAmount: item.markupAmount != null ? String(item.markupAmount) : "0",
       description: item.description || "",
@@ -1494,6 +1508,7 @@ export default function ServicesMaintenancePage({ user }) {
       name: partForm.name.trim(),
       deviceType: partForm.deviceType?.trim() || "LAPTOP",
       category: categoryClean,
+      repairType: partForm.repairType === "BOARD_LEVEL_REPAIR" ? "BOARD_LEVEL_REPAIR" : "ORDINARY_REPAIR",
       costPrice: costNum,
       markupAmount: markupNum,
       description: partForm.description?.trim() || "",
@@ -2332,6 +2347,7 @@ export default function ServicesMaintenancePage({ user }) {
                           <th className="px-4 py-2.5">Shop Markup (₱)</th>
                           <th className="px-4 py-2.5">Suggested SRP</th>
                           <th className="px-4 py-2.5">Status</th>
+                          <th className="px-4 py-2.5">Type</th>
                           <th className="px-4 py-2.5 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -2379,6 +2395,16 @@ export default function ServicesMaintenancePage({ user }) {
 
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <StatusPill status={item.isActive !== false ? "ACTIVE" : "INACTIVE"} />
+                              </td>
+
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                                  item.repairType === "BOARD_LEVEL_REPAIR"
+                                    ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                    : "bg-amber-50 text-amber-700 border border-amber-200"
+                                }`}>
+                                  {item.repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"}
+                                </span>
                               </td>
 
                               <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -2446,7 +2472,7 @@ export default function ServicesMaintenancePage({ user }) {
                               {item.name}
                             </h2>
                             <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                              {item.deviceType} · {(item.category || "OTHER").replace(/_/g, " ")}
+                              {item.deviceType} · {(item.category || "OTHER").replace(/_/g, " ")} · <span className={item.repairType === "BOARD_LEVEL_REPAIR" ? "text-purple-600 font-bold" : "text-amber-600 font-bold"}>{item.repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"}</span>
                             </p>
                           </div>
                           <StatusPill status={item.isActive !== false ? "ACTIVE" : "INACTIVE"} />

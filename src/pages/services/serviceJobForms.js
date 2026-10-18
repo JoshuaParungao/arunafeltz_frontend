@@ -489,3 +489,24 @@ export function getTechnicianRatePercent(technician, repairType) {
   }
   return 0
 }
+
+export function getTechnicianPartsRatePercent(technician, repairType) {
+  if (!technician) return 0
+  const isBoard = repairType === "BOARD_LEVEL_REPAIR"
+  const config = technician.incentiveConfig || technician.incentiveAccountConfigVersions?.[0] || {}
+
+  const enabled = isBoard
+    ? (technician.boardPartsRepairEnabled ?? config.boardPartsRepairEnabled ?? false)
+    : (technician.ordinaryPartsRepairEnabled ?? config.ordinaryPartsRepairEnabled ?? false)
+
+  const rawRate = isBoard
+    ? (technician.boardPartsRepairRatePercent ?? config.boardPartsRepairRatePercent ?? 0)
+    : (technician.ordinaryPartsRepairRatePercent ?? config.ordinaryPartsRepairRatePercent ?? 0)
+
+  if (enabled === false) return 0
+  if (rawRate !== null && rawRate !== undefined && rawRate !== "") {
+    const num = Number(rawRate)
+    return !Number.isNaN(num) ? num : 0
+  }
+  return 0
+}
