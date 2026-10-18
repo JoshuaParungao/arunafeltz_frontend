@@ -691,18 +691,23 @@ function StaffCombobox({
 
 function getTechnicianRatePercent(technician, repairType) {
   if (!technician) return 0
-  if (repairType === "BOARD_LEVEL_REPAIR") {
-    return technician.boardRepairEnabled !== false &&
-      technician.boardRepairRatePercent !== null &&
-      technician.boardRepairRatePercent !== undefined
-      ? Number(technician.boardRepairRatePercent)
-      : 0
+  const isBoard = repairType === "BOARD_LEVEL_REPAIR"
+  const config = technician.incentiveConfig || technician.incentiveAccountConfigVersions?.[0] || {}
+
+  const enabled = isBoard
+    ? (technician.boardRepairEnabled ?? config.boardRepairEnabled ?? true)
+    : (technician.ordinaryRepairEnabled ?? config.ordinaryRepairEnabled ?? true)
+
+  const rawRate = isBoard
+    ? (technician.boardRepairRatePercent ?? config.boardRepairRatePercent ?? technician.boardIncentivePercent)
+    : (technician.ordinaryRepairRatePercent ?? config.ordinaryRepairRatePercent ?? technician.serviceIncentivePercent)
+
+  if (enabled === false) return 0
+  if (rawRate !== null && rawRate !== undefined && rawRate !== "") {
+    const num = Number(rawRate)
+    return !Number.isNaN(num) ? num : 0
   }
-  return technician.ordinaryRepairEnabled !== false &&
-    technician.ordinaryRepairRatePercent !== null &&
-    technician.ordinaryRepairRatePercent !== undefined
-    ? Number(technician.ordinaryRepairRatePercent)
-    : 0
+  return 0
 }
 
 function ServicePricingFields({
@@ -735,6 +740,17 @@ function ServicePricingFields({
     [assignedTechnician, repairType]
   )
 
+  const ordinaryRate = useMemo(
+    () => getTechnicianRatePercent(assignedTechnician, "ORDINARY_REPAIR"),
+    [assignedTechnician]
+  )
+  const boardRate = useMemo(
+    () => getTechnicianRatePercent(assignedTechnician, "BOARD_LEVEL_REPAIR"),
+    [assignedTechnician]
+  )
+  const isBoardCategory = repairType === "BOARD_LEVEL_REPAIR"
+  const activeRatePercent = techRatePercent
+
   // Standard calculations
   const baseIsValid = isValidBaseServiceCharge(baseServiceCharge)
   const markupIsValid = isValidMarkup(markupPercent)
@@ -746,7 +762,6 @@ function ServicePricingFields({
 
   // Parts breakdown calculations
   const serviceRateNum = Number(serviceRate || 0)
-  const techFeeNum = Number(technicianFee || 0)
   const partsCostNum = Number(partsCost || 0)
   const partsMarkupNum = Number(partsMarkup || 0)
   const partsSrpNum = partsCostNum + partsMarkupNum
@@ -755,15 +770,27 @@ function ServicePricingFields({
   const finalCustomerPrice = isPartsMode ? partsModeTotal : standardFinalPrice
   const isUndetermined = !isPartsMode && numericBase === 0
 
-  const shopLaborProfit = Math.max(0, serviceRateNum - techFeeNum)
-  const totalShopProfit = shopLaborProfit + partsMarkupNum
-
-  const handleApplyTechRate = () => {
-    if (techRatePercent > 0 && serviceRateNum > 0 && onTechnicianFeeChange) {
-      const calculated = Math.round(serviceRateNum * techRatePercent) / 100
-      onTechnicianFeeChange(String(calculated))
+  // Strictly auto-compute tech fee from labor rate & technician's incentive rule in Employee Hub
+  const computedTechFee = useMemo(() => {
+    if (techRatePercent > 0 && serviceRateNum > 0) {
+      return Number(((serviceRateNum * techRatePercent) / 100).toFixed(2))
     }
-  }
+    return 0
+  }, [techRatePercent, serviceRateNum])
+
+  // Synchronize auto-computed fee to parent form state
+  useEffect(() => {
+    if (onTechnicianFeeChange) {
+      const current = Number(technicianFee || 0)
+      if (current !== computedTechFee) {
+        onTechnicianFeeChange(String(computedTechFee))
+      }
+    }
+  }, [computedTechFee, technicianFee, onTechnicianFeeChange])
+
+  const effectiveTechFee = computedTechFee
+  const shopLaborProfit = Math.max(0, serviceRateNum - effectiveTechFee)
+  const totalShopProfit = shopLaborProfit + partsMarkupNum
 
   return (
     <div className="space-y-3.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-soft)] p-4">
@@ -796,6 +823,91 @@ function ServicePricingFields({
             >
               ⚡ With Service Parts &amp; Markup
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Technician Incentive Transparency & Live Diagnostic Card */}
+      {assignedTechnician && (
+        <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-blue-50/80 p-3.5 text-xs shadow-2xs space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200/70 pb-2">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-blue-950 flex items-center gap-1.5 text-xs">
+                👨‍🔧 Assigned: <strong className="font-black text-blue-900">{assignedTechnician.fullName || assignedTechnician.username}</strong>
+              </span>
+              <span className="text-[10px] bg-white border border-blue-300 text-blue-800 font-bold px-2 py-0.5 rounded-full shadow-2xs">
+                Employee Hub Rules
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span
+                className={`px-2 py-0.5 rounded-md font-mono font-bold transition ${
+                  !isBoardCategory
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "bg-white text-slate-700 border border-slate-200"
+                }`}
+                title="Ordinary / Standard Repair rate from Employee Hub"
+              >
+                {!isBoardCategory ? "● " : ""}Ordinary Rate: {ordinaryRate > 0 ? `${ordinaryRate}%` : "0% (Not set)"}
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded-md font-mono font-bold transition ${
+                  isBoardCategory
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "bg-white text-slate-700 border border-slate-200"
+                }`}
+                title="Board-Level / Specialized Repair rate from Employee Hub"
+              >
+                {isBoardCategory ? "● " : ""}Board-Level Rate: {boardRate > 0 ? `${boardRate}%` : "0% (Not set)"}
+              </span>
+            </div>
+          </div>
+
+          {/* Diagnostic status banner */}
+          <div className="text-[11px]">
+            {activeRatePercent > 0 ? (
+              serviceRateNum > 0 ? (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2 text-emerald-900 flex items-center justify-between gap-2">
+                  <p>
+                    ✅ <strong>Active Rate:</strong> Applying <strong>{activeRatePercent}%</strong> for{" "}
+                    <strong>{isBoardCategory ? "Specialized / Board-Level Repair" : "Standard / Ordinary Repair"}</strong>.
+                  </p>
+                  <span className="font-mono font-black text-xs text-emerald-950 bg-white px-2 py-0.5 rounded border border-emerald-200 shrink-0">
+                    {money(serviceRateNum)} × {activeRatePercent}% = {money(effectiveTechFee)}
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-amber-50 border border-amber-300 p-2.5 text-amber-900 space-y-1">
+                  <p className="font-bold flex items-center gap-1">
+                    💡 Rate is set ({activeRatePercent}%), but Service / Labor Rate is currently ₱0.00:
+                  </p>
+                  <p className="text-[10.5px] text-amber-800">
+                    The technician fee is computed strictly from <strong>Service / Labor Rate</strong> ({money(0)} × {activeRatePercent}% = {money(0)}). Replacement parts puhunan &amp; markup do not include a technician cut. If this job includes labor, enter the amount in <strong>Service / Labor Rate (₱)</strong> below.
+                  </p>
+                </div>
+              )
+            ) : (
+              <div className="rounded-xl bg-amber-100/80 border border-amber-300 p-2.5 text-amber-950 space-y-1">
+                <p className="font-black flex items-center gap-1 text-amber-900">
+                  ⚠️ No Incentive Rate configured for {isBoardCategory ? "Specialized / Advanced Repair" : "Standard / Ordinary Repair"}!
+                </p>
+                <p className="text-[10.5px] text-amber-800">
+                  {isBoardCategory && ordinaryRate > 0 ? (
+                    <>
+                      Notice: <strong className="text-amber-950">{assignedTechnician.fullName || assignedTechnician.username}</strong> has <strong>{ordinaryRate}%</strong> configured under <em>Ordinary Repair</em>, but this Job Order is currently set to <strong>Specialized / Advanced repair</strong> (which uses Board-Level Repair rate: {boardRate}%). Either switch <strong>Repair category</strong> above to Standard, or configure the Board-Level Repair rate in Employee Hub.
+                    </>
+                  ) : !isBoardCategory && boardRate > 0 ? (
+                    <>
+                      Notice: <strong className="text-amber-950">{assignedTechnician.fullName || assignedTechnician.username}</strong> has <strong>{boardRate}%</strong> configured under <em>Board-Level Repair</em>, but this Job Order is currently set to <strong>Standard / Ordinary repair</strong> (which uses Ordinary Repair rate: {ordinaryRate}%).
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-amber-950">{assignedTechnician.fullName || assignedTechnician.username}</strong> has 0% or disabled incentive rules in Employee Hub for this repair category.
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -850,30 +962,41 @@ function ServicePricingFields({
               label={
                 <span className="flex items-center justify-between">
                   <span>👨‍🔧 Tech Labor Fee (₱)</span>
-                  {techRatePercent > 0 ? (
-                    <button
-                      className="text-[9.5px] font-black uppercase text-blue-700 bg-blue-100 hover:bg-blue-200 px-1.5 py-0.5 rounded transition cursor-pointer"
-                      onClick={handleApplyTechRate}
-                      title="Click to recalculate based on technician's rate"
-                      type="button"
-                    >
-                      ⚡ {techRatePercent}% Cut
-                    </button>
-                  ) : null}
+                  <span
+                    className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded ${
+                      techRatePercent > 0
+                        ? "text-blue-800 bg-blue-100 border border-blue-200"
+                        : "text-slate-600 bg-slate-100 border border-slate-200"
+                    }`}
+                  >
+                    {techRatePercent > 0 ? `⚡ ${techRatePercent}% Cut` : "0% Rate"}
+                  </span>
                 </span>
               }
             >
-              <input
-                className={`${FIELD_CLASS} font-mono font-bold text-blue-900 bg-blue-50/30 border-blue-200 focus:bg-white`}
-                min="0"
-                onChange={(e) => onTechnicianFeeChange && onTechnicianFeeChange(e.target.value)}
-                placeholder="0.00"
-                step="0.01"
-                type="number"
-                value={technicianFee}
-              />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">
-                {techRatePercent > 0 ? `Auto: ${techRatePercent}% of Labor · Editable` : "Technician labor cut"}
+              <div className="flex h-[42px] items-center justify-between rounded-xl border border-blue-200/80 bg-blue-50/50 px-3 py-2 font-mono font-bold text-blue-950 select-none shadow-2xs">
+                <span className="text-sm font-black text-blue-900">
+                  {money(effectiveTechFee)}
+                </span>
+                <span className="rounded bg-blue-100/90 px-1.5 py-0.5 text-[9.5px] font-black tracking-wider uppercase text-blue-700 font-sans">
+                  Viewing Only
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-500 mt-0.5 block">
+                {assignedTechnician ? (
+                  techRatePercent > 0 ? (
+                    <>
+                      Auto: <strong className="text-blue-700 font-bold">{techRatePercent}%</strong> of Labor from Employee Hub for{" "}
+                      <strong className="text-slate-700">{assignedTechnician.fullName || assignedTechnician.username}</strong>
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-slate-700">{assignedTechnician.fullName || assignedTechnician.username}</strong> has 0% or disabled incentive in Employee Hub
+                    </>
+                  )
+                ) : (
+                  "Select assigned technician above to auto-compute"
+                )}
               </span>
             </Field>
 
@@ -932,7 +1055,7 @@ function ServicePricingFields({
                 <p className="text-[10px] font-bold uppercase tracking-wider text-blue-800">
                   Tech Fee {techRatePercent > 0 ? `(${techRatePercent}%)` : ""}
                 </p>
-                <p className="mt-1 font-mono font-black text-sm text-blue-950">{money(techFeeNum)}</p>
+                <p className="mt-1 font-mono font-black text-sm text-blue-950">{money(effectiveTechFee)}</p>
                 <p className="text-[9.5px] text-blue-600 mt-0.5">Payout from labor only</p>
               </div>
 
@@ -960,7 +1083,7 @@ function ServicePricingFields({
             </div>
 
             <p className="text-[10px] text-slate-500 italic bg-white/70 p-2 rounded-lg border border-amber-200/60">
-              ℹ️ <strong>Customer Receipt View:</strong> Displays only the <strong>Service Charge ({money(serviceRateNum)})</strong> and <strong>Replacement Part ({money(partsSrpNum)})</strong> for a total of <strong>{money(finalCustomerPrice)}</strong>. The technician cut ({money(techFeeNum)}) and part puhunan cost ({money(partsCostNum)}) are strictly private shop internals.
+              ℹ️ <strong>Customer Receipt View:</strong> Displays only the <strong>Service Charge ({money(serviceRateNum)})</strong> and <strong>Replacement Part ({money(partsSrpNum)})</strong> for a total of <strong>{money(finalCustomerPrice)}</strong>. The technician cut ({money(effectiveTechFee)}) and part puhunan cost ({money(partsCostNum)}) are strictly private shop internals.
             </p>
           </div>
         </div>
@@ -3472,10 +3595,10 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                         setCreateForm((form) => {
                           const selectedTech = technicians.find((t) => t.id === form.assignedTechnicianId)
                           const techRate = getTechnicianRatePercent(selectedTech, nextRepairType)
-                          const sRate = Number(form.serviceRate || item.basePrice || 0)
+                          const sRate = Number(item.basePrice || form.serviceRate || 0)
                           const newTechFee = techRate > 0 && sRate > 0
-                            ? String(Math.round(sRate * techRate) / 100)
-                            : form.technicianFee
+                            ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                            : "0"
                           return {
                             ...form,
                             jobTitle: item.name,
@@ -3556,8 +3679,8 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                         const techRate = getTechnicianRatePercent(selectedTech, repairType)
                         const sRate = Number(form.serviceRate || 0)
                         const newTechFee = techRate > 0 && sRate > 0
-                          ? String(Math.round(sRate * techRate) / 100)
-                          : (sRate === 0 ? "0" : form.technicianFee)
+                          ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                          : "0"
                         return {
                           ...form,
                           repairType,
@@ -3583,8 +3706,8 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       const techRate = getTechnicianRatePercent(selectedTech, form.repairType)
                       const sRate = Number(form.serviceRate || 0)
                       const newTechFee = techRate > 0 && sRate > 0
-                        ? String(Math.round(sRate * techRate) / 100)
-                        : (sRate === 0 ? "0" : form.technicianFee)
+                        ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                        : "0"
                       return {
                         ...form,
                         assignedTechnicianId: id,
@@ -4281,8 +4404,8 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                       const tech = technicians.find((t) => t.id === form.assignedTechnicianId)
                       const techRate = getTechnicianRatePercent(tech, form.repairType)
                       const autoTechFee = techRate > 0 && sRate > 0
-                        ? String(Math.round(sRate * techRate) / 100)
-                        : (sRate === 0 ? "0" : form.technicianFee)
+                        ? String(Number(((sRate * techRate) / 100).toFixed(2)))
+                        : "0"
                       return {
                         ...form,
                         serviceRate: value,

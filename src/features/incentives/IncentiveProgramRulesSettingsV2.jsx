@@ -515,7 +515,7 @@ export default function IncentiveProgramRulesSettingsV2({
         payload,
       )
 
-      if (!response?.data?.ruleVersion) {
+      if (!response?.data?.ruleVersion && !response?.data?.latestSavedVersion && !response?.data) {
         throw new Error("Unable to save incentive program rule.")
       }
 

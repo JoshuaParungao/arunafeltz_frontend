@@ -721,7 +721,7 @@ export default function IncentiveProgramSchedulesSettingsV2({
         validation.payload,
       )
 
-      if (!response?.data?.scheduleVersion) {
+      if (!response?.data?.scheduleVersion && !response?.data?.latestSavedVersion && !response?.data) {
         throw new Error("Unable to save schedule version.")
       }
 

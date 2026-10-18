@@ -190,6 +190,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
       boardRepairRatePercent: board.value,
       pcBuildEnabled: Boolean(incentiveForm.pcBuildEnabled),
       pcBuildRatePercent: pcBuild.value,
+      repairFee: null,
       notes: incentiveForm.notes?.trim() || null,
     }
 
@@ -202,8 +203,13 @@ export default function EmployeesPage({ selectedBranch, user }) {
         setEditingIncentiveStaff(null)
       }, 700)
     } catch (err) {
+      const apiErr = err?.response?.data?.error
+      const detailMsg = Array.isArray(apiErr?.details)
+        ? apiErr.details.map((d) => d.message || d).join(", ")
+        : null
       setIncentiveModalError(
-        err?.response?.data?.error?.message ||
+        detailMsg ||
+        apiErr?.message ||
         err?.response?.data?.message ||
         "Failed to save incentive rules."
       )

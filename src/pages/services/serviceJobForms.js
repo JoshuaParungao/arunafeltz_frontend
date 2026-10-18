@@ -471,12 +471,21 @@ function extractOtherText(text = "") {
 
 export function getTechnicianRatePercent(technician, repairType) {
   if (!technician) return 0
-  if (repairType === "BOARD_LEVEL_REPAIR") {
-    return (technician.boardRepairEnabled !== false && technician.boardRepairRatePercent !== null && technician.boardRepairRatePercent !== undefined)
-      ? Number(technician.boardRepairRatePercent)
-      : 0
+  const isBoard = repairType === "BOARD_LEVEL_REPAIR"
+  const config = technician.incentiveConfig || technician.incentiveAccountConfigVersions?.[0] || {}
+
+  const enabled = isBoard
+    ? (technician.boardRepairEnabled ?? config.boardRepairEnabled ?? true)
+    : (technician.ordinaryRepairEnabled ?? config.ordinaryRepairEnabled ?? true)
+
+  const rawRate = isBoard
+    ? (technician.boardRepairRatePercent ?? config.boardRepairRatePercent ?? technician.boardIncentivePercent)
+    : (technician.ordinaryRepairRatePercent ?? config.ordinaryRepairRatePercent ?? technician.serviceIncentivePercent)
+
+  if (enabled === false) return 0
+  if (rawRate !== null && rawRate !== undefined && rawRate !== "") {
+    const num = Number(rawRate)
+    return !Number.isNaN(num) ? num : 0
   }
-  return (technician.ordinaryRepairEnabled !== false && technician.ordinaryRepairRatePercent !== null && technician.ordinaryRepairRatePercent !== undefined)
-    ? Number(technician.ordinaryRepairRatePercent)
-    : 0
+  return 0
 }

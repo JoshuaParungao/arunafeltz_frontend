@@ -725,6 +725,8 @@ export default function IncentiveAccountSettingsV2({
         pcBuildEnabled: Boolean(draft.pcBuildEnabled),
         pcBuildRatePercent: draft.pcBuildEnabled ? pcBuild.value : null,
 
+        repairFee: null,
+
         notes:
           draft.notes.trim() ||
           null,
