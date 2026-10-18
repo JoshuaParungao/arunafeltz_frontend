@@ -1110,7 +1110,7 @@ function ServicePricingFields({
                   </div>
 
                   <div>
-                    <Field label="Wholesale Cost (₱) [Puhunan]">
+                    <Field label="Wholesale Cost (₱) [Cost Basis]">
                       <input
                         className={`${FIELD_CLASS} font-mono font-bold text-amber-900`}
                         min="0"
@@ -1124,7 +1124,7 @@ function ServicePricingFields({
                   </div>
 
                   <div>
-                    <Field label="Shop Markup (₱) [Tubo]">
+                    <Field label="Shop Markup (₱) [Margin]">
                       <input
                         className={`${FIELD_CLASS} font-mono font-bold text-emerald-900`}
                         min="0"
@@ -1146,7 +1146,7 @@ function ServicePricingFields({
                     </span>
                     <span className="text-slate-400">·</span>
                     <span className="text-amber-800 font-bold">
-                      Puhunan: <span className="font-mono">{money(part.lineCost)}</span>
+                      Cost: <span className="font-mono">{money(part.lineCost)}</span>
                     </span>
                     <span className="text-slate-400">·</span>
                     <span className="text-emerald-800 font-bold">
@@ -1201,7 +1201,7 @@ function ServicePricingFields({
           </div>
 
           <div className="rounded-xl bg-white p-2.5 border border-amber-200 shadow-2xs">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Parts Capital (Puhunan)</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Parts Capital (Wholesale Cost)</p>
             <p className="mt-1 font-mono font-black text-base text-amber-950">{money(partsSummary.totalCost)}</p>
             <p className="text-[9.5px] text-amber-600 mt-0.5">To replenish shop inventory</p>
           </div>

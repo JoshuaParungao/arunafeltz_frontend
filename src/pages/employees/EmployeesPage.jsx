@@ -597,7 +597,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
             {number(records.length)}
           </p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
-            Mga empleyado at technicians
+            Active Employees & Technicians
           </p>
         </div>
 
@@ -614,7 +614,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
             {peso(totals.salesRevenue || 0)}
           </p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
-            Mula sa {number(totals.completedSales || 0)} naisarang benta
+            From {number(totals.completedSales || 0)} closed sales
           </p>
         </div>
 
@@ -631,7 +631,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
             {peso(totals.serviceRevenue || 0)}
           </p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
-            Mula sa {number(totals.completedServices || 0)} completed jobs
+            From {number(totals.completedServices || 0)} completed service jobs
           </p>
         </div>
 
@@ -981,7 +981,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Pamahalaan ang eligible price tiers, repair cost pools, at cutoff schedules para sa Item Sales, Ordinary Repairs, at Board-Level Repairs.
+                  Manage eligible price tiers, repair cost pools, and cutoff schedules for Item Sales, Ordinary Repairs, and Board-Level Repairs.
                 </p>
               </div>
             </div>
@@ -1015,7 +1015,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   Program Schedules (Cutoffs & Payout Windows)
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Frequency, anchor dates, at claim windows para sa Item Sales at Repair jobs
+                  Frequency, anchor dates, and claim windows for Item Sales and Repair jobs
                 </p>
               </div>
               <span className="rounded-full bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 text-[10px] font-black text-blue-700">
@@ -1088,7 +1088,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">Branch Pool</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Incentive share (%) mula sa kabuuang kita o benta ng store/branch sa mga eligible price tiers (hal. Price 1-3).
+                          Incentive share (%) from overall branch item sales revenue across eligible price tiers (e.g. Price 1-3).
                         </p>
                       </div>
                     </div>
@@ -1120,7 +1120,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                         />
                         <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 font-medium">ng kabuuang benta ng branch sa eligible price tiers</span>
+                      <span className="text-[11px] text-slate-500 font-medium">of branch sales revenue across eligible price tiers</span>
                     </div>
                   ) : null}
                 </div>
@@ -1138,7 +1138,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">Personal Sales</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Komisyon sa pansariling benta ng empleyado base sa eligible price tiers (Price 1-5) ng branch.
+                          Commission on personal item sales based on eligible branch price tiers (Price 1-5).
                         </p>
                       </div>
                     </div>
@@ -1170,7 +1170,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                         />
                         <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 font-medium">ng sariling benta sa eligible price tiers</span>
+                      <span className="text-[11px] text-slate-500 font-medium">of personal sales revenue across eligible price tiers</span>
                     </div>
                   ) : null}
                 </div>
@@ -1188,7 +1188,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">Standard Labor %</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Automatikong kukunin ang fee ni technician mula sa Service / Labor Rate (hindi kasama ang parts cost at markup). Ang matitira sa service charge ay mananatiling Shop Labor Profit.
+                          Technician commission is automatically computed from the Service / Labor Rate (excluding parts wholesale cost and shop markup). Remaining service revenue is retained as Shop Labor Profit.
                         </p>
                       </div>
                     </div>
@@ -1221,10 +1221,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           />
                           <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                         </div>
-                        <span className="text-[11px] text-slate-500 font-medium">mula sa Service / Labor Rate (Labor Only)</span>
+                        <span className="text-[11px] text-slate-500 font-medium">from Service / Labor Rate (Labor Only)</span>
                       </div>
                       <p className="text-[11px] text-emerald-700 font-semibold">
-                        ✓ Kukuhanin lamang sa Service / Labor Rate; ang Parts Cost at Shop Markup ay 100% buo para sa shop.
+                        ✓ Computed strictly from Service / Labor Rate; Parts Wholesale Cost and Shop Markup are 100% retained by the shop.
                       </p>
                     </div>
                   ) : null}
@@ -1243,7 +1243,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-black text-purple-700">Board-Level Labor %</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Automatikong kukunin ang fee ni technician mula sa Service / Labor Rate para sa micro-soldering at specialized repair (hindi kasama ang parts cost at markup).
+                          Technician commission is automatically computed from the Service / Labor Rate for micro-soldering and specialized board-level repair (excluding parts wholesale cost and shop markup).
                         </p>
                       </div>
                     </div>
@@ -1276,10 +1276,10 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           />
                           <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                         </div>
-                        <span className="text-[11px] text-slate-500 font-medium">mula sa Service / Labor Rate (Labor Only)</span>
+                        <span className="text-[11px] text-slate-500 font-medium">from Service / Labor Rate (Labor Only)</span>
                       </div>
                       <p className="text-[11px] text-emerald-700 font-semibold">
-                        ✓ Kukuhanin lamang sa Service / Labor Rate; ang Parts Cost at Shop Markup ay 100% buo para sa shop.
+                        ✓ Computed strictly from Service / Labor Rate; Parts Wholesale Cost and Shop Markup are 100% retained by the shop.
                       </p>
                     </div>
                   ) : null}
@@ -1298,7 +1298,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">Standard Labor %</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Para sa pagkakabit ng Standard parts (hal. Screen, Battery, RAM, SSD, Keyboard). Kukunin ang fee ni technician mula sa cost ng standard parts.
+                          For standard replacement parts (e.g. Screen, Battery, RAM, SSD, Keyboard). Technician fee is computed as a percentage of standard parts wholesale cost.
                         </p>
                       </div>
                     </div>
@@ -1331,7 +1331,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           />
                           <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                         </div>
-                        <span className="text-[11px] text-slate-500 font-medium">mula sa halaga ng Standard Parts replacement</span>
+                        <span className="text-[11px] text-slate-500 font-medium">of standard replacement parts wholesale cost</span>
                       </div>
                     </div>
                   ) : null}
@@ -1350,7 +1350,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-black text-purple-700">Board-Level Labor %</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Para sa pagkakabit ng Board-Level parts (hal. Power IC, Charging IC, VRAM chip, MOSFET soldering). Kukunin ang fee mula sa halaga ng board-level parts.
+                          For board-level replacement parts (e.g. Power IC, Charging IC, VRAM chip, MOSFET soldering). Technician fee is computed as a percentage of board-level parts wholesale cost.
                         </p>
                       </div>
                     </div>
@@ -1383,7 +1383,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           />
                           <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                         </div>
-                        <span className="text-[11px] text-slate-500 font-medium">mula sa halaga ng Board-Level Parts replacement</span>
+                        <span className="text-[11px] text-slate-500 font-medium">of board-level replacement parts wholesale cost</span>
                       </div>
                     </div>
                   ) : null}
@@ -1402,7 +1402,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700">PC Assembly</span>
                         </div>
                         <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Komisyon sa pag-assemble at build ng sold PC systems.
+                          Commission for assembling, configuring, and testing sold custom PC systems.
                         </p>
                       </div>
                     </div>
@@ -1434,7 +1434,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                         />
                         <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 font-medium">ng system build total</span>
+                      <span className="text-[11px] text-slate-500 font-medium">of custom PC system build total</span>
                     </div>
                   ) : null}
                 </div>
@@ -1447,7 +1447,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                   type="text"
                   value={incentiveForm.notes}
                   onChange={(e) => setIncentiveForm((prev) => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Hal. Promoted rate or special incentive agreement"
+                  placeholder="e.g. Promoted rate or special incentive agreement"
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                 />
               </div>
