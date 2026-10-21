@@ -48,7 +48,7 @@ function renderSlipHtml(transfer, copyLabel) {
 
       <!-- TITLE BAR -->
       <div class="doc-banner">
-        <span class="doc-title">INTER-BRANCH STOCK LOAN SLIP</span>
+        <span class="doc-title">INTER-BRANCH STOCK BORROW SLIP</span>
         <span class="doc-subtitle">Official Inventory Borrowing & Custody Turnover</span>
       </div>
 
@@ -106,11 +106,11 @@ function renderSlipHtml(transfer, copyLabel) {
         </table>
       </div>
 
-      <!-- LOAN AGREEMENT NOTICE -->
+      <!-- BORROW AGREEMENT NOTICE -->
       <div class="loan-notice-box">
-        <div class="notice-title">ZERO-SETTLEMENT INTER-BRANCH LOAN COVENANT:</div>
+        <div class="notice-title">ZERO-SETTLEMENT INTER-BRANCH BORROW COVENANT:</div>
         <p class="notice-text">
-          This transfer constitutes a temporary inter-branch stock loan. <strong>Zero monetary payment or financial settlement is required between branches.</strong> The receiving branch holds these units under temporary custody and unconditionally agrees to return the borrowed units (or equivalent replacement units) back to the issuing branch upon completion of the operational requirement or immediate recall.
+          This transfer constitutes a temporary inter-branch stock borrow. <strong>Zero monetary payment or financial settlement is required between branches upon transfer.</strong> The receiving branch holds these units under temporary custody and unconditionally agrees to return the borrowed units back to the issuing branch (Nasoli na), or convert to payable/internal purchase if retained (Babayaran nalang).
         </p>
       </div>
 
@@ -362,7 +362,7 @@ export default function StockLoanSlipModal({ transfer, onClose }) {
   if (!transfer) return null
 
   const handlePrint = () => {
-    const title = `${transfer.transferCode || "StockLoan"}-2Copies`
+    const title = `${transfer.transferCode || "StockBorrow"}-2Copies`
     const html = generateStockLoanSlipDocument(transfer)
     printBusinessHtml(html, title)
   }
@@ -371,7 +371,7 @@ export default function StockLoanSlipModal({ transfer, onClose }) {
 
   return createPortal(
     <div
-      aria-label="Printable Stock Loan Slip"
+      aria-label="Printable Stock Borrow Slip"
       aria-modal="true"
       className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/70 p-3 sm:p-5 backdrop-blur-xs"
       role="dialog"
@@ -383,7 +383,7 @@ export default function StockLoanSlipModal({ transfer, onClose }) {
               <span className="rounded-md bg-indigo-900/60 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-indigo-300">
                 2 Copies Included
               </span>
-              <h2 className="text-base font-black text-white">Inter-Branch Stock Loan Slip</h2>
+              <h2 className="text-base font-black text-white">Inter-Branch Stock Borrow Slip</h2>
             </div>
             <p className="mt-0.5 text-xs text-slate-400">
               Transfer #{transferCode} · Issuing Branch &amp; Receiving Branch Copies
@@ -421,7 +421,7 @@ export default function StockLoanSlipModal({ transfer, onClose }) {
 
         <footer className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-3.5">
           <p className="text-xs text-slate-500">
-            Tip: Standard A4 portrait layout with cut divider. Zero-settlement equipment loan.
+            Tip: Standard A4 portrait layout with cut divider. Inter-branch stock borrow.
           </p>
           <div className="flex items-center gap-2">
             <button

@@ -195,6 +195,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [requestDeliveryCharge, setRequestDeliveryCharge] = useState("0")
   const [requestNotes, setRequestNotes] = useState("")
   const [requestTransferType, setRequestTransferType] = useState("STANDARD") // "STANDARD" | "BORROW"
+  const [bulkRequestTransferType, setBulkRequestTransferType] = useState("STANDARD") // "STANDARD" | "BORROW"
   const [requestMessage, setRequestMessage] = useState("")
   const [isRequesting, setIsRequesting] = useState(false)
 
@@ -794,7 +795,9 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         ...(requestFulfillmentMethod === "DELIVERY"
           ? { deliveryCharge }
           : {}),
-        notes: "Bulk request from inventory page",
+        notes: bulkRequestTransferType === "BORROW"
+          ? `[TRANSFER_TYPE:BORROW] [BORROW_STATUS:ON_LOAN] Bulk borrow request from inventory page`
+          : "Bulk request from inventory page",
         items: bulkRequestItems.map((item) => ({
           itemId: item.id,
           quantity: Number(item.quantity),
@@ -802,11 +805,16 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         })),
       })
 
-      setRequestMessage("Bulk stock request sent successfully. Waiting for approval.")
+      setRequestMessage(
+        bulkRequestTransferType === "BORROW"
+          ? "Stock borrow request sent successfully. Tracked under Borrow Monitoring in Stock Transfers."
+          : "Bulk stock request sent successfully. Waiting for approval."
+      )
       setBulkRequestItems([])
       setBulkSearchText("")
       setRequestFulfillmentMethod("PICKUP")
       setRequestDeliveryCharge("0")
+      setBulkRequestTransferType("STANDARD")
       await loadInventory()
     } catch (error) {
       const message =
@@ -1527,6 +1535,46 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                 )}
               </div>
 
+              {/* Transfer Purpose / Type */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                  Request Purpose / Transfer Type
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={isRequesting}
+                    onClick={() => setBulkRequestTransferType("STANDARD")}
+                    className={`rounded-xl border p-2.5 text-left text-xs transition ${
+                      bulkRequestTransferType === "STANDARD"
+                        ? "border-[var(--color-maroon)] bg-[var(--color-maroon)]/5 text-[var(--color-maroon)] font-bold shadow-2xs"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <p className="font-bold">Standard Transfer</p>
+                    <p className="text-[10px] text-slate-500 font-normal mt-0.5">Normal branch replenishment with transfer pricing</p>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isRequesting}
+                    onClick={() => setBulkRequestTransferType("BORROW")}
+                    className={`rounded-xl border p-2.5 text-left text-xs transition ${
+                      bulkRequestTransferType === "BORROW"
+                        ? "border-purple-600 bg-purple-50 text-purple-900 font-bold shadow-2xs"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <p className="font-bold">Stock Borrow</p>
+                    <p className="text-[10px] text-purple-700 font-normal mt-0.5">Zero-settlement; isoli o bayaran nalang</p>
+                  </button>
+                </div>
+                {bulkRequestTransferType === "BORROW" ? (
+                  <p className="text-[11px] text-purple-800 bg-purple-50 border border-purple-200 rounded-xl p-2 font-medium">
+                    Notice: Inter-branch stock borrow does not charge internal transfer settlement. Monitored under Borrow Monitoring in Stock Transfers (puwedeng isoli o bayaran nalang).
+                  </p>
+                ) : null}
+              </div>
+
               <div className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr] items-start pt-1">
                 {/* Available Stock List */}
                 <section className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2.5">
@@ -1777,13 +1825,13 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                           : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       }`}
                     >
-                      <p className="font-bold">Equipment Loan (Borrow)</p>
-                      <p className="text-[10px] text-purple-700 font-normal mt-0.5">No settlement; must be returned</p>
+                      <p className="font-bold">Stock Borrow</p>
+                      <p className="text-[10px] text-purple-700 font-normal mt-0.5">Zero-settlement; isoli o bayaran nalang</p>
                     </button>
                   </div>
                   {requestTransferType === "BORROW" ? (
                     <p className="text-[11px] text-purple-800 bg-purple-50 border border-purple-200 rounded-xl p-2 font-medium">
-                      Notice: Inter-branch borrow does not charge internal transfer settlement. It is monitored under the Borrow Monitoring tab in Stock Transfers.
+                      Notice: Inter-branch stock borrow does not charge internal transfer settlement. Monitored under Borrow Monitoring in Stock Transfers (puwedeng isoli o bayaran nalang).
                     </p>
                   ) : null}
                 </div>

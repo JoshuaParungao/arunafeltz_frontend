@@ -141,7 +141,8 @@ function getBorrowStatus(transfer) {
   const combined = `${transfer?.notes || ""} ${transfer?.internalNotes || ""}`
   if (!combined.includes("[TRANSFER_TYPE:BORROW]")) return null
   if (combined.includes("[BORROW_STATUS:RETURNED]")) return "RETURNED"
-  return "ON_LOAN"
+  if (combined.includes("[BORROW_STATUS:PURCHASED]") || combined.includes("[BORROW_STATUS:CONVERTED_TO_PURCHASE]")) return "PURCHASED"
+  return "ON_BORROW"
 }
 
 function ActionButtons({
@@ -153,6 +154,7 @@ function ActionButtons({
   onReceive,
   onPrintLoanSlip,
   onReturnBorrow,
+  onPurchaseBorrow,
 }) {
   const isSuperOwner = user?.role === "SUPER_OWNER"
   const isSourceManager = isSuperOwner || transfer.fromBranchId === user?.branchId
@@ -177,21 +179,33 @@ function ActionButtons({
           className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-bold text-purple-800 hover:bg-purple-100 transition shadow-2xs"
           onClick={() => onPrintLoanSlip(transfer)}
           type="button"
-          title="Print 2-Copy Inter-Branch Stock Loan Slip"
+          title="Print 2-Copy Inter-Branch Stock Borrow Slip"
         >
-          <Printer size={13} /> Loan Slip
+          <Printer size={13} /> Borrow Slip
         </button>
       ) : null}
 
-      {isBorrow && borrowStatus === "ON_LOAN" && isLinkedManager && onReturnBorrow ? (
+      {isBorrow && borrowStatus === "ON_BORROW" && isLinkedManager && onReturnBorrow ? (
         <button
           className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
           disabled={busy}
           onClick={() => onReturnBorrow(transfer)}
           type="button"
-          title="Mark borrowed stock as returned to issuing branch"
+          title="Isoli sa source branch (Mark as returned)"
         >
-          <RotateCcw size={13} /> Return Stock
+          <RotateCcw size={13} /> Isoli
+        </button>
+      ) : null}
+
+      {isBorrow && borrowStatus === "ON_BORROW" && isLinkedManager && onPurchaseBorrow ? (
+        <button
+          className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800 hover:bg-blue-100 transition shadow-2xs"
+          disabled={busy}
+          onClick={() => onPurchaseBorrow(transfer)}
+          type="button"
+          title="Babayaran nalang ng destination branch (Convert to purchase)"
+        >
+          <CheckCircle2 size={13} /> Bayaran
         </button>
       ) : null}
 
@@ -247,6 +261,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
   const [successMessage, setSuccessMessage] = useState("")
   const [actionTransferId, setActionTransferId] = useState("")
   const [pricingDrafts, setPricingDrafts] = useState({})
+  const [borrowSubFilter, setBorrowSubFilter] = useState("ALL") // "ALL" | "ON_BORROW" | "RETURNED" | "PURCHASED"
   const [showLoanSlipModal, setShowLoanSlipModal] = useState(false)
   const [activeLoanTransfer, setActiveLoanTransfer] = useState(null)
   const [showReturnBorrowModal, setShowReturnBorrowModal] = useState(false)
@@ -254,6 +269,10 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
   const [returnBorrowCondition, setReturnBorrowCondition] = useState("Good Condition")
   const [returnBorrowRemarks, setReturnBorrowRemarks] = useState("")
   const [isSubmittingReturnBorrow, setIsSubmittingReturnBorrow] = useState(false)
+  const [showPurchaseBorrowModal, setShowPurchaseBorrowModal] = useState(false)
+  const [purchaseBorrowTarget, setPurchaseBorrowTarget] = useState(null)
+  const [purchaseBorrowRemarks, setPurchaseBorrowRemarks] = useState("")
+  const [isSubmittingPurchaseBorrow, setIsSubmittingPurchaseBorrow] = useState(false)
 
   const isSelectedSourceManager = Boolean(
     selectedTransfer &&
@@ -291,7 +310,14 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       const result = response?.data || {}
       let items = Array.isArray(result.items) ? result.items : []
       if (directionFilter === "BORROW") {
-        items = items.filter((item) => isBorrowTransfer(item))
+        items = items.filter((item) => {
+          if (!isBorrowTransfer(item)) return false
+          const bStatus = getBorrowStatus(item)
+          if (borrowSubFilter === "ON_BORROW") return bStatus === "ON_BORROW"
+          if (borrowSubFilter === "RETURNED") return bStatus === "RETURNED"
+          if (borrowSubFilter === "PURCHASED") return bStatus === "PURCHASED"
+          return true
+        })
       }
       setTransfers(items)
       setPagination(result.pagination || null)
@@ -302,7 +328,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     } finally {
       setIsLoading(false)
     }
-  }, [directionFilter, effectiveBranchId, page, searchText, statusFilter])
+  }, [borrowSubFilter, directionFilter, effectiveBranchId, page, searchText, statusFilter])
 
   const handleOpenLoanSlip = async (transfer) => {
     try {
@@ -323,6 +349,46 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     setShowReturnBorrowModal(true)
   }
 
+  const handleOpenPurchaseBorrow = (transfer) => {
+    setPurchaseBorrowTarget(transfer)
+    setPurchaseBorrowRemarks("")
+    setShowPurchaseBorrowModal(true)
+  }
+
+  const handleConfirmPurchaseBorrow = async (event) => {
+    if (event) event.preventDefault()
+    if (!purchaseBorrowTarget) return
+
+    setIsSubmittingPurchaseBorrow(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const response = await returnBorrowTransfer(purchaseBorrowTarget.id, {
+        actionType: "PURCHASE",
+        remarks: purchaseBorrowRemarks,
+      })
+      setSuccessMessage(
+        `Stock borrow ${purchaseBorrowTarget.transferCode} successfully marked as BABAYARAN NALANG (Converted to Purchase).`
+      )
+      setShowPurchaseBorrowModal(false)
+      setPurchaseBorrowTarget(null)
+      setPurchaseBorrowRemarks("")
+      if (selectedTransfer?.id === purchaseBorrowTarget.id) {
+        setSelectedTransfer(response?.data || null)
+      }
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not convert borrowed stock to purchase."
+      )
+    } finally {
+      setIsSubmittingPurchaseBorrow(false)
+    }
+  }
+
   const handleConfirmReturnBorrow = async (event) => {
     if (event) event.preventDefault()
     if (!returnBorrowTarget) return
@@ -333,11 +399,12 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
     try {
       const response = await returnBorrowTransfer(returnBorrowTarget.id, {
+        actionType: "RETURN",
         condition: returnBorrowCondition,
         remarks: returnBorrowRemarks,
       })
       setSuccessMessage(
-        `Stock loan ${returnBorrowTarget.transferCode} successfully marked as RETURNED.`
+        `Stock borrow ${returnBorrowTarget.transferCode} successfully marked as NASOLI NA (Returned).`
       )
       setShowReturnBorrowModal(false)
       setReturnBorrowTarget(null)
@@ -863,6 +930,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
           }`}
           onClick={() => {
             setDirectionFilter("BORROW")
+            setBorrowSubFilter("ALL")
             setPage(1)
           }}
           type="button"
@@ -887,6 +955,61 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
           <option value="CANCELLED">Cancelled</option>
         </select>
       </section>
+
+      {directionFilter === "BORROW" ? (
+        <section className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-purple-200 bg-purple-50/70 p-3 text-xs shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-purple-900 uppercase tracking-wide">Borrow Monitoring:</span>
+            <span className="text-purple-800 text-[11px]">Track stock borrow turnover status — nasoli na o babayaran nalang.</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => { setBorrowSubFilter("ALL"); setPage(1) }}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                borrowSubFilter === "ALL"
+                  ? "bg-purple-700 text-white shadow-2xs"
+                  : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              All Borrowed
+            </button>
+            <button
+              type="button"
+              onClick={() => { setBorrowSubFilter("ON_BORROW"); setPage(1) }}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                borrowSubFilter === "ON_BORROW"
+                  ? "bg-purple-800 text-white shadow-2xs"
+                  : "bg-white text-purple-800 border border-purple-200 hover:bg-purple-50"
+              }`}
+            >
+              🟣 On Borrow
+            </button>
+            <button
+              type="button"
+              onClick={() => { setBorrowSubFilter("RETURNED"); setPage(1) }}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                borrowSubFilter === "RETURNED"
+                  ? "bg-emerald-700 text-white shadow-2xs"
+                  : "bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50"
+              }`}
+            >
+              🟢 Nasoli Na (Returned)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setBorrowSubFilter("PURCHASED"); setPage(1) }}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                borrowSubFilter === "PURCHASED"
+                  ? "bg-blue-700 text-white shadow-2xs"
+                  : "bg-white text-blue-800 border border-blue-200 hover:bg-blue-50"
+              }`}
+            >
+              🔵 Babayaran Nalang (Purchased)
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         <div className="hidden overflow-x-auto xl:block">
@@ -918,9 +1041,15 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                           <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-black ${
                             borrowStatus === "RETURNED"
                               ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              : borrowStatus === "PURCHASED"
+                              ? "bg-blue-50 text-blue-800 border border-blue-200"
                               : "bg-purple-50 text-purple-800 border border-purple-200"
                           }`}>
-                            {borrowStatus === "RETURNED" ? "🟢 RETURNED" : "🟣 ON LOAN"}
+                            {borrowStatus === "RETURNED"
+                              ? "🟢 NASOLI NA"
+                              : borrowStatus === "PURCHASED"
+                              ? "🔵 BABAYARAN NALANG"
+                              : "🟣 ON BORROW"}
                           </span>
                         ) : null}
                       </div>
@@ -948,6 +1077,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                         onReceive={handleOpenReceive}
                         onPrintLoanSlip={handleOpenLoanSlip}
                         onReturnBorrow={handleOpenReturnBorrow}
+                        onPurchaseBorrow={handleOpenPurchaseBorrow}
                       />
                     </td>
                   </tr>
@@ -975,9 +1105,15 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                         <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-black ${
                           borrowStatus === "RETURNED"
                             ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : borrowStatus === "PURCHASED"
+                            ? "bg-blue-50 text-blue-800 border border-blue-200"
                             : "bg-purple-50 text-purple-800 border border-purple-200"
                         }`}>
-                          {borrowStatus === "RETURNED" ? "🟢 RETURNED" : "🟣 ON LOAN"}
+                          {borrowStatus === "RETURNED"
+                            ? "🟢 NASOLI NA"
+                            : borrowStatus === "PURCHASED"
+                            ? "🔵 BABAYARAN NALANG"
+                            : "🟣 ON BORROW"}
                         </span>
                       ) : null}
                     </div>
@@ -996,6 +1132,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     onReceive={handleOpenReceive}
                     onPrintLoanSlip={handleOpenLoanSlip}
                     onReturnBorrow={handleOpenReturnBorrow}
+                    onPurchaseBorrow={handleOpenPurchaseBorrow}
                   />
                 </div>
               </article>
@@ -1066,11 +1203,19 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3.5 text-xs space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-purple-900 uppercase tracking-wide">Inter-Branch Stock Loan (Borrow)</span>
+                        <span className="font-black text-purple-900 uppercase tracking-wide">Inter-Branch Stock Borrow</span>
                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                          getBorrowStatus(selectedTransfer) === "RETURNED" ? "bg-emerald-100 text-emerald-800" : "bg-purple-100 text-purple-800"
+                          getBorrowStatus(selectedTransfer) === "RETURNED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : getBorrowStatus(selectedTransfer) === "PURCHASED"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-purple-100 text-purple-800"
                         }`}>
-                          {getBorrowStatus(selectedTransfer) === "RETURNED" ? "🟢 RETURNED TO SOURCE BRANCH" : "🟣 CURRENTLY ON LOAN"}
+                          {getBorrowStatus(selectedTransfer) === "RETURNED"
+                            ? "🟢 NASOLI NA (Returned to Source Branch)"
+                            : getBorrowStatus(selectedTransfer) === "PURCHASED"
+                            ? "🔵 BABAYARAN NALANG (Converted to Purchase)"
+                            : "🟣 CURRENTLY ON BORROW"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -1079,24 +1224,39 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                           onClick={() => handleOpenLoanSlip(selectedTransfer)}
                           className="inline-flex items-center gap-1 rounded-lg bg-purple-700 px-3 py-1 text-[11px] font-bold text-white hover:bg-purple-800 transition shadow-2xs"
                         >
-                          <Printer size={13} /> Print 2-Copy Loan Slip
+                          <Printer size={13} /> Print Borrow Slip
                         </button>
-                        {getBorrowStatus(selectedTransfer) === "ON_LOAN" ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenReturnBorrow(selectedTransfer)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-3 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 transition shadow-2xs"
-                          >
-                            <RotateCcw size={13} /> Return Stock
-                          </button>
+                        {getBorrowStatus(selectedTransfer) === "ON_BORROW" ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenReturnBorrow(selectedTransfer)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-3 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 transition shadow-2xs"
+                            >
+                              <RotateCcw size={13} /> Isoli (Return)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPurchaseBorrow(selectedTransfer)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-white px-3 py-1 text-[11px] font-bold text-blue-800 hover:bg-blue-50 transition shadow-2xs"
+                            >
+                              <CheckCircle2 size={13} /> Babayaran Nalang
+                            </button>
+                          </>
                         ) : null}
                       </div>
                     </div>
                     <p className="text-[11px] text-purple-800">
-                      This transfer is an equipment / inventory borrow between branches. No inter-branch monetary settlement is required. The receiving branch is obligated to return this unit.
+                      This transfer is an inter-branch stock borrow. Zero monetary settlement is charged upon transfer. Track whether the items are physically returned (Nasoli na) or converted to purchase (Babayaran nalang).
                     </p>
-                    {selectedTransfer.internalNotes && selectedTransfer.internalNotes.includes("[BORROW_STATUS:RETURNED]") ? (
-                      <div className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                    {selectedTransfer.internalNotes && selectedTransfer.internalNotes.includes("[BORROW_STATUS:") ? (
+                      <div className={`text-[11px] font-semibold rounded-lg p-2 ${
+                        selectedTransfer.internalNotes.includes("[BORROW_STATUS:RETURNED]")
+                          ? "text-emerald-800 bg-emerald-50 border border-emerald-200"
+                          : selectedTransfer.internalNotes.includes("[BORROW_STATUS:PURCHASED]")
+                          ? "text-blue-800 bg-blue-50 border border-blue-200"
+                          : "text-purple-800 bg-purple-50 border border-purple-200"
+                      }`}>
                         {selectedTransfer.internalNotes}
                       </div>
                     ) : null}
@@ -1357,13 +1517,14 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       />
 
       {/* Return Borrow Modal */}
+      {/* Return Borrow Modal (Nasoli Na) */}
       {showReturnBorrowModal && returnBorrowTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-purple-700">
-                  Equipment Loan Turnover
+                  Stock Borrow Turnover
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
                   Return Borrowed Stock: {returnBorrowTarget.transferCode}
@@ -1385,14 +1546,14 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
             <form onSubmit={handleConfirmReturnBorrow}>
               <div className="p-5 space-y-4 text-xs">
-                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-900 space-y-1">
-                  <p className="font-bold text-xs">Return Equipment to Issuing Branch</p>
-                  <p className="text-[11px] text-amber-800">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-emerald-900 space-y-1">
+                  <p className="font-bold text-xs">Return Items to Source Branch (Nasoli Na)</p>
+                  <p className="text-[11px] text-emerald-800">
                     Confirm that the borrowed item(s) are being physically returned and turnover is acknowledged between branches.
                   </p>
                   <div className="pt-1 flex items-center gap-4 text-[11px] font-semibold text-slate-700">
-                    <span>Lender: <strong className="text-slate-900">{returnBorrowTarget.fromBranch?.name || returnBorrowTarget.fromBranch?.code}</strong></span>
-                    <span>Borrower: <strong className="text-slate-900">{returnBorrowTarget.toBranch?.name || returnBorrowTarget.toBranch?.code}</strong></span>
+                    <span>Source Branch: <strong className="text-slate-900">{returnBorrowTarget.fromBranch?.name || returnBorrowTarget.fromBranch?.code}</strong></span>
+                    <span>Borrowing Branch: <strong className="text-slate-900">{returnBorrowTarget.toBranch?.name || returnBorrowTarget.toBranch?.code}</strong></span>
                   </div>
                 </div>
 
@@ -1432,7 +1593,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isSubmittingReturnBorrow}
                     onChange={(e) => setReturnBorrowRemarks(e.target.value)}
-                    placeholder="e.g. Returned after client demo or service loan completion..."
+                    placeholder="e.g. Returned after client demo or service borrow completion..."
                     value={returnBorrowRemarks}
                   />
                 </label>
@@ -1451,11 +1612,100 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   Cancel
                 </button>
                 <button
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-purple-800 transition disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition disabled:opacity-50"
                   disabled={isSubmittingReturnBorrow}
                   type="submit"
                 >
-                  {isSubmittingReturnBorrow ? "Processing..." : "Confirm Return Turnover"}
+                  {isSubmittingReturnBorrow ? "Processing..." : "Confirm Nasoli Na (Return)"}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Purchase Borrow Modal (Babayaran Nalang) */}
+      {showPurchaseBorrowModal && purchaseBorrowTarget ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-700">
+                  Stock Borrow Settlement
+                </span>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Babayaran Nalang: {purchaseBorrowTarget.transferCode}
+                </h3>
+              </div>
+              <button
+                aria-label="Close"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                disabled={isSubmittingPurchaseBorrow}
+                onClick={() => {
+                  setShowPurchaseBorrowModal(false)
+                  setPurchaseBorrowTarget(null)
+                }}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </header>
+
+            <form onSubmit={handleConfirmPurchaseBorrow}>
+              <div className="p-5 space-y-4 text-xs">
+                <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-blue-900 space-y-1">
+                  <p className="font-bold text-xs">Convert Borrow to Purchase / Payable</p>
+                  <p className="text-[11px] text-blue-800">
+                    Confirm that the borrowed item(s) will NOT be returned to the source branch. Destination branch will retain the stock, and it will be settled/paid between branches.
+                  </p>
+                  <div className="pt-1 flex items-center gap-4 text-[11px] font-semibold text-slate-700">
+                    <span>Source (Creditor): <strong className="text-slate-900">{purchaseBorrowTarget.fromBranch?.name || purchaseBorrowTarget.fromBranch?.code}</strong></span>
+                    <span>Destination (Buyer): <strong className="text-slate-900">{purchaseBorrowTarget.toBranch?.name || purchaseBorrowTarget.toBranch?.code}</strong></span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Items Retained</p>
+                  {(purchaseBorrowTarget.items || []).map((it) => (
+                    <div key={it.id} className="flex justify-between items-center text-[11px] font-medium text-slate-800">
+                      <span>{it.item?.itemName || it.description || "Item"}</span>
+                      <span className="font-mono font-bold">Qty {it.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Reason / Purchase Remarks (Optional)
+                  </span>
+                  <textarea
+                    className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingPurchaseBorrow}
+                    onChange={(e) => setPurchaseBorrowRemarks(e.target.value)}
+                    placeholder="e.g. Sold directly to customer, or destination branch decided to permanently retain stock..."
+                    value={purchaseBorrowRemarks}
+                  />
+                </label>
+              </div>
+
+              <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+                <button
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                  disabled={isSubmittingPurchaseBorrow}
+                  onClick={() => {
+                    setShowPurchaseBorrowModal(false)
+                    setPurchaseBorrowTarget(null)
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-blue-800 transition disabled:opacity-50"
+                  disabled={isSubmittingPurchaseBorrow}
+                  type="submit"
+                >
+                  {isSubmittingPurchaseBorrow ? "Processing..." : "Confirm Babayaran Nalang"}
                 </button>
               </footer>
             </form>
