@@ -445,16 +445,20 @@ function ActionButtons({
           Transfer Out (Dispatch)
         </button>
       ) : null}
-      {isDestinationManager && isInTransit ? (
+      {isLinkedManager && isInTransit ? (
         transfer.fulfillmentMethod === "PICKUP" || isReadyForPickup ? (
           <button
             className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition"
             disabled={busy}
             onClick={() => onReceive(transfer)}
             type="button"
-            title="Kumpirmahin na na-claim o nakuha na ang stock mula sa source branch"
+            title={
+              isSourceManager
+                ? "Kumpirmahin na na-claim at na-release na ang stock sa kabilang branch"
+                : "Kumpirmahin na na-claim o nakuha na ang stock mula sa source branch"
+            }
           >
-            <PackageCheck size={13} /> Confirm Claimed (Na-claim Na)
+            <PackageCheck size={13} /> {isSourceManager ? "Confirm Claimed / Released" : "Confirm Claimed (Na-claim Na)"}
           </button>
         ) : (
           <button
@@ -462,9 +466,13 @@ function ActionButtons({
             disabled={busy}
             onClick={() => onReceive(transfer)}
             type="button"
-            title="Kumpirmahin na natanggap na ang delivery sa inyong branch"
+            title={
+              isSourceManager
+                ? "Kumpirmahin na naihatid / natanggap na sa destination branch ang delivery"
+                : "Kumpirmahin na natanggap na ang delivery sa inyong branch"
+            }
           >
-            <PackageCheck size={13} /> Confirm Received (Natanggap Na)
+            <PackageCheck size={13} /> {isSourceManager ? "Confirm Delivered (Naihatid Na)" : "Confirm Received (Natanggap Na)"}
           </button>
         )
       ) : null}
@@ -1066,10 +1074,15 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     try {
       const response = await receiveStockTransfer(receiveModalTransfer.id, {})
       const isPickupClaim = receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP";
+      const isSourceUser = user?.branchId === receiveModalTransfer.fromBranchId;
       setSuccessMessage(
         isPickupClaim
-          ? `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully claimed for branch pickup. Stock has been added to your branch inventory.`
-          : `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully received from delivery. Stock has been added to your branch inventory.`
+          ? (isSourceUser
+              ? `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully confirmed claimed/released. Stock transferred to destination branch.`
+              : `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully claimed for branch pickup. Stock has been added to your branch inventory.`)
+          : (isSourceUser
+              ? `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully confirmed delivered. Stock transferred to destination branch.`
+              : `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully received from delivery. Stock has been added to your branch inventory.`)
       )
       setIsReceiveModalOpen(false)
       setReceiveModalTransfer(null)
@@ -2279,13 +2292,13 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
                   {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
-                    ? "Step 2 · Pick up & Claim Acknowledgement"
-                    : "Step 2 · Delivery Receipt & Acknowledgement"}
+                    ? (user?.branchId === receiveModalTransfer.fromBranchId ? "Step 2 · Pick up & Release Acknowledgement" : "Step 2 · Pick up & Claim Acknowledgement")
+                    : (user?.branchId === receiveModalTransfer.fromBranchId ? "Step 2 · Delivery Completion Acknowledgement" : "Step 2 · Delivery Receipt & Acknowledgement")}
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
                   {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
-                    ? `Confirm Claimed (Pick up): ${receiveModalTransfer.transferCode}`
-                    : `Confirm Received (Delivery): ${receiveModalTransfer.transferCode}`}
+                    ? (user?.branchId === receiveModalTransfer.fromBranchId ? `Confirm Claimed / Released: ${receiveModalTransfer.transferCode}` : `Confirm Claimed (Pick up): ${receiveModalTransfer.transferCode}`)
+                    : (user?.branchId === receiveModalTransfer.fromBranchId ? `Confirm Delivered: ${receiveModalTransfer.transferCode}` : `Confirm Received (Delivery): ${receiveModalTransfer.transferCode}`)}
                 </h3>
               </div>
               <button
@@ -2323,8 +2336,12 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 </p>
                 <p className="text-[11px] text-slate-700">
                   {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
-                    ? "Pakisuri ang mga items at serial numbers na na-claim/nakuha ng inyong branch. Pagka-kumpirma, opisyal na itong maipapasok sa inventory ng inyong branch."
-                    : "Pakisuri ang mga items at serial numbers na naihatid ng delivery/courier. Pagka-kumpirma, opisyal na itong maipapasok sa inventory ng inyong branch."}
+                    ? (user?.branchId === receiveModalTransfer.fromBranchId
+                        ? "Kumpirmahin na na-claim at na-release na ang stock sa claimant o authorized staff mula sa destination branch. Pagka-kumpirma, opisyal na itong mapapasok sa inventory ng kabilang branch."
+                        : "Pakisuri ang mga items at serial numbers na na-claim/nakuha ng inyong branch. Pagka-kumpirma, opisyal na itong maipapasok sa inventory ng inyong branch.")
+                    : (user?.branchId === receiveModalTransfer.fromBranchId
+                        ? "Kumpirmahin na natanggap/naihatid na ng courier ang stock sa destination branch. Pagka-kumpirma, opisyal na itong mapapasok sa inventory ng kabilang branch."
+                        : "Pakisuri ang mga items at serial numbers na naihatid ng delivery/courier. Pagka-kumpirma, opisyal na itong maipapasok sa inventory ng inyong branch.")}
                 </p>
                 {receiveModalTransfer.fulfillmentReference ? (
                   <div className="pt-1 text-[11px] font-mono font-semibold text-slate-800">
@@ -2415,8 +2432,8 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 {isReceiving
                   ? "Processing..."
                   : receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
-                  ? "Kumpirmahin na Na-claim (Confirm Claimed)"
-                  : "Kumpirmahin na Natanggap (Confirm Received)"}
+                  ? (user?.branchId === receiveModalTransfer.fromBranchId ? "Kumpirmahin na Na-claim / Na-release" : "Kumpirmahin na Na-claim (Confirm Claimed)")
+                  : (user?.branchId === receiveModalTransfer.fromBranchId ? "Kumpirmahin na Naihatid (Confirm Delivered)" : "Kumpirmahin na Natanggap (Confirm Received)")}
               </button>
             </footer>
           </div>
