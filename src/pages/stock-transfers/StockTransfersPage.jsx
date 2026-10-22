@@ -91,18 +91,36 @@ function DirectionBadge({ transfer, activeBranchId }) {
   )
 }
 
-function StatusBadge({ status, fulfillmentStatus }) {
+function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillmentStatusProp }) {
+  const status = statusProp || transfer?.status
+  const fulfillmentStatus = fulfillmentStatusProp || transfer?.fulfillmentStatus
+  const fulfillmentMethod = transfer?.fulfillmentMethod
+  const fulfillmentReference = transfer?.fulfillmentReference
+
   if (fulfillmentStatus === "IN_TRANSIT" && status !== "CANCELLED") {
+    if (fulfillmentMethod === "PICKUP") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2.5 py-0.5 text-xs font-black text-amber-800 shadow-2xs"
+          title={fulfillmentReference ? `Pick up: ${fulfillmentReference}` : "Pick up in progress"}
+        >
+          <PackageCheck size={12} /> Transfer Out (Pick up in Progress)
+        </span>
+      )
+    }
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2.5 py-0.5 text-xs font-black text-sky-800">
-        <Truck size={12} /> Transfer Out (In Transit)
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2.5 py-0.5 text-xs font-black text-sky-800 shadow-2xs"
+        title={fulfillmentReference ? `Delivery: ${fulfillmentReference}` : "Out for delivery"}
+      >
+        <Truck size={12} /> Transfer Out (Out for Delivery)
       </span>
     )
   }
 
   if (status === "APPROVED" && fulfillmentStatus !== "IN_TRANSIT") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-black text-blue-800">
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-black text-blue-800 shadow-2xs">
         <Clock size={12} /> For Transfer Out
       </span>
     )
@@ -110,7 +128,7 @@ function StatusBadge({ status, fulfillmentStatus }) {
 
   if (status === "POSTED" || fulfillmentStatus === "RECEIVED") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-black text-emerald-800">
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-black text-emerald-800 shadow-2xs">
         <CheckCircle2 size={12} /> Transferred In
       </span>
     )
@@ -455,6 +473,19 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
   const [activeLoanTransfer, setActiveLoanTransfer] = useState(null)
 
   // 6-Step Borrow Lifecycle States
+  // Transfer Out (Dispatch: Delivery vs Pick up & Serials) States
+  const [showTransferOutModal, setShowTransferOutModal] = useState(false)
+  const [transferOutTarget, setTransferOutTarget] = useState(null)
+  const [transferOutMethod, setTransferOutMethod] = useState("DELIVERY") // "DELIVERY" | "PICKUP"
+  const [transferOutCourier, setTransferOutCourier] = useState("")
+  const [transferOutTrackingNo, setTransferOutTrackingNo] = useState("")
+  const [transferOutPickupPerson, setTransferOutPickupPerson] = useState("")
+  const [transferOutPickupContact, setTransferOutPickupContact] = useState("")
+  const [transferOutRemarks, setTransferOutRemarks] = useState("")
+  const [transferOutItems, setTransferOutItems] = useState([]) // [{ stockTransferItemId, itemId, itemName, itemCode, requiredQuantity, availableSerials }]
+  const [transferOutSelectedSerials, setTransferOutSelectedSerials] = useState({}) // { [stockTransferItemId]: string[] (ids) }
+  const [isSubmittingTransferOut, setIsSubmittingTransferOut] = useState(false)
+
   const [showInitiateReturnModal, setShowInitiateReturnModal] = useState(false)
   const [initiateReturnTarget, setInitiateReturnTarget] = useState(null)
   const [initiateReturnCondition, setInitiateReturnCondition] = useState("Brand New Replacement")
@@ -1027,84 +1058,153 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     }
   }
 
+  const handleOpenTransferOut = async (transfer) => {
+    setActionTransferId(transfer.id)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const response = await getStockTransferById(transfer.id)
+      const detail = response?.data || transfer
+      const serializedLines = (detail.items || []).filter(
+        (item) => item.item?.isSerialized || item.isSerialized
+      )
+
+      let itemsWithSerials = []
+      if (serializedLines.length > 0) {
+        const fromBranchId = detail.fromBranchId || detail.fromBranch?.id || transfer.fromBranchId || transfer.fromBranch?.id
+        itemsWithSerials = await Promise.all(
+          serializedLines.map(async (line) => {
+            const itemId = line.itemId || line.item?.id
+            const serialRes = await getInventorySerials({
+              branchId: fromBranchId,
+              itemId,
+              status: "AVAILABLE",
+              limit: 100,
+            })
+            let serialRows = extractSerialRows(serialRes)
+
+            if (serialRows.length === 0 && (line.item?.itemCode || line.itemCode)) {
+              try {
+                const fallbackRes = await getInventorySerials({
+                  branchId: fromBranchId,
+                  search: line.item?.itemCode || line.itemCode,
+                  status: "AVAILABLE",
+                  limit: 100,
+                })
+                const fallbackRows = extractSerialRows(fallbackRes)
+                if (fallbackRows.length > 0) {
+                  serialRows = fallbackRows
+                }
+              } catch {
+                // ignore fallback error
+              }
+            }
+
+            return {
+              stockTransferItemId: line.id,
+              itemId,
+              itemName: line.item?.itemName || line.description || "Item",
+              itemCode: line.item?.itemCode || "",
+              requiredQuantity: Number(line.quantity || 1),
+              availableSerials: serialRows,
+            }
+          })
+        )
+      }
+
+      setTransferOutTarget(detail)
+      setTransferOutItems(itemsWithSerials)
+      const initialSelected = {}
+      itemsWithSerials.forEach((it) => {
+        initialSelected[it.stockTransferItemId] = (it.availableSerials || [])
+          .slice(0, it.requiredQuantity)
+          .map((s) => s.id)
+      })
+      setTransferOutSelectedSerials(initialSelected)
+      setTransferOutMethod(detail.fulfillmentMethod || "DELIVERY")
+      setTransferOutCourier("")
+      setTransferOutTrackingNo("")
+      setTransferOutPickupPerson("")
+      setTransferOutPickupContact("")
+      setTransferOutRemarks(detail.notes || "")
+      setShowTransferOutModal(true)
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not open transfer out process."
+      )
+    } finally {
+      setActionTransferId("")
+    }
+  }
+
+  const handleConfirmTransferOut = async (event) => {
+    if (event) event.preventDefault()
+    if (!transferOutTarget) return
+
+    for (const it of transferOutItems) {
+      const selected = transferOutSelectedSerials[it.stockTransferItemId] || []
+      if (selected.length !== it.requiredQuantity) {
+        setErrorMessage(
+          `Item "${it.itemName}" requires ${it.requiredQuantity} serial(s). You selected ${selected.length}.`
+        )
+        return
+      }
+    }
+
+    setIsSubmittingTransferOut(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const refParts =
+        transferOutMethod === "DELIVERY"
+          ? [transferOutCourier.trim(), transferOutTrackingNo.trim()].filter(Boolean)
+          : [transferOutPickupPerson.trim(), transferOutPickupContact.trim()].filter(Boolean)
+      const fulfillmentReference = refParts.join(" - ")
+
+      const itemsPayload = Object.entries(transferOutSelectedSerials).map(
+        ([stockTransferItemId, serialIds]) => ({
+          stockTransferItemId,
+          serialIds,
+          newSerialNumbers: [],
+        })
+      )
+
+      const payload = {
+        fulfillmentMethod: transferOutMethod,
+        ...(fulfillmentReference ? { fulfillmentReference } : {}),
+        ...(transferOutRemarks.trim() ? { notes: transferOutRemarks.trim() } : {}),
+        ...(itemsPayload.length > 0 ? { items: itemsPayload } : {}),
+      }
+
+      const response = await dispatchStockTransfer(transferOutTarget.id, payload)
+      const updated = response?.data || transferOutTarget
+      setSuccessMessage(
+        transferOutMethod === "DELIVERY"
+          ? `${updated.transferCode} transferred out via Delivery (${transferOutCourier || "Courier"}). Marked as Out for Delivery / In Transit.`
+          : `${updated.transferCode} transferred out for Branch Pick up (${transferOutPickupPerson || "Authorized Staff"}). Marked as Pick up in Progress / In Transit.`
+      )
+      setShowTransferOutModal(false)
+      setTransferOutTarget(null)
+      if (selectedTransfer?.id === transferOutTarget.id) setSelectedTransfer(updated)
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not process transfer out."
+      )
+    } finally {
+      setIsSubmittingTransferOut(false)
+    }
+  }
+
   const handleAction = async (transfer, nextStatus) => {
     if (nextStatus === "DISPATCH" || nextStatus === "POSTED") {
-      setActionTransferId(transfer.id)
-      setErrorMessage("")
-      setSuccessMessage("")
-
-      try {
-        const response = await getStockTransferById(transfer.id)
-        const detail = response?.data || transfer
-        const serializedLines = (detail.items || []).filter(
-          (item) => item.item?.isSerialized || item.isSerialized
-        )
-
-        if (serializedLines.length > 0) {
-          const fromBranchId = detail.fromBranchId || detail.fromBranch?.id || transfer.fromBranchId || transfer.fromBranch?.id
-          const itemsWithSerials = await Promise.all(
-            serializedLines.map(async (line) => {
-              const itemId = line.itemId || line.item?.id
-              const serialRes = await getInventorySerials({
-                branchId: fromBranchId,
-                itemId,
-                status: "AVAILABLE",
-                limit: 100,
-              })
-              let serialRows = extractSerialRows(serialRes)
-
-              // Fallback: if no serials returned by itemId, try fetching by branchId + search itemCode
-              if (serialRows.length === 0 && (line.item?.itemCode || line.itemCode)) {
-                try {
-                  const fallbackRes = await getInventorySerials({
-                    branchId: fromBranchId,
-                    search: line.item?.itemCode || line.itemCode,
-                    status: "AVAILABLE",
-                    limit: 100,
-                  })
-                  const fallbackRows = extractSerialRows(fallbackRes)
-                  if (fallbackRows.length > 0) {
-                    serialRows = fallbackRows
-                  }
-                } catch {
-                  // ignore fallback error
-                }
-              }
-
-              return {
-                stockTransferItemId: line.id,
-                itemId,
-                itemName: line.item?.itemName || line.description || "Item",
-                itemCode: line.item?.itemCode || "",
-                requiredQuantity: Number(line.quantity || 1),
-                availableSerials: serialRows,
-              }
-            })
-          )
-
-          setSerialModalTransfer(detail)
-          setSerialModalItems(itemsWithSerials)
-          setIsSerialModalOpen(true)
-          return
-        }
-
-        if (!window.confirm(`Confirm dispatch for ${transfer.transferCode}? Stock will be deducted from source branch and marked in-transit.`)) {
-          return
-        }
-
-        const dispatchRes = await dispatchStockTransfer(transfer.id, {})
-        setSuccessMessage(`${dispatchRes?.data?.transferCode || transfer.transferCode} dispatched. Stock is now in transit.`)
-        if (selectedTransfer?.id === transfer.id) setSelectedTransfer(dispatchRes?.data || null)
-        await loadTransfers()
-      } catch (error) {
-        setErrorMessage(
-          error?.response?.data?.error?.message ||
-            error?.message ||
-            "Could not dispatch stock transfer."
-        )
-      } finally {
-        setActionTransferId("")
-      }
+      await handleOpenTransferOut(transfer)
       return
     }
 
@@ -1462,7 +1562,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                       </div>
                       <p className="mt-0.5 max-w-52 truncate text-[11px] text-slate-500">{transfer.notes || "No notes"}</p>
                     </td>
-                    <td className="px-4 py-3"><StatusBadge status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} /></td>
+                    <td className="px-4 py-3"><StatusBadge transfer={transfer} status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} /></td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
                         <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
@@ -1562,7 +1662,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--color-maroon)]">{selectedTransfer.transferCode}</span>
                   <WorkflowBadge transfer={selectedTransfer} />
-                  <StatusBadge status={selectedTransfer.status} fulfillmentStatus={selectedTransfer.fulfillmentStatus} />
+                  <StatusBadge transfer={selectedTransfer} status={selectedTransfer.status} fulfillmentStatus={selectedTransfer.fulfillmentStatus} />
                 </div>
                 <h2 className="mt-0.5 text-base font-black text-slate-900 leading-tight">Stock Transfer Details</h2>
               </div>
