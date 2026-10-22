@@ -4,7 +4,10 @@ import {
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
+  Check,
   CheckCircle2,
+  Clock,
+  CreditCard,
   Eye,
   FileSpreadsheet,
   PackageCheck,
@@ -12,6 +15,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Send,
   Truck,
   X,
 } from "lucide-react"
@@ -90,19 +94,35 @@ function DirectionBadge({ transfer, activeBranchId }) {
 function StatusBadge({ status, fulfillmentStatus }) {
   if (fulfillmentStatus === "IN_TRANSIT" && status !== "CANCELLED") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-3 py-1 text-xs font-black text-sky-800">
-        <Truck size={12} /> In Transit
+      <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2.5 py-0.5 text-xs font-black text-sky-800">
+        <Truck size={12} /> Transfer Out (In Transit)
+      </span>
+    )
+  }
+
+  if (status === "APPROVED" && fulfillmentStatus !== "IN_TRANSIT") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-black text-blue-800">
+        <Clock size={12} /> For Transfer Out
+      </span>
+    )
+  }
+
+  if (status === "POSTED" || fulfillmentStatus === "RECEIVED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-black text-emerald-800">
+        <CheckCircle2 size={12} /> Transferred In
       </span>
     )
   }
 
   const styles = {
-    REQUESTED: "bg-amber-50 text-amber-700",
-    APPROVED: "bg-blue-50 text-blue-700",
-    REJECTED: "bg-rose-50 text-rose-700",
-    POSTED: "bg-emerald-50 text-emerald-700",
-    CANCELLED: "bg-gray-100 text-gray-600",
-    DRAFT: "bg-slate-100 text-slate-700",
+    REQUESTED: "bg-amber-50 text-amber-700 border border-amber-200",
+    APPROVED: "bg-blue-50 text-blue-700 border border-blue-200",
+    REJECTED: "bg-rose-50 text-rose-700 border border-rose-200",
+    POSTED: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    CANCELLED: "bg-gray-100 text-gray-600 border border-gray-200",
+    DRAFT: "bg-slate-100 text-slate-700 border border-slate-200",
   }
 
   const formatted = String(status || "Unknown")
@@ -110,7 +130,7 @@ function StatusBadge({ status, fulfillmentStatus }) {
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase())
 
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${styles[status] || styles.DRAFT}`}>{formatted}</span>
+  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-black ${styles[status] || styles.DRAFT}`}>{formatted}</span>
 }
 
 function isV2Transfer(transfer) {
@@ -137,12 +157,117 @@ function isBorrowTransfer(transfer) {
   return combined.includes("[TRANSFER_TYPE:BORROW]")
 }
 
-function getBorrowStatus(transfer) {
+function getBorrowDetails(transfer) {
   const combined = `${transfer?.notes || ""} ${transfer?.internalNotes || ""}`
   if (!combined.includes("[TRANSFER_TYPE:BORROW]")) return null
-  if (combined.includes("[BORROW_STATUS:RETURNED]")) return "RETURNED"
-  if (combined.includes("[BORROW_STATUS:PURCHASED]") || combined.includes("[BORROW_STATUS:CONVERTED_TO_PURCHASE]")) return "PURCHASED"
-  return "ON_BORROW"
+
+  let status = "ON_BORROW"
+  if (combined.includes("[BORROW_STATUS:RETURNED]")) status = "RETURNED"
+  else if (combined.includes("[BORROW_STATUS:PURCHASED]") || combined.includes("[BORROW_STATUS:CONVERTED_TO_PURCHASE]")) status = "PURCHASED"
+  else if (combined.includes("[BORROW_STATUS:RETURN_IN_TRANSIT]")) status = "RETURN_IN_TRANSIT"
+  else if (combined.includes("[BORROW_STATUS:PAYMENT_SUBMITTED]")) status = "PAYMENT_SUBMITTED"
+  else if (combined.includes("[BORROW_STATUS:WAITING_PAYMENT]")) status = "WAITING_PAYMENT"
+  else if (combined.includes("[BORROW_STATUS:WAITING_AMOUNT]")) status = "WAITING_AMOUNT"
+
+  const billingAmountMatch = combined.match(/\[BILLING_AMOUNT:([\d.]+)\]/)
+  const billingAmount = billingAmountMatch ? billingAmountMatch[1] : null
+
+  const paymentInstructionsMatch = combined.match(/\[PAYMENT_INSTRUCTIONS:([^\]]+)\]/)
+  const paymentInstructions = paymentInstructionsMatch ? paymentInstructionsMatch[1] : null
+
+  const paidAmountMatch = combined.match(/\[PAID_AMOUNT:([\d.]+)\]/)
+  const paidAmount = paidAmountMatch ? paidAmountMatch[1] : null
+
+  const paidMethodMatch = combined.match(/\[PAID_METHOD:([^\]]+)\]/)
+  const paidMethod = paidMethodMatch ? paidMethodMatch[1] : null
+
+  const paidRefMatch = combined.match(/\[PAID_REF:([^\]]+)\]/)
+  const paidRef = paidRefMatch ? paidRefMatch[1] : null
+
+  const returnMethodMatch = combined.match(/\[RETURN_METHOD:([^\]]+)\]/)
+  const returnMethod = returnMethodMatch ? returnMethodMatch[1] : null
+
+  const returnCourierMatch = combined.match(/\[RETURN_COURIER:([^\]]+)\]/)
+  const returnCourier = returnCourierMatch ? returnCourierMatch[1] : null
+
+  const returnSerialsMatch = combined.match(/\[RETURN_SERIALS:([^\]]+)\]/)
+  const returnSerials = returnSerialsMatch ? returnSerialsMatch[1] : null
+
+  const returnConditionMatch = combined.match(/\[RETURN_CONDITION:([^\]]+)\]/)
+  const returnCondition = returnConditionMatch ? returnConditionMatch[1] : null
+
+  return {
+    status,
+    billingAmount,
+    paymentInstructions,
+    paidAmount,
+    paidMethod,
+    paidRef,
+    returnMethod,
+    returnCourier,
+    returnSerials,
+    returnCondition,
+  }
+}
+
+function getBorrowStatus(transfer) {
+  const details = getBorrowDetails(transfer)
+  return details ? details.status : null
+}
+
+function BorrowBadge({ transfer }) {
+  const isBorrow = isBorrowTransfer(transfer)
+  if (!isBorrow) return null
+  const bDetails = getBorrowDetails(transfer)
+  const bStatus = bDetails?.status
+
+  if (bStatus === "RETURNED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300">
+        <CheckCircle2 size={11} /> 🟢 NASOLI NA
+      </span>
+    )
+  }
+  if (bStatus === "PURCHASED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-blue-50 text-blue-800 border border-blue-300">
+        <CheckCircle2 size={11} /> 🔵 BABAYARAN NALANG
+      </span>
+    )
+  }
+  if (bStatus === "RETURN_IN_TRANSIT") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-300">
+        <Truck size={11} /> 🚚 Returning (In Transit)
+      </span>
+    )
+  }
+  if (bStatus === "WAITING_AMOUNT") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-yellow-50 text-yellow-800 border border-yellow-300">
+        <Clock size={11} /> 🟡 Awaiting Billing Amount
+      </span>
+    )
+  }
+  if (bStatus === "WAITING_PAYMENT") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-orange-50 text-orange-800 border border-orange-300">
+        <Clock size={11} /> 🟠 Waiting for Payment{bDetails.billingAmount ? ` (₱${Number(bDetails.billingAmount).toLocaleString()})` : ""}
+      </span>
+    )
+  }
+  if (bStatus === "PAYMENT_SUBMITTED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-indigo-50 text-indigo-800 border border-indigo-300">
+        <Clock size={11} /> 🟣 Payment Submitted
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-purple-50 text-purple-800 border border-purple-200">
+      🟣 ON BORROW
+    </span>
+  )
 }
 
 function ActionButtons({
@@ -153,8 +278,12 @@ function ActionButtons({
   onView,
   onReceive,
   onPrintLoanSlip,
-  onReturnBorrow,
-  onPurchaseBorrow,
+  onInitiateReturn,
+  onConfirmReturn,
+  onInitiatePurchase,
+  onSetBilling,
+  onPayBorrow,
+  onConfirmPayment,
 }) {
   const isSuperOwner = user?.role === "SUPER_OWNER"
   const isSourceManager = isSuperOwner || transfer.fromBranchId === user?.branchId
@@ -162,8 +291,10 @@ function ActionButtons({
   const isLinkedManager = isSourceManager || isDestinationManager
   const isInTransit = transfer.fulfillmentStatus === "IN_TRANSIT"
   const isTerminal = ["POSTED", "REJECTED", "CANCELLED"].includes(transfer.status)
+  const isTransferredIn = ["POSTED"].includes(transfer.status) || transfer.fulfillmentStatus === "RECEIVED" || Boolean(transfer.receivedAt)
   const isBorrow = isBorrowTransfer(transfer)
-  const borrowStatus = getBorrowStatus(transfer)
+  const borrowDetails = getBorrowDetails(transfer)
+  const borrowStatus = borrowDetails?.status
   const pricingComplete = (transfer.items || []).every(
     (item) => item.agreedTransferUnitPrice !== null && item.agreedTransferUnitPrice !== undefined
   )
@@ -185,30 +316,88 @@ function ActionButtons({
         </button>
       ) : null}
 
-      {isBorrow && borrowStatus === "ON_BORROW" && isLinkedManager && onReturnBorrow ? (
-        <button
-          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
-          disabled={busy}
-          onClick={() => onReturnBorrow(transfer)}
-          type="button"
-          title="Isoli sa source branch (Mark as returned)"
-        >
-          <RotateCcw size={13} /> Isoli
-        </button>
+      {/* --- BORROW SETTLEMENT ACTIONS: ONLY AVAILABLE AFTER BEING TRANSFERRED IN! --- */}
+      {isBorrow && isTransferredIn ? (
+        <>
+          {/* Step 1: Active on borrow -> Borrower can return replacement OR choose to buy */}
+          {borrowStatus === "ON_BORROW" && isDestinationManager ? (
+            <>
+              <button
+                className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
+                disabled={busy}
+                onClick={() => onInitiateReturn(transfer)}
+                type="button"
+                title="Isoli sa source branch (Palitan ng bago)"
+              >
+                <RotateCcw size={13} /> Isoli (Palitan ng Bago)
+              </button>
+              <button
+                className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800 hover:bg-blue-100 transition shadow-2xs"
+                disabled={busy}
+                onClick={() => onInitiatePurchase(transfer)}
+                type="button"
+                title="Babayaran nalang ng destination branch"
+              >
+                <CheckCircle2 size={13} /> Babayaran Nalang
+              </button>
+            </>
+          ) : null}
+
+          {/* Return Flow: Return is in-transit -> Lending branch confirms receipt */}
+          {borrowStatus === "RETURN_IN_TRANSIT" && isSourceManager ? (
+            <button
+              className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-800 transition"
+              disabled={busy}
+              onClick={() => onConfirmReturn(transfer)}
+              type="button"
+              title="Kumpirmahin na natanggap ang isinoli o ipinalit na stock"
+            >
+              <PackageCheck size={13} /> Receive Return (Nasoli Na)
+            </button>
+          ) : null}
+
+          {/* Payment Flow Step A: Awaiting billing amount -> Lending branch sends amount */}
+          {borrowStatus === "WAITING_AMOUNT" && isSourceManager ? (
+            <button
+              className="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-blue-800 transition"
+              disabled={busy}
+              onClick={() => onSetBilling(transfer)}
+              type="button"
+              title="I-set ang amount na babayaran para sa stock"
+            >
+              <Send size={13} /> Send Amount (Billing)
+            </button>
+          ) : null}
+
+          {/* Payment Flow Step B: Awaiting payment -> Borrower branch pays */}
+          {borrowStatus === "WAITING_PAYMENT" && isDestinationManager ? (
+            <button
+              className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition"
+              disabled={busy}
+              onClick={() => onPayBorrow(transfer)}
+              type="button"
+              title="Magbayad sa lending branch"
+            >
+              <CreditCard size={13} /> Magbayad (Pay)
+            </button>
+          ) : null}
+
+          {/* Payment Flow Step C: Payment submitted -> Lending branch confirms payment received */}
+          {borrowStatus === "PAYMENT_SUBMITTED" && isSourceManager ? (
+            <button
+              className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-800 transition"
+              disabled={busy}
+              onClick={() => onConfirmPayment(transfer)}
+              type="button"
+              title="Kumpirmahin na natanggap ang bayad mula sa destination branch"
+            >
+              <CheckCircle2 size={13} /> Confirm Payment Received
+            </button>
+          ) : null}
+        </>
       ) : null}
 
-      {isBorrow && borrowStatus === "ON_BORROW" && isLinkedManager && onPurchaseBorrow ? (
-        <button
-          className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800 hover:bg-blue-100 transition shadow-2xs"
-          disabled={busy}
-          onClick={() => onPurchaseBorrow(transfer)}
-          type="button"
-          title="Babayaran nalang ng destination branch (Convert to purchase)"
-        >
-          <CheckCircle2 size={13} /> Bayaran
-        </button>
-      ) : null}
-
+      {/* --- STANDARD TRANSFER LIFECYCLE (Approve -> Transfer Out Dispatch -> Receive) --- */}
       {isSourceManager && transfer.status === "DRAFT" ? (
         <button className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition" disabled={busy} onClick={() => onAction(transfer, "REQUESTED")} type="button">
           Request
@@ -225,13 +414,13 @@ function ActionButtons({
         </>
       ) : null}
       {isSourceManager && transfer.status === "APPROVED" && !isInTransit ? (
-        <button className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition" disabled={busy} onClick={() => onAction(transfer, "DISPATCH")} type="button">
-          Dispatch
+        <button className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition" disabled={busy} onClick={() => onAction(transfer, "DISPATCH")} type="button" title="Piliin ang serial numbers at fulfillment details para ma-transfer out">
+          Transfer Out (Dispatch)
         </button>
       ) : null}
       {isDestinationManager && isInTransit ? (
         <button className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition" disabled={busy} onClick={() => onReceive(transfer)} type="button">
-          <PackageCheck size={13} /> Receive Stock
+          <PackageCheck size={13} /> Receive Stock (Transfer In)
         </button>
       ) : null}
       {isLinkedManager && !isTerminal && !isInTransit ? (
@@ -264,15 +453,47 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
   const [borrowSubFilter, setBorrowSubFilter] = useState("ALL") // "ALL" | "ON_BORROW" | "RETURNED" | "PURCHASED"
   const [showLoanSlipModal, setShowLoanSlipModal] = useState(false)
   const [activeLoanTransfer, setActiveLoanTransfer] = useState(null)
-  const [showReturnBorrowModal, setShowReturnBorrowModal] = useState(false)
-  const [returnBorrowTarget, setReturnBorrowTarget] = useState(null)
-  const [returnBorrowCondition, setReturnBorrowCondition] = useState("Good Condition")
-  const [returnBorrowRemarks, setReturnBorrowRemarks] = useState("")
-  const [isSubmittingReturnBorrow, setIsSubmittingReturnBorrow] = useState(false)
-  const [showPurchaseBorrowModal, setShowPurchaseBorrowModal] = useState(false)
-  const [purchaseBorrowTarget, setPurchaseBorrowTarget] = useState(null)
-  const [purchaseBorrowRemarks, setPurchaseBorrowRemarks] = useState("")
-  const [isSubmittingPurchaseBorrow, setIsSubmittingPurchaseBorrow] = useState(false)
+
+  // 6-Step Borrow Lifecycle States
+  const [showInitiateReturnModal, setShowInitiateReturnModal] = useState(false)
+  const [initiateReturnTarget, setInitiateReturnTarget] = useState(null)
+  const [initiateReturnCondition, setInitiateReturnCondition] = useState("Brand New Replacement")
+  const [initiateReturnMethod, setInitiateReturnMethod] = useState("DELIVERY")
+  const [initiateReturnCourier, setInitiateReturnCourier] = useState("")
+  const [initiateReturnTrackingNo, setInitiateReturnTrackingNo] = useState("")
+  const [initiateReturnSerials, setInitiateReturnSerials] = useState("")
+  const [initiateReturnRemarks, setInitiateReturnRemarks] = useState("")
+  const [isSubmittingInitiateReturn, setIsSubmittingInitiateReturn] = useState(false)
+
+  const [showConfirmReturnModal, setShowConfirmReturnModal] = useState(false)
+  const [confirmReturnTarget, setConfirmReturnTarget] = useState(null)
+  const [confirmReturnRemarks, setConfirmReturnRemarks] = useState("")
+  const [isSubmittingConfirmReturn, setIsSubmittingConfirmReturn] = useState(false)
+
+  const [showInitiatePurchaseModal, setShowInitiatePurchaseModal] = useState(false)
+  const [initiatePurchaseTarget, setInitiatePurchaseTarget] = useState(null)
+  const [initiatePurchaseRemarks, setInitiatePurchaseRemarks] = useState("")
+  const [isSubmittingInitiatePurchase, setIsSubmittingInitiatePurchase] = useState(false)
+
+  const [showSetBillingModal, setShowSetBillingModal] = useState(false)
+  const [setBillingTarget, setSetBillingTarget] = useState(null)
+  const [billingAmountInput, setBillingAmountInput] = useState("")
+  const [billingInstructionsInput, setBillingInstructionsInput] = useState("")
+  const [billingRemarksInput, setBillingRemarksInput] = useState("")
+  const [isSubmittingSetBilling, setIsSubmittingSetBilling] = useState(false)
+
+  const [showPayBorrowModal, setShowPayBorrowModal] = useState(false)
+  const [payBorrowTarget, setPayBorrowTarget] = useState(null)
+  const [payAmountInput, setPayAmountInput] = useState("")
+  const [payMethodInput, setPayMethodInput] = useState("CASH")
+  const [payRefInput, setPayRefInput] = useState("")
+  const [payRemarksInput, setPayRemarksInput] = useState("")
+  const [isSubmittingPayBorrow, setIsSubmittingPayBorrow] = useState(false)
+
+  const [showConfirmPaymentModal, setShowConfirmPaymentModal] = useState(false)
+  const [confirmPaymentTarget, setConfirmPaymentTarget] = useState(null)
+  const [confirmPaymentRemarks, setConfirmPaymentRemarks] = useState("")
+  const [isSubmittingConfirmPayment, setIsSubmittingConfirmPayment] = useState(false)
 
   const isSelectedSourceManager = Boolean(
     selectedTransfer &&
@@ -313,7 +534,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         items = items.filter((item) => {
           if (!isBorrowTransfer(item)) return false
           const bStatus = getBorrowStatus(item)
-          if (borrowSubFilter === "ON_BORROW") return bStatus === "ON_BORROW"
+          if (borrowSubFilter === "ON_BORROW") return ["ON_BORROW", "RETURN_IN_TRANSIT", "WAITING_AMOUNT", "WAITING_PAYMENT", "PAYMENT_SUBMITTED"].includes(bStatus)
           if (borrowSubFilter === "RETURNED") return bStatus === "RETURNED"
           if (borrowSubFilter === "PURCHASED") return bStatus === "PURCHASED"
           return true
@@ -342,39 +563,41 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     }
   }
 
-  const handleOpenReturnBorrow = (transfer) => {
-    setReturnBorrowTarget(transfer)
-    setReturnBorrowCondition("Good Condition")
-    setReturnBorrowRemarks("")
-    setShowReturnBorrowModal(true)
+  const handleOpenInitiateReturn = (transfer) => {
+    setInitiateReturnTarget(transfer)
+    setInitiateReturnCondition("Brand New Replacement")
+    setInitiateReturnMethod("DELIVERY")
+    setInitiateReturnCourier("")
+    setInitiateReturnTrackingNo("")
+    setInitiateReturnSerials("")
+    setInitiateReturnRemarks("")
+    setShowInitiateReturnModal(true)
   }
 
-  const handleOpenPurchaseBorrow = (transfer) => {
-    setPurchaseBorrowTarget(transfer)
-    setPurchaseBorrowRemarks("")
-    setShowPurchaseBorrowModal(true)
-  }
-
-  const handleConfirmPurchaseBorrow = async (event) => {
+  const handleConfirmInitiateReturn = async (event) => {
     if (event) event.preventDefault()
-    if (!purchaseBorrowTarget) return
+    if (!initiateReturnTarget) return
 
-    setIsSubmittingPurchaseBorrow(true)
+    setIsSubmittingInitiateReturn(true)
     setErrorMessage("")
     setSuccessMessage("")
 
     try {
-      const response = await returnBorrowTransfer(purchaseBorrowTarget.id, {
-        actionType: "PURCHASE",
-        remarks: purchaseBorrowRemarks,
+      const response = await returnBorrowTransfer(initiateReturnTarget.id, {
+        actionType: "INITIATE_RETURN",
+        condition: initiateReturnCondition,
+        fulfillmentMethod: initiateReturnMethod,
+        courier: initiateReturnCourier,
+        trackingNo: initiateReturnTrackingNo,
+        replacementSerials: initiateReturnSerials,
+        remarks: initiateReturnRemarks,
       })
       setSuccessMessage(
-        `Stock borrow ${purchaseBorrowTarget.transferCode} successfully marked as BABAYARAN NALANG (Converted to Purchase).`
+        `Replacement stock return for ${initiateReturnTarget.transferCode} dispatched. Stock is now Returning In Transit.`
       )
-      setShowPurchaseBorrowModal(false)
-      setPurchaseBorrowTarget(null)
-      setPurchaseBorrowRemarks("")
-      if (selectedTransfer?.id === purchaseBorrowTarget.id) {
+      setShowInitiateReturnModal(false)
+      setInitiateReturnTarget(null)
+      if (selectedTransfer?.id === initiateReturnTarget.id) {
         setSelectedTransfer(response?.data || null)
       }
       await loadTransfers()
@@ -382,35 +605,38 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       setErrorMessage(
         error?.response?.data?.error?.message ||
           error?.message ||
-          "Could not convert borrowed stock to purchase."
+          "Could not dispatch replacement return."
       )
     } finally {
-      setIsSubmittingPurchaseBorrow(false)
+      setIsSubmittingInitiateReturn(false)
     }
   }
 
-  const handleConfirmReturnBorrow = async (event) => {
-    if (event) event.preventDefault()
-    if (!returnBorrowTarget) return
+  const handleOpenConfirmReturn = (transfer) => {
+    setConfirmReturnTarget(transfer)
+    setConfirmReturnRemarks("")
+    setShowConfirmReturnModal(true)
+  }
 
-    setIsSubmittingReturnBorrow(true)
+  const handleConfirmConfirmReturn = async (event) => {
+    if (event) event.preventDefault()
+    if (!confirmReturnTarget) return
+
+    setIsSubmittingConfirmReturn(true)
     setErrorMessage("")
     setSuccessMessage("")
 
     try {
-      const response = await returnBorrowTransfer(returnBorrowTarget.id, {
-        actionType: "RETURN",
-        condition: returnBorrowCondition,
-        remarks: returnBorrowRemarks,
+      const response = await returnBorrowTransfer(confirmReturnTarget.id, {
+        actionType: "CONFIRM_RETURN",
+        remarks: confirmReturnRemarks,
       })
       setSuccessMessage(
-        `Stock borrow ${returnBorrowTarget.transferCode} successfully marked as NASOLI NA (Returned).`
+        `Stock borrow ${confirmReturnTarget.transferCode} confirmed returned. Marked as NASOLI NA (Completed).`
       )
-      setShowReturnBorrowModal(false)
-      setReturnBorrowTarget(null)
-      setReturnBorrowCondition("Good Condition")
-      setReturnBorrowRemarks("")
-      if (selectedTransfer?.id === returnBorrowTarget.id) {
+      setShowConfirmReturnModal(false)
+      setConfirmReturnTarget(null)
+      if (selectedTransfer?.id === confirmReturnTarget.id) {
         setSelectedTransfer(response?.data || null)
       }
       await loadTransfers()
@@ -418,10 +644,199 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       setErrorMessage(
         error?.response?.data?.error?.message ||
           error?.message ||
-          "Could not mark borrowed stock as returned."
+          "Could not confirm returned stock receipt."
       )
     } finally {
-      setIsSubmittingReturnBorrow(false)
+      setIsSubmittingConfirmReturn(false)
+    }
+  }
+
+  const handleOpenInitiatePurchase = (transfer) => {
+    setInitiatePurchaseTarget(transfer)
+    setInitiatePurchaseRemarks("")
+    setShowInitiatePurchaseModal(true)
+  }
+
+  const handleConfirmInitiatePurchase = async (event) => {
+    if (event) event.preventDefault()
+    if (!initiatePurchaseTarget) return
+
+    setIsSubmittingInitiatePurchase(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const response = await returnBorrowTransfer(initiatePurchaseTarget.id, {
+        actionType: "INITIATE_PURCHASE",
+        remarks: initiatePurchaseRemarks,
+      })
+      setSuccessMessage(
+        `Purchase conversion requested for ${initiatePurchaseTarget.transferCode}. Awaiting billing amount from source branch.`
+      )
+      setShowInitiatePurchaseModal(false)
+      setInitiatePurchaseTarget(null)
+      if (selectedTransfer?.id === initiatePurchaseTarget.id) {
+        setSelectedTransfer(response?.data || null)
+      }
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not request purchase conversion."
+      )
+    } finally {
+      setIsSubmittingInitiatePurchase(false)
+    }
+  }
+
+  const handleOpenSetBilling = (transfer) => {
+    setSetBillingTarget(transfer)
+    const bDetails = getBorrowDetails(transfer)
+    let suggested = 0
+    if (Array.isArray(transfer.items)) {
+      suggested = transfer.items.reduce((sum, it) => {
+        const p = Number(it.agreedTransferUnitPrice ?? it.proposedTransferUnitPrice ?? it.destinationItem?.price1 ?? 0)
+        return sum + p * Number(it.quantity || 1)
+      }, 0)
+    }
+    setBillingAmountInput(bDetails?.billingAmount || (suggested > 0 ? suggested.toString() : ""))
+    setBillingInstructionsInput(bDetails?.paymentInstructions || "GCash / Cash turnover at branch")
+    setBillingRemarksInput("")
+    setShowSetBillingModal(true)
+  }
+
+  const handleConfirmSetBilling = async (event) => {
+    if (event) event.preventDefault()
+    if (!setBillingTarget) return
+
+    if (!billingAmountInput || Number(billingAmountInput) <= 0) {
+      setErrorMessage("Please enter a valid billing amount greater than 0.")
+      return
+    }
+
+    setIsSubmittingSetBilling(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const response = await returnBorrowTransfer(setBillingTarget.id, {
+        actionType: "SET_BILLING_AMOUNT",
+        amount: Number(billingAmountInput),
+        paymentInstructions: billingInstructionsInput,
+        remarks: billingRemarksInput,
+      })
+      setSuccessMessage(
+        `Billing of ₱${Number(billingAmountInput).toLocaleString()} sent to borrowing branch for ${setBillingTarget.transferCode}.`
+      )
+      setShowSetBillingModal(false)
+      setSetBillingTarget(null)
+      if (selectedTransfer?.id === setBillingTarget.id) {
+        setSelectedTransfer(response?.data || null)
+      }
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not send billing amount."
+      )
+    } finally {
+      setIsSubmittingSetBilling(false)
+    }
+  }
+
+  const handleOpenPayBorrow = (transfer) => {
+    setPayBorrowTarget(transfer)
+    const bDetails = getBorrowDetails(transfer)
+    setPayAmountInput(bDetails?.billingAmount || "")
+    setPayMethodInput(bDetails?.paidMethod || "CASH")
+    setPayRefInput(bDetails?.paidRef || "")
+    setPayRemarksInput("")
+    setShowPayBorrowModal(true)
+  }
+
+  const handleConfirmPayBorrow = async (event) => {
+    if (event) event.preventDefault()
+    if (!payBorrowTarget) return
+
+    if (!payAmountInput || Number(payAmountInput) <= 0) {
+      setErrorMessage("Please enter a valid payment amount.")
+      return
+    }
+
+    setIsSubmittingPayBorrow(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const response = await returnBorrowTransfer(payBorrowTarget.id, {
+        actionType: "SUBMIT_PAYMENT",
+        amount: Number(payAmountInput),
+        paymentMethod: payMethodInput,
+        referenceNo: payRefInput,
+        remarks: payRemarksInput,
+      })
+      setSuccessMessage(
+        `Payment of ₱${Number(payAmountInput).toLocaleString()} via ${payMethodInput} submitted for ${payBorrowTarget.transferCode}. Awaiting source branch confirmation.`
+      )
+      setShowPayBorrowModal(false)
+      setPayBorrowTarget(null)
+      if (selectedTransfer?.id === payBorrowTarget.id) {
+        setSelectedTransfer(response?.data || null)
+      }
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not submit payment."
+      )
+    } finally {
+      setIsSubmittingPayBorrow(false)
+    }
+  }
+
+  const handleOpenConfirmPayment = (transfer) => {
+    setConfirmPaymentTarget(transfer)
+    setConfirmPaymentRemarks("")
+    setShowConfirmPaymentModal(true)
+  }
+
+  const handleConfirmConfirmPayment = async (event) => {
+    if (event) event.preventDefault()
+    if (!confirmPaymentTarget) return
+
+    setIsSubmittingConfirmPayment(true)
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    try {
+      const bDetails = getBorrowDetails(confirmPaymentTarget)
+      const response = await returnBorrowTransfer(confirmPaymentTarget.id, {
+        actionType: "CONFIRM_PAYMENT",
+        amount: bDetails?.paidAmount || bDetails?.billingAmount || "",
+        paymentMethod: bDetails?.paidMethod || "CASH",
+        referenceNo: bDetails?.paidRef || "",
+        remarks: confirmPaymentRemarks,
+      })
+      setSuccessMessage(
+        `Payment confirmed for ${confirmPaymentTarget.transferCode}. Marked as BABAYARAN NALANG (Paid & Completed).`
+      )
+      setShowConfirmPaymentModal(false)
+      setConfirmPaymentTarget(null)
+      if (selectedTransfer?.id === confirmPaymentTarget.id) {
+        setSelectedTransfer(response?.data || null)
+      }
+      await loadTransfers()
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.error?.message ||
+          error?.message ||
+          "Could not confirm payment receipt."
+      )
+    } finally {
+      setIsSubmittingConfirmPayment(false)
     }
   }
 
@@ -1037,21 +1452,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
                         <WorkflowBadge transfer={transfer} />
-                        {isBorrow ? (
-                          <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                            borrowStatus === "RETURNED"
-                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                              : borrowStatus === "PURCHASED"
-                              ? "bg-blue-50 text-blue-800 border border-blue-200"
-                              : "bg-purple-50 text-purple-800 border border-purple-200"
-                          }`}>
-                            {borrowStatus === "RETURNED"
-                              ? "🟢 NASOLI NA"
-                              : borrowStatus === "PURCHASED"
-                              ? "🔵 BABAYARAN NALANG"
-                              : "🟣 ON BORROW"}
-                          </span>
-                        ) : null}
+                        <BorrowBadge transfer={transfer} />
                       </div>
                       <p className="mt-0.5 max-w-52 truncate text-[11px] text-slate-500">{transfer.notes || "No notes"}</p>
                     </td>
@@ -1076,8 +1477,12 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                         onView={openTransfer}
                         onReceive={handleOpenReceive}
                         onPrintLoanSlip={handleOpenLoanSlip}
-                        onReturnBorrow={handleOpenReturnBorrow}
-                        onPurchaseBorrow={handleOpenPurchaseBorrow}
+                        onInitiateReturn={handleOpenInitiateReturn}
+                        onConfirmReturn={handleOpenConfirmReturn}
+                        onInitiatePurchase={handleOpenInitiatePurchase}
+                        onSetBilling={handleOpenSetBilling}
+                        onPayBorrow={handleOpenPayBorrow}
+                        onConfirmPayment={handleOpenConfirmPayment}
                       />
                     </td>
                   </tr>
@@ -1101,21 +1506,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                       <p className="font-mono font-bold text-slate-900">{transfer.transferCode}</p>
                       <WorkflowBadge transfer={transfer} />
                       <DirectionBadge transfer={transfer} activeBranchId={effectiveBranchId} />
-                      {isBorrow ? (
-                        <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                          borrowStatus === "RETURNED"
-                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                            : borrowStatus === "PURCHASED"
-                            ? "bg-blue-50 text-blue-800 border border-blue-200"
-                            : "bg-purple-50 text-purple-800 border border-purple-200"
-                        }`}>
-                          {borrowStatus === "RETURNED"
-                            ? "🟢 NASOLI NA"
-                            : borrowStatus === "PURCHASED"
-                            ? "🔵 BABAYARAN NALANG"
-                            : "🟣 ON BORROW"}
-                        </span>
-                      ) : null}
+                      <BorrowBadge transfer={transfer} />
                     </div>
                     <p className="mt-0.5 text-[11px] text-slate-500">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</p>
                   </div>
@@ -1131,8 +1522,12 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     onView={openTransfer}
                     onReceive={handleOpenReceive}
                     onPrintLoanSlip={handleOpenLoanSlip}
-                    onReturnBorrow={handleOpenReturnBorrow}
-                    onPurchaseBorrow={handleOpenPurchaseBorrow}
+                    onInitiateReturn={handleOpenInitiateReturn}
+                    onConfirmReturn={handleOpenConfirmReturn}
+                    onInitiatePurchase={handleOpenInitiatePurchase}
+                    onSetBilling={handleOpenSetBilling}
+                    onPayBorrow={handleOpenPayBorrow}
+                    onConfirmPayment={handleOpenConfirmPayment}
                   />
                 </div>
               </article>
@@ -1199,69 +1594,123 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   ) : null}
                 </div>
 
-                {isBorrowTransfer(selectedTransfer) ? (
-                  <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3.5 text-xs space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-purple-900 uppercase tracking-wide">Inter-Branch Stock Borrow</span>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                          getBorrowStatus(selectedTransfer) === "RETURNED"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : getBorrowStatus(selectedTransfer) === "PURCHASED"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-purple-100 text-purple-800"
-                        }`}>
-                          {getBorrowStatus(selectedTransfer) === "RETURNED"
-                            ? "🟢 NASOLI NA (Returned to Source Branch)"
-                            : getBorrowStatus(selectedTransfer) === "PURCHASED"
-                            ? "🔵 BABAYARAN NALANG (Converted to Purchase)"
-                            : "🟣 CURRENTLY ON BORROW"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenLoanSlip(selectedTransfer)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-purple-700 px-3 py-1 text-[11px] font-bold text-white hover:bg-purple-800 transition shadow-2xs"
-                        >
-                          <Printer size={13} /> Print Borrow Slip
-                        </button>
-                        {getBorrowStatus(selectedTransfer) === "ON_BORROW" ? (
-                          <>
+                {isBorrowTransfer(selectedTransfer) ? (() => {
+                  const bDetails = getBorrowDetails(selectedTransfer);
+                  const bStatus = bDetails?.status;
+                  const isTransferredIn = ["POSTED"].includes(selectedTransfer.status) || selectedTransfer.fulfillmentStatus === "RECEIVED" || Boolean(selectedTransfer.receivedAt);
+                  const isSourceMgr = user?.role === "SUPER_OWNER" || selectedTransfer.fromBranchId === user?.branchId;
+                  const isDestMgr = user?.role === "SUPER_OWNER" || selectedTransfer.toBranchId === user?.branchId;
+
+                  return (
+                    <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-4 text-xs space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-200/80 pb-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-purple-900 uppercase tracking-wide">Inter-Branch Stock Borrow</span>
+                          <BorrowBadge transfer={selectedTransfer} />
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenLoanSlip(selectedTransfer)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-purple-700 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-purple-800 transition shadow-2xs"
+                          >
+                            <Printer size={13} /> Print Borrow Slip
+                          </button>
+
+                          {isTransferredIn && bStatus === "ON_BORROW" && isDestMgr ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenInitiateReturn(selectedTransfer)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 transition shadow-2xs"
+                              >
+                                <RotateCcw size={13} /> Isoli (Palitan ng Bago)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenInitiatePurchase(selectedTransfer)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-800 hover:bg-blue-50 transition shadow-2xs"
+                              >
+                                <CheckCircle2 size={13} /> Babayaran Nalang
+                              </button>
+                            </>
+                          ) : null}
+
+                          {isTransferredIn && bStatus === "RETURN_IN_TRANSIT" && isSourceMgr ? (
                             <button
                               type="button"
-                              onClick={() => handleOpenReturnBorrow(selectedTransfer)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-3 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 transition shadow-2xs"
+                              onClick={() => handleOpenConfirmReturn(selectedTransfer)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-800 transition"
                             >
-                              <RotateCcw size={13} /> Isoli (Return)
+                              <PackageCheck size={13} /> Receive Return (Nasoli Na)
                             </button>
+                          ) : null}
+
+                          {isTransferredIn && bStatus === "WAITING_AMOUNT" && isSourceMgr ? (
                             <button
                               type="button"
-                              onClick={() => handleOpenPurchaseBorrow(selectedTransfer)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-white px-3 py-1 text-[11px] font-bold text-blue-800 hover:bg-blue-50 transition shadow-2xs"
+                              onClick={() => handleOpenSetBilling(selectedTransfer)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-blue-800 transition"
                             >
-                              <CheckCircle2 size={13} /> Babayaran Nalang
+                              <Send size={13} /> Send Amount (Billing)
                             </button>
-                          </>
-                        ) : null}
+                          ) : null}
+
+                          {isTransferredIn && bStatus === "WAITING_PAYMENT" && isDestMgr ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPayBorrow(selectedTransfer)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition"
+                            >
+                              <CreditCard size={13} /> Magbayad (Pay)
+                            </button>
+                          ) : null}
+
+                          {isTransferredIn && bStatus === "PAYMENT_SUBMITTED" && isSourceMgr ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenConfirmPayment(selectedTransfer)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-800 transition"
+                            >
+                              <CheckCircle2 size={13} /> Confirm Payment Received
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
+
+                      {/* Information & Settlement Context */}
+                      <div className="grid gap-2 sm:grid-cols-2 text-[11px]">
+                        <div className="space-y-1">
+                          <p className="text-slate-500">Source (Lender): <strong className="text-slate-800">{selectedTransfer.fromBranch?.code || "—"}</strong></p>
+                          <p className="text-slate-500">Destination (Borrower): <strong className="text-slate-800">{selectedTransfer.toBranch?.code || "—"}</strong></p>
+                          {bDetails?.billingAmount ? (
+                            <p className="text-slate-700">Billing Amount: <strong className="text-blue-900 font-mono">₱{Number(bDetails.billingAmount).toLocaleString()}</strong></p>
+                          ) : null}
+                          {bDetails?.paymentInstructions ? (
+                            <p className="text-slate-600">Instructions: <span className="font-semibold">{bDetails.paymentInstructions}</span></p>
+                          ) : null}
+                        </div>
+                        <div className="space-y-1">
+                          {bDetails?.returnMethod ? (
+                            <p className="text-slate-700">Return Method: <strong>{bDetails.returnMethod}</strong> {bDetails.returnCourier ? `(${bDetails.returnCourier})` : ""}</p>
+                          ) : null}
+                          {bDetails?.returnSerials ? (
+                            <p className="text-slate-700">Replacement Serials: <strong className="font-mono text-purple-900">{bDetails.returnSerials}</strong></p>
+                          ) : null}
+                          {bDetails?.paidAmount ? (
+                            <p className="text-emerald-800 font-semibold">Payment: ₱{Number(bDetails.paidAmount).toLocaleString()} via {bDetails.paidMethod || "CASH"} {bDetails.paidRef ? `Ref: ${bDetails.paidRef}` : ""}</p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {selectedTransfer.internalNotes ? (
+                        <div className="rounded-lg bg-white/80 p-2.5 text-[11px] border border-purple-100 text-slate-700 font-mono">
+                          {selectedTransfer.internalNotes}
+                        </div>
+                      ) : null}
                     </div>
-                    <p className="text-[11px] text-purple-800">
-                      This transfer is an inter-branch stock borrow. Zero monetary settlement is charged upon transfer. Track whether the items are physically returned (Nasoli na) or converted to purchase (Babayaran nalang).
-                    </p>
-                    {selectedTransfer.internalNotes && selectedTransfer.internalNotes.includes("[BORROW_STATUS:") ? (
-                      <div className={`text-[11px] font-semibold rounded-lg p-2 ${
-                        selectedTransfer.internalNotes.includes("[BORROW_STATUS:RETURNED]")
-                          ? "text-emerald-800 bg-emerald-50 border border-emerald-200"
-                          : selectedTransfer.internalNotes.includes("[BORROW_STATUS:PURCHASED]")
-                          ? "text-blue-800 bg-blue-50 border border-blue-200"
-                          : "text-purple-800 bg-purple-50 border border-purple-200"
-                      }`}>
-                        {selectedTransfer.internalNotes}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+                  );
+                })() : null}
 
                 <div className="space-y-3">
                   {selectedTransfer.items?.map((item) => (
@@ -1517,26 +1966,26 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       />
 
       {/* Return Borrow Modal */}
-      {/* Return Borrow Modal (Nasoli Na) */}
-      {showReturnBorrowModal && returnBorrowTarget ? (
+      {/* Modal 1: Initiate Return / Replace with New (Isoli) */}
+      {showInitiateReturnModal && initiateReturnTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-purple-700">
-                  Stock Borrow Turnover
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
+                  Step 1: Isoli (Papalitan ng Bago)
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
-                  Return Borrowed Stock: {returnBorrowTarget.transferCode}
+                  Dispatch Return: {initiateReturnTarget.transferCode}
                 </h3>
               </div>
               <button
                 aria-label="Close"
                 className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-                disabled={isSubmittingReturnBorrow}
+                disabled={isSubmittingInitiateReturn}
                 onClick={() => {
-                  setShowReturnBorrowModal(false)
-                  setReturnBorrowTarget(null)
+                  setShowInitiateReturnModal(false)
+                  setInitiateReturnTarget(null)
                 }}
                 type="button"
               >
@@ -1544,57 +1993,88 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               </button>
             </header>
 
-            <form onSubmit={handleConfirmReturnBorrow}>
+            <form onSubmit={handleConfirmInitiateReturn}>
               <div className="p-5 space-y-4 text-xs">
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-emerald-900 space-y-1">
-                  <p className="font-bold text-xs">Return Items to Source Branch (Nasoli Na)</p>
+                  <p className="font-bold text-xs">Mag-dispatch ng Replacement Stock Pabalik sa Source Branch</p>
                   <p className="text-[11px] text-emerald-800">
-                    Confirm that the borrowed item(s) are being physically returned and turnover is acknowledged between branches.
+                    Ilagay ang details ng ipinapadalang unit (serial numbers kung meron) at paraan ng delivery/pickup. Pagka-dispatch, mapupunta ito sa Out of Delivery (Returning).
                   </p>
-                  <div className="pt-1 flex items-center gap-4 text-[11px] font-semibold text-slate-700">
-                    <span>Source Branch: <strong className="text-slate-900">{returnBorrowTarget.fromBranch?.name || returnBorrowTarget.fromBranch?.code}</strong></span>
-                    <span>Borrowing Branch: <strong className="text-slate-900">{returnBorrowTarget.toBranch?.name || returnBorrowTarget.toBranch?.code}</strong></span>
-                  </div>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-1.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Borrowed Items</p>
-                  {(returnBorrowTarget.items || []).map((it) => (
-                    <div key={it.id} className="flex justify-between items-center text-[11px] font-medium text-slate-800">
-                      <span>{it.item?.itemName || it.description || "Item"}</span>
-                      <span className="font-mono font-bold">Qty {it.quantity}</span>
-                    </div>
-                  ))}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Dispatch Method
+                    </span>
+                    <select
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                      disabled={isSubmittingInitiateReturn}
+                      onChange={(e) => setInitiateReturnMethod(e.target.value)}
+                      value={initiateReturnMethod}
+                    >
+                      <option value="DELIVERY">Delivery (Courier / Out for Delivery)</option>
+                      <option value="PICKUP">Pick up by Source Branch</option>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Condition
+                    </span>
+                    <select
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                      disabled={isSubmittingInitiateReturn}
+                      onChange={(e) => setInitiateReturnCondition(e.target.value)}
+                      value={initiateReturnCondition}
+                    >
+                      <option value="Brand New Replacement">Brand New Replacement</option>
+                      <option value="Good Condition">Good Condition (Tested)</option>
+                      <option value="Complete with Packaging">Complete with Packaging</option>
+                      <option value="Minor Wear">Minor Wear</option>
+                    </select>
+                  </label>
                 </div>
 
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Physical Return Condition
+                    Courier / Driver / Tracking Reference (Optional)
                   </span>
-                  <select
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                    disabled={isSubmittingReturnBorrow}
-                    onChange={(e) => setReturnBorrowCondition(e.target.value)}
-                    value={returnBorrowCondition}
-                  >
-                    <option value="Good Condition">Good Condition (Normal)</option>
-                    <option value="Complete with Original Packaging">Complete with Original Packaging</option>
-                    <option value="With Minor Wear">With Minor Wear</option>
-                    <option value="Defective / Needs Inspection">Defective / Needs Inspection</option>
-                    <option value="Damaged">Damaged</option>
-                  </select>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingInitiateReturn}
+                    onChange={(e) => setInitiateReturnCourier(e.target.value)}
+                    placeholder="e.g. Lalamove / In-house driver Mark (0917xxx)..."
+                    type="text"
+                    value={initiateReturnCourier}
+                  />
                 </label>
 
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Return Remarks (Optional)
+                    Serial Number(s) ng Isinosoli / Replacement (Kung Meron)
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 font-mono outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingInitiateReturn}
+                    onChange={(e) => setInitiateReturnSerials(e.target.value)}
+                    placeholder="e.g. SN-98721, SN-98722 (comma-separated kung marami)"
+                    type="text"
+                    value={initiateReturnSerials}
+                  />
+                  <p className="mt-1 text-[10px] text-slate-500">I-input ang serial number ng ipapalit na bago o isinosoling unit.</p>
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Remarks / Notes (Optional)
                   </span>
                   <textarea
                     className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                    disabled={isSubmittingReturnBorrow}
-                    onChange={(e) => setReturnBorrowRemarks(e.target.value)}
-                    placeholder="e.g. Returned after client demo or service borrow completion..."
-                    value={returnBorrowRemarks}
+                    disabled={isSubmittingInitiateReturn}
+                    onChange={(e) => setInitiateReturnRemarks(e.target.value)}
+                    placeholder="Notes para sa source branch..."
+                    value={initiateReturnRemarks}
                   />
                 </label>
               </div>
@@ -1602,10 +2082,10 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
                 <button
                   className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
-                  disabled={isSubmittingReturnBorrow}
+                  disabled={isSubmittingInitiateReturn}
                   onClick={() => {
-                    setShowReturnBorrowModal(false)
-                    setReturnBorrowTarget(null)
+                    setShowInitiateReturnModal(false)
+                    setInitiateReturnTarget(null)
                   }}
                   type="button"
                 >
@@ -1613,10 +2093,10 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 </button>
                 <button
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition disabled:opacity-50"
-                  disabled={isSubmittingReturnBorrow}
+                  disabled={isSubmittingInitiateReturn}
                   type="submit"
                 >
-                  {isSubmittingReturnBorrow ? "Processing..." : "Confirm Nasoli Na (Return)"}
+                  {isSubmittingInitiateReturn ? "Processing..." : "I-transfer Out Pabalik (Dispatch Return)"}
                 </button>
               </footer>
             </form>
@@ -1624,26 +2104,114 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         </div>
       ) : null}
 
-      {/* Purchase Borrow Modal (Babayaran Nalang) */}
-      {showPurchaseBorrowModal && purchaseBorrowTarget ? (
+      {/* Modal 2: Confirm Return Received (Nasoli Na) */}
+      {showConfirmReturnModal && confirmReturnTarget ? (() => {
+        const bDetails = getBorrowDetails(confirmReturnTarget);
+        return (
+          <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+            <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+                <div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
+                    Step 2: Kumpirmahin na Nasoli Na
+                  </span>
+                  <h3 className="text-base font-black text-slate-900 leading-tight">
+                    Confirm Return Receipt: {confirmReturnTarget.transferCode}
+                  </h3>
+                </div>
+                <button
+                  aria-label="Close"
+                  className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                  disabled={isSubmittingConfirmReturn}
+                  onClick={() => {
+                    setShowConfirmReturnModal(false)
+                    setConfirmReturnTarget(null)
+                  }}
+                  type="button"
+                >
+                  <X size={16} />
+                </button>
+              </header>
+
+              <form onSubmit={handleConfirmConfirmReturn}>
+                <div className="p-5 space-y-4 text-xs">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-emerald-900 space-y-1">
+                    <p className="font-bold text-xs">Tanggapin ang Isinoli o Ipinalit na Stock</p>
+                    <p className="text-[11px] text-emerald-800">
+                      I-kumpirma na natanggap mo na ang replacement stock sa iyong branch. Kapag kinumpirma, mamamarkahan ito bilang NASOLI NA (Completed).
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-1.5 text-[11px]">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dispatch Details</p>
+                    <p>Method: <strong>{bDetails?.returnMethod || "DELIVERY"}</strong></p>
+                    {bDetails?.returnCourier ? <p>Courier / Reference: <strong>{bDetails.returnCourier}</strong></p> : null}
+                    {bDetails?.returnCondition ? <p>Declared Condition: <strong>{bDetails.returnCondition}</strong></p> : null}
+                    {bDetails?.returnSerials ? (
+                      <p>Replacement Serial(s): <strong className="font-mono text-emerald-800">{bDetails.returnSerials}</strong></p>
+                    ) : null}
+                  </div>
+
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Inspection / Confirmation Remarks (Optional)
+                    </span>
+                    <textarea
+                      className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                      disabled={isSubmittingConfirmReturn}
+                      onChange={(e) => setConfirmReturnRemarks(e.target.value)}
+                      placeholder="e.g. Received in good order and verified serial number..."
+                      value={confirmReturnRemarks}
+                    />
+                  </label>
+                </div>
+
+                <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+                  <button
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                    disabled={isSubmittingConfirmReturn}
+                    onClick={() => {
+                      setShowConfirmReturnModal(false)
+                      setConfirmReturnTarget(null)
+                    }}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition disabled:opacity-50"
+                    disabled={isSubmittingConfirmReturn}
+                    type="submit"
+                  >
+                    {isSubmittingConfirmReturn ? "Processing..." : "Kumpirmahin na Natanggap (Nasoli Na)"}
+                  </button>
+                </footer>
+              </form>
+            </div>
+          </div>
+        );
+      })() : null}
+
+      {/* Modal 3: Initiate Purchase (Babayaran Nalang Request) */}
+      {showInitiatePurchaseModal && initiatePurchaseTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-700">
-                  Stock Borrow Settlement
+                  Step 1: Babayaran Nalang
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
-                  Babayaran Nalang: {purchaseBorrowTarget.transferCode}
+                  Convert to Purchase: {initiatePurchaseTarget.transferCode}
                 </h3>
               </div>
               <button
                 aria-label="Close"
                 className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-                disabled={isSubmittingPurchaseBorrow}
+                disabled={isSubmittingInitiatePurchase}
                 onClick={() => {
-                  setShowPurchaseBorrowModal(false)
-                  setPurchaseBorrowTarget(null)
+                  setShowInitiatePurchaseModal(false)
+                  setInitiatePurchaseTarget(null)
                 }}
                 type="button"
               >
@@ -1651,22 +2219,18 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               </button>
             </header>
 
-            <form onSubmit={handleConfirmPurchaseBorrow}>
+            <form onSubmit={handleConfirmInitiatePurchase}>
               <div className="p-5 space-y-4 text-xs">
                 <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-blue-900 space-y-1">
-                  <p className="font-bold text-xs">Convert Borrow to Purchase / Payable</p>
+                  <p className="font-bold text-xs">Humiling na Bayaran Nalang ang Hiniram na Stock</p>
                   <p className="text-[11px] text-blue-800">
-                    Confirm that the borrowed item(s) will NOT be returned to the source branch. Destination branch will retain the stock, and it will be settled/paid between branches.
+                    Hindi na isasauli ang stock. Magpapadala ang source branch ng amount na kailangang bayaran at mga payment instructions.
                   </p>
-                  <div className="pt-1 flex items-center gap-4 text-[11px] font-semibold text-slate-700">
-                    <span>Source (Creditor): <strong className="text-slate-900">{purchaseBorrowTarget.fromBranch?.name || purchaseBorrowTarget.fromBranch?.code}</strong></span>
-                    <span>Destination (Buyer): <strong className="text-slate-900">{purchaseBorrowTarget.toBranch?.name || purchaseBorrowTarget.toBranch?.code}</strong></span>
-                  </div>
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-1.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Items Retained</p>
-                  {(purchaseBorrowTarget.items || []).map((it) => (
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Items to Purchase</p>
+                  {(initiatePurchaseTarget.items || []).map((it) => (
                     <div key={it.id} className="flex justify-between items-center text-[11px] font-medium text-slate-800">
                       <span>{it.item?.itemName || it.description || "Item"}</span>
                       <span className="font-mono font-bold">Qty {it.quantity}</span>
@@ -1676,14 +2240,14 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Reason / Purchase Remarks (Optional)
+                    Remarks / Reason for Purchase (Optional)
                   </span>
                   <textarea
                     className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                    disabled={isSubmittingPurchaseBorrow}
-                    onChange={(e) => setPurchaseBorrowRemarks(e.target.value)}
-                    placeholder="e.g. Sold directly to customer, or destination branch decided to permanently retain stock..."
-                    value={purchaseBorrowRemarks}
+                    disabled={isSubmittingInitiatePurchase}
+                    onChange={(e) => setInitiatePurchaseRemarks(e.target.value)}
+                    placeholder="e.g. Decided to keep stock for customer repair..."
+                    value={initiatePurchaseRemarks}
                   />
                 </label>
               </div>
@@ -1691,10 +2255,10 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
                 <button
                   className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
-                  disabled={isSubmittingPurchaseBorrow}
+                  disabled={isSubmittingInitiatePurchase}
                   onClick={() => {
-                    setShowPurchaseBorrowModal(false)
-                    setPurchaseBorrowTarget(null)
+                    setShowInitiatePurchaseModal(false)
+                    setInitiatePurchaseTarget(null)
                   }}
                   type="button"
                 >
@@ -1702,16 +2266,341 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 </button>
                 <button
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-blue-800 transition disabled:opacity-50"
-                  disabled={isSubmittingPurchaseBorrow}
+                  disabled={isSubmittingInitiatePurchase}
                   type="submit"
                 >
-                  {isSubmittingPurchaseBorrow ? "Processing..." : "Confirm Babayaran Nalang"}
+                  {isSubmittingInitiatePurchase ? "Processing..." : "I-send ang Request (Babayaran Nalang)"}
                 </button>
               </footer>
             </form>
           </div>
         </div>
       ) : null}
+
+      {/* Modal 4: Set Billing Amount (Source Branch Sets Amount) */}
+      {showSetBillingModal && setBillingTarget ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-700">
+                  Step 2: I-set ang Babayaran (Billing)
+                </span>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Set Billing Amount: {setBillingTarget.transferCode}
+                </h3>
+              </div>
+              <button
+                aria-label="Close"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                disabled={isSubmittingSetBilling}
+                onClick={() => {
+                  setShowSetBillingModal(false)
+                  setSetBillingTarget(null)
+                }}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </header>
+
+            <form onSubmit={handleConfirmSetBilling}>
+              <div className="p-5 space-y-4 text-xs">
+                <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-blue-900 space-y-1">
+                  <p className="font-bold text-xs">Ipadala ang Halaga na Babayaran</p>
+                  <p className="text-[11px] text-blue-800">
+                    Bilang nagbigay ng stock, i-input ang eksaktong halaga na dapat bayaran ng kabilang branch at payment instructions (e.g. GCash number o account).
+                  </p>
+                </div>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Halaga na Babayaran (₱) *
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingSetBilling}
+                    min="0"
+                    onChange={(e) => setBillingAmountInput(e.target.value)}
+                    placeholder="0.00"
+                    required
+                    step="0.01"
+                    type="number"
+                    value={billingAmountInput}
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Instruksyon sa Pagbabayad (Optional)
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingSetBilling}
+                    onChange={(e) => setBillingInstructionsInput(e.target.value)}
+                    placeholder="e.g. GCash: 0917-xxx-xxxx o Cash Turnover sa opisina"
+                    type="text"
+                    value={billingInstructionsInput}
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Remarks / Billing Note (Optional)
+                  </span>
+                  <textarea
+                    className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingSetBilling}
+                    onChange={(e) => setBillingRemarksInput(e.target.value)}
+                    placeholder="Additional notes para sa kabilang branch..."
+                    value={billingRemarksInput}
+                  />
+                </label>
+              </div>
+
+              <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+                <button
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                  disabled={isSubmittingSetBilling}
+                  onClick={() => {
+                    setShowSetBillingModal(false)
+                    setSetBillingTarget(null)
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-blue-800 transition disabled:opacity-50"
+                  disabled={isSubmittingSetBilling}
+                  type="submit"
+                >
+                  {isSubmittingSetBilling ? "Processing..." : "I-send ang Halaga (Billing)"}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal 5: Pay Borrowed Stock (Borrower Submits Payment) */}
+      {showPayBorrowModal && payBorrowTarget ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-700">
+                  Step 3: Magbayad (Pay Stock)
+                </span>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Payment for: {payBorrowTarget.transferCode}
+                </h3>
+              </div>
+              <button
+                aria-label="Close"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                disabled={isSubmittingPayBorrow}
+                onClick={() => {
+                  setShowPayBorrowModal(false)
+                  setPayBorrowTarget(null)
+                }}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </header>
+
+            <form onSubmit={handleConfirmPayBorrow}>
+              <div className="p-5 space-y-4 text-xs">
+                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-900 space-y-1">
+                  <p className="font-bold text-xs">Magbayad sa Source Branch</p>
+                  <p className="text-[11px] text-amber-800">
+                    I-record ang mode ng payment (Cash, GCash, Bank Transfer) at reference number kung mayroon.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Amount to Pay (₱) *
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
+                      disabled={isSubmittingPayBorrow}
+                      min="0"
+                      onChange={(e) => setPayAmountInput(e.target.value)}
+                      required
+                      step="0.01"
+                      type="number"
+                      value={payAmountInput}
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Mode of Payment *
+                    </span>
+                    <select
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                      disabled={isSubmittingPayBorrow}
+                      onChange={(e) => setPayMethodInput(e.target.value)}
+                      value={payMethodInput}
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="GCASH">GCash</option>
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="OTHER">Others</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Reference / Transaction No. (Kung GCash o Bank)
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingPayBorrow}
+                    onChange={(e) => setPayRefInput(e.target.value)}
+                    placeholder="e.g. GCash Ref 1002938192 o Deposit Slip #"
+                    type="text"
+                    value={payRefInput}
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Payment Remarks / Notes (Optional)
+                  </span>
+                  <textarea
+                    className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingPayBorrow}
+                    onChange={(e) => setPayRemarksInput(e.target.value)}
+                    placeholder="Notes..."
+                    value={payRemarksInput}
+                  />
+                </label>
+              </div>
+
+              <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+                <button
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                  disabled={isSubmittingPayBorrow}
+                  onClick={() => {
+                    setShowPayBorrowModal(false)
+                    setPayBorrowTarget(null)
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 transition disabled:opacity-50"
+                  disabled={isSubmittingPayBorrow}
+                  type="submit"
+                >
+                  {isSubmittingPayBorrow ? "Processing..." : "I-submit ang Bayad"}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal 6: Confirm Payment Received (Source Branch Confirms) */}
+      {showConfirmPaymentModal && confirmPaymentTarget ? (() => {
+        const bDetails = getBorrowDetails(confirmPaymentTarget);
+        return (
+          <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+            <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+                <div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
+                    Step 4: Kumpirmahin ang Bayad
+                  </span>
+                  <h3 className="text-base font-black text-slate-900 leading-tight">
+                    Confirm Payment: {confirmPaymentTarget.transferCode}
+                  </h3>
+                </div>
+                <button
+                  aria-label="Close"
+                  className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                  disabled={isSubmittingConfirmPayment}
+                  onClick={() => {
+                    setShowConfirmPaymentModal(false)
+                    setConfirmPaymentTarget(null)
+                  }}
+                  type="button"
+                >
+                  <X size={16} />
+                </button>
+              </header>
+
+              <form onSubmit={handleConfirmConfirmPayment}>
+                <div className="p-5 space-y-4 text-xs">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-emerald-900 space-y-1">
+                    <p className="font-bold text-xs">Kumpirmahin na Natanggap ang Bayad</p>
+                    <p className="text-[11px] text-emerald-800">
+                      Tingnan ang detalye ng bayad sa ibaba. Kapag kinumpirma mo na natanggap mo na ito, makukumpleto ang buong transaksyon bilang BABAYARAN NALANG (Paid & Completed).
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2 text-[11px]">
+                    <div className="flex justify-between items-center font-bold text-slate-900">
+                      <span>Halagang Ibinayad:</span>
+                      <span className="text-base font-mono font-black text-emerald-700">₱{Number(bDetails?.paidAmount || bDetails?.billingAmount || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span>Mode of Payment:</span>
+                      <span className="font-bold text-slate-800">{bDetails?.paidMethod || "CASH"}</span>
+                    </div>
+                    {bDetails?.paidRef ? (
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span>Reference No:</span>
+                        <span className="font-mono font-bold text-slate-800">{bDetails.paidRef}</span>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Confirmation Remarks (Optional)
+                    </span>
+                    <textarea
+                      className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                      disabled={isSubmittingConfirmPayment}
+                      onChange={(e) => setConfirmPaymentRemarks(e.target.value)}
+                      placeholder="e.g. Payment verified in GCash account / cash accepted..."
+                      value={confirmPaymentRemarks}
+                    />
+                  </label>
+                </div>
+
+                <footer className="flex items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+                  <button
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                    disabled={isSubmittingConfirmPayment}
+                    onClick={() => {
+                      setShowConfirmPaymentModal(false)
+                      setConfirmPaymentTarget(null)
+                    }}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition disabled:opacity-50"
+                    disabled={isSubmittingConfirmPayment}
+                    type="submit"
+                  >
+                    {isSubmittingConfirmPayment ? "Processing..." : "Kumpirmahin ang Bayad (Complete Transaction)"}
+                  </button>
+                </footer>
+              </form>
+            </div>
+          </div>
+        );
+      })() : null}
     </div>
   )
 }
