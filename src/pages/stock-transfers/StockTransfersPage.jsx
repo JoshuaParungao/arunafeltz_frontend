@@ -97,39 +97,47 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
   const fulfillmentMethod = transfer?.fulfillmentMethod
   const fulfillmentReference = transfer?.fulfillmentReference
 
-  if (fulfillmentStatus === "IN_TRANSIT" && status !== "CANCELLED") {
-    if (fulfillmentMethod === "PICKUP") {
+  // Active Dispatch / In-Progress States
+  if ((fulfillmentStatus === "IN_TRANSIT" || fulfillmentStatus === "READY_FOR_PICKUP") && status !== "CANCELLED" && status !== "POSTED") {
+    if (fulfillmentMethod === "PICKUP" || fulfillmentStatus === "READY_FOR_PICKUP") {
       return (
         <span
           className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2.5 py-0.5 text-xs font-black text-amber-800 shadow-2xs"
-          title={fulfillmentReference ? `Pick up: ${fulfillmentReference}` : "Pick up in progress"}
+          title={fulfillmentReference ? `Ready for pick up by: ${fulfillmentReference}` : "Ready for pick up"}
         >
-          <PackageCheck size={12} /> Transfer Out (Pick up in Progress)
+          <PackageCheck size={12} className="text-amber-600" /> Transfer Out (Ready for Pick up)
         </span>
       )
     }
     return (
       <span
-        className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2.5 py-0.5 text-xs font-black text-sky-800 shadow-2xs"
-        title={fulfillmentReference ? `Delivery: ${fulfillmentReference}` : "Out for delivery"}
+        className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-300 px-2.5 py-0.5 text-xs font-black text-sky-800 shadow-2xs"
+        title={fulfillmentReference ? `Out for delivery via: ${fulfillmentReference}` : "Out for delivery"}
       >
-        <Truck size={12} /> Transfer Out (Out for Delivery)
+        <Truck size={12} className="text-sky-600" /> Transfer Out (Out for Delivery)
       </span>
     )
   }
 
-  if (status === "APPROVED" && fulfillmentStatus !== "IN_TRANSIT") {
+  if (status === "APPROVED" && fulfillmentStatus !== "IN_TRANSIT" && fulfillmentStatus !== "READY_FOR_PICKUP") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-black text-blue-800 shadow-2xs">
-        <Clock size={12} /> For Transfer Out
+        <Clock size={12} className="text-blue-600" /> For Transfer Out
       </span>
     )
   }
 
   if (status === "POSTED" || fulfillmentStatus === "RECEIVED") {
+    if (fulfillmentMethod === "PICKUP") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 text-xs font-black text-emerald-800 shadow-2xs">
+          <CheckCircle2 size={12} className="text-emerald-600" /> Transferred In (Claimed)
+        </span>
+      )
+    }
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-black text-emerald-800 shadow-2xs">
-        <CheckCircle2 size={12} /> Transferred In
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 text-xs font-black text-emerald-800 shadow-2xs">
+        <CheckCircle2 size={12} className="text-emerald-600" /> Transferred In (Received)
       </span>
     )
   }
@@ -307,7 +315,8 @@ function ActionButtons({
   const isSourceManager = isSuperOwner || transfer.fromBranchId === user?.branchId
   const isDestinationManager = isSuperOwner || transfer.toBranchId === user?.branchId
   const isLinkedManager = isSourceManager || isDestinationManager
-  const isInTransit = transfer.fulfillmentStatus === "IN_TRANSIT"
+  const isReadyForPickup = transfer.fulfillmentStatus === "READY_FOR_PICKUP"
+  const isInTransit = transfer.fulfillmentStatus === "IN_TRANSIT" || isReadyForPickup
   const isTerminal = ["POSTED", "REJECTED", "CANCELLED"].includes(transfer.status)
   const isTransferredIn = ["POSTED"].includes(transfer.status) || transfer.fulfillmentStatus === "RECEIVED" || Boolean(transfer.receivedAt)
   const isBorrow = isBorrowTransfer(transfer)
@@ -437,9 +446,27 @@ function ActionButtons({
         </button>
       ) : null}
       {isDestinationManager && isInTransit ? (
-        <button className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition" disabled={busy} onClick={() => onReceive(transfer)} type="button">
-          <PackageCheck size={13} /> Receive Stock (Transfer In)
-        </button>
+        transfer.fulfillmentMethod === "PICKUP" || isReadyForPickup ? (
+          <button
+            className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition"
+            disabled={busy}
+            onClick={() => onReceive(transfer)}
+            type="button"
+            title="Kumpirmahin na na-claim o nakuha na ang stock mula sa source branch"
+          >
+            <PackageCheck size={13} /> Confirm Claimed (Na-claim Na)
+          </button>
+        ) : (
+          <button
+            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition"
+            disabled={busy}
+            onClick={() => onReceive(transfer)}
+            type="button"
+            title="Kumpirmahin na natanggap na ang delivery sa inyong branch"
+          >
+            <PackageCheck size={13} /> Confirm Received (Natanggap Na)
+          </button>
+        )
       ) : null}
       {isLinkedManager && !isTerminal && !isInTransit ? (
         <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition" disabled={busy} onClick={() => onAction(transfer, "CANCELLED")} type="button">
@@ -1038,8 +1065,11 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
     try {
       const response = await receiveStockTransfer(receiveModalTransfer.id, {})
+      const isPickupClaim = receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP";
       setSuccessMessage(
-        `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully received and confirmed. Stock has been added to your branch inventory.`
+        isPickupClaim
+          ? `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully claimed for branch pickup. Stock has been added to your branch inventory.`
+          : `${response?.data?.transferCode || receiveModalTransfer.transferCode} successfully received from delivery. Stock has been added to your branch inventory.`
       )
       setIsReceiveModalOpen(false)
       setReceiveModalTransfer(null)
@@ -1616,7 +1646,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     </div>
                     <p className="mt-0.5 text-[11px] text-slate-500">{transfer.fromBranch?.code || "—"} → {transfer.toBranch?.code || "—"}</p>
                   </div>
-                  <StatusBadge status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} />
+                  <StatusBadge transfer={transfer} status={transfer.status} fulfillmentStatus={transfer.fulfillmentStatus} />
                 </div>
                 <p className="mt-2 text-[11px] text-slate-500">{transfer.items?.length || 0} line(s) · {formatDate(transfer.requestedAt || transfer.transferDate)}</p>
                 <div className="mt-3">
@@ -1920,7 +1950,12 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     onView={() => {}}
                     onReceive={handleOpenReceive}
                     onPrintLoanSlip={handleOpenLoanSlip}
-                    onReturnBorrow={handleOpenReturnBorrow}
+                    onInitiateReturn={handleOpenInitiateReturn}
+                    onConfirmReturn={handleOpenConfirmReturn}
+                    onInitiatePurchase={handleOpenInitiatePurchase}
+                    onSetBilling={handleOpenSetBilling}
+                    onPayBorrow={handleOpenPayBorrow}
+                    onConfirmPayment={handleOpenConfirmPayment}
                   />
                 </div>
               </div>
@@ -1946,16 +1981,311 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         transferCode={serialModalTransfer?.transferCode || ""}
       />
 
+      {/* Modal 0: Transfer Out (Delivery vs Pick up & Serials) Modal */}
+      {showTransferOutModal && transferOutTarget ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
+          <div className="my-auto w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-700">
+                  Step 2: Fill out Serials & Choose Next Action (Delivery o Pick up)
+                </span>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Transfer Out (Dispatch): {transferOutTarget.transferCode}
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Route: <strong>{transferOutTarget.fromBranch?.name || transferOutTarget.fromBranch?.code || "Source"}</strong> ➔ <strong>{transferOutTarget.toBranch?.name || transferOutTarget.toBranch?.code || "Destination"}</strong>
+                </p>
+              </div>
+              <button
+                aria-label="Close"
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                disabled={isSubmittingTransferOut}
+                onClick={() => {
+                  setShowTransferOutModal(false)
+                  setTransferOutTarget(null)
+                }}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </header>
+
+            <form onSubmit={handleConfirmTransferOut}>
+              <div className="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+                {/* Step 1: Serials or Non-serialized Items Summary */}
+                {transferOutItems.length > 0 ? (
+                  <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
+                        Step 1: Serial Number Assignment (Kailangan bago i-dispatch)
+                      </p>
+                    </div>
+
+                    {transferOutItems.map((line) => {
+                      const selected = transferOutSelectedSerials[line.stockTransferItemId] || []
+                      const available = line.availableSerials || []
+                      return (
+                        <div key={line.stockTransferItemId} className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-bold text-slate-900">{line.itemName}</span>
+                              {line.itemCode ? <span className="ml-1 text-[10px] text-slate-500 font-mono">({line.itemCode})</span> : null}
+                            </div>
+                            <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                              selected.length === line.requiredQuantity
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                : "bg-amber-100 text-amber-800 border border-amber-300"
+                            }`}>
+                              Selected: {selected.length} / {line.requiredQuantity}
+                            </span>
+                          </div>
+
+                          {available.length === 0 ? (
+                            <p className="text-[11px] text-rose-600 italic">
+                              Walang available na serial number sa source branch para sa item na ito.
+                            </p>
+                          ) : (
+                            <div>
+                              <p className="text-[10px] font-semibold text-slate-500 mb-1">
+                                I-click ang serial number na ipapadala:
+                              </p>
+                              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1">
+                                {available.map((s) => {
+                                  const isChecked = selected.includes(s.id)
+                                  return (
+                                    <button
+                                      key={s.id}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isChecked) {
+                                          setTransferOutSelectedSerials((prev) => ({
+                                            ...prev,
+                                            [line.stockTransferItemId]: (prev[line.stockTransferItemId] || []).filter((id) => id !== s.id),
+                                          }))
+                                        } else {
+                                          if (selected.length >= line.requiredQuantity) {
+                                            return
+                                          }
+                                          setTransferOutSelectedSerials((prev) => ({
+                                            ...prev,
+                                            [line.stockTransferItemId]: [...(prev[line.stockTransferItemId] || []), s.id],
+                                          }))
+                                        }
+                                      }}
+                                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 font-mono text-[11px] font-bold border transition ${
+                                        isChecked
+                                          ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+                                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {isChecked ? <Check size={11} /> : null}
+                                      {s.serialNumber}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-slate-700 text-xs space-y-1">
+                    <p className="font-bold text-[11px] text-slate-900 uppercase tracking-wider">Step 1: Items to Transfer Out</p>
+                    <p className="text-[11px] text-slate-600">Lahat ng items sa transfer na ito ay non-serialized. Handa na para sa susunod na aksyon.</p>
+                    <div className="mt-2 space-y-1">
+                      {(transferOutTarget.items || []).map((item) => (
+                        <div key={item.id} className="flex justify-between items-center bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
+                          <span className="font-medium text-slate-800">{item.item?.itemName || item.description || "Item"}</span>
+                          <span className="font-mono font-bold text-slate-900">Qty: {Number(item.quantity || 0)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Next Action: Delivery vs Pick up */}
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
+                    Step 2: Susunod na Aksyon (Next Action: Delivery o Pick up) *
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTransferOutMethod("DELIVERY")}
+                      className={`flex flex-col items-start p-3 rounded-xl border text-left transition ${
+                        transferOutMethod === "DELIVERY"
+                          ? "border-sky-500 bg-sky-50/80 text-sky-950 ring-2 ring-sky-400/40"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <Truck size={15} className={transferOutMethod === "DELIVERY" ? "text-sky-700" : "text-slate-500"} />
+                        <span>🚚 Delivery (Out for Delivery)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Ipapadala gamit ang courier, in-house driver, o delivery service. Magiging Out for Delivery ang status.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTransferOutMethod("PICKUP")}
+                      className={`flex flex-col items-start p-3 rounded-xl border text-left transition ${
+                        transferOutMethod === "PICKUP"
+                          ? "border-amber-500 bg-amber-50/80 text-amber-950 ring-2 ring-amber-400/40"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <PackageCheck size={15} className={transferOutMethod === "PICKUP" ? "text-amber-700" : "text-slate-500"} />
+                        <span>🏢 Pick up (Branch Pick up)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Kukunin o pi-pickup-in ng staff mula sa kabilang branch. Magiging Ready for Pick up ang status.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Conditional Fields based on method */}
+                {transferOutMethod === "DELIVERY" ? (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3.5 space-y-3">
+                    <p className="font-bold text-[11px] text-sky-900">Delivery Details</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
+                          Courier / Driver Name
+                        </span>
+                        <input
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
+                          disabled={isSubmittingTransferOut}
+                          onChange={(e) => setTransferOutCourier(e.target.value)}
+                          placeholder="e.g. Lalamove / Driver Mark"
+                          type="text"
+                          value={transferOutCourier}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
+                          Tracking No. / Contact Phone / Plate No.
+                        </span>
+                        <input
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
+                          disabled={isSubmittingTransferOut}
+                          onChange={(e) => setTransferOutTrackingNo(e.target.value)}
+                          placeholder="e.g. 0917-xxx-xxxx / Plate # ABC-1234"
+                          type="text"
+                          value={transferOutTrackingNo}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 space-y-3">
+                    <p className="font-bold text-[11px] text-amber-900">Branch Pick up Details</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
+                          Authorized Person / Staff Name
+                        </span>
+                        <input
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
+                          disabled={isSubmittingTransferOut}
+                          onChange={(e) => setTransferOutPickupPerson(e.target.value)}
+                          placeholder="e.g. Staff John mula sa Destination Branch"
+                          type="text"
+                          value={transferOutPickupPerson}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
+                          Contact / Vehicle Info (Optional)
+                        </span>
+                        <input
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
+                          disabled={isSubmittingTransferOut}
+                          onChange={(e) => setTransferOutPickupContact(e.target.value)}
+                          placeholder="e.g. 0918-xxx-xxxx / Motor: Plate #123"
+                          type="text"
+                          value={transferOutPickupContact}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Remarks */}
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Dispatch Notes / Remarks (Optional)
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingTransferOut}
+                    onChange={(e) => setTransferOutRemarks(e.target.value)}
+                    placeholder="e.g. Iningatan ang packaging, handa na..."
+                    type="text"
+                    value={transferOutRemarks}
+                  />
+                </label>
+              </div>
+
+              <footer className="flex items-center justify-between border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+                <button
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                  disabled={isSubmittingTransferOut}
+                  onClick={() => {
+                    setShowTransferOutModal(false)
+                    setTransferOutTarget(null)
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-5 py-2 text-xs font-bold text-white shadow-2xs transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                    transferOutMethod === "DELIVERY"
+                      ? "bg-sky-600 hover:bg-sky-700"
+                      : "bg-amber-600 hover:bg-amber-700"
+                  }`}
+                  disabled={isSubmittingTransferOut}
+                  type="submit"
+                >
+                  {isSubmittingTransferOut ? (
+                    "Processing Transfer Out..."
+                  ) : transferOutMethod === "DELIVERY" ? (
+                    <>
+                      <Truck size={14} /> I-Transfer Out (Out for Delivery)
+                    </>
+                  ) : (
+                    <>
+                      <PackageCheck size={14} /> I-Transfer Out (Ready for Pick up)
+                    </>
+                  )}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       {isReceiveModalOpen && receiveModalTransfer ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
           <div className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
-                  Step 2 · Receive & Confirm
+                  {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
+                    ? "Step 2 · Pick up & Claim Acknowledgement"
+                    : "Step 2 · Delivery Receipt & Acknowledgement"}
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
-                  Receive Stock Transfer: {receiveModalTransfer.transferCode}
+                  {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
+                    ? `Confirm Claimed (Pick up): ${receiveModalTransfer.transferCode}`
+                    : `Confirm Received (Delivery): ${receiveModalTransfer.transferCode}`}
                 </h3>
               </div>
               <button
@@ -1973,16 +2303,39 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             </header>
 
             <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto text-xs">
-              <div className="rounded-xl border border-blue-100 bg-blue-50/75 p-3.5 text-slate-700 space-y-1">
-                <p className="font-bold text-blue-900">
-                  Verify Physical Stock & Serial Numbers
+              <div className={`rounded-xl border p-3.5 space-y-1 ${
+                receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
+                  ? "border-amber-200 bg-amber-50/75 text-amber-950"
+                  : "border-sky-200 bg-sky-50/75 text-sky-950"
+              }`}>
+                <p className="font-bold text-xs flex items-center gap-1.5">
+                  {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP" ? (
+                    <>
+                      <PackageCheck size={15} className="text-amber-700" />
+                      <span>Kumpirmahin ang Pag-Claim (Branch Pick up Acknowledgement)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Truck size={15} className="text-sky-700" />
+                      <span>Kumpirmahin ang Natanggap na Delivery (Delivery Receipt Acknowledgement)</span>
+                    </>
+                  )}
                 </p>
-                <p className="text-[11px] text-blue-800">
-                  Check that the items and serial numbers delivered to your branch match the dispatched list below. Once confirmed, stock will be immediately admitted to your branch inventory.
+                <p className="text-[11px] text-slate-700">
+                  {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
+                    ? "Pakisuri ang mga items at serial numbers na na-claim/nakuha ng inyong branch. Pagka-kumpirma, opisyal na itong maipapasok sa inventory ng inyong branch."
+                    : "Pakisuri ang mga items at serial numbers na naihatid ng delivery/courier. Pagka-kumpirma, opisyal na itong maipapasok sa inventory ng inyong branch."}
                 </p>
+                {receiveModalTransfer.fulfillmentReference ? (
+                  <div className="pt-1 text-[11px] font-mono font-semibold text-slate-800">
+                    {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
+                      ? `Authorized Staff / Contact: ${receiveModalTransfer.fulfillmentReference}`
+                      : `Courier / Tracking / Plate Reference: ${receiveModalTransfer.fulfillmentReference}`}
+                  </div>
+                ) : null}
                 <div className="pt-1 flex items-center gap-4 text-[11px] font-semibold text-slate-600">
-                  <span>From: <strong className="text-slate-900">{receiveModalTransfer.fromBranch?.name || receiveModalTransfer.fromBranch?.code}</strong></span>
-                  <span>To: <strong className="text-slate-900">{receiveModalTransfer.toBranch?.name || receiveModalTransfer.toBranch?.code}</strong></span>
+                  <span>Source (Galing sa): <strong className="text-slate-900">{receiveModalTransfer.fromBranch?.name || receiveModalTransfer.fromBranch?.code}</strong></span>
+                  <span>Destination (Tumatanggap): <strong className="text-slate-900">{receiveModalTransfer.toBranch?.name || receiveModalTransfer.toBranch?.code}</strong></span>
                 </div>
               </div>
 
@@ -2049,13 +2402,21 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 Cancel
               </button>
               <button
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-emerald-700 transition disabled:opacity-50"
+                className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-5 py-2 text-xs font-bold text-white shadow-2xs transition disabled:opacity-50 ${
+                  receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : "bg-emerald-600 hover:bg-emerald-700"
+                }`}
                 disabled={isReceiving}
                 onClick={handleConfirmReceive}
                 type="button"
               >
                 <PackageCheck size={15} />
-                {isReceiving ? "Confirming Receipt…" : "Confirm & Receive Stock"}
+                {isReceiving
+                  ? "Processing..."
+                  : receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
+                  ? "Kumpirmahin na Na-claim (Confirm Claimed)"
+                  : "Kumpirmahin na Natanggap (Confirm Received)"}
               </button>
             </footer>
           </div>
