@@ -957,9 +957,15 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
     try {
       const response = await updateStockTransferStatusById(transfer.id, payload)
-      setSuccessMessage(`${response?.data?.transferCode || transfer.transferCode} is ${nextStatus.toLowerCase()}.`)
-      if (selectedTransfer?.id === transfer.id) setSelectedTransfer(response?.data || null)
+      const updatedTransfer = response?.data || transfer
+      setSuccessMessage(`${updatedTransfer.transferCode || transfer.transferCode} is ${nextStatus.toLowerCase()}.`)
+      if (selectedTransfer?.id === transfer.id) setSelectedTransfer(updatedTransfer)
       await loadTransfers()
+
+      // When APPROVED: immediately open the fill-up / dispatch modal for the approver!
+      if (nextStatus === "APPROVED") {
+        await handleAction(updatedTransfer, "DISPATCH")
+      }
     } catch (error) {
       setErrorMessage(error?.response?.data?.error?.message || "Could not update stock transfer.")
     } finally {
