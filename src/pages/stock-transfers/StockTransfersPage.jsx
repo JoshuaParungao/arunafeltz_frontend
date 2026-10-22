@@ -4,6 +4,7 @@ import {
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
+  Camera,
   Check,
   CheckCircle2,
   Clock,
@@ -96,6 +97,58 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
   const fulfillmentStatus = fulfillmentStatusProp || transfer?.fulfillmentStatus
   const fulfillmentMethod = transfer?.fulfillmentMethod
   const fulfillmentReference = transfer?.fulfillmentReference
+  const isBorrow = isBorrowTransfer(transfer)
+  const borrowDetails = isBorrow ? getBorrowDetails(transfer) : null
+  const borrowStatus = borrowDetails?.status
+
+  // When transferred in & borrow is settled:
+  if (borrowStatus === "PURCHASED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-400 px-2.5 py-0.5 text-xs font-black text-emerald-900 shadow-2xs">
+        <CheckCircle2 size={12} className="text-emerald-700" /> PAID (Bayad Na)
+      </span>
+    )
+  }
+
+  if (borrowStatus === "RETURNED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-400 px-2.5 py-0.5 text-xs font-black text-emerald-900 shadow-2xs">
+        <CheckCircle2 size={12} className="text-emerald-700" /> RESOLVED (Nasoli Na)
+      </span>
+    )
+  }
+
+  if (borrowStatus === "RETURN_IN_TRANSIT") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-300 px-2.5 py-0.5 text-xs font-black text-sky-800 shadow-2xs">
+        <Truck size={12} className="text-sky-600" /> Return OTW (In Transit)
+      </span>
+    )
+  }
+
+  if (borrowStatus === "PAYMENT_SUBMITTED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-300 px-2.5 py-0.5 text-xs font-black text-blue-800 shadow-2xs">
+        <CreditCard size={12} className="text-blue-600" /> Payment For Confirmation
+      </span>
+    )
+  }
+
+  if (borrowStatus === "WAITING_PAYMENT") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2.5 py-0.5 text-xs font-black text-amber-800 shadow-2xs">
+        <Clock size={12} className="text-amber-600" /> Awaiting Payment
+      </span>
+    )
+  }
+
+  if (borrowStatus === "WAITING_AMOUNT") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-300 px-2.5 py-0.5 text-xs font-black text-purple-800 shadow-2xs">
+        <Clock size={12} className="text-purple-600" /> Awaiting Billing Amount
+      </span>
+    )
+  }
 
   // Active Dispatch / In-Progress States
   if ((fulfillmentStatus === "IN_TRANSIT" || fulfillmentStatus === "READY_FOR_PICKUP") && status !== "CANCELLED" && status !== "POSTED") {
@@ -105,7 +158,7 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
           className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2.5 py-0.5 text-xs font-black text-amber-800 shadow-2xs"
           title={fulfillmentReference ? `Ready for pick up by: ${fulfillmentReference}` : "Ready for pick up"}
         >
-          <PackageCheck size={12} className="text-amber-600" /> Transfer Out (Ready for Pick up)
+          <PackageCheck size={12} className="text-amber-600" /> WAITING TO PICK UP
         </span>
       )
     }
@@ -114,7 +167,7 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
         className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-300 px-2.5 py-0.5 text-xs font-black text-sky-800 shadow-2xs"
         title={fulfillmentReference ? `Out for delivery via: ${fulfillmentReference}` : "Out for delivery"}
       >
-        <Truck size={12} className="text-sky-600" /> Transfer Out (Out for Delivery)
+        <Truck size={12} className="text-sky-600" /> Transfer Out (OTW)
       </span>
     )
   }
@@ -128,6 +181,13 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
   }
 
   if (status === "POSTED" || fulfillmentStatus === "RECEIVED") {
+    if (isBorrow && (!borrowStatus || borrowStatus === "ON_BORROW")) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-300 px-2.5 py-0.5 text-xs font-black text-purple-900 shadow-2xs" title="Nasa destination branch na pero PENDING pa ang settlement (Soli o Bayad)">
+          <Clock size={12} className="text-purple-600" /> On Borrow (Pending Settlement)
+        </span>
+      )
+    }
     if (fulfillmentMethod === "PICKUP") {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 text-xs font-black text-emerald-800 shadow-2xs">
@@ -296,6 +356,132 @@ function BorrowBadge({ transfer }) {
   )
 }
 
+
+// Helper to compress image files to lightweight JPEG data URLs
+const compressImageFile = (file, maxWidth = 1000, quality = 0.7) => {
+  return new Promise((resolve) => {
+    if (!file) return resolve("")
+    const reader = new FileReader()
+    reader.onerror = () => resolve("")
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onerror = () => resolve("")
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
+        }
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        ctx.drawImage(img, 0, 0, width, height)
+        const dataUrl = canvas.toDataURL("image/jpeg", quality)
+        resolve(dataUrl)
+      }
+      img.src = e.target.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+function ProofPhotoUploader({ label, value, onChange, disabled }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-700 block">
+        {label}
+      </label>
+      {value ? (
+        <div className="relative inline-block border-2 border-emerald-400 rounded-xl overflow-hidden shadow-xs bg-slate-900">
+          <img src={value} alt="Proof preview" className="h-28 w-auto object-cover rounded-lg" />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange("")}
+            className="absolute top-1.5 right-1.5 bg-rose-600/90 hover:bg-rose-700 text-white p-1 rounded-full shadow-md transition"
+            title="Alisin ang Litrato"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      ) : (
+        <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-slate-300 hover:border-slate-400 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100/75 transition">
+          <div className="flex items-center gap-2 text-slate-600 text-xs font-semibold">
+            <Camera size={16} className="text-slate-500" />
+            <span>Kumuha ng Litrato (Camera) o Mag-upload ng Picture / Receipt</span>
+          </div>
+          <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG o Screenshot (Awtomatikong kino-compress)</span>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            disabled={disabled}
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                const compressed = await compressImageFile(file)
+                onChange(compressed)
+              }
+            }}
+          />
+        </label>
+      )}
+    </div>
+  )
+}
+
+function ImageViewerModal({ isOpen, onClose, imageUrl, title }) {
+  if (!isOpen || !imageUrl) return null
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4 backdrop-blur-xs">
+      <div className="relative max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+          <h4 className="text-xs font-bold text-slate-900">{title || "Proof Picture"}</h4>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+            type="button"
+          >
+            <X size={16} />
+          </button>
+        </header>
+        <div className="p-3 max-h-[80vh] flex items-center justify-center bg-slate-950">
+          <img src={imageUrl} alt={title || "Proof"} className="max-h-[75vh] w-auto max-w-full object-contain rounded-lg" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function getTransferProofs(transfer) {
+  const combined = `${transfer?.notes || ""} ${transfer?.internalNotes || ""}`
+  const dispatchProof = combined.match(/\[DISPATCH_PROOF:([^\]]+)\]/)?.[1] || null
+  const receiveProof = combined.match(/\[RECEIVE_PROOF:([^\]]+)\]/)?.[1] || null
+  const releaseProof = combined.match(/\[RELEASE_PROOF:([^\]]+)\]/)?.[1] || null
+  const paymentProof = combined.match(/\[PAYMENT_PROOF:([^\]]+)\]/)?.[1] || null
+  const returnDispatchProof = combined.match(/\[RETURN_DISPATCH_PROOF:([^\]]+)\]/)?.[1] || null
+  const returnReceiveProof = combined.match(/\[RETURN_RECEIVE_PROOF:([^\]]+)\]/)?.[1] || null
+  return {
+    dispatchProof,
+    receiveProof,
+    releaseProof,
+    paymentProof,
+    returnDispatchProof,
+    returnReceiveProof,
+    hasAny: Boolean(
+      dispatchProof ||
+      receiveProof ||
+      releaseProof ||
+      paymentProof ||
+      returnDispatchProof ||
+      returnReceiveProof
+    ),
+  }
+}
+
 function ActionButtons({
   transfer,
   user,
@@ -319,6 +505,7 @@ function ActionButtons({
   const isInTransit = transfer.fulfillmentStatus === "IN_TRANSIT" || isReadyForPickup
   const isTerminal = ["POSTED", "REJECTED", "CANCELLED"].includes(transfer.status)
   const isTransferredIn = ["POSTED"].includes(transfer.status) || transfer.fulfillmentStatus === "RECEIVED" || Boolean(transfer.receivedAt)
+  const proofs = getTransferProofs(transfer)
   const isBorrow = isBorrowTransfer(transfer)
   const borrowDetails = getBorrowDetails(transfer)
   const borrowStatus = borrowDetails?.status
@@ -517,9 +704,17 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
   const [transferOutPickupPerson, setTransferOutPickupPerson] = useState("")
   const [transferOutPickupContact, setTransferOutPickupContact] = useState("")
   const [transferOutRemarks, setTransferOutRemarks] = useState("")
-  const [transferOutItems, setTransferOutItems] = useState([]) // [{ stockTransferItemId, itemId, itemName, itemCode, requiredQuantity, availableSerials }]
-  const [transferOutSelectedSerials, setTransferOutSelectedSerials] = useState({}) // { [stockTransferItemId]: string[] (ids) }
+  const [transferOutProofPhoto, setTransferOutProofPhoto] = useState("")
+  const [transferOutItems, setTransferOutItems] = useState([])
+  const [transferOutSelectedSerials, setTransferOutSelectedSerials] = useState({})
   const [isSubmittingTransferOut, setIsSubmittingTransferOut] = useState(false)
+
+  // Lightbox for proof photos
+  const [activeProofView, setActiveProofView] = useState(null) // { url: string, title: string }
+  const [receiveProofPhoto, setReceiveProofPhoto] = useState("")
+  const [payBorrowProofPhoto, setPayBorrowProofPhoto] = useState("")
+  const [initiateReturnProofPhoto, setInitiateReturnProofPhoto] = useState("")
+  const [confirmReturnProofPhoto, setConfirmReturnProofPhoto] = useState("")
 
   const [showInitiateReturnModal, setShowInitiateReturnModal] = useState(false)
   const [initiateReturnTarget, setInitiateReturnTarget] = useState(null)
@@ -1052,6 +1247,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       const response = await getStockTransferById(transfer.id)
       const detail = response?.data || transfer
       setReceiveModalTransfer(detail)
+      setReceiveProofPhoto("")
       setIsReceiveModalOpen(true)
     } catch (error) {
       setErrorMessage(
@@ -1072,7 +1268,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     setSuccessMessage("")
 
     try {
-      const response = await receiveStockTransfer(receiveModalTransfer.id, {})
+      const response = await receiveStockTransfer(receiveModalTransfer.id, { ...(receiveProofPhoto ? { proofPhoto: receiveProofPhoto } : {}) })
       const isPickupClaim = receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP";
       const isSourceUser = user?.branchId === receiveModalTransfer.fromBranchId;
       setSuccessMessage(
@@ -1171,6 +1367,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       setTransferOutPickupPerson("")
       setTransferOutPickupContact("")
       setTransferOutRemarks(detail.notes || "")
+      setTransferOutProofPhoto("")
       setShowTransferOutModal(true)
     } catch (error) {
       setErrorMessage(
@@ -1220,6 +1417,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         fulfillmentMethod: transferOutMethod,
         ...(fulfillmentReference ? { fulfillmentReference } : {}),
         ...(transferOutRemarks.trim() ? { notes: transferOutRemarks.trim() } : {}),
+        ...(transferOutProofPhoto ? { proofPhoto: transferOutProofPhoto } : {}),
         ...(itemsPayload.length > 0 ? { items: itemsPayload } : {}),
       }
 
@@ -1945,6 +2143,76 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   </button>
                 ) : null}
 
+                {/* Proof Photos Gallery Card */}
+                {(() => {
+                  const proofs = getTransferProofs(selectedTransfer)
+                  if (!proofs.hasAny) return null
+                  return (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                        <Camera size={14} className="text-[var(--color-maroon)]" />
+                        Mga Katibayan at Resibo (Proof Photos & Receipts)
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                        {proofs.dispatchProof && (
+                          <div
+                            onClick={() => setActiveProofView({ url: proofs.dispatchProof, title: "Proof of Dispatch (Waybill / Delivery)" })}
+                            className="group cursor-pointer rounded-xl border border-sky-200 bg-white p-2 shadow-2xs hover:shadow-md transition text-center"
+                          >
+                            <img src={proofs.dispatchProof} alt="Dispatch Proof" className="h-20 w-full object-cover rounded-lg group-hover:opacity-90" />
+                            <p className="text-[10px] font-bold text-sky-800 mt-1 truncate">🚚 Dispatch Proof</p>
+                          </div>
+                        )}
+                        {proofs.releaseProof && (
+                          <div
+                            onClick={() => setActiveProofView({ url: proofs.releaseProof, title: "Proof of Release / Pickup" })}
+                            className="group cursor-pointer rounded-xl border border-amber-200 bg-white p-2 shadow-2xs hover:shadow-md transition text-center"
+                          >
+                            <img src={proofs.releaseProof} alt="Release Proof" className="h-20 w-full object-cover rounded-lg group-hover:opacity-90" />
+                            <p className="text-[10px] font-bold text-amber-800 mt-1 truncate">🏢 Release Proof</p>
+                          </div>
+                        )}
+                        {proofs.receiveProof && (
+                          <div
+                            onClick={() => setActiveProofView({ url: proofs.receiveProof, title: "Proof of Received Items" })}
+                            className="group cursor-pointer rounded-xl border border-emerald-200 bg-white p-2 shadow-2xs hover:shadow-md transition text-center"
+                          >
+                            <img src={proofs.receiveProof} alt="Receive Proof" className="h-20 w-full object-cover rounded-lg group-hover:opacity-90" />
+                            <p className="text-[10px] font-bold text-emerald-800 mt-1 truncate">📦 Receive Proof</p>
+                          </div>
+                        )}
+                        {proofs.paymentProof && (
+                          <div
+                            onClick={() => setActiveProofView({ url: proofs.paymentProof, title: "Proof of Payment (Receipt / Screenshot)" })}
+                            className="group cursor-pointer rounded-xl border border-purple-200 bg-white p-2 shadow-2xs hover:shadow-md transition text-center"
+                          >
+                            <img src={proofs.paymentProof} alt="Payment Proof" className="h-20 w-full object-cover rounded-lg group-hover:opacity-90" />
+                            <p className="text-[10px] font-bold text-purple-800 mt-1 truncate">💳 Payment Receipt</p>
+                          </div>
+                        )}
+                        {proofs.returnDispatchProof && (
+                          <div
+                            onClick={() => setActiveProofView({ url: proofs.returnDispatchProof, title: "Proof of Return Dispatch" })}
+                            className="group cursor-pointer rounded-xl border border-indigo-200 bg-white p-2 shadow-2xs hover:shadow-md transition text-center"
+                          >
+                            <img src={proofs.returnDispatchProof} alt="Return Dispatch Proof" className="h-20 w-full object-cover rounded-lg group-hover:opacity-90" />
+                            <p className="text-[10px] font-bold text-indigo-800 mt-1 truncate">🔄 Return Dispatch</p>
+                          </div>
+                        )}
+                        {proofs.returnReceiveProof && (
+                          <div
+                            onClick={() => setActiveProofView({ url: proofs.returnReceiveProof, title: "Proof of Return Received" })}
+                            className="group cursor-pointer rounded-xl border border-emerald-200 bg-white p-2 shadow-2xs hover:shadow-md transition text-center"
+                          >
+                            <img src={proofs.returnReceiveProof} alt="Return Receive Proof" className="h-20 w-full object-cover rounded-lg group-hover:opacity-90" />
+                            <p className="text-[10px] font-bold text-emerald-800 mt-1 truncate">✅ Return Received</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
                   <p className="text-[10px] font-bold uppercase text-slate-500">Total Internal Transfer Value</p>
                   <p className="mt-0.5 font-mono font-black text-slate-900 text-sm">{formatMoney((selectedTransfer.items || []).reduce((sum, item) => sum + Number(item.transferAmount || 0), 0))}</p>
@@ -2230,6 +2498,18 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   </div>
                 )}
 
+                {/* Upload Proof Photo (Delivery / Waybill / Release Photo) */}
+                <ProofPhotoUploader
+                  label={
+                    transferOutMethod === "DELIVERY"
+                      ? "Litrato ng Patunay (Proof of Delivery / Waybill / Package Picture) *"
+                      : "Litrato ng Pag-Release / Claimant (Pick up Release Photo) *"
+                  }
+                  value={transferOutProofPhoto}
+                  onChange={setTransferOutProofPhoto}
+                  disabled={isSubmittingTransferOut}
+                />
+
                 {/* Remarks */}
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
@@ -2271,7 +2551,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     "Processing Transfer Out..."
                   ) : transferOutMethod === "DELIVERY" ? (
                     <>
-                      <Truck size={14} /> I-Transfer Out (Out for Delivery)
+                      <Truck size={14} /> Confirmed Sent (OTW)
                     </>
                   ) : (
                     <>
@@ -2356,6 +2636,41 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 </div>
               </div>
 
+              {/* View Source Dispatch Proof Photo if available */}
+              {(() => {
+                const proofs = getTransferProofs(receiveModalTransfer)
+                if (!proofs.dispatchProof && !proofs.releaseProof) return null
+                const proofImg = proofs.dispatchProof || proofs.releaseProof
+                return (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50/75 p-3 space-y-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-900 flex items-center gap-1">
+                      <Camera size={13} className="text-sky-700" />
+                      Katibayan mula sa Source Branch (Proof of Dispatch / Release):
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={proofImg}
+                        alt="Dispatch Proof"
+                        className="h-20 w-auto rounded-lg object-cover border border-sky-300 shadow-2xs cursor-pointer hover:opacity-90 transition"
+                        onClick={() => setActiveProofView({ url: proofImg, title: "Source Branch Proof of Dispatch" })}
+                      />
+                      <div className="text-[11px] text-slate-600">
+                        <p className="font-semibold text-slate-900">Na-upload ng nagpadala.</p>
+                        <p className="text-slate-500">I-click ang litrato upang palakihin.</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Upload Receiver Proof Photo */}
+              <ProofPhotoUploader
+                label="Litrato ng Natanggap na Items / Package Condition (Receive Proof Photo) *"
+                value={receiveProofPhoto}
+                onChange={setReceiveProofPhoto}
+                disabled={isReceiving}
+              />
+
               <div className="space-y-3">
                 {(receiveModalTransfer.items || []).map((item) => {
                   const dispatchedSerials = (item.serials || []).map(
@@ -2439,6 +2754,14 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
           </div>
         </div>
       ) : null}
+      {/* Proof Photo Lightbox Modal */}
+      <ImageViewerModal
+        isOpen={Boolean(activeProofView)}
+        imageUrl={activeProofView?.url}
+        title={activeProofView?.title}
+        onClose={() => setActiveProofView(null)}
+      />
+
       {/* Official 2-Copy Inter-Branch Stock Loan Slip */}
       <StockLoanSlipModal
         isOpen={showLoanSlipModal}
