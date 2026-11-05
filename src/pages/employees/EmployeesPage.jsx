@@ -1178,12 +1178,14 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           <select
                             value={incentiveForm.poolBasisAccountId}
                             disabled={!canManageIncentives}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const nextBasisId = e.target.value
                               setIncentiveForm((prev) => ({
                                 ...prev,
-                                poolBasisAccountId: e.target.value,
+                                poolBasisAccountId: nextBasisId,
+                                itemSaleEnabled: nextBasisId ? true : prev.itemSaleEnabled,
                               }))
-                            }
+                            }}
                             className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] disabled:opacity-60"
                           >
                             <option value="">— Select employee account as Branch Pool Sales Basis —</option>
