@@ -101,6 +101,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
   const [incentiveForm, setIncentiveForm] = useState({
     itemSaleEnabled: false,
     itemSaleRatePercent: "1",
+    poolBasisAccountId: "",
     soloSaleEnabled: false,
     soloSaleRatePercent: "2",
     ordinaryRepairEnabled: false,
@@ -127,6 +128,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
     setIncentiveForm({
       itemSaleEnabled: Boolean(config.itemEnabled ?? (staff.itemIncentivePercent > 0)),
       itemSaleRatePercent: String(config.itemRatePercent ?? (staff.itemIncentivePercent || "1")),
+      poolBasisAccountId: String(staff.poolBasisAccountId || config.poolBasisAccountId || ""),
       soloSaleEnabled: Boolean(config.soloSaleEnabled ?? (staff.soloIncentivePercent > 0)),
       soloSaleRatePercent: String(config.soloSaleRatePercent ?? (staff.soloIncentivePercent || "2")),
       ordinaryRepairEnabled: Boolean(config.ordinaryRepairEnabled ?? (staff.serviceIncentivePercent > 0)),
@@ -203,6 +205,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
     const payload = {
       itemEnabled: Boolean(incentiveForm.itemSaleEnabled),
       itemRatePercent: itemSale.value,
+      poolBasisAccountId: incentiveForm.poolBasisAccountId ? incentiveForm.poolBasisAccountId : null,
       soloSaleEnabled: Boolean(incentiveForm.soloSaleEnabled),
       soloSaleRatePercent: solo.value,
       ordinaryRepairEnabled: Boolean(incentiveForm.ordinaryRepairEnabled),
@@ -351,6 +354,8 @@ export default function EmployeesPage({ selectedBranch, user }) {
         ["Sales Revenue", (row) => peso(row.salesRevenue)],
         ["Solo Sales %", (row) => `${row.soloIncentivePercent ?? 0}%`],
         ["Solo Commission", (row) => peso(row.soloIncentiveAmount)],
+        ["Branch Pool %", (row) => `${row.itemIncentivePercent ?? 0}%`],
+        ["Branch Pool Commission", (row) => peso(row.itemPoolIncentiveAmount || 0)],
         ["Completed Services", (row) => number(row.completedServices)],
         ["Service Revenue", (row) => peso(row.serviceRevenue)],
         ["Service Commission", (row) => peso(row.serviceIncentiveAmount)],
@@ -367,6 +372,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
           ["Total Staff Count", number(records.length)],
           ["Total Sales Revenue", peso(totals.salesRevenue || 0)],
           ["Total Solo Commission", peso(totals.totalSoloIncentiveAmount || 0)],
+          ["Total Branch Pool Commission", peso(totals.totalItemPoolIncentiveAmount || 0)],
           ["Total Services Revenue", peso(totals.serviceRevenue || 0)],
           ["Total Service Commission", peso(totals.totalServiceIncentiveAmount || 0)],
           ["Total Combined Incentives", peso(totals.totalIncentiveAmount || 0)],
@@ -396,6 +402,8 @@ export default function EmployeesPage({ selectedBranch, user }) {
         ["Sales", (row) => `${number(row.completedSales)} (${peso(row.salesRevenue)})`],
         ["Solo %", (row) => `${row.soloIncentivePercent ?? 0}%`],
         ["Solo Comm.", (row) => peso(row.soloIncentiveAmount)],
+        ["Pool %", (row) => `${row.itemIncentivePercent ?? 0}%`],
+        ["Pool Comm.", (row) => peso(row.itemPoolIncentiveAmount || 0)],
         ["Services", (row) => `${number(row.completedServices)} (${peso(row.serviceRevenue)})`],
         ["Svc Comm.", (row) => peso(row.serviceIncentiveAmount)],
         ["Total Incentives", (row) => peso(row.totalIncentiveAmount)],
@@ -411,6 +419,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
           ["Total Staff Count", number(records.length)],
           ["Total Sales Revenue", peso(totals.salesRevenue || 0)],
           ["Total Solo Commission", peso(totals.totalSoloIncentiveAmount || 0)],
+          ["Total Branch Pool Commission", peso(totals.totalItemPoolIncentiveAmount || 0)],
           ["Total Services Revenue", peso(totals.serviceRevenue || 0)],
           ["Total Service Commission", peso(totals.totalServiceIncentiveAmount || 0)],
           ["Total Combined Incentives", peso(totals.totalIncentiveAmount || 0)],
@@ -648,7 +657,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
             {peso(totals.totalIncentiveAmount || 0)}
           </p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
-            Solo Sales: {peso(totals.totalSoloIncentiveAmount || 0)} · Svc: {peso(totals.totalServiceIncentiveAmount || 0)}
+            Solo: {peso(totals.totalSoloIncentiveAmount || 0)} · Pool: {peso(totals.totalItemPoolIncentiveAmount || 0)} · Svc: {peso(totals.totalServiceIncentiveAmount || 0)}
           </p>
         </div>
       </div>
@@ -758,7 +767,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
       {/* 4. Main Employee Directory & Performance Table */}
       <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-card">
         <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full min-w-[950px] text-left text-xs">
+          <table className="w-full min-w-[1050px] text-left text-xs">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-soft)] uppercase tracking-wider text-[var(--color-muted)] font-black">
               <tr>
                 <th className="px-5 py-4">Employee / Staff</th>
@@ -766,6 +775,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                 <th className="px-4 py-4 text-right">Total Sales</th>
                 <th className="px-4 py-4 text-center">Solo %</th>
                 <th className="px-4 py-4 text-right">Solo Commission</th>
+                <th className="px-4 py-4 text-right">Branch Pool</th>
                 <th className="px-4 py-4 text-right">Services Done</th>
                 <th className="px-4 py-4 text-right">Service Commission</th>
                 <th className="px-5 py-4 text-right">Total Incentives</th>
@@ -775,14 +785,14 @@ export default function EmployeesPage({ selectedBranch, user }) {
             <tbody className="divide-y divide-[var(--color-border)] font-medium">
               {isLoading ? (
                 <tr>
-                  <td className="px-5 py-12 text-center text-sm font-bold text-[var(--color-muted)]" colSpan={9}>
+                  <td className="px-5 py-12 text-center text-sm font-bold text-[var(--color-muted)]" colSpan={10}>
                     <RefreshCw className="mx-auto size-6 animate-spin text-[var(--color-maroon)]" />
                     <p className="mt-2">Loading employee performance records...</p>
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td className="px-5 py-12 text-center text-sm font-bold text-[var(--color-muted)]" colSpan={9}>
+                  <td className="px-5 py-12 text-center text-sm font-bold text-[var(--color-muted)]" colSpan={10}>
                     No employee performance records found for the selected filter.
                   </td>
                 </tr>
@@ -796,7 +806,14 @@ export default function EmployeesPage({ selectedBranch, user }) {
                           {staff.fullName ? staff.fullName.charAt(0).toUpperCase() : "U"}
                         </div>
                         <div>
-                          <p className="font-bold text-sm text-[var(--color-text-strong)]">{staff.fullName}</p>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <p className="font-bold text-sm text-[var(--color-text-strong)]">{staff.fullName}</p>
+                            {staff.isPoolBasisAccount ? (
+                              <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700">
+                                Pool Basis
+                              </span>
+                            ) : null}
+                          </div>
                           <p className="text-[11px] text-[var(--color-muted)]">
                             @{staff.username} {staff.employeeCode ? `· ${staff.employeeCode}` : ""}
                           </p>
@@ -830,6 +847,15 @@ export default function EmployeesPage({ selectedBranch, user }) {
                     {/* Solo Commission Amount */}
                     <td className="px-4 py-4 text-right">
                       <span className="font-black text-sm text-amber-800">{peso(staff.soloIncentiveAmount)}</span>
+                    </td>
+
+                    {/* Branch Pool Commission */}
+                    <td className="px-4 py-4 text-right">
+                      <p className="font-black text-sm text-indigo-800">{peso(staff.itemPoolIncentiveAmount || 0)}</p>
+                      <p className="text-[10px] text-indigo-600 font-bold">
+                        {staff.itemIncentivePercent ?? 0}%
+                        {staff.poolBasisAccount ? ` of @${staff.poolBasisAccount.username}` : " (No basis set)"}
+                      </p>
                     </td>
 
                     {/* Completed Services */}
@@ -904,7 +930,14 @@ export default function EmployeesPage({ selectedBranch, user }) {
                       {staff.fullName ? staff.fullName.charAt(0).toUpperCase() : "U"}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-bold text-sm text-[var(--color-text-strong)] truncate">{staff.fullName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-bold text-sm text-[var(--color-text-strong)] truncate">{staff.fullName}</p>
+                        {staff.isPoolBasisAccount ? (
+                          <span className="shrink-0 rounded-full bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[9px] font-black uppercase text-blue-700">
+                            Pool Basis
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="text-[10px] text-[var(--color-muted)]">
                         @{staff.username} {staff.employeeCode ? `· ${staff.employeeCode}` : ""}
                       </p>
@@ -926,11 +959,15 @@ export default function EmployeesPage({ selectedBranch, user }) {
                     <p className="font-black text-xs text-amber-800">{peso(staff.soloIncentiveAmount)}</p>
                   </div>
                   <div>
+                    <p className="text-[10px] font-bold uppercase text-[var(--color-muted)]">Branch Pool ({staff.itemIncentivePercent ?? 0}%)</p>
+                    <p className="font-black text-xs text-indigo-800">{peso(staff.itemPoolIncentiveAmount || 0)}</p>
+                  </div>
+                  <div>
                     <p className="text-[10px] font-bold uppercase text-[var(--color-muted)]">Services Done</p>
                     <p className="font-black text-xs text-[var(--color-text-strong)]">{peso(staff.serviceRevenue)}</p>
                     <p className="text-[10px] text-blue-700 font-bold">{number(staff.completedServices)} jobs</p>
                   </div>
-                  <div>
+                  <div className="col-span-2 pt-1 border-t border-[var(--color-border)] flex items-center justify-between">
                     <p className="text-[10px] font-bold uppercase text-[var(--color-muted)]">Total Incentives</p>
                     <p className="font-black text-sm text-[var(--color-maroon)]">{peso(staff.totalIncentiveAmount)}</p>
                   </div>
@@ -1076,54 +1113,133 @@ export default function EmployeesPage({ selectedBranch, user }) {
               {/* 5 Incentive Program Toggles */}
               <div className="space-y-3.5">
                 {/* 1. Branch / Store Item Sale Pool Incentive */}
-                <div className={`rounded-2xl border p-4 transition ${incentiveForm.itemSaleEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`grid size-9 shrink-0 place-items-center rounded-xl ${incentiveForm.itemSaleEnabled ? "bg-[var(--color-maroon)] text-white" : "bg-slate-200 text-slate-500"}`}>
-                        <Building2 size={18} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm text-[var(--color-text-strong)]">Branch Item Sale Pool Incentive</p>
-                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">Branch Pool</span>
+                {(() => {
+                  const branchStaffOptions = records.filter(
+                    (r) => !editingIncentiveStaff.branch?.id || r.branch?.id === editingIncentiveStaff.branch.id
+                  )
+                  if (
+                    editingIncentiveStaff.poolBasisAccount &&
+                    !branchStaffOptions.some((r) => r.id === editingIncentiveStaff.poolBasisAccount.id)
+                  ) {
+                    branchStaffOptions.unshift(editingIncentiveStaff.poolBasisAccount)
+                  }
+                  const selectedBasisStaff =
+                    branchStaffOptions.find((r) => r.id === incentiveForm.poolBasisAccountId) ||
+                    (editingIncentiveStaff.poolBasisAccount?.id === incentiveForm.poolBasisAccountId
+                      ? editingIncentiveStaff.poolBasisAccount
+                      : null)
+                  const basisSalesAmount = Number(selectedBasisStaff?.salesRevenue || 0)
+                  const shareRateNum = Number(incentiveForm.itemSaleRatePercent) || 0
+                  const previewPoolIncentive =
+                    selectedBasisStaff && shareRateNum > 0
+                      ? Math.round(((basisSalesAmount * shareRateNum) / 100) * 100) / 100
+                      : 0
+
+                  return (
+                    <div className={`rounded-2xl border p-4 transition ${incentiveForm.itemSaleEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className={`grid size-9 shrink-0 place-items-center rounded-xl ${incentiveForm.itemSaleEnabled ? "bg-[var(--color-maroon)] text-white" : "bg-slate-200 text-slate-500"}`}>
+                            <Building2 size={18} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-sm text-[var(--color-text-strong)]">Branch Item Sale Pool Incentive</p>
+                              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">Branch Pool</span>
+                            </div>
+                            <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                              Incentive share (%) computed from the total sales revenue of the selected Branch Pool Basis employee account.
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                          Incentive share (%) from overall branch item sales revenue across eligible price tiers (e.g. Price 1-3).
-                        </p>
+
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                          <input
+                            type="checkbox"
+                            checked={incentiveForm.itemSaleEnabled}
+                            onChange={(e) => setIncentiveForm((prev) => ({ ...prev, itemSaleEnabled: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-maroon)]"></div>
+                        </label>
+                      </div>
+
+                      <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 space-y-3">
+                        {/* Basis Employee Account Selector (Admin / Main Admin only) */}
+                        <div className="rounded-xl border border-blue-200/80 bg-blue-50/50 p-3 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <label className="text-xs font-black text-slate-800">
+                              Pool Basis Employee Account ({editingIncentiveStaff.branch?.code || "Branch"}):
+                            </label>
+                            <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                              Main Admin / Admin Setting
+                            </span>
+                          </div>
+                          <select
+                            value={incentiveForm.poolBasisAccountId}
+                            disabled={!canManageIncentives}
+                            onChange={(e) =>
+                              setIncentiveForm((prev) => ({
+                                ...prev,
+                                poolBasisAccountId: e.target.value,
+                              }))
+                            }
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] disabled:opacity-60"
+                          >
+                            <option value="">— Select employee account as Branch Pool Sales Basis —</option>
+                            {branchStaffOptions.map((emp) => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.fullName} (@{emp.username}) — Sales: {peso(emp.salesRevenue || 0)}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-[11px] text-slate-600">
+                            Ang sales ng mapipiling employee account dito ang magiging basehan (Branch Item Sale Pool) kung saan kukunin ang percentage (%) ng bawat employee sa branch na ito.
+                          </p>
+                        </div>
+
+                        {incentiveForm.itemSaleEnabled ? (
+                          <div className="space-y-2.5">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Pool Share Rate (%):</label>
+                              <div className="relative max-w-[140px]">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  max="100"
+                                  value={incentiveForm.itemSaleRatePercent}
+                                  onChange={(e) => setIncentiveForm((prev) => ({ ...prev, itemSaleRatePercent: e.target.value }))}
+                                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                                  placeholder="1.0"
+                                />
+                                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                              </div>
+                              <span className="text-[11px] text-slate-500 font-medium">
+                                of {selectedBasisStaff ? `${selectedBasisStaff.fullName}'s` : "selected basis account's"} sales revenue
+                              </span>
+                            </div>
+
+                            {selectedBasisStaff ? (
+                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs">
+                                <span className="font-semibold text-emerald-900">
+                                  Basis Sales ({selectedBasisStaff.fullName}): <strong>{peso(basisSalesAmount)}</strong> × <strong>{shareRateNum}%</strong>
+                                </span>
+                                <span className="font-black text-emerald-800">
+                                  = {peso(previewPoolIncentive)} Pool Incentive
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
+                                Pumili ng Pool Basis Employee Account sa itaas para ma-compute ang {shareRateNum}% Branch Pool Incentive.
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
-
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                      <input
-                        type="checkbox"
-                        checked={incentiveForm.itemSaleEnabled}
-                        onChange={(e) => setIncentiveForm((prev) => ({ ...prev, itemSaleEnabled: e.target.checked }))}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-maroon)]"></div>
-                    </label>
-                  </div>
-
-                  {incentiveForm.itemSaleEnabled ? (
-                    <div className="mt-3.5 pt-3.5 border-t border-slate-200/70 flex flex-wrap items-center gap-3">
-                      <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Pool Share Rate (%):</label>
-                      <div className="relative max-w-[140px]">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          max="100"
-                          value={incentiveForm.itemSaleRatePercent}
-                          onChange={(e) => setIncentiveForm((prev) => ({ ...prev, itemSaleRatePercent: e.target.value }))}
-                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-7 text-xs font-black text-slate-900 outline-none focus:border-[var(--color-maroon)]"
-                          placeholder="1.0"
-                        />
-                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 font-medium">of branch sales revenue across eligible price tiers</span>
-                    </div>
-                  ) : null}
-                </div>
+                  )
+                })()}
 
                 {/* 2. Solo Product Sales Commission */}
                 <div className={`rounded-2xl border p-4 transition ${incentiveForm.soloSaleEnabled ? "border-[var(--color-maroon)]/40 bg-[var(--color-soft)]/25" : "border-slate-200 bg-slate-50/50"}`}>
@@ -1505,7 +1621,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
             </div>
 
             {/* Modal Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 border-b border-slate-200">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-slate-50 p-4 border-b border-slate-200">
               <div className="rounded-xl bg-white p-3 border border-slate-200">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sales Closed</p>
                 <p className="mt-1 font-mono text-base font-bold text-slate-900">{peso(selectedStaff.salesRevenue)}</p>
@@ -1517,6 +1633,13 @@ export default function EmployeesPage({ selectedBranch, user }) {
                 <p className="text-[10px] text-slate-400">Rate applied per sale</p>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Branch Pool ({selectedStaff.itemIncentivePercent ?? 0}%)</p>
+                <p className="mt-1 font-mono text-base font-bold text-indigo-800">{peso(selectedStaff.itemPoolIncentiveAmount || 0)}</p>
+                <p className="text-[10px] text-slate-400">
+                  {selectedStaff.poolBasisAccount ? `Basis: @${selectedStaff.poolBasisAccount.username}` : "No basis set"}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white p-3 border border-slate-200">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Services Handled</p>
                 <p className="mt-1 font-mono text-base font-bold text-slate-900">{peso(selectedStaff.serviceRevenue)}</p>
                 <p className="text-[10px] text-slate-400">{number(selectedStaff.completedServices)} repair jobs</p>
@@ -1524,7 +1647,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
               <div className="rounded-xl bg-white p-3 border border-slate-200">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Incentives</p>
                 <p className="mt-1 font-mono text-base font-bold text-slate-900">{peso(selectedStaff.totalIncentiveAmount)}</p>
-                <p className="text-[10px] text-slate-400">Solo + Service labor share</p>
+                <p className="text-[10px] text-slate-400">Solo + Pool + Service</p>
               </div>
             </div>
 

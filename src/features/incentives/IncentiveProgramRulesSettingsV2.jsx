@@ -58,7 +58,7 @@ function getProgram(branchEntry, programType) {
   )
 }
 
-function createProgramDraft(program) {
+function createProgramDraft(program, branchEntry = null) {
   const configuration = program?.configuration || {}
   const isItem = program?.programType === "ITEM_SALE"
 
@@ -67,6 +67,13 @@ function createProgramDraft(program) {
       isItem && Array.isArray(configuration.eligiblePriceTiers)
         ? [...configuration.eligiblePriceTiers]
         : [],
+    poolBasisAccountId: isItem
+      ? String(
+          configuration.poolBasisAccountId ||
+            branchEntry?.poolBasisAccountId ||
+            ""
+        )
+      : "",
     repairCostPercent:
       !isItem &&
       configuration.repairCostPercent !== null &&
@@ -81,7 +88,7 @@ function createBranchDrafts(branchEntry) {
   return Object.fromEntries(
     PROGRAM_TYPES.map((programType) => {
       const program = getProgram(branchEntry, programType)
-      return [programType, createProgramDraft(program)]
+      return [programType, createProgramDraft(program, branchEntry)]
     }),
   )
 }
@@ -120,6 +127,7 @@ function percentLabel(value) {
 
 function ProgramCard({
   branch,
+  branchUsers = [],
   program,
   draft,
   canManage,
@@ -196,61 +204,93 @@ function ProgramCard({
 
       {/* Main Form Body */}
       {isItem ? (
-        <div className="mt-5 pt-5 border-t border-slate-100">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wider text-slate-700">
-                Eligible Price Tiers
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Piliin ang mga tier na bibilangin sa sales pool basis ng branch (e.g. Price 1–3).
-              </p>
+        <div className="mt-5 pt-5 border-t border-slate-100 space-y-5">
+          <div className="rounded-2xl border border-blue-200/80 bg-blue-50/50 p-4 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  Pool Basis Employee Account ({branch.code})
+                </p>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Piliin kung sinong employee account ang magiging basehan ng Branch Item Sale Pool Incentive para sa branch na ito.
+                </p>
+              </div>
+              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-black text-blue-800">
+                Main Admin / Admin Only
+              </span>
             </div>
-            <span className="text-xs font-bold text-slate-500">
-              {draft.eligiblePriceTiers.length} of 5 selected
-            </span>
+
+            <select
+              value={draft.poolBasisAccountId || ""}
+              disabled={!canManage || isSaving}
+              onChange={(e) => onDraftChange("poolBasisAccountId", e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] disabled:opacity-60"
+            >
+              <option value="">— Select employee account as Branch Pool Sales Basis —</option>
+              {branchUsers.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.fullName} (@{emp.username}){emp.employeeCode ? ` · ${emp.employeeCode}` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-            {PRICE_TIERS.map((tier) => {
-              const checked = draft.eligiblePriceTiers.includes(tier)
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-700">
+                  Eligible Price Tiers
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Piliin ang mga tier na bibilangin sa sales pool basis ng branch (e.g. Price 1–3).
+                </p>
+              </div>
+              <span className="text-xs font-bold text-slate-500">
+                {draft.eligiblePriceTiers.length} of 5 selected
+              </span>
+            </div>
 
-              return (
-                <button
-                  key={tier}
-                  type="button"
-                  disabled={!canManage || isSaving}
-                  onClick={() => toggleTier(tier)}
-                  className={`flex items-center justify-between rounded-2xl border p-3.5 transition-all text-left ${
-                    checked
-                      ? "border-[var(--color-maroon)] bg-rose-50/50 shadow-2xs ring-1 ring-[var(--color-maroon)]/30 text-[var(--color-maroon)]"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700"
-                  } ${!canManage || isSaving ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
-                >
-                  <div>
-                    <p className="text-xs font-black">Price {tier}</p>
-                    <p className="text-[10px] text-slate-500 font-medium">Tier {tier}</p>
-                  </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {PRICE_TIERS.map((tier) => {
+                const checked = draft.eligiblePriceTiers.includes(tier)
 
-                  <div
-                    className={`grid size-5 place-items-center rounded-lg border transition ${
+                return (
+                  <button
+                    key={tier}
+                    type="button"
+                    disabled={!canManage || isSaving}
+                    onClick={() => toggleTier(tier)}
+                    className={`flex items-center justify-between rounded-2xl border p-3.5 transition-all text-left ${
                       checked
-                        ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] text-white"
-                        : "border-slate-300 bg-white text-transparent"
-                    }`}
+                        ? "border-[var(--color-maroon)] bg-rose-50/50 shadow-2xs ring-1 ring-[var(--color-maroon)]/30 text-[var(--color-maroon)]"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700"
+                    } ${!canManage || isSaving ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
                   >
-                    <Check size={12} strokeWidth={3} />
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+                    <div>
+                      <p className="text-xs font-black">Price {tier}</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Tier {tier}</p>
+                    </div>
 
-          {draft.eligiblePriceTiers.length === 0 ? (
-            <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2">
-              ⚠️ Walang price tier na naka-check: walang maco-compute na Item Sale incentive basis para sa branch na ito.
-            </p>
-          ) : null}
+                    <div
+                      className={`grid size-5 place-items-center rounded-lg border transition ${
+                        checked
+                          ? "border-[var(--color-maroon)] bg-[var(--color-maroon)] text-white"
+                          : "border-slate-300 bg-white text-transparent"
+                      }`}
+                    >
+                      <Check size={12} strokeWidth={3} />
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {draft.eligiblePriceTiers.length === 0 ? (
+              <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2">
+                ⚠️ Walang price tier na naka-check: walang maco-compute na Item Sale incentive basis para sa branch na ito.
+              </p>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div className="mt-5 pt-5 border-t border-slate-100 grid gap-4 sm:grid-cols-2">
@@ -450,7 +490,7 @@ export default function IncentiveProgramRulesSettingsV2({
       ...current,
       [selectedBranchId]: {
         ...current[selectedBranchId],
-        [program.programType]: createProgramDraft(program),
+        [program.programType]: createProgramDraft(program, selectedEntry),
       },
     }))
 
@@ -500,6 +540,9 @@ export default function IncentiveProgramRulesSettingsV2({
     const payload = {
       branchId: selectedBranchId,
       eligiblePriceTiers: tiers,
+      ...(isItem
+        ? { poolBasisAccountId: draft.poolBasisAccountId || null }
+        : {}),
       repairCostPercent: isItem ? null : repairCostPercent,
       notes: draft.notes.trim() || null,
     }
@@ -605,12 +648,13 @@ export default function IncentiveProgramRulesSettingsV2({
             if (!program) return null
 
             const draft =
-              selectedDrafts[programType] || createProgramDraft(program)
+              selectedDrafts[programType] || createProgramDraft(program, selectedEntry)
             const key = `${selectedBranchId}:${programType}`
 
             return (
               <ProgramCard
                 branch={selectedEntry.branch}
+                branchUsers={selectedEntry.branchUsers || []}
                 canManage={canManage}
                 draft={draft}
                 isSaving={savingKey === key}
