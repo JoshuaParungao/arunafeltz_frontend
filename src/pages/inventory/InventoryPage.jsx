@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, BarChart3, Boxes, CheckCircle2, PackageSearch, Plus, RefreshCw, Search, X } from "lucide-react"
+import { AlertCircle, BarChart3, Boxes, CheckCircle2, PackageSearch, Plus, RefreshCw, Search, Sliders, X } from "lucide-react"
 import { useCallback } from "react"
 
 import { getBranches } from "../../features/branches/branches.api"
@@ -991,8 +991,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                   onClick={() => setIsAddStockOpen(true)}
                   type="button"
                 >
-                  <Plus size={15} />
-                  Add Stock
+                  <Sliders size={15} />
+                  Adjust Stock
                 </button>
               ) : null}
               {canOpenStockRequest ? (
@@ -1041,8 +1041,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                   onClick={() => setIsAddStockOpen(true)}
                   type="button"
                 >
-                  <Plus size={15} />
-                  Add Stock
+                  <Sliders size={15} />
+                  Adjust Stock
                 </button>
               ) : null}
             </div>
@@ -1972,7 +1972,10 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
       <AddStockModal
         isOpen={isAddStockOpen}
         onClose={() => setIsAddStockOpen(false)}
-        onSuccess={(msg) => setNoticeMessage(msg)}
+        onSuccess={(msg) => {
+          setNoticeMessage(msg)
+          loadInventory()
+        }}
         branchId={viewingBranchId}
         branchName={viewingBranch?.name || viewingBranch?.code}
       />

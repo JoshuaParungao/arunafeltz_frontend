@@ -1,7 +1,27 @@
 import { useState, useEffect, useMemo } from "react"
-import { AlertCircle, CheckCircle2, Hash, Layers, PackagePlus, Search, X } from "lucide-react"
+import {
+  AlertCircle,
+  ArrowDownRight,
+  ArrowUpRight,
+  CheckCircle2,
+  Hash,
+  Layers,
+  Search,
+  Sliders,
+  X,
+} from "lucide-react"
 import { getItems } from "../../features/items/items.api"
-import { createStockIn } from "../../features/inventory/inventory.api"
+import {
+  createStockAdjustment,
+  createStockIn,
+  getInventoryBatches,
+  getInventorySerials,
+} from "../../features/inventory/inventory.api"
+
+function formatNumber(value) {
+  const number = Number(value || 0)
+  return number.toLocaleString("en-PH")
+}
 
 export default function AddStockModal({
   isOpen,
@@ -14,6 +34,11 @@ export default function AddStockModal({
   const [catalogItems, setCatalogItems] = useState([])
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
+
+  const [adjustType, setAdjustType] = useState("INCREASE")
+  const [batches, setBatches] = useState([])
+  const [batchId, setBatchId] = useState("")
+  const [availableSerials, setAvailableSerials] = useState([])
 
   const [quantity, setQuantity] = useState("1")
   const [unitCost, setUnitCost] = useState("")
@@ -30,6 +55,10 @@ export default function AddStockModal({
       setSearchText("")
       setSelectedItem(null)
       setCatalogItems([])
+      setAdjustType("INCREASE")
+      setBatches([])
+      setBatchId("")
+      setAvailableSerials([])
       setQuantity("1")
       setUnitCost("")
       setReferenceNo("")
@@ -57,17 +86,65 @@ export default function AddStockModal({
     }
   }
 
-  // Handle item selection
-  const handleSelectItem = (item) => {
+  // Handle item selection & load batches/serials for potential decrease
+  const handleSelectItem = async (item) => {
     setSelectedItem(item)
     setUnitCost(item.costPrice !== null && item.costPrice !== undefined ? String(item.costPrice) : "")
     setSerialNumbersText("")
+    setBatches([])
+    setBatchId("")
+    setAvailableSerials([])
     setErrorMessage("")
+
+    if (!branchId) return
+
+    try {
+      const [batchRes, serialRes] = await Promise.all([
+        getInventoryBatches({
+          branchId,
+          itemId: item.id,
+          limit: 50,
+        }),
+        item.isSerialized
+          ? getInventorySerials({
+              branchId,
+              itemId: item.id,
+              status: "AVAILABLE",
+              limit: 100,
+            })
+          : Promise.resolve(null),
+      ])
+
+      const loadedBatches = batchRes?.data?.data || batchRes?.data?.items || []
+      setBatches(loadedBatches)
+
+      const firstActiveBatch =
+        loadedBatches.find((b) => Number(b.quantityAvailable || 0) > 0) || loadedBatches[0]
+      setBatchId(firstActiveBatch?.id || "")
+
+      if (serialRes) {
+        const loadedSerials = serialRes?.data?.data || serialRes?.data?.items || []
+        setAvailableSerials(loadedSerials)
+      }
+    } catch (err) {
+      console.error("Could not load item batches/serials:", err)
+    }
+  }
+
+  const handleTypeChange = (nextType) => {
+    setAdjustType(nextType)
+    setErrorMessage("")
+    if (nextType === "INCREASE" && (!remarks || remarks === "Physical count / stock deduction")) {
+      setRemarks("Manual stock intake")
+    } else if (nextType === "DECREASE" && (!remarks || remarks === "Manual stock intake")) {
+      setRemarks("Physical count / stock deduction")
+    }
   }
 
   // Parsed serial numbers
   const isSerialized = Boolean(selectedItem?.isSerialized)
   const numQuantity = Number(quantity || 0)
+  const isIncrease = adjustType === "INCREASE"
 
   const enteredSerials = useMemo(() => {
     if (!isSerialized || !serialNumbersText) return []
@@ -84,6 +161,10 @@ export default function AddStockModal({
   const isSerialCountValid =
     !isSerialized || (enteredSerials.length === numQuantity && !hasDuplicateSerials)
 
+  const totalBatchAvailable = useMemo(() => {
+    return batches.reduce((sum, b) => sum + Number(b.quantityAvailable || 0), 0)
+  }, [batches])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!selectedItem) {
@@ -93,6 +174,11 @@ export default function AddStockModal({
 
     if (!Number.isFinite(numQuantity) || numQuantity <= 0) {
       setErrorMessage("Please enter a valid positive quantity.")
+      return
+    }
+
+    if (!isIncrease && !remarks.trim()) {
+      setErrorMessage("Reason / Remarks is required when deducting stock.")
       return
     }
 
@@ -114,23 +200,39 @@ export default function AddStockModal({
     setErrorMessage("")
 
     try {
-      await createStockIn({
-        branchId,
-        itemId: selectedItem.id,
-        quantity: numQuantity,
-        unitCost: unitCost ? Number(unitCost) : undefined,
-        referenceNo: referenceNo.trim() || undefined,
-        remarks: remarks.trim() || "Manual stock intake",
-        serialNumbers: isSerialized ? enteredSerials : undefined,
-      })
+      if (isIncrease) {
+        await createStockIn({
+          branchId,
+          itemId: selectedItem.id,
+          quantity: numQuantity,
+          unitCost: unitCost ? Number(unitCost) : undefined,
+          referenceNo: referenceNo.trim() || undefined,
+          remarks: remarks.trim() || "Manual stock intake",
+          serialNumbers: isSerialized ? enteredSerials : undefined,
+        })
 
-      onSuccess?.(`Successfully added ${numQuantity} unit(s) of ${selectedItem.itemName}!`)
+        onSuccess?.(`Successfully added ${numQuantity} unit(s) of ${selectedItem.itemName}!`)
+      } else {
+        await createStockAdjustment({
+          branchId,
+          batchId: batchId || undefined,
+          itemId: selectedItem.id,
+          type: "DECREASE",
+          quantity: numQuantity,
+          referenceNo: referenceNo.trim() || undefined,
+          remarks: remarks.trim() || "Physical count / stock deduction",
+          serialNumbers: isSerialized ? enteredSerials : undefined,
+        })
+
+        onSuccess?.(`Successfully deducted ${numQuantity} unit(s) of ${selectedItem.itemName}!`)
+      }
+
       onClose()
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error?.message ||
-        "Could not add stock. Please check inputs and try again."
+        "Could not save stock adjustment. Please check inputs and try again."
       setErrorMessage(msg)
     } finally {
       setIsSaving(false)
@@ -146,12 +248,12 @@ export default function AddStockModal({
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
           <div className="flex items-center gap-2.5">
             <div className="grid size-9 place-items-center rounded-xl bg-[var(--color-maroon)] text-white shadow-xs">
-              <PackagePlus size={18} />
+              <Sliders size={18} />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-900">Add Stock</h2>
+              <h2 className="text-base font-black text-slate-900">Adjust Stock</h2>
               <p className="text-xs text-slate-500 font-medium">
-                {branchName ? `Branch: ${branchName}` : "Branch Stock Intake"}
+                {branchName ? `Branch: ${branchName}` : "Add (Increase) or Deduct (Decrease) Inventory"}
               </p>
             </div>
           </div>
@@ -168,6 +270,60 @@ export default function AddStockModal({
 
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Adjustment Type Selector */}
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-2">
+              Adjustment Type *
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => handleTypeChange("INCREASE")}
+                className={`flex items-center gap-3 rounded-2xl border p-3.5 transition-all text-left ${
+                  isIncrease
+                    ? "border-emerald-600 bg-emerald-50/60 text-emerald-950 shadow-xs ring-1 ring-emerald-500/30"
+                    : "border-slate-200 bg-white hover:border-slate-300 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <div
+                  className={`grid size-9 shrink-0 place-items-center rounded-xl font-black ${
+                    isIncrease ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  <ArrowUpRight size={18} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <p className="text-xs font-black">Add Stock (Increase)</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Magdagdag ng inventory</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => handleTypeChange("DECREASE")}
+                className={`flex items-center gap-3 rounded-2xl border p-3.5 transition-all text-left ${
+                  !isIncrease
+                    ? "border-rose-600 bg-rose-50/60 text-rose-950 shadow-xs ring-1 ring-rose-500/30"
+                    : "border-slate-200 bg-white hover:border-slate-300 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <div
+                  className={`grid size-9 shrink-0 place-items-center rounded-xl font-black ${
+                    !isIncrease ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  <ArrowDownRight size={18} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <p className="text-xs font-black">Deduct Stock (Decrease)</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Magbawas ng inventory</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* Step 1: Product Selection */}
           {!selectedItem ? (
             <div className="space-y-3">
@@ -239,7 +395,7 @@ export default function AddStockModal({
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">
                   {selectedItem.itemCode} {selectedItem.brand ? `• ${selectedItem.brand}` : ""}
                 </p>
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${
                       isSerialized
@@ -248,6 +404,9 @@ export default function AddStockModal({
                     }`}
                   >
                     {isSerialized ? "Serialized (Serials Required)" : "Standard Non-serialized"}
+                  </span>
+                  <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-black text-slate-700 border border-slate-200">
+                    Available in Branch: {formatNumber(totalBatchAvailable)}
                   </span>
                 </div>
               </div>
@@ -262,14 +421,14 @@ export default function AddStockModal({
             </div>
           )}
 
-          {/* Step 2: Intake Details (Shown once item is selected) */}
+          {/* Step 2: Adjustment Details (Shown once item is selected) */}
           {selectedItem ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Quantity */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Quantity to Add *
+                    {isIncrease ? "Quantity to Add *" : "Quantity to Deduct *"}
                   </label>
                   <input
                     type="number"
@@ -281,21 +440,48 @@ export default function AddStockModal({
                   />
                 </div>
 
-                {/* Unit Cost */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Unit Cost (₱) <span className="text-slate-400 font-normal">(Optional)</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={unitCost}
-                    onChange={(e) => setUnitCost(e.target.value)}
-                    placeholder={selectedItem.costPrice ? String(selectedItem.costPrice) : "0.00"}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                  />
-                </div>
+                {/* Second column: Unit Cost for INCREASE, or Batch Assignment for DECREASE */}
+                {isIncrease ? (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Unit Cost (₱) <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={unitCost}
+                      onChange={(e) => setUnitCost(e.target.value)}
+                      placeholder={selectedItem.costPrice ? String(selectedItem.costPrice) : "0.00"}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Batch Assignment
+                    </label>
+                    <select
+                      disabled={isSaving}
+                      value={batchId || ""}
+                      onChange={(e) => setBatchId(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                    >
+                      {batches.length === 0 ? (
+                        <option value="">No available batch in branch</option>
+                      ) : (
+                        <>
+                          <option value="">Latest / Auto-resolve Batch</option>
+                          {batches.map((batch) => (
+                            <option key={batch.id} value={batch.id}>
+                              {batch.batchCode} (Available: {formatNumber(batch.quantityAvailable)})
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Reference & Remarks */}
@@ -308,20 +494,20 @@ export default function AddStockModal({
                     type="text"
                     value={referenceNo}
                     onChange={(e) => setReferenceNo(e.target.value)}
-                    placeholder="Hal. Old stock, Delivery, Inv-01"
+                    placeholder={isIncrease ? "Hal. Old stock, Delivery, Inv-01" : "Hal. ADJ-001, Count"}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Remarks / Notes
+                    {isIncrease ? "Remarks / Notes" : "Reason / Remarks *"}
                   </label>
                   <input
                     type="text"
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Manual stock intake"
+                    placeholder={isIncrease ? "Manual stock intake" : "Hal. Physical count adjustment, damaged item"}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                   />
                 </div>
@@ -334,7 +520,7 @@ export default function AddStockModal({
                     <div className="flex items-center gap-1.5">
                       <Hash size={15} className="text-purple-700" />
                       <label className="text-xs font-black text-purple-900">
-                        Serial Numbers *
+                        {isIncrease ? "Serial Numbers to Add *" : "Serial Numbers to Deduct / Remove *"}
                       </label>
                     </div>
                     <span
@@ -349,11 +535,13 @@ export default function AddStockModal({
                   </div>
 
                   <p className="text-[11px] text-purple-700/80 font-medium">
-                    I-type o i-scan ang mga serial numbers (bawat linya o pinaghihiwalay ng kuwit/comma).
+                    {isIncrease
+                      ? "I-type o i-scan ang mga bagong serial numbers (bawat linya o pinaghihiwalay ng kuwit/comma)."
+                      : "I-type, i-scan, o piliin sa ibaba ang serial number(s) ng item na ibabawas."}
                   </p>
 
                   <textarea
-                    rows={4}
+                    rows={3}
                     value={serialNumbersText}
                     onChange={(e) => setSerialNumbersText(e.target.value)}
                     placeholder="SN-10001&#10;SN-10002"
@@ -365,16 +553,54 @@ export default function AddStockModal({
                       <AlertCircle size={13} /> May duplicate serial number sa listahan.
                     </p>
                   ) : null}
+
+                  {/* Clickable serial pill suggestions when deducting */}
+                  {!isIncrease && availableSerials.length > 0 ? (
+                    <div className="mt-3 pt-3 border-t border-purple-200/60">
+                      <p className="text-[11px] font-black text-purple-900 mb-1.5">
+                        Available Serials sa Branch (Pindutin para mabilis maidagdag):
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
+                        {availableSerials.map((s) => {
+                          const isPicked = enteredSerials.includes(s.serialNumber)
+                          return (
+                            <button
+                              key={s.id || s.serialNumber}
+                              type="button"
+                              onClick={() => {
+                                if (isPicked) {
+                                  const updated = enteredSerials.filter((x) => x !== s.serialNumber)
+                                  setSerialNumbersText(updated.join("\n"))
+                                } else {
+                                  const updated = [...enteredSerials, s.serialNumber]
+                                  setSerialNumbersText(updated.join("\n"))
+                                }
+                              }}
+                              className={`rounded-lg px-2.5 py-1 text-[11px] font-mono font-bold transition ${
+                                isPicked
+                                  ? "bg-[var(--color-maroon)] text-white shadow-2xs"
+                                  : "bg-white border border-purple-200 text-purple-800 hover:bg-purple-100"
+                              }`}
+                            >
+                              {s.serialNumber} {isPicked ? "✓" : ""}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
               {/* Automatic Batch Notice */}
-              <div className="rounded-xl bg-slate-100/70 p-3 text-[11px] text-slate-500 font-medium flex items-center gap-2">
-                <Layers size={14} className="text-slate-400 shrink-0" />
-                <span>
-                  Awtomatikong gagawan ng date-based batch (<code className="font-mono text-slate-700">BAT-{new Date().toISOString().slice(0, 10).replace(/-/g, "")}-XXXX</code>) ang stock na ito nang walang error.
-                </span>
-              </div>
+              {isIncrease ? (
+                <div className="rounded-xl bg-slate-100/70 p-3 text-[11px] text-slate-500 font-medium flex items-center gap-2">
+                  <Layers size={14} className="text-slate-400 shrink-0" />
+                  <span>
+                    Awtomatikong gagawan ng date-based batch (<code className="font-mono text-slate-700">BAT-{new Date().toISOString().slice(0, 10).replace(/-/g, "")}-XXXX</code>) ang stock na ito nang walang error.
+                  </span>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -399,10 +625,18 @@ export default function AddStockModal({
             <button
               type="submit"
               disabled={isSaving || !selectedItem || (isSerialized && !isSerialCountValid)}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-5 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-[var(--color-maroon-hover)] disabled:opacity-50"
+              className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black text-white shadow-sm transition disabled:opacity-50 ${
+                isIncrease
+                  ? "bg-[var(--color-maroon)] hover:bg-[var(--color-maroon-hover)]"
+                  : "bg-rose-600 hover:bg-rose-700"
+              }`}
             >
               <CheckCircle2 size={15} />
-              {isSaving ? "Adding Stock..." : "Confirm & Add Stock"}
+              {isSaving
+                ? "Saving Adjustment..."
+                : isIncrease
+                ? "Confirm & Add Stock"
+                : "Confirm & Deduct Stock"}
             </button>
           </div>
         </form>
