@@ -160,49 +160,57 @@ export default function CommandPaletteModal({
         onNavigate(item.data.key)
         break
       case "PRODUCT":
-        onNavigate("items")
+        onNavigate("items", { search: item.data.itemCode || item.data.itemName })
         break
       case "SERIAL":
-        onNavigate("serials")
+        onNavigate("serials", { search: item.data.serialNumber })
         break
       case "RECEIPT":
         if (onSelectSale) {
           onSelectSale(item.data)
         } else {
-          onNavigate("pos")
+          onNavigate("pos", { search: item.data.receiptCode })
         }
         break
       case "QUOTATION":
         if (onSelectQuotation) {
           onSelectQuotation(item.data)
         } else {
-          onNavigate("quotations")
+          onNavigate("quotations", { search: item.data.quotationCode })
         }
         break
       case "CUSTOMER":
-        onNavigate("customers")
+        onNavigate("customers", { search: item.data.fullName || item.data.customerCode })
         break
       default:
         break
     }
   }
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Escape") {
-      onClose()
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault()
-      setSelectedIndex((prev) => (flatItems.length === 0 ? 0 : (prev + 1) % flatItems.length))
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault()
-      setSelectedIndex((prev) => (flatItems.length === 0 ? 0 : (prev - 1 + flatItems.length) % flatItems.length))
-    } else if (e.key === "Enter") {
-      e.preventDefault()
-      if (flatItems[selectedIndex]) {
-        handleSelectItem(flatItems[selectedIndex])
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault()
+        onClose()
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setSelectedIndex((prev) => (flatItems.length === 0 ? 0 : (prev + 1) % flatItems.length))
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setSelectedIndex((prev) => (flatItems.length === 0 ? 0 : (prev - 1 + flatItems.length) % flatItems.length))
+      } else if (e.key === "Enter") {
+        e.preventDefault()
+        if (flatItems[selectedIndex]) {
+          handleSelectItem(flatItems[selectedIndex])
+        }
       }
     }
-  }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isOpen, flatItems, selectedIndex])
 
   if (!isOpen) return null
 
@@ -213,7 +221,6 @@ export default function CommandPaletteModal({
       aria-modal="true"
       className="fixed inset-0 z-[100] flex items-start justify-center bg-slate-950/70 p-3 pt-12 sm:pt-20 backdrop-blur-xs"
       onClick={onClose}
-      onKeyDown={handleKeyDown}
       role="dialog"
     >
       <div

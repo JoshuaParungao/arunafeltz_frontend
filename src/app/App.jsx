@@ -26,6 +26,7 @@ import {
 } from "../lib/sessionStorage"
 import CommandPaletteModal from "../components/common/CommandPaletteModal"
 import QuotationDetailDialog from "../components/quotations/QuotationDetailDialog"
+import SaleReceiptModal from "../components/sales/SaleReceiptModal"
 import { getQuotationById } from "../features/quotations/quotations.api"
 
 const StaffDashboardPage = lazy(() => import("../pages/dashboard/StaffDashboardPage"))
@@ -87,18 +88,20 @@ function App() {
   const [hasAssignedCashBoxAccess, setHasAssignedCashBoxAccess] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [omniPreviewQuotation, setOmniPreviewQuotation] = useState(null)
+  const [omniPreviewSale, setOmniPreviewSale] = useState(null)
   const [pageContext, setPageContext] = useState(null)
 
   // Global Ctrl + K / Cmd + K shortcut listener
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      if ((e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === "k" || e.code === "KeyK")) {
         e.preventDefault()
+        e.stopPropagation()
         setIsCommandPaletteOpen((prev) => !prev)
       }
     }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
+    window.addEventListener("keydown", handleKeyDown, true)
+    return () => window.removeEventListener("keydown", handleKeyDown, true)
   }, [])
 
   const isCashBoxStaff = [
@@ -313,7 +316,7 @@ function App() {
     }
 
     if (activePage === "items") {
-      return <ItemsPage onNavigate={setSafeActivePage} selectedBranch={selectedBranch} user={user} />
+      return <ItemsPage initialContext={pageContext} onNavigate={setSafeActivePage} selectedBranch={selectedBranch} user={user} />
     }
 
     if (activePage === "categories") {
@@ -346,7 +349,7 @@ function App() {
     }
 
     if (activePage === "serials") {
-      return <SerialMonitoringPage onNavigate={setSafeActivePage} selectedBranch={selectedBranch} user={user} />
+      return <SerialMonitoringPage initialContext={pageContext} onNavigate={setSafeActivePage} selectedBranch={selectedBranch} user={user} />
     }
 
     if (activePage === "services") {
@@ -389,7 +392,7 @@ function App() {
     }
 
     if (activePage === "customers") {
-      return <CustomersPage selectedBranch={selectedBranch} user={user} />
+      return <CustomersPage initialContext={pageContext} selectedBranch={selectedBranch} user={user} />
     }
 
     if (activePage === "reports") {
@@ -534,7 +537,7 @@ function App() {
         branchId={selectedBranch?.id || user?.branch?.id}
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        onNavigate={(pageKey) => setSafeActivePage(pageKey)}
+        onNavigate={(pageKey, ctx) => setSafeActivePage(pageKey, user, ctx)}
         onSelectQuotation={async (quoteSummary) => {
           setIsCommandPaletteOpen(false)
           try {
@@ -548,9 +551,13 @@ function App() {
             setSafeActivePage("quotations")
           }
         }}
-        onSelectSale={() => {
+        onSelectSale={(saleSummary) => {
           setIsCommandPaletteOpen(false)
-          setSafeActivePage("pos")
+          if (saleSummary?.id) {
+            setOmniPreviewSale(saleSummary)
+          } else {
+            setSafeActivePage("pos")
+          }
         }}
       />
 
@@ -558,6 +565,14 @@ function App() {
         <QuotationDetailDialog
           onClose={() => setOmniPreviewQuotation(null)}
           quotation={omniPreviewQuotation}
+        />
+      ) : null}
+
+      {omniPreviewSale ? (
+        <SaleReceiptModal
+          onClose={() => setOmniPreviewSale(null)}
+          sale={omniPreviewSale}
+          saleId={omniPreviewSale.id}
         />
       ) : null}
     </>

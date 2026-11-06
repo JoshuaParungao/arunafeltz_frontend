@@ -974,7 +974,7 @@ function AddSerialStockDialog({ activeBranch, branches, isSuperOwner, onClose, o
   )
 }
 
-function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
+function SerialMonitoringPage({ initialContext, onNavigate, selectedBranch, user }) {
   const activeBranch = selectedBranch || user?.branch || null
   const isSuperOwner = user?.role === USER_ROLES.SUPER_OWNER
   const canManage = SERIAL_MANAGER_ROLES.has(user?.role)
@@ -985,12 +985,19 @@ function SerialMonitoringPage({ onNavigate, selectedBranch, user }) {
 
   const [itemOptions, setItemOptions] = useState([])
   const [batchOptions, setBatchOptions] = useState([])
-  const [searchText, setSearchText] = useState("")
+  const [searchText, setSearchText] = useState(initialContext?.search || "")
   const [statusFilter, setStatusFilter] = useState("")
   const [itemFilter, setItemFilter] = useState("")
   const [batchFilter, setBatchFilter] = useState("")
   const [page, setPage] = useState(1)
   const pageSize = 20
+
+  useEffect(() => {
+    if (initialContext?.search) {
+      setSearchText(initialContext.search)
+      setPage(1)
+    }
+  }, [initialContext])
 
   const [serials, setSerials] = useState([])
   const [pagination, setPagination] = useState(null)

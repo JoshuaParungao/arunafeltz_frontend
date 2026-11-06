@@ -298,29 +298,39 @@ function Topbar({
             )}
           </button>
 
-          <div className="min-w-0">
+          <div className="min-w-0 shrink">
             <p className="truncate text-sm font-bold text-[var(--color-text-strong)] sm:text-base">
               {activeLabel}
             </p>
-            <p className="hidden text-xs text-[var(--color-muted)] sm:block">
+            <p className="hidden truncate text-xs text-[var(--color-muted)] xl:block">
               Arunafeltz Computer Cloud POS and Business Monitoring
             </p>
           </div>
 
-          <div className="ml-auto hidden min-w-0 flex-1 justify-center px-4 md:flex">
+          <div className="ml-auto flex items-center gap-2 sm:flex-1 sm:justify-center sm:px-2 md:px-4 min-w-0">
             <button
               aria-label="Open Omnisearch (Ctrl+K)"
-              className="flex h-11 w-full max-w-2xl items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-white px-4 text-left shadow-card transition hover:border-[#002060]/50"
+              className="grid size-10 shrink-0 place-items-center rounded-2xl border border-[var(--color-border)] bg-white text-[var(--color-text-strong)] shadow-card transition hover:bg-[var(--color-soft)] sm:hidden cursor-pointer"
+              onClick={onOpenSearch}
+              title="Search (Ctrl+K)"
+              type="button"
+            >
+              <Search className="size-4 text-[var(--color-maroon)]" />
+            </button>
+
+            <button
+              aria-label="Open Omnisearch (Ctrl+K)"
+              className="hidden h-10 w-full max-w-xl min-w-[200px] items-center justify-between gap-2.5 rounded-2xl border border-[var(--color-border)] bg-white px-3.5 text-left shadow-card transition hover:border-[#002060]/50 sm:flex cursor-pointer"
               onClick={onOpenSearch}
               type="button"
             >
-              <div className="flex items-center gap-3 text-slate-400">
+              <div className="flex min-w-0 flex-1 items-center gap-2.5 text-slate-400">
                 <Search className="size-4 shrink-0 text-[var(--color-muted)]" />
-                <span className="text-sm font-normal text-[var(--color-muted)]">
+                <span className="truncate text-xs font-medium text-[var(--color-muted)] lg:text-sm">
                   Search products, serials, receipts, quotations...
                 </span>
               </div>
-              <kbd className="hidden items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-500 sm:inline-flex">
+              <kbd className="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-500">
                 Ctrl + K
               </kbd>
             </button>

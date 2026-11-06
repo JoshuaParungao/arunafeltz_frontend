@@ -1542,11 +1542,11 @@ function ItemMobileCard({ canManagePrices, canViewCost, item, onEditPrices }) {
   )
 }
 
-function ItemsPage({ onNavigate, selectedBranch, user }) {
+function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
   const selectedBranchId = selectedBranch?.id
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
-  const [searchText, setSearchText] = useState("")
+  const [searchText, setSearchText] = useState(initialContext?.search || "")
   const [mainCatFilter, setMainCatFilter] = useState("")
   const [subCatFilter, setSubCatFilter] = useState("")
   const [brandFilter, setBrandFilter] = useState("")
@@ -1558,6 +1558,13 @@ function ItemsPage({ onNavigate, selectedBranch, user }) {
   const [unitOptions, setUnitOptions] = useState([])
   const [page, setPage] = useState(1)
   const pageSize = 25
+
+  useEffect(() => {
+    if (initialContext?.search) {
+      setSearchText(initialContext.search)
+      setPage(1)
+    }
+  }, [initialContext])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const [selectedItem, setSelectedItem] = useState(null)

@@ -1464,12 +1464,19 @@ function CustomerMobileCard({ canManage, customer, onEdit, onRequestStatus, onVi
   )
 }
 
-function CustomersPage({ selectedBranch, user }) {
+function CustomersPage({ initialContext, selectedBranch, user }) {
   const [customers, setCustomers] = useState([])
   const [pagination, setPagination] = useState(null)
-  const [searchText, setSearchText] = useState("")
+  const [searchText, setSearchText] = useState(initialContext?.search || "")
   const [statusFilter, setStatusFilter] = useState("")
   const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    if (initialContext?.search) {
+      setSearchText(initialContext.search)
+      setPage(1)
+    }
+  }, [initialContext])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const [noticeMessage, setNoticeMessage] = useState("")

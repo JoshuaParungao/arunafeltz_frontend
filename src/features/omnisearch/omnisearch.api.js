@@ -5,6 +5,6 @@ export async function searchOmni({ q, branchId }) {
   if (q) params.q = q
   if (branchId) params.branchId = branchId
 
-  const response = await apiClient.get("/api/search/omni", { params })
+  const response = await apiClient.get("/search/omni", { params })
   return response?.data || response
 }
