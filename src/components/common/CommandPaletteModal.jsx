@@ -3,7 +3,6 @@ import { createPortal } from "react-dom"
 import {
   ArrowRight,
   Barcode,
-  CheckCircle2,
   FileText,
   HelpCircle,
   Layers,
@@ -11,12 +10,10 @@ import {
   Package,
   Receipt,
   Search,
-  Tag,
   User,
   X,
 } from "lucide-react"
 import { searchOmni } from "../../features/omnisearch/omnisearch.api"
-import { APP_MODULES } from "../../constants/appModules"
 
 function formatMoney(value) {
   const amount = Number(value || 0)
@@ -36,6 +33,15 @@ function formatDate(value) {
     year: "numeric",
   })
 }
+
+const FILE_MAINTENANCE_QUICK_NAV_KEYS = [
+  "items",
+  "categories",
+  "services-maintenance",
+  "customers",
+  "suppliers",
+  "employees",
+]
 
 export default function CommandPaletteModal({
   isOpen,
@@ -75,16 +81,19 @@ export default function CommandPaletteModal({
     }
   }, [isOpen])
 
-  // Filter modules based on query for navigation shortcuts
+  // Filter modules based on query for navigation shortcuts (Selected File Maintenance modules only)
   const matchingModules = useMemo(() => {
+    const fileMaintenanceModules = allowedModules.filter(
+      (m) => FILE_MAINTENANCE_QUICK_NAV_KEYS.includes(m.key)
+    )
     const trimmed = query.trim().toLowerCase()
-    if (!trimmed) return allowedModules.slice(0, 5)
-    return allowedModules.filter(
+    if (!trimmed) return fileMaintenanceModules
+    return fileMaintenanceModules.filter(
       (m) =>
         m.label.toLowerCase().includes(trimmed) ||
         m.key.toLowerCase().includes(trimmed) ||
         (m.group && m.group.toLowerCase().includes(trimmed))
-    ).slice(0, 4)
+    )
   }, [query, allowedModules])
 
   // Debounced search
