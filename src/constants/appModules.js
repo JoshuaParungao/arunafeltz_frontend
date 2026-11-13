@@ -88,6 +88,12 @@ export const APP_MODULES = [
     group: "Inventory & Purchasing",
     roles: BRANCH_OPERATION_ROLES,
   },
+  {
+    key: "supplier-returns",
+    label: "Supplier Returns (B.O.)",
+    group: "Inventory & Purchasing",
+    roles: BRANCH_OPERATION_ROLES,
+  },
 
   // --- FINANCE & CREDITS ---
   {

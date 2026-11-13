@@ -48,6 +48,7 @@ const CreditsPage = lazy(() => import("../pages/credits/CreditsPage"))
 const SuppliersPage = lazy(() => import("../pages/suppliers/SuppliersPage"))
 const PurchaseOrdersPage = lazy(() => import("../pages/purchase-orders/PurchaseOrdersPage"))
 const PurchaseReceivingsPage = lazy(() => import("../pages/purchase-receivings/PurchaseReceivingsPage"))
+const SupplierReturnsPage = lazy(() => import("../pages/supplier-returns/SupplierReturnsPage"))
 const PosSalesPage = lazy(() => import("../pages/sales/PosSalesPage"))
 const SerialMonitoringPage = lazy(() => import("../pages/serials/SerialMonitoringPage"))
 const ServicesPage = lazy(() => import("../pages/services/ServicesPage"))
@@ -470,6 +471,16 @@ function App() {
     if (activePage === "receivings") {
       return (
         <PurchaseReceivingsPage
+          initialContext={pageContext}
+          selectedBranch={selectedBranch}
+          user={user}
+        />
+      )
+    }
+
+    if (activePage === "supplier-returns") {
+      return (
+        <SupplierReturnsPage
           initialContext={pageContext}
           selectedBranch={selectedBranch}
           user={user}
