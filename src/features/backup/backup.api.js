@@ -5,6 +5,13 @@ export const getScheduledBackups = async () => {
   return response.data
 }
 
+export const runScheduledBackupNow = async () => {
+  const response = await apiClient.post("/backups/scheduled/run", {}, {
+    timeout: 120000,
+  })
+  return response.data
+}
+
 export const exportDatabaseBackup = async () => {
   const response = await apiClient.get("/backups/export", {
     responseType: "blob",

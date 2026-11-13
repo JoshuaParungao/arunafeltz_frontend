@@ -22,12 +22,16 @@ import {
   exportDatabaseBackup,
   getScheduledBackups,
   restoreDatabaseBackup,
+  runScheduledBackupNow,
 } from "./backup.api"
 import { resetTransactionalData } from "../settings/settings.api"
 
 export default function DatabaseBackupRecoverySection({ user }) {
   const [scheduledBackups, setScheduledBackups] = useState([])
   const [isLoadingScheduled, setIsLoadingScheduled] = useState(false)
+  const [isTriggering, setIsTriggering] = useState(false)
+  const [triggerMessage, setTriggerMessage] = useState("")
+  const [triggerError, setTriggerError] = useState("")
   const [isExporting, setIsExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState("")
 
@@ -64,6 +68,27 @@ export default function DatabaseBackupRecoverySection({ user }) {
       setScheduledBackups([])
     } finally {
       setIsLoadingScheduled(false)
+    }
+  }
+
+  const handleTriggerSnapshot = async () => {
+    setIsTriggering(true)
+    setTriggerMessage("")
+    setTriggerError("")
+    try {
+      const response = await runScheduledBackupNow()
+      setTriggerMessage("Backup snapshot captured and saved to server successfully!")
+      if (response?.data?.backups && Array.isArray(response.data.backups)) {
+        setScheduledBackups(response.data.backups)
+      } else {
+        loadScheduledList()
+      }
+    } catch (err) {
+      setTriggerError(
+        err?.response?.data?.message || err?.message || "Failed to trigger backup snapshot."
+      )
+    } finally {
+      setIsTriggering(false)
     }
   }
 
@@ -313,15 +338,49 @@ export default function DatabaseBackupRecoverySection({ user }) {
                 </p>
               </div>
             </div>
-            <button
-              className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)]"
-              onClick={loadScheduledList}
-              title="Refresh list"
-              type="button"
-            >
-              <RefreshCw className={isLoadingScheduled ? "animate-spin" : ""} size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleTriggerSnapshot}
+                disabled={isTriggering}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3 py-1.5 text-xs font-bold text-white shadow-soft transition hover:opacity-95 disabled:opacity-50 cursor-pointer"
+                title="Capture an immediate backup snapshot to the server archive"
+              >
+                {isTriggering ? (
+                  <>
+                    <LoaderCircle className="animate-spin" size={13} />
+                    <span>Capturing…</span>
+                  </>
+                ) : (
+                  <>
+                    <Database size={13} />
+                    <span>Capture Snapshot</span>
+                  </>
+                )}
+              </button>
+              <button
+                className="rounded-xl border border-[var(--color-border)] p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-soft)] cursor-pointer"
+                onClick={loadScheduledList}
+                title="Refresh list"
+                type="button"
+              >
+                <RefreshCw className={isLoadingScheduled ? "animate-spin" : ""} size={16} />
+              </button>
+            </div>
           </div>
+
+          {triggerMessage ? (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+              <CheckCircle2 size={14} className="shrink-0 text-emerald-600" />
+              <span>{triggerMessage}</span>
+            </div>
+          ) : null}
+          {triggerError ? (
+            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 flex items-center gap-1.5">
+              <ShieldAlert size={14} className="shrink-0 text-rose-600" />
+              <span>{triggerError}</span>
+            </div>
+          ) : null}
 
           <div className="mt-4 flex-1">
             {isLoadingScheduled ? (
@@ -333,9 +392,27 @@ export default function DatabaseBackupRecoverySection({ user }) {
               <div className="grid place-items-center p-8 text-center text-sm text-[var(--color-muted)]">
                 <HardDriveDownload size={36} className="text-slate-300 mb-2" />
                 <p className="font-semibold text-slate-700">No scheduled backup files yet</p>
-                <p className="text-xs mt-1 text-slate-500">
-                  The automated scheduler will capture snapshots daily at 11:00 AM & 6:00 PM PHT.
+                <p className="text-xs mt-1 text-slate-500 max-w-sm">
+                  The automated scheduler captures snapshots daily at 11:00 AM & 6:00 PM PHT. You can also capture an instant snapshot right now.
                 </p>
+                <button
+                  type="button"
+                  onClick={handleTriggerSnapshot}
+                  disabled={isTriggering}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-soft transition hover:opacity-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {isTriggering ? (
+                    <>
+                      <LoaderCircle className="animate-spin" size={14} />
+                      <span>Generating Snapshot…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Database size={14} />
+                      <span>Capture Initial Snapshot Now</span>
+                    </>
+                  )}
+                </button>
               </div>
             ) : (
               <div className="max-h-[380px] space-y-2 overflow-y-auto pr-1">
