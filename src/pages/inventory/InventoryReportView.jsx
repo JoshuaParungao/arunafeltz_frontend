@@ -44,6 +44,12 @@ function peso(val) {
   })}`
 }
 
+function textOf(v, fallback = "—") {
+  if (v === null || v === undefined || v === "") return fallback
+  if (typeof v === "object") return String(v.name || v.unitCode || v.categoryCode || fallback)
+  return String(v)
+}
+
 function formatNumber(value) {
   return Number(value || 0).toLocaleString("en-PH")
 }
@@ -430,8 +436,8 @@ export default function InventoryReportView({
         ["Item Name", (row) => row.itemName || "—"],
         ["Brand", (row) => row.brand || "—"],
         ["Model", (row) => row.modelName || "—"],
-        ["Category", (row) => row.category?.name || row.categoryName || "—"],
-        ["Unit", (row) => row.unit || row.unitName || "PCS"],
+        ["Category", (row) => textOf(row.category, textOf(row.categoryName, "—"))],
+        ["Unit", (row) => textOf(row.unit, textOf(row.unitName, "PCS"))],
         ["Specifications", (row) => formatSpecs(row.attributes)],
         ["Serialized Tracking", (row) => (row.isSerialized ? "YES" : "NO")],
         ["Available On-Hand", (row) => Number(row.avail || 0)],
@@ -727,7 +733,7 @@ export default function InventoryReportView({
               <option value="">All Categories ({categories.length})</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.name}
+                  {textOf(cat, "Unnamed")}
                 </option>
               ))}
             </select>
@@ -1004,7 +1010,7 @@ export default function InventoryReportView({
                       {/* Category & Specs */}
                       <td className="px-4 py-3.5 align-top max-w-[200px]">
                         <span className="font-bold text-[var(--color-text-strong)] block">
-                          {it.category?.name || it.categoryName || "Uncategorized"}
+                          {textOf(it.category, textOf(it.categoryName, "Uncategorized"))}
                         </span>
                         <p className="text-[10px] text-[var(--color-muted)] line-clamp-2 mt-0.5">
                           {formatSpecs(it.attributes)}
@@ -1015,7 +1021,7 @@ export default function InventoryReportView({
                       <td className="px-4 py-3.5 align-top whitespace-nowrap">
                         <div className="flex flex-col">
                           <span className="font-mono text-xs font-black text-[var(--color-text-strong)]">
-                            {formatNumber(it.avail)} {it.unit || "PCS"}
+                            {formatNumber(it.avail)} {textOf(it.unit, "PCS")}
                           </span>
                           {it.reserved > 0 && (
                             <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">

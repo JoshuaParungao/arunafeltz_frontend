@@ -55,9 +55,12 @@ function Topbar({
   const [profileError, setProfileError] = useState("")
 
   const openProfileModal = () => {
+    const fallbackParts = String(user?.fullName || "").trim().split(/\s+/).filter(Boolean)
+    const fallbackFirst = fallbackParts[0] || ""
+    const fallbackLast = fallbackParts.slice(1).join(" ") || ""
     setProfileForm({
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
+      firstName: user?.firstName || fallbackFirst,
+      lastName: user?.lastName || fallbackLast,
       username: user?.username || "",
       password: "",
       confirmPassword: "",
@@ -76,6 +79,11 @@ function Topbar({
       return
     }
 
+    if (!profileForm.username.trim() || profileForm.username.trim().length < 3) {
+      setProfileError("Username must be at least 3 characters.")
+      return
+    }
+
     if (profileForm.password.trim()) {
       if (profileForm.password.trim().length < 8) {
         setProfileError("New password must be at least 8 characters.")
@@ -89,10 +97,17 @@ function Topbar({
 
     try {
       setIsSavingProfile(true)
+      const nextUsername = profileForm.username.trim()
       const payload = {
         firstName: profileForm.firstName.trim(),
         lastName: profileForm.lastName.trim(),
-        username: profileForm.username.trim(),
+        username: nextUsername,
+      }
+      if (
+        user?.email === "calix@arunafeltz.local" ||
+        user?.email === "calix@pointify.local"
+      ) {
+        payload.email = null
       }
       if (profileForm.password.trim()) {
         payload.password = profileForm.password.trim()
@@ -107,7 +122,12 @@ function Topbar({
       setIsProfileModalOpen(false)
       window.location.reload()
     } catch (err) {
-      setProfileError(err?.response?.data?.message || err?.message || "Failed to update profile.")
+      setProfileError(
+        err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to update profile."
+      )
     } finally {
       setIsSavingProfile(false)
     }

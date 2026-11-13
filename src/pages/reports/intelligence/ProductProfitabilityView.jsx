@@ -25,6 +25,13 @@ function peso(val) {
   })}`
 }
 
+function formatCategory(cat) {
+  if (!cat) return "General"
+  if (typeof cat === "string") return cat
+  if (typeof cat === "object") return cat.name || cat.categoryCode || "General"
+  return String(cat)
+}
+
 function num(val) {
   return Number(val || 0).toLocaleString("en-PH", { maximumFractionDigits: 2 })
 }
@@ -70,7 +77,7 @@ export default function ProductProfitabilityView({ selectedBranch, user, dateRan
     const exportColumns = [
       ["Item Code", (r) => r.itemCode],
       ["Product Name", (r) => r.itemName],
-      ["Category", (r) => r.category],
+      ["Category", (r) => formatCategory(r.category)],
       ["Qty Sold", (r) => Number(r.quantitySold || 0)],
       ["Unit Cost (Puhunan)", (r) => Number(r.unitCost || 0)],
       ["Base SRP", (r) => Number(r.baseSrp || 0)],
@@ -275,7 +282,7 @@ export default function ProductProfitabilityView({ selectedBranch, user, dateRan
                       </td>
                       <td className="px-3 py-3">
                         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                          {r.category || "General"}
+                          {formatCategory(r.category)}
                         </span>
                       </td>
                       <td className="px-3 py-3 text-center font-mono font-bold text-slate-800">
