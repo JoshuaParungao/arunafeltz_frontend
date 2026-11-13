@@ -260,7 +260,12 @@ export default function DatabaseBackupRecoverySection({ user }) {
       setResetMessage(response?.message || "Operational transactions and test data reset successfully.")
       setResetConfirmation("")
     } catch (err) {
-      setResetError(err?.response?.data?.message || err?.message || "Failed to reset transactions.")
+      setResetError(
+        err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to reset transactions."
+      )
     } finally {
       setIsResetting(false)
     }
