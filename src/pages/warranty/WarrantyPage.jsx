@@ -953,8 +953,8 @@ export default function WarrantyPage({ initialContext, onNavigate, selectedBranc
           getWarrantyClaimsApi={getWarrantyClaims}
           onOpenDetail={openDetail}
           onImmediateReplace={openImmediateReplacementModal}
-          onDispatchSupplier={openDispatchSupplierModal}
-          onResolveSupplier={openResolveSupplierModal}
+          onDispatchSupplier={() => onNavigate?.("supplier-returns")}
+          onResolveSupplier={() => onNavigate?.("supplier-returns")}
           onCustomerReject={openCustomerRejectModal}
           onRelease={(claim) => {
             setSelectedClaim(claim)
@@ -1340,10 +1340,11 @@ export default function WarrantyPage({ initialContext, onNavigate, selectedBranc
                               </button>
                               <button
                                 type="button"
-                                onClick={() => openDispatchSupplierModal(claim)}
-                                className="rounded-lg bg-violet-700 hover:bg-violet-800 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
+                                onClick={() => onNavigate?.("supplier-returns")}
+                                className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
+                                title="Include this unit in a Supplier Return (B.O.) Pull-Out Voucher"
                               >
-                                Supplier
+                                Supplier B.O.
                               </button>
                               <button
                                 type="button"
@@ -2206,11 +2207,14 @@ export default function WarrantyPage({ initialContext, onNavigate, selectedBranc
                         🔄 Quick Swap
                       </button>
                       <button
-                        className="rounded-xl bg-violet-700 hover:bg-violet-800 px-4 py-2 text-xs font-bold text-white shadow-soft transition"
-                        onClick={() => openDispatchSupplierModal(selectedClaim)}
+                        className="rounded-xl bg-rose-700 hover:bg-rose-800 px-4 py-2 text-xs font-bold text-white shadow-soft transition"
+                        onClick={() => {
+                          setSelectedClaim(null)
+                          onNavigate?.("supplier-returns")
+                        }}
                         type="button"
                       >
-                        🚚 Send to Supplier
+                        🚚 Supplier B.O.
                       </button>
                       <button
                         className="rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-4 py-2 text-xs font-bold text-rose-700 transition"

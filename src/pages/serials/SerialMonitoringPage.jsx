@@ -1160,7 +1160,7 @@ function SerialMonitoringPage({ initialContext, onNavigate, selectedBranch, user
           page: exportPage,
           limit: 100,
         })
-        const rows = getSerialRows(response)
+        const rows = getInventoryResult(response).rows || []
         exportSerials.push(...rows)
         totalPages = Math.max(1, Number(response?.pagination?.totalPages || 1))
         exportPage += 1
