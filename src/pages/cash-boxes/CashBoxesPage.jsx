@@ -135,9 +135,14 @@ export default function CashBoxesPage({
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState("")
   const [notice, setNotice] = useState("")
+  const [modalError, setModalError] = useState("")
 
   // Modals state
   const [modalType, setModalType] = useState(null) // "EXPENSE" | "BANK_DEPOSIT" | "CASH_IN" | "HANDOVER" | null
+  const openModal = (type) => {
+    setModalError("")
+    setModalType(type)
+  }
 
   // Form states
   const [expenseForm, setExpenseForm] = useState({
@@ -593,21 +598,23 @@ export default function CashBoxesPage({
   // Handlers
   const handleRecordExpense = async (e) => {
     e.preventDefault()
-    if (!selectedBox || isSaving) return
+    if (isSaving) return
     const amt = Number(expenseForm.amount)
     if (!amt || amt <= 0) {
-      setMessage("Please enter a valid expense amount.")
+      setModalError("Please enter a valid expense amount.")
       return
     }
 
+    const boxId = selectedBox?.id || boxes[0]?.id || "default"
     const catObj = EXPENSE_CATEGORIES.find((c) => c.id === expenseForm.category)
     const catLabel = catObj?.label || "Store Expense"
     const description = `[EXPENSE: ${catLabel}] ${expenseForm.description.trim()}`
 
     setIsSaving(true)
+    setModalError("")
     setMessage("")
     try {
-      await createCashTransaction(selectedBox.id, {
+      await createCashTransaction(boxId, {
         type: "CASH_OUT",
         amount: amt,
         description,
@@ -625,7 +632,9 @@ export default function CashBoxesPage({
       setModalType(null)
       await reloadActive()
     } catch (err) {
-      setMessage(apiError(err, "Could not record expense."))
+      const errMsg = apiError(err, "Could not record expense.")
+      setModalError(errMsg)
+      setMessage(errMsg)
     } finally {
       setIsSaving(false)
     }
@@ -633,20 +642,22 @@ export default function CashBoxesPage({
 
   const handleBankDeposit = async (e) => {
     e.preventDefault()
-    if (!selectedBox || isSaving) return
+    if (isSaving) return
     const amt = Number(bankDepositForm.amount)
     if (!amt || amt <= 0) {
-      setMessage("Please enter a valid deposit amount.")
+      setModalError("Please enter a valid deposit amount.")
       return
     }
 
+    const boxId = selectedBox?.id || boxes[0]?.id || "default"
     const effectiveBank = bankDepositForm.bankName === "Other Bank" ? bankDepositForm.customBankName.trim() : bankDepositForm.bankName
     const description = `[BANK DEPOSIT - ${effectiveBank || "Bank"}] ${bankDepositForm.notes.trim() || `Cash deposited to ${effectiveBank} account ${bankDepositForm.accountNo || ""}`}`
 
     setIsSaving(true)
+    setModalError("")
     setMessage("")
     try {
-      await createCashTransaction(selectedBox.id, {
+      await createCashTransaction(boxId, {
         type: "CASH_OUT",
         amount: amt,
         description,
@@ -666,7 +677,9 @@ export default function CashBoxesPage({
       setModalType(null)
       await reloadActive()
     } catch (err) {
-      setMessage(apiError(err, "Could not record bank deposit."))
+      const errMsg = apiError(err, "Could not record bank deposit.")
+      setModalError(errMsg)
+      setMessage(errMsg)
     } finally {
       setIsSaving(false)
     }
@@ -674,17 +687,20 @@ export default function CashBoxesPage({
 
   const handleCashIn = async (e) => {
     e.preventDefault()
-    if (!selectedBox || isSaving) return
+    if (isSaving) return
     const amt = Number(cashInForm.amount)
     if (!amt || amt <= 0) {
-      setMessage("Please enter a valid cash amount.")
+      setModalError("Please enter a valid cash amount.")
       return
     }
 
+    const boxId = selectedBox?.id || boxes[0]?.id || "default"
+
     setIsSaving(true)
+    setModalError("")
     setMessage("")
     try {
-      await createCashTransaction(selectedBox.id, {
+      await createCashTransaction(boxId, {
         type: "CASH_IN",
         amount: amt,
         description: `[CASH IN] ${cashInForm.reason.trim()}`,
@@ -701,7 +717,9 @@ export default function CashBoxesPage({
       setModalType(null)
       await reloadActive()
     } catch (err) {
-      setMessage(apiError(err, "Could not add cash."))
+      const errMsg = apiError(err, "Could not add cash.")
+      setModalError(errMsg)
+      setMessage(errMsg)
     } finally {
       setIsSaving(false)
     }
