@@ -1278,15 +1278,14 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   doc.setFontSize(8)
   doc.setTextColor(50, 50, 50)
   const branchAddress = sanitizeForPdf(
-    branch.address ||
-      "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+    branch?.address || branch?.name || "Main Branch"
   )
   const addressLines = doc.splitTextToSize(branchAddress, leftColWidth)
   doc.text(addressLines, leftColX, leftY)
 
   leftY += addressLines.length * 3.4 + 1
   const branchContact = sanitizeForPdf(
-    branch.contactNo || "0961-873-5798 / 045-404-0673"
+    branch?.contactNo || "—"
   )
   doc.text(branchContact, leftColX, leftY)
   leftY += 4
@@ -1767,15 +1766,14 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   doc.setFontSize(8)
   doc.setTextColor(50, 50, 50)
   const branchAddress = sanitizeForPdf(
-    branch.address ||
-      "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
+    branch?.address || branch?.name || "Main Branch"
   )
   const addressLines = doc.splitTextToSize(branchAddress, leftColWidth)
   doc.text(addressLines, leftColX, leftY)
 
   leftY += addressLines.length * 3.4 + 1
   const branchContact = sanitizeForPdf(
-    branch.contactNo || "0961-873-5798 / 045-404-0673"
+    branch?.contactNo || "—"
   )
   doc.text(branchContact, leftColX, leftY)
   leftY += 4

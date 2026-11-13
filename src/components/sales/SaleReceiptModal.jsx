@@ -107,10 +107,8 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
     }
   }, [initialSale, targetSaleId])
 
-  const branchAddress =
-    sale?.branch?.address ||
-    "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
-  const branchContact = sale?.branch?.contactNo || "0961-873-5798 / 045-404-0673"
+  const branchAddress = sale?.branch?.address || sale?.branch?.name || "Main Branch"
+  const branchContact = sale?.branch?.contactNo || "—"
 
   const isCredit = Boolean(sale?.creditAccount || sale?.receivable || (sale?.items || []).some((item) => item.baseUnitPriceSnapshot != null))
 

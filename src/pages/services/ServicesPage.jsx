@@ -3862,8 +3862,9 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                           ref={customerInputRef}
                           autoComplete="off"
                           className={FIELD_CLASS}
+                          maxLength={30}
                           onChange={(e) => {
-                            const val = e.target.value
+                            const val = e.target.value.slice(0, 30)
                             setCustomerSearch(val)
                             setIsCustomerDropdownOpen(true)
                             setCreateForm((form) => ({
@@ -3943,14 +3944,15 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   <Field label="Customer Contact">
                     <input
                       className={FIELD_CLASS}
-                      maxLength="250"
+                      inputMode="numeric"
+                      maxLength={11}
                       onChange={(event) =>
                         setCreateForm((form) => ({
                           ...form,
-                          customerContactSnapshot: event.target.value,
+                          customerContactSnapshot: event.target.value.replace(/\D/g, "").slice(0, 11),
                         }))
                       }
-                      placeholder="09XX-XXX-XXXX"
+                      placeholder="0917xxxxxxx"
                       value={createForm.customerContactSnapshot}
                     />
                   </Field>
@@ -3958,11 +3960,11 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   <Field label="Customer Address">
                     <input
                       className={FIELD_CLASS}
-                      maxLength="250"
+                      maxLength={50}
                       onChange={(event) =>
                         setCreateForm((form) => ({
                           ...form,
-                          customerAddressSnapshot: event.target.value,
+                          customerAddressSnapshot: event.target.value.slice(0, 50),
                         }))
                       }
                       placeholder="Barangay, City, Province"

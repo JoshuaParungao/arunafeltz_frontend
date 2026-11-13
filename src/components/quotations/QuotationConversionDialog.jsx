@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertCircle, Check, CheckCircle2, DollarSign, FileText, LoaderCircle, Package, X } from "lucide-react"
 import { getInventoryBatches, getInventorySerials } from "../../features/inventory/inventory.api"
 import { getQuotationById } from "../../features/quotations/quotations.api"
+import { generateUUID } from "../../utils/uuid"
 import { createSale } from "../../features/sales/sales.api"
 import { parseQuotationSettlement, stripSettlementTag } from "../../utils/quotationSettlement"
 import {
@@ -56,10 +57,7 @@ function formatMoney(value) {
 }
 
 function createRequestKey() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID()
-  }
-  return `req-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+  return generateUUID()
 }
 
 export default function QuotationConversionDialog({
@@ -392,7 +390,12 @@ export default function QuotationConversionDialog({
           numPaid > 0
             ? [
                 {
-                  paymentMethod: isReceivable ? settlementMethod : paymentMethod,
+                  paymentMethod: (() => {
+                    const rawM = isReceivable ? settlementMethod : paymentMethod;
+                    if (rawM === "CREDIT_CARD" || rawM === "DEBIT_CARD") return "CARD";
+                    if (rawM === "PAYMAYA" || rawM === "MAYA") return "GCASH";
+                    return rawM;
+                  })(),
                   amount: numPaid,
                   referenceNo: referenceNo.trim() || undefined,
                   remarks: remarks.trim() || undefined,

@@ -1742,8 +1742,7 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
             : value,
       ]),
     )
-    if (!editing?.id) delete payload.supplierCode
-    else if (!payload.supplierCode) delete payload.supplierCode
+    if (!payload.supplierCode || !payload.supplierCode.trim()) delete payload.supplierCode
 
     try {
       const response = editing?.id

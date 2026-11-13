@@ -336,8 +336,8 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
               <input
                 autoFocus
                 className={inputClass}
-                maxLength={200}
-                onChange={(event) => updateField("fullName", event.target.value)}
+                maxLength={30}
+                onChange={(event) => updateField("fullName", event.target.value.slice(0, 30))}
                 placeholder="Customer full name"
                 required
                 value={form.fullName}
@@ -377,10 +377,10 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
             <FormField label="Mobile number">
               <input
                 className={inputClass}
-                inputMode="tel"
-                maxLength={50}
-                onChange={(event) => updateField("mobileNumber", event.target.value)}
-                placeholder="09xx xxx xxxx"
+                inputMode="numeric"
+                maxLength={11}
+                onChange={(event) => updateField("mobileNumber", event.target.value.replace(/\D/g, "").slice(0, 11))}
+                placeholder="0917xxxxxxx"
                 type="tel"
                 value={form.mobileNumber}
               />
@@ -413,8 +413,8 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
               <FormField label="Address">
                 <textarea
                   className={`${inputClass} min-h-[50px] h-[50px] resize-none`}
-                  maxLength={500}
-                  onChange={(event) => updateField("address", event.target.value)}
+                  maxLength={50}
+                  onChange={(event) => updateField("address", event.target.value.slice(0, 50))}
                   placeholder="Customer address"
                   value={form.address}
                 />

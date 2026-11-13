@@ -1143,15 +1143,17 @@ export default function QuotationsPage({ selectedBranch, user }) {
                 <input
                   ref={customerInputRef}
                   aria-label="Customer Name"
+                  maxLength={30}
                   className={`w-full rounded-xl border bg-slate-50/50 py-2 pl-3 pr-8 text-xs font-medium outline-none transition focus:bg-white ${
                     !selectedCustomerId && !customerSearch.trim() && builderMessage?.includes("Customer")
                       ? "border-red-400 focus:border-red-500"
                       : "border-slate-200 focus:border-[var(--color-maroon)]"
                   }`}
                   onChange={(e) => {
-                    setCustomerSearch(e.target.value)
+                    const val = e.target.value.slice(0, 30)
+                    setCustomerSearch(val)
                     setIsCustomerDropdownOpen(true)
-                    if (!e.target.value.trim()) setSelectedCustomerId("")
+                    if (!val.trim()) setSelectedCustomerId("")
                   }}
                   onFocus={() => setIsCustomerDropdownOpen(true)}
                   placeholder="Type customer name (e.g. Juan Dela Cruz) *required…"
@@ -1203,7 +1205,9 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Contact No.</span>
                   <input
                     className="mt-0.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
-                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    inputMode="numeric"
+                    maxLength={11}
+                    onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
                     placeholder="0917xxxxxxx"
                     value={customerPhone}
                   />
@@ -1212,7 +1216,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Address</span>
                   <input
                     className="mt-0.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
-                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    maxLength={50}
+                    onChange={(e) => setCustomerAddress(e.target.value.slice(0, 50))}
                     placeholder="City / Municipality"
                     value={customerAddress}
                   />

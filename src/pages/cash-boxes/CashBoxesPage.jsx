@@ -111,8 +111,9 @@ export default function CashBoxesPage({
 }) {
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const branchName = selectedBranch?.name || user?.branch?.name || "Active Branch"
-  const canManage = OWNER_ROLES.has(user?.role)
-  const canReceive = Boolean(hasCashBoxAccess)
+  const isCashManager = OWNER_ROLES.has(user?.role)
+  const canManage = isCashManager || Boolean(hasCashBoxAccess) || user?.role === "CASH_CUSTODIAN"
+  const canReceive = Boolean(hasCashBoxAccess) || user?.role === "CASH_CUSTODIAN"
 
   const [boxes, setBoxes] = useState([])
   const [selectedBoxId, setSelectedBoxId] = useState("")
@@ -219,11 +220,11 @@ export default function CashBoxesPage({
   }, [branchId, handoverPage, handoverStatus, selectedBoxId])
 
   const loadStaff = useCallback(async () => {
-    if (!canManage) return
+    if (!isCashManager) return
     const response = await getUsers({ ...(branchId ? { branchId } : {}), status: "ACTIVE", limit: 100 })
     const result = response?.data || {}
     setStaff((Array.isArray(result) ? result : result.data || []).filter((member) => member.role !== "SUPER_OWNER"))
-  }, [branchId, canManage])
+  }, [branchId, isCashManager])
 
   const loadDigitalChannels = useCallback(async () => {
     if (!branchId) return

@@ -57,10 +57,8 @@ export default function QuotationDetailDialog({
     quotation?.cashier?.username ||
     "—"
 
-  const branchAddress =
-    branch.address ||
-    "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
-  const branchContact = branch.contactNo || "0961-873-5798 / 045-404-0673"
+  const branchAddress = branch.address || branch.name || "Main Branch"
+  const branchContact = branch.contactNo || "—"
 
   const rawCode = String(quotation?.quotationCode || quotation?.code || (isPreview ? "PREVIEW" : "—")).trim()
   const numericMatch = rawCode.match(/\d+$/)

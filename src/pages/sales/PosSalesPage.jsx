@@ -1008,9 +1008,10 @@ function SaleDetailDialog({
                   </span>
                   <input
                     className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
+                    maxLength={30}
                     value={previewCustomerName}
                     onChange={(e) => {
-                      setPreviewCustomerName(e.target.value)
+                      setPreviewCustomerName(e.target.value.slice(0, 30))
                       if (checkoutError) setCheckoutError("")
                     }}
                     placeholder="e.g. Juan Dela Cruz"
@@ -1024,12 +1025,14 @@ function SaleDetailDialog({
                   </span>
                   <input
                     className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
+                    inputMode="numeric"
+                    maxLength={11}
                     value={previewCustomerPhone}
                     onChange={(e) => {
-                      setPreviewCustomerPhone(e.target.value)
+                      setPreviewCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 11))
                       if (checkoutError) setCheckoutError("")
                     }}
-                    placeholder="e.g. 0917-123-4567 / 0961-873-5798"
+                    placeholder="0917xxxxxxx"
                     required
                   />
                 </label>
@@ -1040,9 +1043,10 @@ function SaleDetailDialog({
                   </span>
                   <input
                     className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
+                    maxLength={50}
                     value={previewCustomerAddress}
                     onChange={(e) => {
-                      setPreviewCustomerAddress(e.target.value)
+                      setPreviewCustomerAddress(e.target.value.slice(0, 50))
                       if (checkoutError) setCheckoutError("")
                     }}
                     placeholder="e.g. Brgy. San Isidro, CSFP"
@@ -4874,6 +4878,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         try {
           const newCustRes = await createCustomer({
             fullName: trimmedCustomerName,
+            address: customerAddress.trim() || undefined,
+            mobileNumber: customerPhone.trim() || undefined,
+            email: customerEmail.trim() || undefined,
             branchId,
             priceTier: selectedPriceTier || 1,
           })
@@ -6019,15 +6026,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <input
                     ref={customerInputRef}
                     aria-label="Search or enter customer name"
+                    maxLength={30}
                     className={`w-full rounded-xl border bg-slate-50/50 py-1.5 pl-3 pr-8 text-xs font-medium outline-none transition focus:bg-white ${
                       !selectedCustomerId && !customerSearch.trim() && checkoutMessage?.includes("Customer name is required")
                         ? "border-red-400 focus:border-red-500"
                         : "border-slate-200 focus:border-[var(--color-maroon)]"
                     }`}
                     onChange={(event) => {
-                      setCustomerSearch(event.target.value)
+                      const val = event.target.value.slice(0, 30)
+                      setCustomerSearch(val)
                       setIsCustomerDropdownOpen(true)
-                      if (!event.target.value.trim()) {
+                      if (!val.trim()) {
                         setSelectedCustomerId("")
                       }
                     }}
@@ -6131,7 +6140,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Contact No.</span>
                   <input
                     className="mt-0.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
-                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    inputMode="numeric"
+                    maxLength={11}
+                    onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
                     placeholder="0917xxxxxxx"
                     value={customerPhone}
                   />
@@ -6140,7 +6151,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Address</span>
                   <input
                     className="mt-0.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
-                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    maxLength={50}
+                    onChange={(e) => setCustomerAddress(e.target.value.slice(0, 50))}
                     placeholder="City / Municipality"
                     value={customerAddress}
                   />
