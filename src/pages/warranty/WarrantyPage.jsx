@@ -26,14 +26,12 @@ import { getItems } from "../../features/items/items.api"
 import { getSaleById, getSales } from "../../features/sales/sales.api"
 import {
   createWarrantyClaim,
-  dispatchToSupplier,
   getWarrantyClaimById,
   getWarrantyClaims,
   issueLoanerUnit,
   processImmediateReplacement,
   rejectCustomerClaim,
   releaseWarrantyClaim,
-  resolveSupplierRma,
   returnLoanerUnit,
   updateWarrantyClaimStatus,
 } from "../../features/warranty-claims/warrantyClaims.api"
@@ -195,7 +193,7 @@ const EMPTY_CREATE = {
   remarks: "",
 }
 
-export default function WarrantyPage({ initialContext, selectedBranch, user }) {
+export default function WarrantyPage({ initialContext, onNavigate, selectedBranch, user }) {
   const branchName = selectedBranch?.name || user?.branch?.name || "Selected Branch"
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
   const canCreate = CREATE_ROLES.has(user?.role)
@@ -259,25 +257,6 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
   const [availableReplacementBatches, setAvailableReplacementBatches] = useState([])
   const [availableReplacementSerials, setAvailableReplacementSerials] = useState([])
   const [isLoadingStock, setIsLoadingStock] = useState(false)
-
-  // Dispatch to Supplier Modal
-  const [showDispatchSupplier, setShowDispatchSupplier] = useState(false)
-  const [dispatchTargetClaim, setDispatchTargetClaim] = useState(null)
-  const [dispatchForm, setDispatchForm] = useState({
-    supplierName: "",
-    supplierReferenceNo: "",
-    remarks: "",
-  })
-
-  // Supplier RMA Resolution Modal (Supplier Replaced vs Supplier Rejected Shrinkage)
-  const [showResolveSupplier, setShowResolveSupplier] = useState(false)
-  const [resolveTargetClaim, setResolveTargetClaim] = useState(null)
-  const [resolveForm, setResolveForm] = useState({
-    outcome: "REPLACED_BY_SUPPLIER",
-    rejectionReason: "",
-    actionTaken: "",
-    remarks: "",
-  })
 
   // Release Modal
   const [showRelease, setShowRelease] = useState(false)
@@ -761,96 +740,6 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
       await loadClaims()
     } catch (error) {
       setErrorMessage(apiError(error, "Could not reject warranty claim."))
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  // Handle Dispatch to Supplier
-  const openDispatchSupplierModal = (claim) => {
-    setDispatchTargetClaim(claim)
-    setDispatchForm({
-      supplierName: claim.supplierName || "",
-      supplierReferenceNo: claim.supplierReferenceNo || "",
-      remarks: claim.remarks || "",
-    })
-    setShowDispatchSupplier(true)
-  }
-
-  const submitDispatchSupplier = async (event) => {
-    event.preventDefault()
-    if (!dispatchTargetClaim || isSaving) return
-    setIsSaving(true)
-    setErrorMessage("")
-    try {
-      const response = await dispatchToSupplier(dispatchTargetClaim.id, {
-        supplierName: dispatchForm.supplierName.trim(),
-        supplierReferenceNo: dispatchForm.supplierReferenceNo.trim() || undefined,
-        remarks: dispatchForm.remarks.trim() || undefined,
-      })
-      setShowDispatchSupplier(false)
-      if (selectedClaim?.id === dispatchTargetClaim.id) {
-        setSelectedClaim(response?.data || dispatchTargetClaim)
-      }
-      setNotice(`📦 Claim ${dispatchTargetClaim.claimCode} dispatched to ${dispatchForm.supplierName}.`)
-      await loadClaims()
-    } catch (error) {
-      setErrorMessage(apiError(error, "Could not dispatch to supplier."))
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  // Handle Supplier RMA Resolution
-  const openResolveSupplierModal = (claim) => {
-    setResolveTargetClaim(claim)
-    setResolveForm({
-      outcome: "REPLACED_BY_SUPPLIER",
-      replacementItemId: claim.itemId || "",
-      newSerial: "",
-      creditMemoNumber: "",
-      creditMemoAmount: "",
-      rejectionReason: "",
-      actionTaken: "Supplier approved & replaced unit.",
-      remarks: "",
-    })
-    setShowResolveSupplier(true)
-  }
-
-  const submitResolveSupplier = async (event) => {
-    event.preventDefault()
-    if (!resolveTargetClaim || isSaving) return
-    setIsSaving(true)
-    setErrorMessage("")
-    try {
-      const response = await resolveSupplierRma(resolveTargetClaim.id, {
-        outcome: resolveForm.outcome,
-        replacementItemId: resolveForm.outcome === "CHANGE_MODEL" ? resolveForm.replacementItemId : undefined,
-        newSerial: resolveForm.newSerial.trim() || undefined,
-        creditMemoNumber: resolveForm.outcome === "CREDIT_MEMO" ? resolveForm.creditMemoNumber.trim() : undefined,
-        creditMemoAmount: resolveForm.outcome === "CREDIT_MEMO" && resolveForm.creditMemoAmount ? Number(resolveForm.creditMemoAmount) : undefined,
-        rejectionReason: resolveForm.rejectionReason.trim() || undefined,
-        actionTaken: resolveForm.actionTaken.trim() || undefined,
-        remarks: resolveForm.remarks.trim() || undefined,
-      })
-      setShowResolveSupplier(false)
-      if (selectedClaim?.id === resolveTargetClaim.id) {
-        setSelectedClaim(response?.data || resolveTargetClaim)
-      }
-      let msg = `✅ Supplier resolved ${resolveTargetClaim.claimCode}.`
-      if (resolveForm.outcome === "REJECTED") {
-        msg = `⚠️ Supplier rejected RMA for ${resolveTargetClaim.claimCode}. Defective unit written off to Shrinkage Loss.`
-      } else if (resolveForm.outcome === "CHANGE_MODEL") {
-        msg = `✅ Supplier replaced ${resolveTargetClaim.claimCode} with a new model. 1 unit added to inventory as fresh stock.`
-      } else if (resolveForm.outcome === "CREDIT_MEMO") {
-        msg = `✅ Supplier issued Credit Memo #${resolveForm.creditMemoNumber || "N/A"} for ${resolveTargetClaim.claimCode}. Applied to deduct from supplier payables.`
-      } else {
-        msg = `✅ Supplier resolved ${resolveTargetClaim.claimCode}. Unit received and replenished to stock (WARRANTY_RETURN).`
-      }
-      setNotice(msg)
-      await loadClaims()
-    } catch (error) {
-      setErrorMessage(apiError(error, "Could not resolve supplier RMA."))
     } finally {
       setIsSaving(false)
     }
@@ -1355,11 +1244,16 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
 
                                   <button
                                     type="button"
-                                    onClick={() => openDispatchSupplierModal(claim)}
-                                    className="inline-flex items-center gap-1 rounded-xl bg-violet-700 hover:bg-violet-800 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition"
-                                    title="Dispatch to supplier for RMA"
+                                    onClick={() => {
+                                      if (onNavigate) {
+                                        onNavigate("supplier-returns")
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-rose-700 hover:bg-rose-800 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition"
+                                    title="Include this unit in a Supplier Return (B.O.) Pull-Out Voucher"
                                   >
-                                    <span>Supplier</span>
+                                    <Truck size={12} />
+                                    <span>Supplier B.O.</span>
                                   </button>
 
                                   <button
@@ -1504,16 +1398,26 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
       {/* TAB 2: SENT TO SUPPLIER (SUPPLIER RMA HUB) */}
       {activeTab === "supplier" && (
         <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs">
-          <div className="border-b border-slate-100 p-3.5 flex items-center justify-between gap-3">
+          <div className="border-b border-slate-100 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Supplier RMA Monitoring Hub</h2>
+              <h2 className="text-sm font-bold text-slate-900">Units With Suppliers (B.O. Pull-Outs)</h2>
               <p className="text-xs text-slate-500">
-                Units dispatched to distributors and suppliers awaiting replacement or repair outcome.
+                Customer warranty units dispatched to suppliers. Pull-out vouchers, logistics tracking, and resolutions are centrally managed in the Supplier Returns module.
               </p>
             </div>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
-              {supplierClaims.length} Active RMA(s)
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                {supplierClaims.length} With Suppliers
+              </span>
+              <button
+                type="button"
+                onClick={() => onNavigate?.("supplier-returns")}
+                className="flex items-center gap-1.5 rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-rose-800 transition"
+              >
+                <Truck size={13} />
+                Open Supplier Returns
+              </button>
+            </div>
           </div>
 
           {supplierClaims.length === 0 ? (
@@ -1537,7 +1441,7 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                         </span>
                         {claim.supplierReferenceNo ? (
                           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-mono text-slate-600">
-                            Ref: {claim.supplierReferenceNo}
+                            Voucher / Ref: {claim.supplierReferenceNo}
                           </span>
                         ) : null}
                         <span
@@ -1564,10 +1468,11 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => openResolveSupplierModal(claim)}
-                        className="rounded-lg bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition"
+                        onClick={() => onNavigate?.("supplier-returns")}
+                        className="flex items-center gap-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition"
                       >
-                        Receive Supplier Outcome
+                        <Truck size={13} />
+                        View in Supplier Returns
                       </button>
                     </div>
                   </div>
@@ -2041,248 +1946,6 @@ export default function WarrantyPage({ initialContext, selectedBranch, user }) {
                 type="submit"
               >
                 {isSaving ? "Issuing Replacement…" : "Confirm Replacement & Deduct Stock"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      ) : null}
-
-      {/* MODAL 3: DISPATCH TO SUPPLIER */}
-      {showDispatchSupplier && dispatchTargetClaim ? (
-        <Modal
-          onClose={() => setShowDispatchSupplier(false)}
-          title={`Dispatch to Supplier: ${dispatchTargetClaim.claimCode}`}
-        >
-          <form onSubmit={submitDispatchSupplier}>
-            <div className="space-y-4 p-5 sm:p-6 text-xs">
-              <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5 text-slate-600">
-                Item status will be set to <strong>SENT TO SUPPLIER</strong> and monitored in the Supplier RMA Hub.
-              </div>
-
-              <Field label="Supplier / Distributor Name" required>
-                <input
-                  className={FIELD_CLASS}
-                  placeholder="e.g. Asus Philippines, Ubertech, Iontech..."
-                  required
-                  value={dispatchForm.supplierName}
-                  onChange={(e) => setDispatchForm((prev) => ({ ...prev, supplierName: e.target.value }))}
-                />
-              </Field>
-
-              <Field label="Supplier RMA / Tracking Reference #">
-                <input
-                  className={FIELD_CLASS}
-                  placeholder="e.g. RMA-2026-09823"
-                  value={dispatchForm.supplierReferenceNo}
-                  onChange={(e) => setDispatchForm((prev) => ({ ...prev, supplierReferenceNo: e.target.value }))}
-                />
-              </Field>
-
-              <Field label="Dispatch Remarks">
-                <textarea
-                  className={FIELD_CLASS}
-                  placeholder="Courier tracking, contact person, etc."
-                  rows="2"
-                  value={dispatchForm.remarks}
-                  onChange={(e) => setDispatchForm((prev) => ({ ...prev, remarks: e.target.value }))}
-                />
-              </Field>
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-slate-200 p-4 sm:px-6">
-              <button
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
-                onClick={() => setShowDispatchSupplier(false)}
-                type="button"
-              >
-                Back
-              </button>
-              <button
-                className="rounded-xl bg-violet-700 hover:bg-violet-800 px-5 py-2.5 text-xs font-bold text-white shadow-soft"
-                disabled={isSaving}
-                type="submit"
-              >
-                {isSaving ? "Dispatching…" : "Confirm Supplier Dispatch"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      ) : null}
-
-      {/* MODAL 4: SUPPLIER RMA RESOLUTION */}
-      {showResolveSupplier && resolveTargetClaim ? (
-        <Modal
-          onClose={() => setShowResolveSupplier(false)}
-          title={`Resolve Supplier RMA: ${resolveTargetClaim.claimCode}`}
-        >
-          <form onSubmit={submitResolveSupplier}>
-            <div className="space-y-4 p-5 sm:p-6 text-xs">
-              <Field label="Supplier Outcome & Resolution Scenario" required>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {[
-                    { id: "REPLACED_BY_SUPPLIER", label: "📦 Same Item Replaced", desc: "Same model returns to stock" },
-                    { id: "CHANGE_MODEL", label: "🔄 Change Model", desc: "Phased out -> New model stock" },
-                    { id: "CREDIT_MEMO", label: "📄 Credit Memo (CM)", desc: "Deduct from AP payables" },
-                    { id: "REPAIRED", label: "🔧 Repaired Unit", desc: "Fixed unit returns to stock" },
-                    { id: "REJECTED", label: "❌ Supplier Rejected", desc: "Write-off / Shrinkage loss" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setResolveForm((prev) => ({ ...prev, outcome: opt.id }))}
-                      className={`rounded-xl p-2.5 text-left transition border ${
-                        resolveForm.outcome === opt.id
-                          ? opt.id === "REJECTED"
-                            ? "border-rose-600 bg-rose-50 text-rose-900 shadow-2xs font-bold"
-                            : opt.id === "CREDIT_MEMO"
-                              ? "border-blue-600 bg-blue-50 text-blue-900 shadow-2xs font-bold"
-                              : opt.id === "CHANGE_MODEL"
-                                ? "border-amber-600 bg-amber-50 text-amber-900 shadow-2xs font-bold"
-                                : "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-2xs font-bold"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
-                    >
-                      <p className="text-xs font-black">{opt.label}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{opt.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </Field>
-
-              {resolveForm.outcome === "CHANGE_MODEL" ? (
-                <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-3.5 space-y-3">
-                  <div>
-                    <h5 className="text-xs font-black uppercase tracking-wider text-amber-900">
-                      Scenario 2: Change Model (Phased-Out Replacement)
-                    </h5>
-                    <p className="text-[11px] text-amber-800">
-                      Since the original item is phased out, select the replacement model provided by the supplier. 1 unit will be replenished into the new model's inventory stock.
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Select New Model Item from Catalog *" required>
-                      <select
-                        className={FIELD_CLASS}
-                        value={resolveForm.replacementItemId}
-                        onChange={(e) => setResolveForm((prev) => ({ ...prev, replacementItemId: e.target.value }))}
-                        required
-                      >
-                        <option value="">Select replacement model...</option>
-                        {items.map((it) => (
-                          <option key={it.id} value={it.id}>
-                            {it.itemCode} · {it.itemName} {it.isSerialized ? "(Serialized)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="New Replacement Serial Number (Optional)">
-                      <input
-                        className={FIELD_CLASS}
-                        placeholder="Scan or type new serial barcode..."
-                        value={resolveForm.newSerial}
-                        onChange={(e) => setResolveForm((prev) => ({ ...prev, newSerial: e.target.value }))}
-                      />
-                    </Field>
-                  </div>
-                </div>
-              ) : null}
-
-              {resolveForm.outcome === "CREDIT_MEMO" ? (
-                <div className="rounded-2xl border border-blue-300 bg-blue-50/70 p-3.5 space-y-3">
-                  <div>
-                    <h5 className="text-xs font-black uppercase tracking-wider text-blue-900">
-                      Scenario 3: Supplier Credit Memo (CM)
-                    </h5>
-                    <p className="text-[11px] text-blue-800">
-                      Supplier issued a Credit Memo instead of physical stock replacement. This CM will be logged to deduct from your accounts payable (AP) balance with this supplier.
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Credit Memo Reference / Number *" required>
-                      <input
-                        className={FIELD_CLASS}
-                        placeholder="e.g. CM-2026-0041"
-                        required
-                        value={resolveForm.creditMemoNumber}
-                        onChange={(e) => setResolveForm((prev) => ({ ...prev, creditMemoNumber: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Credit Memo Amount (₱) *" required>
-                      <input
-                        className={`${FIELD_CLASS} font-mono font-bold`}
-                        min="0"
-                        placeholder="0.00"
-                        required
-                        step="0.01"
-                        type="number"
-                        value={resolveForm.creditMemoAmount}
-                        onChange={(e) => setResolveForm((prev) => ({ ...prev, creditMemoAmount: e.target.value }))}
-                      />
-                    </Field>
-                  </div>
-                </div>
-              ) : null}
-
-              {resolveForm.outcome === "REPLACED_BY_SUPPLIER" || resolveForm.outcome === "REPAIRED" ? (
-                <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5 space-y-2">
-                  <p className="text-xs font-bold text-emerald-900">
-                    <strong>Scenario 1: Stock Replenishment:</strong> Receiving the replaced/repaired unit automatically replenishes 1 unit back into branch stock via <code className="font-mono">WARRANTY_RETURN</code>.
-                  </p>
-                  <Field label="Replacement Unit Serial Number (Optional)">
-                    <input
-                      className={FIELD_CLASS}
-                      placeholder="Scan or type new serial barcode if replaced with new serial..."
-                      value={resolveForm.newSerial}
-                      onChange={(e) => setResolveForm((prev) => ({ ...prev, newSerial: e.target.value }))}
-                    />
-                  </Field>
-                </div>
-              ) : null}
-
-              {resolveForm.outcome === "REJECTED" ? (
-                <div className="rounded-2xl border border-rose-300 bg-rose-50 p-3.5 space-y-2">
-                  <p className="text-xs font-bold text-rose-900">
-                    <strong>Inventory Shrinkage Loss:</strong> The supplier rejected the claim. This unit will be logged as a write-off / shrinkage loss.
-                  </p>
-                  <Field label="Mandatory Supplier Rejection Reason *" required>
-                    <textarea
-                      required
-                      className={FIELD_CLASS}
-                      placeholder="e.g. Customer induced damage: Corroded contacts, PCB fracture..."
-                      rows="3"
-                      value={resolveForm.rejectionReason}
-                      onChange={(e) => setResolveForm((prev) => ({ ...prev, rejectionReason: e.target.value }))}
-                    />
-                  </Field>
-                </div>
-              ) : null}
-
-              <Field label="Action Taken Notes">
-                <textarea
-                  className={FIELD_CLASS}
-                  rows="2"
-                  value={resolveForm.actionTaken}
-                  onChange={(e) => setResolveForm((prev) => ({ ...prev, actionTaken: e.target.value }))}
-                />
-              </Field>
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-slate-200 p-4 sm:px-6">
-              <button
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
-                onClick={() => setShowResolveSupplier(false)}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className={`rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-soft transition ${
-                  resolveForm.outcome === "REJECTED" ? "bg-rose-700 hover:bg-rose-800" : "bg-emerald-700 hover:bg-emerald-800"
-                }`}
-                disabled={isSaving}
-                type="submit"
-              >
-                {isSaving ? "Submitting Resolution…" : "Confirm Supplier Outcome"}
               </button>
             </div>
           </form>

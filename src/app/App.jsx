@@ -368,6 +368,7 @@ function App() {
       return (
         <WarrantyPage
           initialContext={pageContext}
+          onNavigate={setSafeActivePage}
           selectedBranch={selectedBranch}
           user={user}
         />
