@@ -44,3 +44,4 @@ export async function cancelSupplierReturn(id, payload) {
   const response = await apiClient.post(`/supplier-returns/${id}/cancel`, payload)
   return response.data
 }
+

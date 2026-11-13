@@ -593,3 +593,4 @@ export default function SupplierReturnsPage({ selectedBranch, user }) {
     </div>
   )
 }
+
