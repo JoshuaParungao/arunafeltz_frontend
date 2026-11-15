@@ -198,7 +198,7 @@ function renderVoucherHtml(returnData, copyLabel) {
 const A4_SLIP_STYLES = `
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 6mm 8mm;
   }
   * {
     box-sizing: border-box;
@@ -208,37 +208,43 @@ const A4_SLIP_STYLES = `
   body {
     margin: 0;
     padding: 0;
-    background: #f1f5f9;
+    background: #ffffff;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: #0f172a;
-    line-height: 1.35;
+    line-height: 1.3;
   }
   .slip-page-card {
     background: #ffffff;
     width: 100%;
     max-width: 210mm;
-    min-height: 275mm;
-    margin: 0 auto 16px auto;
-    padding: 12mm 14mm;
+    margin: 0 auto 12px auto;
+    padding: 8mm 10mm;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
   }
   @media print {
-    body {
-      background: #ffffff;
+    html, body {
+      background: #ffffff !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
     .slip-page-card {
-      box-shadow: none;
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      min-height: auto;
-      page-break-after: always;
+      box-shadow: none !important;
+      margin: 0 !important;
+      padding: 4mm 6mm !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-height: auto !important;
+      page-break-after: always !important;
+      break-after: page !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     .slip-page-card:last-child {
-      page-break-after: auto;
+      page-break-after: auto !important;
+      break-after: auto !important;
     }
   }
 
@@ -247,18 +253,18 @@ const A4_SLIP_STYLES = `
     justify-content: space-between;
     align-items: flex-start;
     border-bottom: 2px solid #0f172a;
-    padding-bottom: 8px;
-    margin-bottom: 10px;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
   }
   .shop-title {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: #0f172a;
     text-transform: uppercase;
   }
   .shop-sub {
-    font-size: 11px;
+    font-size: 10.5px;
     color: #475569;
     margin-top: 1px;
   }
@@ -267,8 +273,8 @@ const A4_SLIP_STYLES = `
   }
   .copy-badge {
     display: inline-block;
-    padding: 3px 8px;
-    font-size: 10px;
+    padding: 2px 7px;
+    font-size: 9.5px;
     font-weight: 700;
     text-transform: uppercase;
     background: #e2e8f0;
@@ -278,34 +284,34 @@ const A4_SLIP_STYLES = `
   }
   .claim-ref {
     font-family: monospace;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
     color: #831843;
-    margin-top: 4px;
+    margin-top: 3px;
   }
   .ref-date {
-    font-size: 11px;
+    font-size: 10.5px;
     color: #64748b;
   }
 
   .doc-banner {
     background: #0f172a;
     color: #ffffff;
-    padding: 6px 12px;
+    padding: 5px 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-radius: 4px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
   .doc-title {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.05em;
     text-transform: uppercase;
   }
   .doc-subtitle {
-    font-size: 10px;
+    font-size: 9.5px;
     color: #cbd5e1;
     font-weight: 500;
   }
@@ -313,33 +319,33 @@ const A4_SLIP_STYLES = `
   .meta-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 8px;
+    margin-bottom: 8px;
   }
   .meta-box {
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 6px 10px;
     background: #f8fafc;
   }
   .box-title {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #475569;
     border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 3px;
-    margin-bottom: 6px;
+    padding-bottom: 2px;
+    margin-bottom: 4px;
   }
   .meta-row {
-    font-size: 11px;
+    font-size: 10px;
     display: flex;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     align-items: baseline;
   }
   .meta-row .lbl {
-    width: 100px;
+    width: 95px;
     color: #64748b;
     flex-shrink: 0;
   }
@@ -349,73 +355,73 @@ const A4_SLIP_STYLES = `
   }
 
   .table-container {
-    margin-bottom: 10px;
+    margin-bottom: 6px;
   }
   .items-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 11px;
+    font-size: 10px;
   }
   .items-table th {
     background: #f1f5f9;
     color: #334155;
     font-weight: 700;
     text-align: left;
-    padding: 6px 8px;
+    padding: 5px 6px;
     border: 1px solid #cbd5e1;
-    font-size: 10px;
+    font-size: 9.5px;
     text-transform: uppercase;
   }
   .items-table td {
-    padding: 6px 8px;
+    padding: 5px 6px;
     border: 1px solid #e2e8f0;
     vertical-align: top;
   }
 
   .ack-terms {
-    font-size: 10px;
+    font-size: 9px;
     color: #475569;
-    line-height: 1.4;
+    line-height: 1.3;
     border-left: 3px solid #831843;
-    padding: 6px 10px;
+    padding: 4px 8px;
     background: #fdf2f8;
     border-radius: 0 4px 4px 0;
-    margin-top: 14px;
+    margin-top: 8px;
   }
 
   .signatures-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
-    margin-top: 24px;
-    margin-bottom: 10px;
+    gap: 12px;
+    margin-top: 14px;
+    margin-bottom: 6px;
   }
   .sig-block {
     text-align: center;
   }
   .sig-line {
     border-bottom: 1px solid #475569;
-    margin-bottom: 4px;
-    height: 32px;
+    margin-bottom: 3px;
+    height: 22px;
   }
   .sig-name {
     font-weight: 700;
-    font-size: 11px;
+    font-size: 10.5px;
     color: #0f172a;
   }
   .sig-role {
-    font-size: 10px;
+    font-size: 9.5px;
     color: #64748b;
   }
 
   .slip-footer {
     display: flex;
     justify-content: space-between;
-    font-size: 9px;
+    font-size: 8.5px;
     color: #94a3b8;
     border-top: 1px solid #e2e8f0;
-    padding-top: 6px;
-    margin-top: 12px;
+    padding-top: 4px;
+    margin-top: 8px;
   }
 `
 

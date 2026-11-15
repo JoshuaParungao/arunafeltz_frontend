@@ -114,30 +114,110 @@ export default function DispatchReturnModal({
             </div>
           )}
 
+          {/* QUICK DELIVERY MODE PRESETS */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+              Select Handover / Delivery Mode
+            </label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setCourierName("Store Staff Handover")
+                  if (!driverName || driverName.includes("Store") || driverName.includes("Driver") || driverName.includes("Juan")) {
+                    setDriverName("Store Staff / Employee")
+                  }
+                  setTrackingNumber("Direct Handover")
+                }}
+                className={`rounded-xl border p-2 text-left transition ${
+                  courierName.includes("Staff")
+                    ? "border-blue-600 bg-blue-50 text-blue-900 font-bold shadow-2xs"
+                    : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <div className="font-bold text-xs">🏢 Employee / Staff</div>
+                <div className="text-[10px] text-slate-500">Employee delivers</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCourierName("Owner Direct Delivery")
+                  setDriverName("Store Owner")
+                  setTrackingNumber("Direct Handover")
+                }}
+                className={`rounded-xl border p-2 text-left transition ${
+                  courierName.includes("Owner")
+                    ? "border-amber-600 bg-amber-50 text-amber-900 font-bold shadow-2xs"
+                    : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <div className="font-bold text-xs">👑 Store Owner</div>
+                <div className="text-[10px] text-slate-500">Owner delivers</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCourierName("Supplier Van Pickup")
+                  setDriverName("Supplier Driver")
+                  setTrackingNumber("Supplier Pickup")
+                }}
+                className={`rounded-xl border p-2 text-left transition ${
+                  courierName.includes("Supplier")
+                    ? "border-purple-600 bg-purple-50 text-purple-900 font-bold shadow-2xs"
+                    : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <div className="font-bold text-xs">🚐 Supplier Van</div>
+                <div className="text-[10px] text-slate-500">Supplier picked up</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCourierName("Lalamove / Grab")
+                  setTrackingNumber("")
+                }}
+                className={`rounded-xl border p-2 text-left transition ${
+                  courierName.includes("Lalamove") || courierName.includes("Grab")
+                    ? "border-emerald-600 bg-emerald-50 text-emerald-900 font-bold shadow-2xs"
+                    : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <div className="font-bold text-xs">📦 3rd-Party Courier</div>
+                <div className="text-[10px] text-slate-500">Lalamove / Grab</div>
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-500">
+              💡 Kung Employee o Owner mismo ang nagdala sa opisina/depo ng supplier, opsyonal ang Vehicle Plate at Tracking #.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Driver / Representative Name
+                Handover Person / Driver / Rep Name *
               </label>
               <input
                 type="text"
-                placeholder="e.g. Juan dela Cruz"
+                placeholder="e.g. Employee Name, Owner, or Driver"
                 value={driverName}
                 onChange={(e) => setDriverName(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Driver Phone / Contact
+                Phone / Contact No. (Optional)
               </label>
               <input
                 type="text"
                 placeholder="e.g. 0917-123-4567"
                 value={driverContact}
                 onChange={(e) => setDriverContact(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
               />
             </div>
           </div>
@@ -145,27 +225,27 @@ export default function DispatchReturnModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Vehicle Plate #
+                Courier / Logistics Mode *
               </label>
               <input
                 type="text"
-                placeholder="e.g. NBD 1234"
-                value={vehiclePlate}
-                onChange={(e) => setVehiclePlate(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-rose-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Courier / Logistics Mode
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Store Van, Lalamove"
+                placeholder="e.g. Store Staff Handover, Owner Direct, Lalamove"
                 value={courierName}
                 onChange={(e) => setCourierName(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Vehicle Plate # (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. NBD 1234 or Personal Vehicle"
+                value={vehiclePlate}
+                onChange={(e) => setVehiclePlate(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
               />
             </div>
           </div>
@@ -173,14 +253,14 @@ export default function DispatchReturnModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Waybill / Tracking #
+                Waybill / Tracking # (Optional)
               </label>
               <input
                 type="text"
-                placeholder="e.g. LLM-991208"
+                placeholder="e.g. Direct Handover or Tracking #"
                 value={trackingNumber}
                 onChange={(e) => setTrackingNumber(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
               />
             </div>
 
@@ -192,7 +272,7 @@ export default function DispatchReturnModal({
                 type="date"
                 value={dispatchDate}
                 onChange={(e) => setDispatchDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
               />
             </div>
           </div>

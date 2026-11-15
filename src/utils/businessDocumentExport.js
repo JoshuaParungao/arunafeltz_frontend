@@ -2439,7 +2439,11 @@ export function exportReportExcel({
  * Clean isolated HTML printing helper.
  * Opens an isolated popup window to avoid React SPA and modal layout clipping.
  */
-export function printBusinessHtml(htmlContent, title = "Print Document") {
+export function printBusinessHtml(htmlContent, titleOrOptions = "Print Document") {
+  const isOptions = typeof titleOrOptions === "object" && titleOrOptions !== null
+  const title = isOptions ? (titleOrOptions.title || "Print Document") : titleOrOptions
+  const customStyles = isOptions ? (titleOrOptions.styles || "") : ""
+
   const printWindow = window.open("", "_blank", "width=1000,height=800")
   if (!printWindow) {
     window.alert("Please allow popups to print this document.")
@@ -2452,47 +2456,49 @@ export function printBusinessHtml(htmlContent, title = "Print Document") {
     <meta charset="utf-8" />
     <title>${sanitizeForPdf(title)}</title>
     <style>
-      @page {
-        size: A4 portrait;
-        margin: 12mm 10mm;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        padding: 10px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        color: #0f172a;
-        background: #ffffff;
-        font-size: 11px;
-        line-height: 1.4;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 12px;
-      }
-      th, td {
-        border: 1px solid #94a3b8;
-        padding: 5px 6px;
-        font-size: 9.5px;
-      }
-      th {
-        background-color: #f1f5f9;
-        font-weight: 700;
-        color: #0f172a;
-      }
-      .text-right { text-align: right; }
-      .text-center { text-align: center; }
-      .font-bold { font-weight: 700; }
-      .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-      .uppercase { text-transform: uppercase; }
-      .bg-slate-50 { background-color: #f8fafc; }
-      .bg-slate-100 { background-color: #f1f5f9; }
-      @media print {
-        body { padding: 0; }
-      }
+      ${customStyles || `
+        @page {
+          size: A4 portrait;
+          margin: 12mm 10mm;
+        }
+        * {
+          box-sizing: border-box;
+        }
+        body {
+          margin: 0;
+          padding: 10px;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          color: #0f172a;
+          background: #ffffff;
+          font-size: 11px;
+          line-height: 1.4;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 12px;
+        }
+        th, td {
+          border: 1px solid #94a3b8;
+          padding: 5px 6px;
+          font-size: 9.5px;
+        }
+        th {
+          background-color: #f1f5f9;
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: 700; }
+        .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .uppercase { text-transform: uppercase; }
+        .bg-slate-50 { background-color: #f8fafc; }
+        .bg-slate-100 { background-color: #f1f5f9; }
+        @media print {
+          body { padding: 0; }
+        }
+      `}
     </style>
   </head>
   <body>
