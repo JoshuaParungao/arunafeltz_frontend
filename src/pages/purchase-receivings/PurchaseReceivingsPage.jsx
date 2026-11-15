@@ -7,14 +7,10 @@ import {
   ChevronRight,
   Eye,
   LoaderCircle,
-  PackageCheck,
   PackagePlus,
   Plus,
-  RefreshCw,
   Search,
-  ShieldCheck,
   Trash2,
-  Truck,
   X,
 } from "lucide-react"
 
@@ -29,10 +25,6 @@ import {
   updatePurchaseReceivingStatus,
 } from "../../features/purchase-receivings/purchaseReceivings.api"
 import { getSuppliers } from "../../features/suppliers/suppliers.api"
-import {
-  getWarrantyClaims,
-  resolveSupplierRma,
-} from "../../features/warranty-claims/warrantyClaims.api"
 
 import {
   exportReceivingPdf,
@@ -765,117 +757,6 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [editing, setEditing] = useState(null)
 
-  // Supplier Warranty & RMA Tracking State (Purchases & Delivery)
-  const [supplierClaims, setSupplierClaims] = useState([])
-  const [isLoadingSupplierClaims, setIsLoadingSupplierClaims] = useState(false)
-  const [supplierRmaSearch, setSupplierRmaSearch] = useState("")
-  const [showResolveSupplierModal, setShowResolveSupplierModal] = useState(false)
-  const [resolveTargetClaim, setResolveTargetClaim] = useState(null)
-  const [resolveForm, setResolveForm] = useState({
-    outcome: "REPLACED_BY_SUPPLIER",
-    replacementItemId: "",
-    newSerial: "",
-    creditMemoNumber: "",
-    creditMemoAmount: "",
-    rejectionReason: "",
-    actionTaken: "Supplier approved & replaced unit.",
-    remarks: "",
-  })
-
-  const loadSupplierClaims = useCallback(async () => {
-    if (!branchId) return
-    setIsLoadingSupplierClaims(true)
-    try {
-      const response = await getWarrantyClaims({
-        branchId,
-        status: "SENT_TO_SUPPLIER",
-        limit: 100,
-      })
-      const list = response?.data?.items || response?.data || []
-      setSupplierClaims(Array.isArray(list) ? list : [])
-    } catch (err) {
-      console.warn("Could not load supplier RMA claims:", err)
-    } finally {
-      setIsLoadingSupplierClaims(false)
-    }
-  }, [branchId])
-
-  useEffect(() => {
-    if (viewMode === "SUPPLIER_WARRANTY") {
-      loadSupplierClaims()
-    }
-  }, [viewMode, loadSupplierClaims])
-
-  const openResolveSupplier = (claim) => {
-    setResolveTargetClaim(claim)
-    setResolveForm({
-      outcome: "REPLACED_BY_SUPPLIER",
-      replacementItemId: claim.itemId || "",
-      newSerial: "",
-      creditMemoNumber: "",
-      creditMemoAmount: "",
-      rejectionReason: "",
-      actionTaken: "Supplier approved & replaced unit.",
-      remarks: "",
-    })
-    setShowResolveSupplierModal(true)
-  }
-
-  const handleConfirmSupplierResolve = async (e) => {
-    e.preventDefault()
-    if (!resolveTargetClaim || isSaving) return
-    setIsSaving(true)
-    setMessage("")
-    try {
-      await resolveSupplierRma(resolveTargetClaim.id, {
-        outcome: resolveForm.outcome,
-        replacementItemId: resolveForm.outcome === "CHANGE_MODEL" ? resolveForm.replacementItemId : undefined,
-        newSerial: resolveForm.newSerial.trim() || undefined,
-        creditMemoNumber: resolveForm.outcome === "CREDIT_MEMO" ? resolveForm.creditMemoNumber.trim() : undefined,
-        creditMemoAmount: resolveForm.outcome === "CREDIT_MEMO" && resolveForm.creditMemoAmount ? Number(resolveForm.creditMemoAmount) : undefined,
-        rejectionReason: resolveForm.rejectionReason.trim() || undefined,
-        actionTaken: resolveForm.actionTaken.trim() || undefined,
-        remarks: resolveForm.remarks.trim() || undefined,
-      })
-      setShowResolveSupplierModal(false)
-      let msg = `✅ Supplier RMA resolved for ${resolveTargetClaim.claimCode}.`
-      if (resolveForm.outcome === "CHANGE_MODEL") {
-        msg = `✅ Supplier RMA resolved for ${resolveTargetClaim.claimCode}: Replaced with new model. Stock replenished.`
-      } else if (resolveForm.outcome === "CREDIT_MEMO") {
-        msg = `✅ Supplier RMA resolved for ${resolveTargetClaim.claimCode}: Credit Memo #${resolveForm.creditMemoNumber || "N/A"} applied against supplier AP.`
-      } else if (resolveForm.outcome === "REJECTED") {
-        msg = `⚠️ Supplier RMA rejected for ${resolveTargetClaim.claimCode}. Unit written off as Shrinkage Loss.`
-      } else {
-        msg = `✅ Supplier RMA resolved for ${resolveTargetClaim.claimCode}. Unit returned and replenished to stock.`
-      }
-      setNotice(msg)
-      await loadSupplierClaims()
-    } catch (err) {
-      setMessage(apiError(err, "Could not resolve supplier RMA."))
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const filteredSupplierClaims = useMemo(() => {
-    const now = Date.now()
-    const list = (supplierClaims || []).map((c) => ({
-      ...c,
-      daysElapsed: c.sentToSupplierAt
-        ? Math.max(0, Math.floor((now - new Date(c.sentToSupplierAt).getTime()) / 86400000))
-        : 0,
-    }))
-    if (!supplierRmaSearch.trim()) return list
-    const q = supplierRmaSearch.toLowerCase().trim()
-    return list.filter((c) => {
-      const code = String(c.claimCode || "").toLowerCase()
-      const sup = String(c.supplierName || "").toLowerCase()
-      const ref = String(c.supplierReferenceNo || "").toLowerCase()
-      const item = String(c.item?.itemName || c.item?.itemCode || "").toLowerCase()
-      const ser = String(c.serial?.serialNumber || "").toLowerCase()
-      return code.includes(q) || sup.includes(q) || ref.includes(q) || item.includes(q) || ser.includes(q)
-    })
-  }, [supplierClaims, supplierRmaSearch])
 
   const loadReferenceData = useCallback(async () => {
     const [supplierResponse, orderResponse, itemResponse] = await Promise.all([
@@ -1003,18 +884,12 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Purchases &amp; Supply Chain</p>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
-              {viewMode === "REPORTS"
-                ? "Inbound Deliveries & Cost Audit"
-                : viewMode === "SUPPLIER_WARRANTY"
-                  ? "Supplier Warranty (RMA / RTV)"
-                  : "Receiving / Deliveries"}
+              {viewMode === "REPORTS" ? "Inbound Deliveries & Cost Audit" : "Receiving / Deliveries"}
             </h1>
             <p className="mt-0.5 text-xs text-slate-500">
               {viewMode === "REPORTS"
                 ? "Landed goods receiving audit, PO vs actual delivery cost variances, and supplier turnaround scorecard."
-                : viewMode === "SUPPLIER_WARRANTY"
-                  ? "Track defective items sent to suppliers and resolve via: Same Item, Change Model, or Credit Memo."
-                  : "Draft, validate, and post supplier deliveries into the correct branch inventory."}
+                : "Draft, validate, and post supplier deliveries into the correct branch inventory."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1033,15 +908,6 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
                   <Plus size={15} /> New Receiving
                 </button>
               </>
-            ) : viewMode === "SUPPLIER_WARRANTY" ? (
-              <button
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
-                onClick={loadSupplierClaims}
-                disabled={isLoadingSupplierClaims}
-                type="button"
-              >
-                <RefreshCw size={13} className={isLoadingSupplierClaims ? "animate-spin" : ""} /> Refresh
-              </button>
             ) : (
               <button
                 className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)]"
@@ -1070,22 +936,6 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
             </button>
             <button
               type="button"
-              onClick={() => setViewMode("SUPPLIER_WARRANTY")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition ${
-                viewMode === "SUPPLIER_WARRANTY"
-                  ? "bg-white text-slate-900 font-bold shadow-2xs"
-                  : "text-slate-500 hover:text-slate-800 font-medium"
-              }`}
-            >
-              <Truck size={14} /> Supplier Warranty (RMA / RTV)
-              {supplierClaims.length > 0 ? (
-                <span className="ml-1 rounded-full bg-slate-200/80 text-slate-800 px-1.5 py-0.2 text-[10px] font-bold">
-                  {supplierClaims.length}
-                </span>
-              ) : null}
-            </button>
-            <button
-              type="button"
               onClick={() => setViewMode("REPORTS")}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition ${
                 viewMode === "REPORTS"
@@ -1110,130 +960,6 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
           initialTab="RECEIVINGS_LOG"
           onOpenReceivingDetail={(rec) => openDetail(rec)}
         />
-      ) : viewMode === "SUPPLIER_WARRANTY" ? (
-        <div className="space-y-4">
-          {/* Minimalist Summary Strip */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">With Suppliers</span>
-                <Truck size={16} className="text-slate-400" />
-              </div>
-              <p className="mt-1 font-mono text-2xl font-black text-slate-900">{supplierClaims.length}</p>
-              <p className="text-[11px] text-slate-500">Units pending return / resolution</p>
-            </div>
-            <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active Suppliers</span>
-                <Boxes size={16} className="text-slate-400" />
-              </div>
-              <p className="mt-1 font-mono text-2xl font-black text-slate-900">
-                {new Set(supplierClaims.map((c) => c.supplierName).filter(Boolean)).size}
-              </p>
-              <p className="text-[11px] text-slate-500">Distinct supplier RMA channels</p>
-            </div>
-            <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Settlement</span>
-                <ShieldCheck size={16} className="text-slate-400" />
-              </div>
-              <p className="mt-1 text-sm font-bold text-slate-900">3 Scenarios Supported</p>
-              <p className="text-[11px] text-slate-500">Same Item, Change Model, or Credit Memo</p>
-            </div>
-          </div>
-
-          {/* Search bar */}
-          <section className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs">
-            <label className="relative block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-              <input
-                className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200 text-slate-800 placeholder:text-slate-400"
-                onChange={(e) => setSupplierRmaSearch(e.target.value)}
-                placeholder="Search RMA code, supplier, item, serial, or reference..."
-                value={supplierRmaSearch}
-              />
-            </label>
-          </section>
-
-          {/* RMA Claims Table */}
-          <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs">
-            <div className="overflow-x-auto w-full">
-              <table className="w-full min-w-[760px] text-left text-xs">
-                <thead className="border-b border-slate-100 bg-slate-50/75 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  <tr>
-                    <th className="px-3.5 py-2.5">RMA Code</th>
-                    <th className="px-3.5 py-2.5">Supplier &amp; Ref #</th>
-                    <th className="px-3.5 py-2.5">Defective Item &amp; S/N</th>
-                    <th className="px-3.5 py-2.5">Dispatched</th>
-                    <th className="px-3.5 py-2.5">Aging</th>
-                    <th className="px-3.5 py-2.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {isLoadingSupplierClaims ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 font-semibold">
-                        Loading supplier RMA claims…
-                      </td>
-                    </tr>
-                  ) : null}
-                  {!isLoadingSupplierClaims && filteredSupplierClaims.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 font-semibold">
-                        No defective units currently out with suppliers.
-                      </td>
-                    </tr>
-                  ) : null}
-                  {!isLoadingSupplierClaims
-                    ? filteredSupplierClaims.map((claim) => {
-                        const days = claim.daysElapsed || 0
-                        return (
-                          <tr key={claim.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-3.5 py-2.5">
-                              <span className="font-mono font-bold text-slate-900 text-xs">{claim.claimCode}</span>
-                              <p className="text-[10px] text-slate-500 max-w-44 truncate">{claim.issueDescription || "Defective unit"}</p>
-                            </td>
-                            <td className="px-3.5 py-2.5">
-                              <p className="font-bold text-slate-800 max-w-40 truncate">{claim.supplierName || "Direct Supplier"}</p>
-                              <p className="font-mono text-[10px] text-slate-400">Ref: {claim.supplierReferenceNo || "—"}</p>
-                            </td>
-                            <td className="px-3.5 py-2.5">
-                              <p className="font-semibold text-slate-900 max-w-xs truncate">{claim.item?.itemName || "Item"}</p>
-                              <p className="font-mono text-[10px] text-slate-500">S/N: <span className="font-bold">{claim.serial?.serialNumber || "Non-serialized"}</span></p>
-                            </td>
-                            <td className="px-3.5 py-2.5 text-slate-600 whitespace-nowrap">
-                              {claim.sentToSupplierAt ? new Date(claim.sentToSupplierAt).toLocaleDateString("en-PH") : "—"}
-                            </td>
-                            <td className="px-3.5 py-2.5 whitespace-nowrap">
-                              <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                                days > 14
-                                  ? "bg-rose-50 text-rose-700 border border-rose-200/60"
-                                  : days > 7
-                                    ? "bg-amber-50 text-amber-700 border border-amber-200/60"
-                                    : "bg-slate-100 text-slate-700"
-                              }`}>
-                                {days}d out
-                              </span>
-                            </td>
-                            <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => openResolveSupplier(claim)}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition"
-                              >
-                                <PackageCheck size={13} />
-                                <span>Resolve Outcome</span>
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })
-                    : null}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
       ) : (
         <>
           <section className="grid gap-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs sm:grid-cols-[1fr_200px]">
@@ -1455,206 +1181,7 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
         </div>
       ) : null}
 
-      {/* MODAL: RESOLVE SUPPLIER RMA (3 SCENARIOS) */}
-      {showResolveSupplierModal && resolveTargetClaim ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs">
-          <section className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
-            <header className="shrink-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-3.5">
-              <div>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Supplier RMA Resolution</span>
-                <h3 className="text-base font-black text-slate-900 leading-tight">
-                  Resolve Supplier Claim: {resolveTargetClaim.claimCode}
-                </h3>
-              </div>
-              <button
-                className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-                onClick={() => setShowResolveSupplierModal(false)}
-                type="button"
-              >
-                <X size={16} />
-              </button>
-            </header>
 
-            <form onSubmit={handleConfirmSupplierResolve} className="flex-1 flex flex-col min-h-0">
-              <div className="space-y-4 p-5 sm:p-6 text-xs overflow-y-auto flex-1">
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block mb-1.5">
-                    Select Supplier Outcome Scenario *
-                  </label>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    {[
-                      { id: "REPLACED_BY_SUPPLIER", label: "📦 Same Item Replaced", desc: "Same model returns to stock" },
-                      { id: "CHANGE_MODEL", label: "🔄 Change Model", desc: "Phased out -> New model stock" },
-                      { id: "CREDIT_MEMO", label: "📄 Credit Memo (CM)", desc: "Deduct from AP payables" },
-                      { id: "REPAIRED", label: "🔧 Repaired Unit", desc: "Fixed unit returns to stock" },
-                      { id: "REJECTED", label: "❌ Supplier Rejected", desc: "Write-off / Shrinkage loss" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setResolveForm((prev) => ({ ...prev, outcome: opt.id }))}
-                        className={`rounded-xl p-3 text-left transition border ${
-                          resolveForm.outcome === opt.id
-                            ? opt.id === "REJECTED"
-                              ? "border-rose-600 bg-rose-50 text-rose-900 shadow-2xs font-bold"
-                              : "border-slate-900 bg-slate-50 text-slate-900 shadow-2xs font-bold ring-1 ring-slate-900/10"
-                            : "border-slate-200/90 bg-white hover:bg-slate-50/80 text-slate-700"
-                        }`}
-                      >
-                        <p className="text-xs font-black">{opt.label}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{opt.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {resolveForm.outcome === "CHANGE_MODEL" ? (
-                  <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-3.5 space-y-3">
-                    <div>
-                      <h5 className="text-xs font-black uppercase tracking-wider text-amber-900">
-                        Scenario 2: Change Model (Phased-Out Replacement)
-                      </h5>
-                      <p className="text-[11px] text-amber-800">
-                        Since the original item is phased out, select the replacement model provided by the supplier. 1 unit will be replenished into the new model's inventory stock.
-                      </p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-[11px] font-bold text-slate-700 block mb-1">Select New Model Item from Catalog *</span>
-                        <select
-                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                          value={resolveForm.replacementItemId}
-                          onChange={(e) => setResolveForm((prev) => ({ ...prev, replacementItemId: e.target.value }))}
-                          required
-                        >
-                          <option value="">Select replacement model...</option>
-                          {catalogItems.map((it) => (
-                            <option key={it.id} value={it.id}>
-                              {it.itemCode} · {it.itemName} {it.isSerialized ? "(Serialized)" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="text-[11px] font-bold text-slate-700 block mb-1">New Serial Number (Optional)</span>
-                        <input
-                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                          placeholder="Scan or type new serial barcode..."
-                          value={resolveForm.newSerial}
-                          onChange={(e) => setResolveForm((prev) => ({ ...prev, newSerial: e.target.value }))}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                ) : null}
-
-                {resolveForm.outcome === "CREDIT_MEMO" ? (
-                  <div className="rounded-2xl border border-blue-300 bg-blue-50/70 p-3.5 space-y-3">
-                    <div>
-                      <h5 className="text-xs font-black uppercase tracking-wider text-blue-900">
-                        Scenario 3: Supplier Credit Memo (CM)
-                      </h5>
-                      <p className="text-[11px] text-blue-800">
-                        Supplier issued a Credit Memo instead of physical stock replacement. This CM will be logged to deduct from your accounts payable (AP) balance with this supplier.
-                      </p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-[11px] font-bold text-slate-700 block mb-1">Credit Memo Reference / Number *</span>
-                        <input
-                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                          placeholder="e.g. CM-2026-0041"
-                          required
-                          value={resolveForm.creditMemoNumber}
-                          onChange={(e) => setResolveForm((prev) => ({ ...prev, creditMemoNumber: e.target.value }))}
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-[11px] font-bold text-slate-700 block mb-1">Credit Memo Amount (₱) *</span>
-                        <input
-                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                          min="0"
-                          placeholder="0.00"
-                          required
-                          step="0.01"
-                          type="number"
-                          value={resolveForm.creditMemoAmount}
-                          onChange={(e) => setResolveForm((prev) => ({ ...prev, creditMemoAmount: e.target.value }))}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                ) : null}
-
-                {resolveForm.outcome === "REPLACED_BY_SUPPLIER" || resolveForm.outcome === "REPAIRED" ? (
-                  <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5 space-y-2">
-                    <p className="text-xs font-bold text-emerald-900">
-                      <strong>Scenario 1: Stock Replenishment:</strong> Receiving the replaced/repaired unit automatically replenishes 1 unit back into branch stock via <code className="font-mono">WARRANTY_RETURN</code>.
-                    </p>
-                    <label className="block">
-                      <span className="text-[11px] font-bold text-slate-700 block mb-1">Replacement Unit Serial Number (Optional)</span>
-                      <input
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                        placeholder="Scan or type new serial barcode if replaced with new serial..."
-                        value={resolveForm.newSerial}
-                        onChange={(e) => setResolveForm((prev) => ({ ...prev, newSerial: e.target.value }))}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-
-                {resolveForm.outcome === "REJECTED" ? (
-                  <div className="rounded-2xl border border-rose-300 bg-rose-50 p-3.5 space-y-2">
-                    <p className="text-xs font-bold text-rose-900">
-                      <strong>Inventory Shrinkage Loss:</strong> The supplier rejected the claim. This unit will be logged as a write-off / shrinkage loss.
-                    </p>
-                    <label className="block">
-                      <span className="text-[11px] font-bold text-slate-700 block mb-1">Mandatory Supplier Rejection Reason *</span>
-                      <textarea
-                        required
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                        placeholder="e.g. Customer induced damage: Corroded contacts, PCB fracture..."
-                        rows="3"
-                        value={resolveForm.rejectionReason}
-                        onChange={(e) => setResolveForm((prev) => ({ ...prev, rejectionReason: e.target.value }))}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-
-                <label className="block">
-                  <span className="text-[11px] font-bold text-slate-700 block mb-1">Action Taken / Resolution Notes</span>
-                  <textarea
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                    rows="2"
-                    value={resolveForm.actionTaken}
-                    onChange={(e) => setResolveForm((prev) => ({ ...prev, actionTaken: e.target.value }))}
-                  />
-                </label>
-              </div>
-
-              <div className="shrink-0 flex items-center justify-end gap-2 border-t border-slate-100 p-4 sm:px-6 bg-slate-50/70">
-                <button
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
-                  onClick={() => setShowResolveSupplierModal(false)}
-                  type="button"
-                >
-                  Cancel
-                </button>
-                <button
-                  className={`rounded-xl px-4 py-2 text-xs font-bold text-white shadow-2xs transition ${
-                    resolveForm.outcome === "REJECTED" ? "bg-rose-700 hover:bg-rose-800" : "bg-slate-900 hover:bg-slate-800"
-                  }`}
-                  disabled={isSaving}
-                  type="submit"
-                >
-                  {isSaving ? "Submitting Resolution…" : "Confirm Supplier Outcome"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      ) : null}
     </div>
   )
 }
