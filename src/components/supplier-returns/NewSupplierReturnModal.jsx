@@ -63,10 +63,17 @@ export default function NewSupplierReturnModal({
     if (!isOpen) return
 
     // Load active suppliers
-    getSuppliers({ limit: 100, status: "ACTIVE" })
+    getSuppliers({ ...(branchId ? { branchId } : {}), limit: 100, status: "ACTIVE" })
       .then((res) => {
-        const list = res?.data || res || []
-        setSuppliers(Array.isArray(list) ? list : [])
+        const raw = res?.data
+        const list = Array.isArray(raw?.items)
+          ? raw.items
+          : Array.isArray(raw)
+          ? raw
+          : Array.isArray(res)
+          ? res
+          : []
+        setSuppliers(list)
         if (list.length > 0 && !selectedSupplierId) {
           setSelectedSupplierId(list[0].id)
         }

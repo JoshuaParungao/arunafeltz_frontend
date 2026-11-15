@@ -72,13 +72,20 @@ export default function SupplierReturnsPage({ selectedBranch, user }) {
 
   // Load suppliers for filter
   useEffect(() => {
-    getSuppliers({ limit: 100, status: "ACTIVE" })
+    getSuppliers({ ...(branchId ? { branchId } : {}), limit: 100, status: "ACTIVE" })
       .then((res) => {
-        const list = res?.data || res || []
-        setSuppliers(Array.isArray(list) ? list : [])
+        const raw = res?.data
+        const list = Array.isArray(raw?.items)
+          ? raw.items
+          : Array.isArray(raw)
+          ? raw
+          : Array.isArray(res)
+          ? res
+          : []
+        setSuppliers(list)
       })
       .catch((err) => console.error("Error loading suppliers:", err))
-  }, [])
+  }, [branchId])
 
   const fetchReturns = useCallback(async () => {
     setIsLoading(true)
