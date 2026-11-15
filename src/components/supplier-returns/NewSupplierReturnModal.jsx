@@ -17,6 +17,7 @@ import {
 import { getSuppliers } from "../../features/suppliers/suppliers.api"
 import { getEligibleDefects, createSupplierReturn } from "../../features/supplier-returns/supplierReturns.api"
 import { getItems } from "../../features/items/items.api"
+import { getInventorySerials } from "../../features/inventory/inventory.api"
 
 export default function NewSupplierReturnModal({
   isOpen,
@@ -53,6 +54,8 @@ export default function NewSupplierReturnModal({
   const [manualCatalogItems, setManualCatalogItems] = useState([])
   const [selectedManualItem, setSelectedManualItem] = useState(null)
   const [manualSerial, setManualSerial] = useState("")
+  const [selectedSerialObj, setSelectedSerialObj] = useState(null)
+  const [availableSerials, setAvailableSerials] = useState([])
   const [manualReason, setManualReason] = useState("")
   const [manualCost, setManualCost] = useState(0)
 
@@ -118,6 +121,39 @@ export default function NewSupplierReturnModal({
     }, 300)
     return () => clearTimeout(timer)
   }, [manualItemSearch, activeSourceTab])
+
+  // Handle serial number live search / suggestions
+  useEffect(() => {
+    if (activeSourceTab !== "MANUAL") {
+      setAvailableSerials([])
+      return
+    }
+
+    const trimmed = manualSerial.trim()
+    if (!selectedManualItem && !trimmed) {
+      setAvailableSerials([])
+      return
+    }
+
+    const timer = setTimeout(() => {
+      const queryParams = {
+        ...(branchId ? { branchId } : {}),
+        ...(selectedManualItem?.id ? { itemId: selectedManualItem.id } : {}),
+        ...(trimmed ? { search: trimmed } : {}),
+        limit: 15,
+      }
+
+      getInventorySerials(queryParams)
+        .then((res) => {
+          const raw = res?.data
+          const list = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : []
+          setAvailableSerials(list)
+        })
+        .catch(() => setAvailableSerials([]))
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [manualSerial, selectedManualItem, branchId, activeSourceTab])
 
   if (!isOpen) return null
 
@@ -202,7 +238,7 @@ export default function NewSupplierReturnModal({
         itemName: selectedManualItem.itemName,
         itemCode: selectedManualItem.itemCode,
         brandModel: [selectedManualItem.brand, selectedManualItem.modelName].filter(Boolean).join(" "),
-        itemSerialId: null,
+        itemSerialId: selectedSerialObj?.id || null,
         serialNumber: manualSerial.trim() || null,
         quantity: 1,
         unitCost: manualCost || Number(selectedManualItem.costPrice || 0),
@@ -214,6 +250,8 @@ export default function NewSupplierReturnModal({
     setSelectedManualItem(null)
     setManualItemSearch("")
     setManualSerial("")
+    setSelectedSerialObj(null)
+    setAvailableSerials([])
     setManualReason("")
     setManualCost(0)
     setError("")
@@ -685,17 +723,59 @@ export default function NewSupplierReturnModal({
                       )}
                     </div>
 
-                    <div>
+                    <div className="relative">
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">
                         Serial Number (if any)
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. SN-883912"
+                        placeholder="Search or enter SN..."
                         value={manualSerial}
-                        onChange={(e) => setManualSerial(e.target.value)}
+                        onChange={(e) => {
+                          setManualSerial(e.target.value)
+                          setSelectedSerialObj(null)
+                        }}
                         className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:border-rose-500 focus:outline-none"
                       />
+                      {availableSerials.length > 0 && (
+                        <div className="absolute z-20 left-0 right-0 mt-1 max-h-36 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg divide-y divide-slate-100">
+                          {availableSerials.map((s) => (
+                            <button
+                              type="button"
+                              key={s.id}
+                              onClick={() => {
+                                setManualSerial(s.serialNumber)
+                                setSelectedSerialObj(s)
+                                if (!selectedManualItem && s.item) {
+                                  setSelectedManualItem(s.item)
+                                  setManualItemSearch(s.item.itemName)
+                                  setManualCost(Number(s.item.costPrice || 0))
+                                }
+                                setAvailableSerials([])
+                              }}
+                              className="w-full text-left p-2 text-xs hover:bg-slate-50 flex justify-between items-center"
+                            >
+                              <div>
+                                <span className="font-mono font-bold text-slate-800">{s.serialNumber}</span>
+                                {!selectedManualItem && s.item && (
+                                  <span className="ml-1 text-[10px] text-slate-500 truncate block">
+                                    {s.item.itemName}
+                                  </span>
+                                )}
+                              </div>
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                  s.status === "DAMAGED"
+                                    ? "bg-rose-50 text-rose-700"
+                                    : "bg-emerald-50 text-emerald-700"
+                                }`}
+                              >
+                                {s.status}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div>
