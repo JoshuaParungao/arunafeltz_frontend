@@ -2244,13 +2244,37 @@ export default function WarrantyPage({ initialContext, onNavigate, selectedBranc
                     : null}
 
                   {canAct && RELEASE_READY.has(selectedClaim.status) ? (
-                    <button
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white"
-                      onClick={openRelease}
-                      type="button"
-                    >
-                      <CheckCircle2 size={15} /> Release to customer
-                    </button>
+                    (() => {
+                      const activeLoaner = getClaimLoanerData(selectedClaim)
+                      const isStillOnLoan = activeLoaner?.status === "ON_LOAN"
+                      return (
+                        <button
+                          className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition ${
+                            isStillOnLoan
+                              ? "bg-amber-600 hover:bg-amber-700"
+                              : "bg-[var(--color-maroon)] hover:opacity-90"
+                          }`}
+                          onClick={() => {
+                            if (isStillOnLoan) {
+                              setErrorMessage(
+                                `⚠️ Service Loaner Unit (${activeLoaner.loanerSerialNumber}) is still with the customer! Please accept the loaner return first before releasing.`
+                              )
+                              openReturnLoanerModal(selectedClaim)
+                              return
+                            }
+                            openRelease()
+                          }}
+                          type="button"
+                          title={
+                            isStillOnLoan
+                              ? "Must surrender and return loaner unit first"
+                              : "Release to customer"
+                          }
+                        >
+                          <CheckCircle2 size={15} /> Release to customer
+                        </button>
+                      )
+                    })()
                   ) : null}
                 </div>
               </div>
