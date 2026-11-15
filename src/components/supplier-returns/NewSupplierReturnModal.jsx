@@ -59,10 +59,10 @@ export default function NewSupplierReturnModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
 
+  // Load active suppliers
   useEffect(() => {
     if (!isOpen) return
 
-    // Load active suppliers
     getSuppliers({ ...(branchId ? { branchId } : {}), limit: 100, status: "ACTIVE" })
       .then((res) => {
         const raw = res?.data
@@ -79,10 +79,17 @@ export default function NewSupplierReturnModal({
         }
       })
       .catch((err) => console.error("Error loading suppliers:", err))
+  }, [isOpen, branchId])
 
-    // Load eligible defects for this branch
+  // Load eligible defects for this branch filtered by target supplier
+  useEffect(() => {
+    if (!isOpen) return
+
     setIsLoadingEligible(true)
-    getEligibleDefects({ branchId })
+    getEligibleDefects({
+      ...(branchId ? { branchId } : {}),
+      ...(selectedSupplierId ? { supplierId: selectedSupplierId } : {}),
+    })
       .then((res) => {
         const data = res?.data || res || {}
         setEligibleDefects({
@@ -93,7 +100,7 @@ export default function NewSupplierReturnModal({
       })
       .catch((err) => console.error("Error loading eligible defects:", err))
       .finally(() => setIsLoadingEligible(false))
-  }, [isOpen, branchId])
+  }, [isOpen, branchId, selectedSupplierId])
 
   // Handle manual item catalog search
   useEffect(() => {
@@ -359,7 +366,17 @@ export default function NewSupplierReturnModal({
                 </label>
                 <select
                   value={selectedSupplierId}
-                  onChange={(e) => setSelectedSupplierId(e.target.value)}
+                  onChange={(e) => {
+                    const nextId = e.target.value
+                    if (items.length > 0 && nextId !== selectedSupplierId) {
+                      const proceed = window.confirm(
+                        "Changing the target supplier will reset the current return manifest because items belong to a specific supplier. Proceed?"
+                      )
+                      if (!proceed) return
+                      setItems([])
+                    }
+                    setSelectedSupplierId(nextId)
+                  }}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm focus:border-rose-500 focus:outline-none"
                   required
                 >
@@ -606,6 +623,11 @@ export default function NewSupplierReturnModal({
                             <div className="mt-1 flex items-center gap-3 text-[11px] text-slate-500">
                               <span>Finding: <strong className="text-slate-700">{def.defectReason}</strong></span>
                               <span>Cost: ₱{Number(def.unitCost).toFixed(2)}</span>
+                              {def.supplierName && (
+                                <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                  Origin Supplier: {def.supplierName}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <button
