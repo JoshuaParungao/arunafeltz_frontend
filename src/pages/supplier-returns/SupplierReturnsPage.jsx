@@ -115,7 +115,8 @@ export default function SupplierReturnsPage({ selectedBranch, user }) {
     } catch (err) {
       console.error("Load supplier returns error:", err)
       setError(
-        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
           err.message ||
           "Failed to load supplier returns."
       )

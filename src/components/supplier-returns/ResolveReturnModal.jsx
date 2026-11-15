@@ -91,7 +91,8 @@ export default function ResolveReturnModal({
     } catch (err) {
       console.error("Resolve return error:", err)
       setError(
-        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
           err.message ||
           "Failed to resolve supplier return. Please verify inputs."
       )

@@ -56,7 +56,8 @@ export default function DispatchReturnModal({
     } catch (err) {
       console.error("Dispatch return error:", err)
       setError(
-        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
           err.message ||
           "Failed to dispatch return order. Please try again."
       )

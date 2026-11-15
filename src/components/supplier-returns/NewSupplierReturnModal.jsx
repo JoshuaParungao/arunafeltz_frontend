@@ -317,7 +317,8 @@ export default function NewSupplierReturnModal({
     } catch (err) {
       console.error("Create Supplier Return error:", err)
       setError(
-        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
           err.message ||
           "Failed to create supplier return. Please verify inputs."
       )

@@ -61,7 +61,7 @@ export default function SupplierReturnDetailModal({
       onUpdated?.(res?.data || res)
     } catch (err) {
       console.error("Approve error:", err)
-      setError(err.response?.data?.message || err.message || "Failed to approve return order")
+      setError(err.response?.data?.error?.message || err.response?.data?.message || err.message || "Failed to approve return order")
     } finally {
       setIsProcessing(false)
     }
@@ -77,7 +77,7 @@ export default function SupplierReturnDetailModal({
       onUpdated?.(res?.data || res)
     } catch (err) {
       console.error("Cancel error:", err)
-      setError(err.response?.data?.message || err.message || "Failed to cancel return order")
+      setError(err.response?.data?.error?.message || err.response?.data?.message || err.message || "Failed to cancel return order")
     } finally {
       setIsProcessing(false)
     }
