@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { RefreshCw } from "lucide-react"
 
 import { getAuditLogById, getAuditLogs } from "../../features/audit-logs/auditLogs.api"
+import { getBranches } from "../../features/branches/branches.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
@@ -91,6 +92,8 @@ function formatEntityType(entity) {
     Branch: "Branch Profile",
     Customer: "Customer Profile",
     Supplier: "Supplier Profile",
+    SupplierReturn: "Supplier Return (RMA / RTV)",
+    WarrantyClaim: "Warranty Claim",
     PurchaseOrder: "Purchase Order",
     PurchaseReceiving: "Delivery Receiving",
     CashBox: "Cash Box",
@@ -113,6 +116,11 @@ function formatEntityType(entity) {
 }
 
 export default function AuditLogsPage({ selectedBranch, user }) {
+  const isSuperOwner = user?.role === "SUPER_OWNER"
+  const [branches, setBranches] = useState([])
+  const [branchFilter, setBranchFilter] = useState(
+    isSuperOwner ? (selectedBranch?.id || "") : (user?.branchId || user?.branch?.id || "")
+  )
   const [logs, setLogs] = useState([])
   const [meta, setMeta] = useState({})
   const [page, setPage] = useState(1)
@@ -124,7 +132,27 @@ export default function AuditLogsPage({ selectedBranch, user }) {
   const [selectedLog, setSelectedLog] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
-  const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
+
+  useEffect(() => {
+    if (isSuperOwner) {
+      getBranches()
+        .then((res) => {
+          const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+          setBranches(list)
+        })
+        .catch(() => {})
+    }
+  }, [isSuperOwner])
+
+  useEffect(() => {
+    if (isSuperOwner && selectedBranch?.id) {
+      setBranchFilter(selectedBranch.id)
+    }
+  }, [selectedBranch?.id, isSuperOwner])
+
+  const activeBranchId = isSuperOwner
+    ? branchFilter
+    : user?.branchId || user?.branch?.id || ""
 
   const loadLogs = useCallback(async () => {
     setIsLoading(true)
@@ -132,7 +160,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
 
     try {
       const response = await getAuditLogs({
-        ...(branchId ? { branchId } : {}),
+        ...(activeBranchId ? { branchId: activeBranchId } : {}),
         ...(search.trim() ? { search: search.trim() } : {}),
         ...(action.trim() ? { action: action.trim() } : {}),
         ...(entityType.trim() ? { entityType: entityType.trim() } : {}),
@@ -143,10 +171,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
       })
 
       const allLogs = Array.isArray(response?.data) ? response.data : []
-      const visibleLogs = allLogs.filter(
-        (log) => log.actor?.username?.toLowerCase() !== "calix"
-      )
-      setLogs(visibleLogs)
+      setLogs(allLogs)
       setMeta(response?.meta || {})
     } catch (error) {
       setLogs([])
@@ -159,7 +184,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
     } finally {
       setIsLoading(false)
     }
-  }, [action, branchId, dateFrom, dateTo, entityType, page, search])
+  }, [action, activeBranchId, dateFrom, dateTo, entityType, page, search])
 
   useEffect(() => {
     const timer = window.setTimeout(loadLogs, 200)
@@ -167,14 +192,9 @@ export default function AuditLogsPage({ selectedBranch, user }) {
   }, [loadLogs])
 
   const openLog = async (log) => {
-    if (log?.actor?.username?.toLowerCase() === "calix") return
     setSelectedLog(log)
     try {
       const response = await getAuditLogById(log.id)
-      if (response?.data?.actor?.username?.toLowerCase() === "calix") {
-        setSelectedLog(null)
-        return
-      }
       setSelectedLog(response?.data || log)
     } catch (error) {
       setErrorMessage(error?.response?.data?.message || "Could not load audit log details.")
@@ -192,7 +212,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
 
       do {
         const response = await getAuditLogs({
-          ...(branchId ? { branchId } : {}),
+          ...(activeBranchId ? { branchId: activeBranchId } : {}),
           ...(search.trim() ? { search: search.trim() } : {}),
           ...(action.trim() ? { action: action.trim() } : {}),
           ...(entityType.trim() ? { entityType: entityType.trim() } : {}),
@@ -202,15 +222,18 @@ export default function AuditLogsPage({ selectedBranch, user }) {
           limit: 100,
         })
         const items = Array.isArray(response?.data) ? response.data : []
-        const visibleItems = items.filter(
-          (log) => log.actor?.username?.toLowerCase() !== "calix"
-        )
-        allLogs = allLogs.concat(visibleItems)
+        allLogs = allLogs.concat(items)
         totalPages = Number(response?.meta?.totalPages || 1)
         currPage += 1
       } while (currPage <= totalPages && currPage <= 50)
 
       const activeFilters = []
+      if (activeBranchId) {
+        const branchObj = branches.find((b) => b.id === activeBranchId)
+        activeFilters.push({ label: "Branch", value: branchObj ? `${branchObj.code} — ${branchObj.name}` : activeBranchId })
+      } else if (isSuperOwner) {
+        activeFilters.push({ label: "Branch", value: "All Branches" })
+      }
       if (search.trim()) activeFilters.push({ label: "Search Keyword", value: search.trim() })
       if (action.trim()) activeFilters.push({ label: "Activity Filter", value: action.trim() })
       if (entityType.trim()) activeFilters.push({ label: "Module Filter", value: entityType.trim() })
@@ -237,9 +260,15 @@ export default function AuditLogsPage({ selectedBranch, user }) {
         formatDescription(log.description),
       ])
 
+      const branchNameExport = isSuperOwner
+        ? activeBranchId
+          ? branches.find((b) => b.id === activeBranchId)?.name || "Branch"
+          : "All Branches"
+        : selectedBranch?.name || user?.branch?.name || "Assigned Branch"
+
       exportReportExcel({
         title: "SYSTEM AUDIT & ACTIVITY LOGS REPORT",
-        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        branchName: branchNameExport,
         generatedBy: user?.fullName || user?.username || "System",
         filenamePrefix: "audit_logs",
         headers,
@@ -285,7 +314,25 @@ export default function AuditLogsPage({ selectedBranch, user }) {
         </div>
       </section>
 
-      <section className="grid gap-2.5 sm:gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-3.5 sm:p-5 shadow-card md:grid-cols-2 xl:grid-cols-6">
+      <section className={`grid gap-2.5 sm:gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-3.5 sm:p-5 shadow-card md:grid-cols-2 ${isSuperOwner ? "xl:grid-cols-7" : "xl:grid-cols-6"}`}>
+        {isSuperOwner ? (
+          <select
+            aria-label="Filter by branch"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)]"
+            onChange={(event) => {
+              setBranchFilter(event.target.value)
+              setPage(1)
+            }}
+            value={branchFilter}
+          >
+            <option value="">All Branches</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.code} ({b.name})
+              </option>
+            ))}
+          </select>
+        ) : null}
         <input
           aria-label="Search audit logs"
           className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm text-[var(--color-text-strong)] outline-none focus:border-[var(--color-maroon)] xl:col-span-2"
