@@ -105,7 +105,7 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
   if (borrowStatus === "PURCHASED") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-400 px-2.5 py-0.5 text-xs font-black text-emerald-900 shadow-2xs">
-        <CheckCircle2 size={12} className="text-emerald-700" /> PAID (Bayad Na)
+        <CheckCircle2 size={12} className="text-emerald-700" /> Paid
       </span>
     )
   }
@@ -113,7 +113,7 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
   if (borrowStatus === "RETURNED") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-400 px-2.5 py-0.5 text-xs font-black text-emerald-900 shadow-2xs">
-        <CheckCircle2 size={12} className="text-emerald-700" /> RESOLVED (Nasoli Na)
+        <CheckCircle2 size={12} className="text-emerald-700" /> Replaced
       </span>
     )
   }
@@ -121,7 +121,7 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
   if (borrowStatus === "RETURN_IN_TRANSIT") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-300 px-2.5 py-0.5 text-xs font-black text-sky-800 shadow-2xs">
-        <Truck size={12} className="text-sky-600" /> Return OTW (In Transit)
+        <Truck size={12} className="text-sky-600" /> Replacement in Transit
       </span>
     )
   }
@@ -129,7 +129,7 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
   if (borrowStatus === "PAYMENT_SUBMITTED") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-300 px-2.5 py-0.5 text-xs font-black text-blue-800 shadow-2xs">
-        <CreditCard size={12} className="text-blue-600" /> Payment For Confirmation
+        <CreditCard size={12} className="text-blue-600" /> Payment for Confirmation
       </span>
     )
   }
@@ -183,8 +183,8 @@ function StatusBadge({ transfer, status: statusProp, fulfillmentStatus: fulfillm
   if (status === "POSTED" || fulfillmentStatus === "RECEIVED") {
     if (isBorrow && (!borrowStatus || borrowStatus === "ON_BORROW")) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-300 px-2.5 py-0.5 text-xs font-black text-purple-900 shadow-2xs" title="Nasa destination branch na pero PENDING pa ang settlement (Soli o Bayad)">
-          <Clock size={12} className="text-purple-600" /> On Borrow (Pending Settlement)
+        <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-300 px-2.5 py-0.5 text-xs font-black text-purple-900 shadow-2xs" title="Pending settlement (Replacement or Payment)">
+          <Clock size={12} className="text-purple-600" /> Pending Settlement
         </span>
       )
     }
@@ -240,12 +240,12 @@ function WorkflowBadge({ transfer }) {
 
 function isBorrowTransfer(transfer) {
   const combined = `${transfer?.notes || ""} ${transfer?.internalNotes || ""}`
-  return combined.includes("[TRANSFER_TYPE:BORROW]")
+  return combined.includes("[TRANSFER_TYPE:BORROW]") || combined.includes("[BORROW_STATUS:")
 }
 
 function getBorrowDetails(transfer) {
   const combined = `${transfer?.notes || ""} ${transfer?.internalNotes || ""}`
-  if (!combined.includes("[TRANSFER_TYPE:BORROW]")) return null
+  if (!combined.includes("[TRANSFER_TYPE:BORROW]") && !combined.includes("[BORROW_STATUS:")) return null
 
   let status = "ON_BORROW"
   if (combined.includes("[BORROW_STATUS:RETURNED]")) status = "RETURNED"
@@ -310,48 +310,48 @@ function BorrowBadge({ transfer }) {
   if (bStatus === "RETURNED") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300">
-        <CheckCircle2 size={11} /> 🟢 NASOLI NA
+        <CheckCircle2 size={11} /> Replaced
       </span>
     )
   }
   if (bStatus === "PURCHASED") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-blue-50 text-blue-800 border border-blue-300">
-        <CheckCircle2 size={11} /> 🔵 BABAYARAN NALANG
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300">
+        <CheckCircle2 size={11} /> Paid
       </span>
     )
   }
   if (bStatus === "RETURN_IN_TRANSIT") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-300">
-        <Truck size={11} /> 🚚 Returning (In Transit)
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-sky-50 text-sky-800 border border-sky-300">
+        <Truck size={11} /> Replacement in Transit
       </span>
     )
   }
   if (bStatus === "WAITING_AMOUNT") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-yellow-50 text-yellow-800 border border-yellow-300">
-        <Clock size={11} /> 🟡 Awaiting Billing Amount
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-purple-50 text-purple-800 border border-purple-300">
+        <Clock size={11} /> Awaiting Billing Amount
       </span>
     )
   }
   if (bStatus === "WAITING_PAYMENT") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-orange-50 text-orange-800 border border-orange-300">
-        <Clock size={11} /> 🟠 Waiting for Payment{bDetails.billingAmount ? ` (₱${Number(bDetails.billingAmount).toLocaleString()})` : ""}
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-300">
+        <Clock size={11} /> Awaiting Payment{bDetails.billingAmount ? ` (₱${Number(bDetails.billingAmount).toLocaleString()})` : ""}
       </span>
     )
   }
   if (bStatus === "PAYMENT_SUBMITTED") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-indigo-50 text-indigo-800 border border-indigo-300">
-        <Clock size={11} /> 🟣 Payment Submitted
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-blue-50 text-blue-800 border border-blue-300">
+        <CreditCard size={11} /> Payment Submitted
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-purple-50 text-purple-800 border border-purple-200">
-      🟣 ON BORROW
+      Pending Settlement
     </span>
   )
 }
@@ -509,6 +509,7 @@ function ActionButtons({
   const isBorrow = isBorrowTransfer(transfer)
   const borrowDetails = getBorrowDetails(transfer)
   const borrowStatus = borrowDetails?.status
+  const isSettled = borrowStatus === "RETURNED" || borrowStatus === "PURCHASED"
   const pricingComplete = (transfer.items || []).every(
     (item) => item.agreedTransferUnitPrice !== null && item.agreedTransferUnitPrice !== undefined
   )
@@ -530,29 +531,29 @@ function ActionButtons({
         </button>
       ) : null}
 
-      {/* --- BORROW SETTLEMENT ACTIONS: ONLY AVAILABLE AFTER BEING TRANSFERRED IN! --- */}
-      {isBorrow && isTransferredIn ? (
+      {/* --- INTER-BRANCH SETTLEMENT ACTIONS: AVAILABLE FOR TRANSFERRED-IN TRANSFERS --- */}
+      {isTransferredIn && !isSettled ? (
         <>
-          {/* Step 1: Active on borrow -> Borrower can return replacement OR choose to buy */}
-          {borrowStatus === "ON_BORROW" && isDestinationManager ? (
+          {/* Active / Pending Settlement -> Linked manager can Return Replacement or Settle Payment */}
+          {(!borrowStatus || borrowStatus === "ON_BORROW") && isLinkedManager ? (
             <>
               <button
                 className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
                 disabled={busy}
                 onClick={() => onInitiateReturn(transfer)}
                 type="button"
-                title="Isoli sa source branch (Palitan ng bago)"
+                title="Return replacement unit (Mark as Replaced)"
               >
-                <RotateCcw size={13} /> Isoli (Palitan ng Bago)
+                <RotateCcw size={13} /> Return Replacement
               </button>
               <button
                 className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800 hover:bg-blue-100 transition shadow-2xs"
                 disabled={busy}
                 onClick={() => onInitiatePurchase(transfer)}
                 type="button"
-                title="Babayaran nalang ng destination branch"
+                title="Settle payment for transfer (Mark as Paid)"
               >
-                <CheckCircle2 size={13} /> Babayaran Nalang
+                <CreditCard size={13} /> Settle Payment
               </button>
             </>
           ) : null}
@@ -564,9 +565,9 @@ function ActionButtons({
               disabled={busy}
               onClick={() => onConfirmReturn(transfer)}
               type="button"
-              title="Kumpirmahin na natanggap ang isinoli o ipinalit na stock"
+              title="Confirm that replacement stock was received"
             >
-              <PackageCheck size={13} /> Receive Return (Nasoli Na)
+              <PackageCheck size={13} /> Confirm Replacement Received
             </button>
           ) : null}
 
@@ -577,9 +578,9 @@ function ActionButtons({
               disabled={busy}
               onClick={() => onSetBilling(transfer)}
               type="button"
-              title="I-set ang amount na babayaran para sa stock"
+              title="Set billing amount to be paid"
             >
-              <Send size={13} /> Send Amount (Billing)
+              <Send size={13} /> Set Billing Amount
             </button>
           ) : null}
 
@@ -590,9 +591,9 @@ function ActionButtons({
               disabled={busy}
               onClick={() => onPayBorrow(transfer)}
               type="button"
-              title="Magbayad sa lending branch"
+              title="Submit payment to source branch"
             >
-              <CreditCard size={13} /> Magbayad (Pay)
+              <CreditCard size={13} /> Submit Payment
             </button>
           ) : null}
 
@@ -603,7 +604,7 @@ function ActionButtons({
               disabled={busy}
               onClick={() => onConfirmPayment(transfer)}
               type="button"
-              title="Kumpirmahin na natanggap ang bayad mula sa destination branch"
+              title="Confirm payment received from destination branch"
             >
               <CheckCircle2 size={13} /> Confirm Payment Received
             </button>
@@ -628,7 +629,7 @@ function ActionButtons({
         </>
       ) : null}
       {isSourceManager && transfer.status === "APPROVED" && !isInTransit ? (
-        <button className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition" disabled={busy} onClick={() => onAction(transfer, "DISPATCH")} type="button" title="Piliin ang serial numbers at fulfillment details para ma-transfer out">
+        <button className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition" disabled={busy} onClick={() => onAction(transfer, "DISPATCH")} type="button" title="Select serial numbers and fulfillment details to transfer out">
           Transfer Out (Dispatch)
         </button>
       ) : null}
@@ -641,11 +642,11 @@ function ActionButtons({
             type="button"
             title={
               isSourceManager
-                ? "Kumpirmahin na na-claim at na-release na ang stock sa kabilang branch"
-                : "Kumpirmahin na na-claim o nakuha na ang stock mula sa source branch"
+                ? "Confirm that stock has been claimed and released"
+                : "Confirm that stock has been claimed from source branch"
             }
           >
-            <PackageCheck size={13} /> {isSourceManager ? "Confirm Claimed / Released" : "Confirm Claimed (Na-claim Na)"}
+            <PackageCheck size={13} /> {isSourceManager ? "Confirm Claimed / Released" : "Confirm Claimed"}
           </button>
         ) : (
           <button
@@ -655,11 +656,11 @@ function ActionButtons({
             type="button"
             title={
               isSourceManager
-                ? "Kumpirmahin na naihatid / natanggap na sa destination branch ang delivery"
-                : "Kumpirmahin na natanggap na ang delivery sa inyong branch"
+                ? "Confirm delivery to destination branch"
+                : "Confirm delivery received at your branch"
             }
           >
-            <PackageCheck size={13} /> {isSourceManager ? "Confirm Delivered (Naihatid Na)" : "Confirm Received (Natanggap Na)"}
+            <PackageCheck size={13} /> {isSourceManager ? "Confirm Delivered" : "Confirm Received"}
           </button>
         )
       ) : null}
@@ -718,6 +719,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
   const [showInitiateReturnModal, setShowInitiateReturnModal] = useState(false)
   const [initiateReturnTarget, setInitiateReturnTarget] = useState(null)
+  const [initiateReturnHandoverType, setInitiateReturnHandoverType] = useState("DIRECT") // "DIRECT" | "IN_TRANSIT"
   const [initiateReturnCondition, setInitiateReturnCondition] = useState("Brand New Replacement")
   const [initiateReturnMethod, setInitiateReturnMethod] = useState("DELIVERY")
   const [initiateReturnCourier, setInitiateReturnCourier] = useState("")
@@ -733,6 +735,10 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
   const [showInitiatePurchaseModal, setShowInitiatePurchaseModal] = useState(false)
   const [initiatePurchaseTarget, setInitiatePurchaseTarget] = useState(null)
+  const [purchaseSettlementMode, setPurchaseSettlementMode] = useState("DIRECT") // "DIRECT" | "BILLING"
+  const [purchaseAmountInput, setPurchaseAmountInput] = useState("")
+  const [purchaseMethodInput, setPurchaseMethodInput] = useState("CASH")
+  const [purchaseRefInput, setPurchaseRefInput] = useState("")
   const [initiatePurchaseRemarks, setInitiatePurchaseRemarks] = useState("")
   const [isSubmittingInitiatePurchase, setIsSubmittingInitiatePurchase] = useState(false)
 
@@ -826,6 +832,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
   const handleOpenInitiateReturn = (transfer) => {
     setInitiateReturnTarget(transfer)
+    setInitiateReturnHandoverType("DIRECT")
     setInitiateReturnCondition("Brand New Replacement")
     setInitiateReturnMethod("DELIVERY")
     setInitiateReturnCourier("")
@@ -844,18 +851,30 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     setSuccessMessage("")
 
     try {
-      const response = await returnBorrowTransfer(initiateReturnTarget.id, {
-        actionType: "INITIATE_RETURN",
-        condition: initiateReturnCondition,
-        fulfillmentMethod: initiateReturnMethod,
-        courier: initiateReturnCourier,
-        trackingNo: initiateReturnTrackingNo,
-        replacementSerials: initiateReturnSerials,
-        remarks: initiateReturnRemarks,
-      })
-      setSuccessMessage(
-        `Replacement stock return for ${initiateReturnTarget.transferCode} dispatched. Stock is now Returning In Transit.`
-      )
+      if (initiateReturnHandoverType === "DIRECT") {
+        const response = await returnBorrowTransfer(initiateReturnTarget.id, {
+          actionType: "CONFIRM_RETURN",
+          condition: initiateReturnCondition,
+          replacementSerials: initiateReturnSerials,
+          remarks: initiateReturnRemarks,
+        })
+        setSuccessMessage(
+          `Stock transfer ${initiateReturnTarget.transferCode} confirmed returned. Marked as Replaced.`
+        )
+      } else {
+        const response = await returnBorrowTransfer(initiateReturnTarget.id, {
+          actionType: "INITIATE_RETURN",
+          condition: initiateReturnCondition,
+          fulfillmentMethod: initiateReturnMethod,
+          courier: initiateReturnCourier,
+          trackingNo: initiateReturnTrackingNo,
+          replacementSerials: initiateReturnSerials,
+          remarks: initiateReturnRemarks,
+        })
+        setSuccessMessage(
+          `Replacement stock return for ${initiateReturnTarget.transferCode} dispatched. Status: Replacement in Transit.`
+        )
+      }
       setShowInitiateReturnModal(false)
       setInitiateReturnTarget(null)
       if (selectedTransfer?.id === initiateReturnTarget.id) {
@@ -866,7 +885,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       setErrorMessage(
         error?.response?.data?.error?.message ||
           error?.message ||
-          "Could not dispatch replacement return."
+          "Could not process replacement return."
       )
     } finally {
       setIsSubmittingInitiateReturn(false)
@@ -893,7 +912,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         remarks: confirmReturnRemarks,
       })
       setSuccessMessage(
-        `Stock borrow ${confirmReturnTarget.transferCode} confirmed returned. Marked as NASOLI NA (Completed).`
+        `Stock transfer ${confirmReturnTarget.transferCode} confirmed returned. Marked as Replaced.`
       )
       setShowConfirmReturnModal(false)
       setConfirmReturnTarget(null)
@@ -914,6 +933,19 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
   const handleOpenInitiatePurchase = (transfer) => {
     setInitiatePurchaseTarget(transfer)
+    setPurchaseSettlementMode("DIRECT")
+    let suggested = 0
+    if (Array.isArray(transfer.items)) {
+      suggested = transfer.items.reduce((sum, it) => {
+        const val = it.transferAmount !== null && it.transferAmount !== undefined
+          ? Number(it.transferAmount)
+          : Number(it.agreedTransferUnitPrice ?? it.proposedTransferUnitPrice ?? 0) * Number(it.quantity || 1)
+        return sum + (Number.isFinite(val) ? val : 0)
+      }, 0)
+    }
+    setPurchaseAmountInput(suggested > 0 ? suggested.toString() : "")
+    setPurchaseMethodInput("CASH")
+    setPurchaseRefInput("")
     setInitiatePurchaseRemarks("")
     setShowInitiatePurchaseModal(true)
   }
@@ -927,13 +959,31 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     setSuccessMessage("")
 
     try {
-      const response = await returnBorrowTransfer(initiatePurchaseTarget.id, {
-        actionType: "INITIATE_PURCHASE",
-        remarks: initiatePurchaseRemarks,
-      })
-      setSuccessMessage(
-        `Purchase conversion requested for ${initiatePurchaseTarget.transferCode}. Awaiting billing amount from source branch.`
-      )
+      if (purchaseSettlementMode === "DIRECT") {
+        if (!purchaseAmountInput || Number(purchaseAmountInput) < 0) {
+          setErrorMessage("Please enter a valid payment amount.")
+          setIsSubmittingInitiatePurchase(false)
+          return
+        }
+        const response = await returnBorrowTransfer(initiatePurchaseTarget.id, {
+          actionType: "CONFIRM_PAYMENT",
+          amount: Number(purchaseAmountInput),
+          paymentMethod: purchaseMethodInput,
+          referenceNo: purchaseRefInput,
+          remarks: initiatePurchaseRemarks,
+        })
+        setSuccessMessage(
+          `Payment of ₱${Number(purchaseAmountInput).toLocaleString()} confirmed for ${initiatePurchaseTarget.transferCode}. Marked as Paid.`
+        )
+      } else {
+        const response = await returnBorrowTransfer(initiatePurchaseTarget.id, {
+          actionType: "INITIATE_PURCHASE",
+          remarks: initiatePurchaseRemarks,
+        })
+        setSuccessMessage(
+          `Payment settlement requested for ${initiatePurchaseTarget.transferCode}. Awaiting billing amount from source branch.`
+        )
+      }
       setShowInitiatePurchaseModal(false)
       setInitiatePurchaseTarget(null)
       if (selectedTransfer?.id === initiatePurchaseTarget.id) {
@@ -944,7 +994,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       setErrorMessage(
         error?.response?.data?.error?.message ||
           error?.message ||
-          "Could not request purchase conversion."
+          "Could not process payment settlement."
       )
     } finally {
       setIsSubmittingInitiatePurchase(false)
@@ -1082,7 +1132,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         remarks: confirmPaymentRemarks,
       })
       setSuccessMessage(
-        `Payment confirmed for ${confirmPaymentTarget.transferCode}. Marked as BABAYARAN NALANG (Paid & Completed).`
+        `Payment confirmed for ${confirmPaymentTarget.transferCode}. Marked as Paid.`
       )
       setShowConfirmPaymentModal(false)
       setConfirmPaymentTarget(null)
@@ -1721,8 +1771,8 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       {directionFilter === "BORROW" ? (
         <section className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-purple-200 bg-purple-50/70 p-3 text-xs shadow-xs">
           <div className="flex items-center gap-2">
-            <span className="font-black text-purple-900 uppercase tracking-wide">Borrow Monitoring:</span>
-            <span className="text-purple-800 text-[11px]">Track stock borrow turnover status — nasoli na o babayaran nalang.</span>
+            <span className="font-black text-purple-900 uppercase tracking-wide">Borrow & Settlement:</span>
+            <span className="text-purple-800 text-[11px]">Track inter-branch stock turnover and settlement — replaced or paid.</span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <button
@@ -1734,7 +1784,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
               }`}
             >
-              All Borrowed
+              All
             </button>
             <button
               type="button"
@@ -1745,7 +1795,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   : "bg-white text-purple-800 border border-purple-200 hover:bg-purple-50"
               }`}
             >
-              🟣 On Borrow
+              🟣 Pending Settlement
             </button>
             <button
               type="button"
@@ -1756,18 +1806,18 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   : "bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50"
               }`}
             >
-              🟢 Nasoli Na (Returned)
+              🟢 Replaced
             </button>
             <button
               type="button"
               onClick={() => { setBorrowSubFilter("PURCHASED"); setPage(1) }}
               className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
                 borrowSubFilter === "PURCHASED"
-                  ? "bg-blue-700 text-white shadow-2xs"
-                  : "bg-white text-blue-800 border border-blue-200 hover:bg-blue-50"
+                  ? "bg-emerald-700 text-white shadow-2xs"
+                  : "bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50"
               }`}
             >
-              🔵 Babayaran Nalang (Purchased)
+              🔵 Paid
             </button>
           </div>
         </section>
@@ -1941,44 +1991,50 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   ) : null}
                 </div>
 
-                {isBorrowTransfer(selectedTransfer) ? (() => {
+                {(isBorrowTransfer(selectedTransfer) || (["POSTED"].includes(selectedTransfer.status) || selectedTransfer.fulfillmentStatus === "RECEIVED" || Boolean(selectedTransfer.receivedAt))) ? (() => {
                   const bDetails = getBorrowDetails(selectedTransfer);
                   const bStatus = bDetails?.status;
                   const isTransferredIn = ["POSTED"].includes(selectedTransfer.status) || selectedTransfer.fulfillmentStatus === "RECEIVED" || Boolean(selectedTransfer.receivedAt);
                   const isSourceMgr = user?.role === "SUPER_OWNER" || selectedTransfer.fromBranchId === user?.branchId;
                   const isDestMgr = user?.role === "SUPER_OWNER" || selectedTransfer.toBranchId === user?.branchId;
+                  const isLinkedMgr = isSourceMgr || isDestMgr;
+                  const isSettled = bStatus === "RETURNED" || bStatus === "PURCHASED";
 
                   return (
                     <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-4 text-xs space-y-3">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-200/80 pb-3">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-black text-purple-900 uppercase tracking-wide">Inter-Branch Stock Borrow</span>
+                          <span className="font-black text-purple-900 uppercase tracking-wide">Inter-Branch Settlement</span>
                           <BorrowBadge transfer={selectedTransfer} />
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenLoanSlip(selectedTransfer)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-purple-700 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-purple-800 transition shadow-2xs"
-                          >
-                            <Printer size={13} /> Print Borrow Slip
-                          </button>
+                          {isBorrowTransfer(selectedTransfer) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenLoanSlip(selectedTransfer)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-purple-700 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-purple-800 transition shadow-2xs"
+                            >
+                              <Printer size={13} /> Print Borrow Slip
+                            </button>
+                          ) : null}
 
-                          {isTransferredIn && bStatus === "ON_BORROW" && isDestMgr ? (
+                          {isTransferredIn && (!bStatus || bStatus === "ON_BORROW") && isLinkedMgr && !isSettled ? (
                             <>
                               <button
                                 type="button"
                                 onClick={() => handleOpenInitiateReturn(selectedTransfer)}
                                 className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 transition shadow-2xs"
+                                title="Return replacement unit (Mark as Replaced)"
                               >
-                                <RotateCcw size={13} /> Isoli (Palitan ng Bago)
+                                <RotateCcw size={13} /> Return Replacement
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleOpenInitiatePurchase(selectedTransfer)}
                                 className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-800 hover:bg-blue-50 transition shadow-2xs"
+                                title="Settle payment for transfer (Mark as Paid)"
                               >
-                                <CheckCircle2 size={13} /> Babayaran Nalang
+                                <CreditCard size={13} /> Settle Payment
                               </button>
                             </>
                           ) : null}
@@ -1989,7 +2045,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                               onClick={() => handleOpenConfirmReturn(selectedTransfer)}
                               className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-800 transition"
                             >
-                              <PackageCheck size={13} /> Receive Return (Nasoli Na)
+                              <PackageCheck size={13} /> Confirm Replacement Received
                             </button>
                           ) : null}
 
@@ -1999,7 +2055,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                               onClick={() => handleOpenSetBilling(selectedTransfer)}
                               className="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-blue-800 transition"
                             >
-                              <Send size={13} /> Send Amount (Billing)
+                              <Send size={13} /> Set Billing Amount
                             </button>
                           ) : null}
 
@@ -2009,7 +2065,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                               onClick={() => handleOpenPayBorrow(selectedTransfer)}
                               className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-amber-700 transition"
                             >
-                              <CreditCard size={13} /> Magbayad (Pay)
+                              <CreditCard size={13} /> Submit Payment
                             </button>
                           ) : null}
 
@@ -2747,8 +2803,8 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 {isReceiving
                   ? "Processing..."
                   : receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
-                  ? (user?.branchId === receiveModalTransfer.fromBranchId ? "Kumpirmahin na Na-claim / Na-release" : "Kumpirmahin na Na-claim (Confirm Claimed)")
-                  : (user?.branchId === receiveModalTransfer.fromBranchId ? "Kumpirmahin na Naihatid (Confirm Delivered)" : "Kumpirmahin na Natanggap (Confirm Received)")}
+                  ? (user?.branchId === receiveModalTransfer.fromBranchId ? "Confirm Claimed / Released" : "Confirm Claimed")
+                  : (user?.branchId === receiveModalTransfer.fromBranchId ? "Confirm Delivered" : "Confirm Received")}
               </button>
             </footer>
           </div>
@@ -2773,17 +2829,17 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
       />
 
       {/* Return Borrow Modal */}
-      {/* Modal 1: Initiate Return / Replace with New (Isoli) */}
+      {/* Modal 1: Return / Replace Unit */}
       {showInitiateReturnModal && initiateReturnTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
-                  Step 1: Isoli (Papalitan ng Bago)
+                  Return Replacement Unit
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
-                  Dispatch Return: {initiateReturnTarget.transferCode}
+                  Return Replacement: {initiateReturnTarget.transferCode}
                 </h3>
               </div>
               <button
@@ -2803,25 +2859,25 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             <form onSubmit={handleConfirmInitiateReturn}>
               <div className="p-5 space-y-4 text-xs">
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-emerald-900 space-y-1">
-                  <p className="font-bold text-xs">Mag-dispatch ng Replacement Stock Pabalik sa Source Branch</p>
+                  <p className="font-bold text-xs">Record Replacement Unit Returned to Source Branch</p>
                   <p className="text-[11px] text-emerald-800">
-                    Ilagay ang details ng ipinapadalang unit (serial numbers kung meron) at paraan ng delivery/pickup. Pagka-dispatch, mapupunta ito sa Out of Delivery (Returning).
+                    Choose whether this is an immediate handover (marked as Replaced) or dispatched in transit via courier/driver.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                      Dispatch Method
+                      Handover Mode *
                     </span>
                     <select
                       className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                       disabled={isSubmittingInitiateReturn}
-                      onChange={(e) => setInitiateReturnMethod(e.target.value)}
-                      value={initiateReturnMethod}
+                      onChange={(e) => setInitiateReturnHandoverType(e.target.value)}
+                      value={initiateReturnHandoverType}
                     >
-                      <option value="DELIVERY">Delivery (Courier / Out for Delivery)</option>
-                      <option value="PICKUP">Pick up by Source Branch</option>
+                      <option value="DIRECT">Immediate Handover (Mark as Replaced)</option>
+                      <option value="IN_TRANSIT">Courier / Driver (In Transit)</option>
                     </select>
                   </label>
 
@@ -2843,33 +2899,52 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   </label>
                 </div>
 
-                <label className="block">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Courier / Driver / Tracking Reference (Optional)
-                  </span>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
-                    disabled={isSubmittingInitiateReturn}
-                    onChange={(e) => setInitiateReturnCourier(e.target.value)}
-                    placeholder="e.g. Lalamove / In-house driver Mark (0917xxx)..."
-                    type="text"
-                    value={initiateReturnCourier}
-                  />
-                </label>
+                {initiateReturnHandoverType === "IN_TRANSIT" ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                        Transit Method
+                      </span>
+                      <select
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                        disabled={isSubmittingInitiateReturn}
+                        onChange={(e) => setInitiateReturnMethod(e.target.value)}
+                        value={initiateReturnMethod}
+                      >
+                        <option value="DELIVERY">Delivery (Courier / Out for Delivery)</option>
+                        <option value="PICKUP">Pick up by Source Branch</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                        Courier / Driver / Tracking Ref
+                      </span>
+                      <input
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                        disabled={isSubmittingInitiateReturn}
+                        onChange={(e) => setInitiateReturnCourier(e.target.value)}
+                        placeholder="e.g. Lalamove / Store Driver"
+                        type="text"
+                        value={initiateReturnCourier}
+                      />
+                    </label>
+                  </div>
+                ) : null}
 
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Serial Number(s) ng Isinosoli / Replacement (Kung Meron)
+                    Replacement Serial Number(s) (Optional)
                   </span>
                   <input
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 font-mono outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isSubmittingInitiateReturn}
                     onChange={(e) => setInitiateReturnSerials(e.target.value)}
-                    placeholder="e.g. SN-98721, SN-98722 (comma-separated kung marami)"
+                    placeholder="e.g. SN-98721, SN-98722 (comma-separated if multiple)"
                     type="text"
                     value={initiateReturnSerials}
                   />
-                  <p className="mt-1 text-[10px] text-slate-500">I-input ang serial number ng ipapalit na bago o isinosoling unit.</p>
+                  <p className="mt-1 text-[10px] text-slate-500">Enter serial numbers of the replacement unit(s) if serialized.</p>
                 </label>
 
                 <label className="block">
@@ -2880,7 +2955,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isSubmittingInitiateReturn}
                     onChange={(e) => setInitiateReturnRemarks(e.target.value)}
-                    placeholder="Notes para sa source branch..."
+                    placeholder="Notes for source branch..."
                     value={initiateReturnRemarks}
                   />
                 </label>
@@ -2903,7 +2978,11 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   disabled={isSubmittingInitiateReturn}
                   type="submit"
                 >
-                  {isSubmittingInitiateReturn ? "Processing..." : "I-transfer Out Pabalik (Dispatch Return)"}
+                  {isSubmittingInitiateReturn
+                    ? "Processing..."
+                    : initiateReturnHandoverType === "DIRECT"
+                    ? "Confirm Replacement (Mark as Replaced)"
+                    : "Dispatch Return (In Transit)"}
                 </button>
               </footer>
             </form>
@@ -2911,7 +2990,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         </div>
       ) : null}
 
-      {/* Modal 2: Confirm Return Received (Nasoli Na) */}
+      {/* Modal 2: Confirm Replacement Receipt */}
       {showConfirmReturnModal && confirmReturnTarget ? (() => {
         const bDetails = getBorrowDetails(confirmReturnTarget);
         return (
@@ -2920,10 +2999,10 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
                 <div>
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
-                    Step 2: Kumpirmahin na Nasoli Na
+                    Confirm Replacement
                   </span>
                   <h3 className="text-base font-black text-slate-900 leading-tight">
-                    Confirm Return Receipt: {confirmReturnTarget.transferCode}
+                    Confirm Replacement Receipt: {confirmReturnTarget.transferCode}
                   </h3>
                 </div>
                 <button
@@ -2943,9 +3022,9 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               <form onSubmit={handleConfirmConfirmReturn}>
                 <div className="p-5 space-y-4 text-xs">
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-emerald-900 space-y-1">
-                    <p className="font-bold text-xs">Tanggapin ang Isinoli o Ipinalit na Stock</p>
+                    <p className="font-bold text-xs">Confirm Received Replacement Stock</p>
                     <p className="text-[11px] text-emerald-800">
-                      I-kumpirma na natanggap mo na ang replacement stock sa iyong branch. Kapag kinumpirma, mamamarkahan ito bilang NASOLI NA (Completed).
+                      Confirm that your branch has received the returned replacement stock. This will mark the transfer as Replaced.
                     </p>
                   </div>
 
@@ -2990,7 +3069,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     disabled={isSubmittingConfirmReturn}
                     type="submit"
                   >
-                    {isSubmittingConfirmReturn ? "Processing..." : "Kumpirmahin na Natanggap (Nasoli Na)"}
+                    {isSubmittingConfirmReturn ? "Processing..." : "Confirm Receipt (Mark as Replaced)"}
                   </button>
                 </footer>
               </form>
@@ -2999,17 +3078,17 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         );
       })() : null}
 
-      {/* Modal 3: Initiate Purchase (Babayaran Nalang Request) */}
+      {/* Modal 3: Settle Payment (Direct Payment or Billing Request) */}
       {showInitiatePurchaseModal && initiatePurchaseTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-700">
-                  Step 1: Babayaran Nalang
+                  Settle Payment
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
-                  Convert to Purchase: {initiatePurchaseTarget.transferCode}
+                  Settle Payment: {initiatePurchaseTarget.transferCode}
                 </h3>
               </div>
               <button
@@ -3029,14 +3108,83 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             <form onSubmit={handleConfirmInitiatePurchase}>
               <div className="p-5 space-y-4 text-xs">
                 <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-blue-900 space-y-1">
-                  <p className="font-bold text-xs">Humiling na Bayaran Nalang ang Hiniram na Stock</p>
+                  <p className="font-bold text-xs">Settle Stock Transfer via Payment</p>
                   <p className="text-[11px] text-blue-800">
-                    Hindi na isasauli ang stock. Magpapadala ang source branch ng amount na kailangang bayaran at mga payment instructions.
+                    Record payment received directly (marked as Paid) or send a request for billing instructions from the source branch.
                   </p>
                 </div>
 
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Settlement Mode *
+                  </span>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                    disabled={isSubmittingInitiatePurchase}
+                    onChange={(e) => setPurchaseSettlementMode(e.target.value)}
+                    value={purchaseSettlementMode}
+                  >
+                    <option value="DIRECT">Direct Payment Received (Mark as Paid)</option>
+                    <option value="BILLING">Request Billing Amount from Source Branch</option>
+                  </select>
+                </label>
+
+                {purchaseSettlementMode === "DIRECT" ? (
+                  <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                          Amount to Pay (₱) *
+                        </span>
+                        <input
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
+                          disabled={isSubmittingInitiatePurchase}
+                          min="0"
+                          onChange={(e) => setPurchaseAmountInput(e.target.value)}
+                          placeholder="0.00"
+                          required
+                          step="0.01"
+                          type="number"
+                          value={purchaseAmountInput}
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                          Payment Method *
+                        </span>
+                        <select
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                          disabled={isSubmittingInitiatePurchase}
+                          onChange={(e) => setPurchaseMethodInput(e.target.value)}
+                          value={purchaseMethodInput}
+                        >
+                          <option value="CASH">Cash</option>
+                          <option value="GCASH">GCash</option>
+                          <option value="BANK_TRANSFER">Bank Transfer</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <label className="block">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                        Reference / Transaction No. (Optional)
+                      </span>
+                      <input
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                        disabled={isSubmittingInitiatePurchase}
+                        onChange={(e) => setPurchaseRefInput(e.target.value)}
+                        placeholder="e.g. GCash Ref / Bank Deposit #"
+                        type="text"
+                        value={purchaseRefInput}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-1.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Items to Purchase</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Items to Settle</p>
                   {(initiatePurchaseTarget.items || []).map((it) => (
                     <div key={it.id} className="flex justify-between items-center text-[11px] font-medium text-slate-800">
                       <span>{it.item?.itemName || it.description || "Item"}</span>
@@ -3047,13 +3195,13 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Remarks / Reason for Purchase (Optional)
+                    Remarks / Notes (Optional)
                   </span>
                   <textarea
                     className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isSubmittingInitiatePurchase}
                     onChange={(e) => setInitiatePurchaseRemarks(e.target.value)}
-                    placeholder="e.g. Decided to keep stock for customer repair..."
+                    placeholder="e.g. Paid in full at store counter..."
                     value={initiatePurchaseRemarks}
                   />
                 </label>
@@ -3076,7 +3224,11 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   disabled={isSubmittingInitiatePurchase}
                   type="submit"
                 >
-                  {isSubmittingInitiatePurchase ? "Processing..." : "I-send ang Request (Babayaran Nalang)"}
+                  {isSubmittingInitiatePurchase
+                    ? "Processing..."
+                    : purchaseSettlementMode === "DIRECT"
+                    ? "Confirm Payment (Mark as Paid)"
+                    : "Send Request for Billing"}
                 </button>
               </footer>
             </form>
@@ -3091,7 +3243,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-700">
-                  Step 2: I-set ang Babayaran (Billing)
+                  Set Billing Amount
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
                   Set Billing Amount: {setBillingTarget.transferCode}
@@ -3114,15 +3266,15 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             <form onSubmit={handleConfirmSetBilling}>
               <div className="p-5 space-y-4 text-xs">
                 <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-blue-900 space-y-1">
-                  <p className="font-bold text-xs">Ipadala ang Halaga na Babayaran</p>
+                  <p className="font-bold text-xs">Send Billing Amount to Destination Branch</p>
                   <p className="text-[11px] text-blue-800">
-                    Bilang nagbigay ng stock, i-input ang eksaktong halaga na dapat bayaran ng kabilang branch at payment instructions (e.g. GCash number o account).
+                    As the supplying branch, enter the exact billing amount to be paid by the receiving branch and payment instructions.
                   </p>
                 </div>
 
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Halaga na Babayaran (₱) *
+                    Billing Amount (₱) *
                   </span>
                   <input
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
@@ -3139,13 +3291,13 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Instruksyon sa Pagbabayad (Optional)
+                    Payment Instructions (Optional)
                   </span>
                   <input
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isSubmittingSetBilling}
                     onChange={(e) => setBillingInstructionsInput(e.target.value)}
-                    placeholder="e.g. GCash: 0917-xxx-xxxx o Cash Turnover sa opisina"
+                    placeholder="e.g. GCash: 0917-xxx-xxxx or Cash turnover at branch"
                     type="text"
                     value={billingInstructionsInput}
                   />
@@ -3159,7 +3311,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     className="mt-1 min-h-16 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isSubmittingSetBilling}
                     onChange={(e) => setBillingRemarksInput(e.target.value)}
-                    placeholder="Additional notes para sa kabilang branch..."
+                    placeholder="Additional notes for destination branch..."
                     value={billingRemarksInput}
                   />
                 </label>
@@ -3182,7 +3334,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   disabled={isSubmittingSetBilling}
                   type="submit"
                 >
-                  {isSubmittingSetBilling ? "Processing..." : "I-send ang Halaga (Billing)"}
+                  {isSubmittingSetBilling ? "Processing..." : "Send Billing Amount"}
                 </button>
               </footer>
             </form>
@@ -3190,14 +3342,14 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
         </div>
       ) : null}
 
-      {/* Modal 5: Pay Borrowed Stock (Borrower Submits Payment) */}
+      {/* Modal 5: Submit Payment (Borrower Submits Payment) */}
       {showPayBorrowModal && payBorrowTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 sm:p-5 backdrop-blur-xs">
           <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-700">
-                  Step 3: Magbayad (Pay Stock)
+                  Submit Payment
                 </span>
                 <h3 className="text-base font-black text-slate-900 leading-tight">
                   Payment for: {payBorrowTarget.transferCode}
@@ -3220,9 +3372,9 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
             <form onSubmit={handleConfirmPayBorrow}>
               <div className="p-5 space-y-4 text-xs">
                 <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-900 space-y-1">
-                  <p className="font-bold text-xs">Magbayad sa Source Branch</p>
+                  <p className="font-bold text-xs">Submit Payment to Source Branch</p>
                   <p className="text-[11px] text-amber-800">
-                    I-record ang mode ng payment (Cash, GCash, Bank Transfer) at reference number kung mayroon.
+                    Record mode of payment (Cash, GCash, Bank Transfer) and reference number.
                   </p>
                 </div>
 
@@ -3256,20 +3408,20 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                       <option value="CASH">Cash</option>
                       <option value="GCASH">GCash</option>
                       <option value="BANK_TRANSFER">Bank Transfer</option>
-                      <option value="OTHER">Others</option>
+                      <option value="OTHER">Other</option>
                     </select>
                   </label>
                 </div>
 
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Reference / Transaction No. (Kung GCash o Bank)
+                    Reference / Transaction No. (Optional)
                   </span>
                   <input
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isSubmittingPayBorrow}
                     onChange={(e) => setPayRefInput(e.target.value)}
-                    placeholder="e.g. GCash Ref 1002938192 o Deposit Slip #"
+                    placeholder="e.g. GCash Ref / Bank Deposit #"
                     type="text"
                     value={payRefInput}
                   />
@@ -3306,7 +3458,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   disabled={isSubmittingPayBorrow}
                   type="submit"
                 >
-                  {isSubmittingPayBorrow ? "Processing..." : "I-submit ang Bayad"}
+                  {isSubmittingPayBorrow ? "Processing..." : "Submit Payment"}
                 </button>
               </footer>
             </form>
@@ -3323,10 +3475,10 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-5 py-3.5">
                 <div>
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700">
-                    Step 4: Kumpirmahin ang Bayad
+                    Confirm Payment
                   </span>
                   <h3 className="text-base font-black text-slate-900 leading-tight">
-                    Confirm Payment: {confirmPaymentTarget.transferCode}
+                    Confirm Payment Received: {confirmPaymentTarget.transferCode}
                   </h3>
                 </div>
                 <button
@@ -3346,15 +3498,15 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
               <form onSubmit={handleConfirmConfirmPayment}>
                 <div className="p-5 space-y-4 text-xs">
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-emerald-900 space-y-1">
-                    <p className="font-bold text-xs">Kumpirmahin na Natanggap ang Bayad</p>
+                    <p className="font-bold text-xs">Confirm Payment Received</p>
                     <p className="text-[11px] text-emerald-800">
-                      Tingnan ang detalye ng bayad sa ibaba. Kapag kinumpirma mo na natanggap mo na ito, makukumpleto ang buong transaksyon bilang BABAYARAN NALANG (Paid & Completed).
+                      Review payment details below. Confirming will mark this transfer as Paid.
                     </p>
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2 text-[11px]">
                     <div className="flex justify-between items-center font-bold text-slate-900">
-                      <span>Halagang Ibinayad:</span>
+                      <span>Amount Paid:</span>
                       <span className="text-base font-mono font-black text-emerald-700">₱{Number(bDetails?.paidAmount || bDetails?.billingAmount || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center text-slate-600">
@@ -3400,7 +3552,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     disabled={isSubmittingConfirmPayment}
                     type="submit"
                   >
-                    {isSubmittingConfirmPayment ? "Processing..." : "Kumpirmahin ang Bayad (Complete Transaction)"}
+                    {isSubmittingConfirmPayment ? "Processing..." : "Confirm Payment (Mark as Paid)"}
                   </button>
                 </footer>
               </form>
