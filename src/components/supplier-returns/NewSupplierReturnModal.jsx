@@ -231,6 +231,20 @@ export default function NewSupplierReturnModal({
       return
     }
 
+    // Check if serial's origin supplier conflicts with currently selected supplier
+    if (selectedSerialObj?.batch?.supplierName) {
+      const matched = suppliers.find(
+        (sup) => sup.name?.toLowerCase().trim() === selectedSerialObj.batch.supplierName?.toLowerCase().trim()
+      )
+      if (matched && selectedSupplierId && matched.id !== selectedSupplierId) {
+        const curSup = suppliers.find((s) => s.id === selectedSupplierId)
+        setError(
+          `Serial "${selectedSerialObj.serialNumber}" was supplied by "${matched.name}". This return order is set for "${curSup?.name || "another supplier"}". Each return order must be for a single supplier.`
+        )
+        return
+      }
+    }
+
     setItems((prev) => [
       ...prev,
       {
@@ -752,6 +766,17 @@ export default function NewSupplierReturnModal({
                                   setManualItemSearch(s.item.itemName)
                                   setManualCost(Number(s.item.costPrice || 0))
                                 }
+
+                                // Auto-switch target supplier if manifest is empty
+                                if (items.length === 0 && s.batch?.supplierName) {
+                                  const matched = suppliers.find(
+                                    (sup) => sup.name?.toLowerCase().trim() === s.batch.supplierName?.toLowerCase().trim()
+                                  )
+                                  if (matched && matched.id !== selectedSupplierId) {
+                                    setSelectedSupplierId(matched.id)
+                                  }
+                                }
+
                                 setAvailableSerials([])
                               }}
                               className="w-full text-left p-2 text-xs hover:bg-slate-50 flex justify-between items-center"
