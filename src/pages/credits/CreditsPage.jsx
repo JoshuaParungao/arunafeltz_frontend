@@ -37,7 +37,14 @@ const TERMS = [
   "MONTH_18",
   "MONTH_24",
 ];
-const PAYMENT_METHODS = ["CASH", "GCASH", "BANK_TRANSFER", "OTHER"];
+const PAYMENT_METHODS = [
+  "CASH",
+  "GCASH",
+  "BANK_TRANSFER",
+  "CARD",
+  "CHEQUE",
+  "OTHER",
+];
 const PROVIDERS = [
   "CREDIT_CARD",
   "DEBIT_CARD",
