@@ -34,3 +34,8 @@ export async function disableUser(id) {
   const response = await apiClient.patch(`/users/${id}/disable`)
   return response.data
 }
+
+export async function enableUser(id) {
+  const response = await apiClient.patch(`/users/${id}/enable`)
+  return response.data
+}

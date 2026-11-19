@@ -29,6 +29,7 @@ import {
   approveUser,
   createUser,
   disableUser,
+  enableUser,
   getUserById,
   getUsers,
   rejectUser,
@@ -119,6 +120,14 @@ const ACTION_CONFIG = {
     tone: "red",
     icon: Ban,
     request: disableUser,
+  },
+  enable: {
+    label: "Enable",
+    pastTense: "enabled",
+    verb: "enable",
+    tone: "emerald",
+    icon: CheckCircle2,
+    request: enableUser,
   },
 }
 
@@ -537,7 +546,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function UserDetailModal({ actor, onClose, onEdit, userId }) {
+function UserDetailModal({ actor, onAction, onClose, onEdit, userId }) {
   const [record, setRecord] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
@@ -623,7 +632,27 @@ function UserDetailModal({ actor, onClose, onEdit, userId }) {
       </div>
 
       {record && canEditUser(actor, record) ? (
-        <footer className="flex items-center justify-end border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+        <footer className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50/75 px-5 py-3">
+          {onAction && canRunLifecycleAction(actor, record) && record.status === USER_STATUS.DISABLED ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-800 shadow-xs hover:bg-emerald-100 transition"
+              onClick={() => onAction(record, "enable")}
+              type="button"
+            >
+              <CheckCircle2 size={14} />
+              Enable User
+            </button>
+          ) : null}
+          {onAction && canRunLifecycleAction(actor, record) && record.status === USER_STATUS.ACTIVE ? (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-xs font-bold text-red-800 shadow-xs hover:bg-red-100 transition"
+              onClick={() => onAction(record, "disable")}
+              type="button"
+            >
+              <Ban size={14} />
+              Disable User
+            </button>
+          ) : null}
           <button
             className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-maroon-hover)] transition"
             onClick={() => onEdit(record)}
@@ -690,7 +719,9 @@ function LifecycleDialog({ action, onClose, onSaved, target }) {
               ? "This grants the account access according to its assigned role and branch."
               : action === "reject"
                 ? "This rejects the pending account request. The action remains auditable."
-                : "This prevents future login while preserving the user and historical attribution."}
+                : action === "enable"
+                  ? "This re-enables the account and restores login access according to its assigned role."
+                  : "This prevents future login while preserving the user and historical attribution."}
           </p>
           {errorMessage ? <ErrorBanner>{errorMessage}</ErrorBanner> : null}
         </div>
@@ -769,6 +800,15 @@ function UserActions({ actor, onAction, onEdit, onView, target }) {
           type="button"
         >
           Disable
+        </button>
+      ) : null}
+      {canLifecycle && target.status === USER_STATUS.DISABLED ? (
+        <button
+          className="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50"
+          onClick={() => onAction(target, "enable")}
+          type="button"
+        >
+          Enable
         </button>
       ) : null}
     </div>
@@ -1312,6 +1352,10 @@ function UsersPage({ selectedBranch, user }) {
       {detailUserId ? (
         <UserDetailModal
           actor={user}
+          onAction={(target, action) => {
+            setDetailUserId(null)
+            setLifecycleRequest({ action, target })
+          }}
           onClose={() => setDetailUserId(null)}
           onEdit={(target) => {
             setDetailUserId(null)
