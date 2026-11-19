@@ -69,7 +69,10 @@ import {
   getSaleById,
   getSales,
 } from "../../features/sales/sales.api"
-import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
+import {
+  getInstallmentBasisSettings,
+  getPaymentMethodSettings,
+} from "../../features/settings/settings.api"
 import {
   exportReportExcel,
   exportWarrantyReceiptPdf,
@@ -477,6 +480,17 @@ function isOnlineSale(sale) {
   return false
 }
 
+function isChequeSale(sale) {
+  if (!sale) return false
+  if (String(sale.paymentMethod || "").toUpperCase() === "CHEQUE") return true
+  if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+    if (sale.payments.some((p) => String(p.paymentMethod || "").toUpperCase() === "CHEQUE")) {
+      return true
+    }
+  }
+  return false
+}
+
 function hasCashPayment(sale) {
   if (!sale) return false
   if (Array.isArray(sale.payments) && sale.payments.length > 0) {
@@ -485,12 +499,12 @@ function hasCashPayment(sale) {
       const rem = String(p.remarks || "").toLowerCase()
       const ref = String(p.referenceNo || "").toLowerCase()
       if (m === "CASH") return true
-      return !isOnlinePaymentMethod(m, rem, ref) && m !== "CREDIT_CARD" && m !== "DEBIT_CARD"
+      return !isOnlinePaymentMethod(m, rem, ref) && m !== "CREDIT_CARD" && m !== "DEBIT_CARD" && m !== "CHEQUE" && m !== "CARD"
     })
   }
   const m = String(sale.paymentMethod || "").toUpperCase()
   if (m === "CASH") return true
-  return !isOnlineSale(sale) && !sale.creditAccount && Number(sale.amountPaid || 0) > 0
+  return !isOnlineSale(sale) && !isChequeSale(sale) && !sale.creditAccount && Number(sale.amountPaid || 0) > 0
 }
 
 const ERROR_CODE_TRANSLATIONS = {
@@ -508,6 +522,18 @@ const ERROR_CODE_TRANSLATIONS = {
   RECEIVABLE_INITIAL_SETTLEMENT_EXCEEDS_TOTAL: "Downpayment cannot exceed the total purchase price.",
   SALE_NOT_FOUND: "Sale record not found.",
   BRANCH_ACCESS_DENIED: "You do not have access to records from another branch.",
+  PAYMENT_METHOD_CASH_DISABLED: "Cash payments are currently disabled in store settings.",
+  PAYMENT_METHOD_GCASH_DISABLED: "GCash payments are currently disabled in store settings.",
+  PAYMENT_METHOD_BANK_TRANSFER_DISABLED: "Bank transfer payments are currently disabled in store settings.",
+  PAYMENT_METHOD_CARD_DISABLED: "Card terminal payments are currently disabled in store settings.",
+  PAYMENT_METHOD_CHEQUE_DISABLED: "Cheque payments are currently disabled in store settings.",
+  PAYMENT_METHOD_CREDIT_DISABLED: "Credit/Installment accounts are currently disabled in store settings.",
+  PAYMENT_METHOD_MIXED_DISABLED: "Mixed payment is currently disabled in store settings.",
+  CHEQUE_NUMBER_REQUIRED: "Cheque number is required for cheque payments.",
+  BANK_NAME_REQUIRED: "Bank name is required for this payment method.",
+  CARD_APPROVAL_CODE_REQUIRED: "Card approval code is required for card terminal payments.",
+  PAYMENT_REFERENCE_REQUIRED: "Payment reference number is required.",
+  PAYMENT_REMARKS_REQUIRED: "Payment remarks are required by store settings.",
 }
 
 function getApiErrorMessage(error, fallback) {
@@ -2105,6 +2131,8 @@ function AppendSaleItemsDialog({ installmentRates, isSaving, onClose, onConfirm,
                       <option value="CASH">Cash</option>
                       <option value="GCASH">GCash</option>
                       <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="CARD">Card / Terminal</option>
+                      <option value="CHEQUE">Cheque</option>
                       <option value="OTHER">Other</option>
                     </select>
                   </label>
@@ -2607,12 +2635,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     services: false,
   })
 
-  // 2. PAYMENT METHOD (Paano binayaran: All Methods, AR, Cash, Online)
+  // 2. PAYMENT METHOD (Paano binayaran: All Methods, AR, Cash, Online, Cheque)
   const [paymentMethodFilter, setPaymentMethodFilter] = useState({
     allMethods: true,
     ar: false,
     cash: false,
     online: false,
+    cheque: false,
   })
 
   // 3. TOTAL COMPUTATION (Ano ang kasama sa total: Mark-up, Interest)
@@ -2702,6 +2731,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       ar: false,
       cash: false,
       online: false,
+      cheque: false,
     })
     setSalesPage(1)
   }
@@ -2714,6 +2744,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ar: key === "ar",
           cash: key === "cash",
           online: key === "online",
+          cheque: key === "cheque",
         }
       }
 
@@ -2723,24 +2754,26 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         [key]: nextVal,
       }
 
-      // Kung na-check na lahat ng 3 specific payment methods, ibalik sa All Methods
-      if (updated.ar && updated.cash && updated.online) {
+      // Kung na-check na lahat ng specific payment methods, ibalik sa All Methods
+      if (updated.ar && updated.cash && updated.online && updated.cheque) {
         return {
           allMethods: true,
           ar: false,
           cash: false,
           online: false,
+          cheque: false,
         }
       }
 
       // Kung na-uncheck lahat, ibalik sa All Methods
-      const anyActive = updated.ar || updated.cash || updated.online
+      const anyActive = updated.ar || updated.cash || updated.online || updated.cheque
       if (!anyActive) {
         return {
           allMethods: true,
           ar: false,
           cash: false,
           online: false,
+          cheque: false,
         }
       }
 
@@ -2955,6 +2988,30 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.paymentRemarks || ""
   })
+  const [paymentBankName, setPaymentBankName] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.paymentBankName || ""
+  })
+  const [paymentChequeDate, setPaymentChequeDate] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.paymentChequeDate || new Date().toISOString().slice(0, 10)
+  })
+  const [paymentSettings, setPaymentSettings] = useState(() => ({
+    cash: true,
+    gcash: true,
+    bankTransfer: true,
+    cardTerminal: true,
+    cheque: true,
+    creditInstallment: true,
+    mixedPayment: true,
+    requiredFields: {
+      referenceNumber: true,
+      cardApprovalCode: true,
+      chequeNumber: true,
+      bankName: true,
+      remarks: false,
+    },
+  }))
   const [creditTerm, setCreditTerm] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.creditTerm || "MONTH_3"
@@ -2978,6 +3035,20 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       .then((res) => {
         if (isMounted && res?.data?.termBasis) {
           setInstallmentRates(res.data.termBasis)
+        }
+      })
+      .catch(() => {})
+    getPaymentMethodSettings()
+      .then((res) => {
+        if (isMounted && res?.data) {
+          setPaymentSettings((prev) => ({
+            ...prev,
+            ...res.data,
+            requiredFields: {
+              ...prev.requiredFields,
+              ...(res.data.requiredFields || {}),
+            },
+          }))
         }
       })
       .catch(() => {})
@@ -3008,6 +3079,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         paymentAmount,
         paymentReference,
         paymentRemarks,
+        paymentBankName,
+        paymentChequeDate,
         creditTerm,
         selectedServiceStaffId,
         serviceStaffSearch,
@@ -3035,6 +3108,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     paymentAmount,
     paymentReference,
     paymentRemarks,
+    paymentBankName,
+    paymentChequeDate,
     creditTerm,
     selectedServiceStaffId,
     serviceStaffSearch,
@@ -3160,8 +3235,34 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     return { productGross, serviceGross, subtotal, totalDiscount, additionalCharge, grandTotal }
   }, [cart, serviceCharge, pricingTerm])
 
-  const isReceivableCheckout = RECEIVABLE_PROVIDER_VALUES.has(paymentMethod)
+  const isReceivableCheckout = Boolean(paymentSettings.creditInstallment !== false && RECEIVABLE_PROVIDER_VALUES.has(paymentMethod))
   const isInHouseCheckout = paymentMethod === "IN_HOUSE_INSTALLMENT"
+
+  const availableImmediateMethods = useMemo(() => {
+    const list = []
+    if (paymentSettings.cash !== false) list.push(["CASH", "Cash (Physical)"])
+    if (paymentSettings.gcash !== false) list.push(["GCASH", "GCash (Online)"])
+    if (paymentSettings.bankTransfer !== false) list.push(["BANK_TRANSFER", "Bank Transfer (Any Bank)"])
+    if (paymentSettings.cardTerminal !== false) list.push(["CARD", "Card / Payment Terminal"])
+    if (paymentSettings.cheque !== false) list.push(["CHEQUE", "Cheque (Bank Check)"])
+    list.push(["OTHER", "Maya / PayMaya / Other Online"])
+    return list
+  }, [paymentSettings])
+
+  useEffect(() => {
+    if (availableImmediateMethods.length > 0) {
+      const isCurrentValid =
+        availableImmediateMethods.some(([v]) => v === paymentMethod) ||
+        (paymentSettings.creditInstallment !== false && RECEIVABLE_PROVIDER_VALUES.has(paymentMethod))
+      if (!isCurrentValid) {
+        setPaymentMethod(availableImmediateMethods[0][0])
+      }
+      const isSettlementValid = availableImmediateMethods.some(([v]) => v === settlementMethod)
+      if (!isSettlementValid) {
+        setSettlementMethod(availableImmediateMethods[0][0])
+      }
+    }
+  }, [availableImmediateMethods, paymentMethod, settlementMethod, paymentSettings.creditInstallment])
 
   const effectivePaymentAmount = paymentAmountTouched
     ? paymentAmount
@@ -4117,6 +4218,56 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       return "Only cash checkout can include overpayment and customer change."
     }
 
+    const activeMethod = isReceivableCheckout ? settlementMethod : paymentMethod
+    if (tendered > 0) {
+      if (activeMethod === "CHEQUE") {
+        if (paymentSettings.cheque === false) {
+          return "Cheque payment is currently disabled in store settings."
+        }
+        if (paymentSettings.requiredFields?.chequeNumber && !paymentReference.trim()) {
+          return "Cheque number is required for cheque payments."
+        }
+        if (paymentSettings.requiredFields?.bankName && !paymentBankName.trim()) {
+          return "Bank name is required for cheque payments."
+        }
+      } else if (activeMethod === "CARD") {
+        if (paymentSettings.cardTerminal === false) {
+          return "Card / Terminal payment is currently disabled in store settings."
+        }
+        if (paymentSettings.requiredFields?.cardApprovalCode && !paymentReference.trim()) {
+          return "Approval code is required for card terminal payments."
+        }
+        if (paymentSettings.requiredFields?.bankName && !paymentBankName.trim()) {
+          return "Bank or terminal provider is required for card payments."
+        }
+      } else if (activeMethod === "BANK_TRANSFER") {
+        if (paymentSettings.bankTransfer === false) {
+          return "Bank transfer payment is currently disabled in store settings."
+        }
+        if (paymentSettings.requiredFields?.bankName && !paymentBankName.trim()) {
+          return "Bank name is required for bank transfer payments."
+        }
+        if (paymentSettings.requiredFields?.referenceNumber && !paymentReference.trim()) {
+          return "Reference number is required for bank transfer payments."
+        }
+      } else if (activeMethod === "GCASH" || activeMethod === "OTHER") {
+        if (activeMethod === "GCASH" && paymentSettings.gcash === false) {
+          return "GCash payment is currently disabled in store settings."
+        }
+        if (paymentSettings.requiredFields?.referenceNumber && !paymentReference.trim()) {
+          return "Reference number is required for online payments."
+        }
+      } else if (activeMethod === "CASH") {
+        if (paymentSettings.cash === false) {
+          return "Cash payment is currently disabled in store settings."
+        }
+      }
+
+      if (paymentSettings.requiredFields?.remarks && !paymentRemarks.trim()) {
+        return "Payment remarks are required by store settings."
+      }
+    }
+
     return ""
   }
 
@@ -4140,6 +4291,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setPaymentAmountTouched(false)
     setPaymentReference("")
     setPaymentRemarks("")
+    setPaymentBankName("")
+    setPaymentChequeDate(new Date().toISOString().slice(0, 10))
     setCreditTerm("MONTH_3")
     setCreditDueDay("")
     setCreditFirstDueDate("")
@@ -4481,7 +4634,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     : paymentMethod,
                   amount: settlementAmount,
                   referenceNo: paymentReference.trim() || undefined,
-                  remarks: paymentRemarks.trim() || undefined,
+                  remarks: [
+                    paymentBankName ? `Bank: ${paymentBankName.trim()}` : "",
+                    paymentChequeDate && (paymentMethod === "CHEQUE" || settlementMethod === "CHEQUE") ? `Cheque Date: ${paymentChequeDate}` : "",
+                    paymentRemarks.trim(),
+                  ].filter(Boolean).join(" | ") || undefined,
                 },
               ]
             : [],
@@ -5456,12 +5613,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     let totalInterest = 0 // Interest / financing charges
     let totalArBalance = 0 // Accounts Receivable (unpaid balance)
 
-    // Payments: Physical Cash vs Online Real-Time
+    // Payments: Physical Cash vs Online Real-Time vs Cheque
     let totalPhysicalCash = 0 // Actual paper cash in drawer
     let totalOnlinePayments = 0 // Real-time electronic payments
     let totalGcash = 0
     let totalMaya = 0
     let totalBankTransfer = 0
+    let totalCheque = 0
 
     // Grand Totals
     let computedGrandTotal = 0
@@ -5516,6 +5674,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             totalBankTransfer += amt
           } else if (m === "CASH") {
             totalPhysicalCash += amt
+          } else if (m === "CHEQUE") {
+            totalCheque += amt
+          } else if (m === "CARD") {
+            totalOnlinePayments += amt
           } else {
             totalPhysicalCash += amt
           }
@@ -5528,6 +5690,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           if (m.includes("GCASH")) totalGcash += upfrontPaid
           else if (m.includes("MAYA")) totalMaya += upfrontPaid
           else totalBankTransfer += upfrontPaid
+        } else if (isChequeSale(sale)) {
+          totalCheque += upfrontPaid
         } else if (!sale.creditAccount && upfrontPaid > 0) {
           totalPhysicalCash += upfrontPaid
         }
@@ -5657,6 +5821,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const hasCash = hasCashPayment(sale)
       const hasAr = Boolean(sale.creditAccount)
       const hasOnline = isOnlineSale(sale)
+      const hasCheque = isChequeSale(sale)
 
       let matchesPayment = false
       if (paymentMethodFilter.allMethods) {
@@ -5665,6 +5830,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         if (paymentMethodFilter.ar && hasAr) matchesPayment = true
         if (paymentMethodFilter.cash && hasCash) matchesPayment = true
         if (paymentMethodFilter.online && hasOnline) matchesPayment = true
+        if (paymentMethodFilter.cheque && hasCheque) matchesPayment = true
       }
 
       if (!matchesCategory || !matchesPayment) return
@@ -5746,7 +5912,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalGcash,
       totalMaya,
       totalBankTransfer,
-      totalCollectedCash: totalPhysicalCash + totalOnlinePayments,
+      totalCheque,
+      totalCollectedCash: totalPhysicalCash + totalOnlinePayments + totalCheque,
       estimatedProfit: overallGrossProfit,
       overallGrossProfit,
       computedGrandTotal,
@@ -5783,6 +5950,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const hasCash = hasCashPayment(sale)
       const hasAr = Boolean(sale.creditAccount)
       const hasOnline = isOnlineSale(sale)
+      const hasCheque = isChequeSale(sale)
 
       let matchesPay = false
       if (paymentMethodFilter.allMethods) {
@@ -5791,6 +5959,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         if (paymentMethodFilter.ar && hasAr) matchesPay = true
         if (paymentMethodFilter.cash && hasCash) matchesPay = true
         if (paymentMethodFilter.online && hasOnline) matchesPay = true
+        if (paymentMethodFilter.cheque && hasCheque) matchesPay = true
       }
 
       return matchesCat && matchesPay
@@ -5805,6 +5974,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const hasCash = hasCashPayment(sale)
       const hasAr = Boolean(sale.creditAccount)
       const hasOnline = isOnlineSale(sale)
+      const hasCheque = isChequeSale(sale)
 
       let matchesPay = false
       if (paymentMethodFilter.allMethods) {
@@ -5813,6 +5983,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         if (paymentMethodFilter.ar && hasAr) matchesPay = true
         if (paymentMethodFilter.cash && hasCash) matchesPay = true
         if (paymentMethodFilter.online && hasOnline) matchesPay = true
+        if (paymentMethodFilter.cheque && hasCheque) matchesPay = true
       }
 
       if (!matchesPay) return
@@ -7122,11 +7293,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       value={paymentMethod}
                     >
                       <optgroup label="Immediate Settlement">
-                        {IMMEDIATE_PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        {availableImmediateMethods.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </optgroup>
-                      <optgroup label="Accounts Receivable">
-                        {RECEIVABLE_PROVIDERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                      </optgroup>
+                      {paymentSettings.creditInstallment !== false ? (
+                        <optgroup label="Accounts Receivable">
+                          {RECEIVABLE_PROVIDERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        </optgroup>
+                      ) : null}
                     </select>
                   </label>
 
@@ -7150,7 +7323,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       <label className="block">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Downpayment Method</span>
                         <select className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setSettlementMethod(event.target.value)} value={settlementMethod}>
-                          {IMMEDIATE_PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          {availableImmediateMethods.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                         </select>
                       </label>
                       <label className="block">
@@ -7160,15 +7333,193 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </>
                   ) : null}
 
-                  <label className="block">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Reference No.</span>
-                    <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setPaymentReference(event.target.value)} placeholder="Traceability ref" value={paymentReference} />
-                  </label>
+                  {/* Contextual payment fields based on chosen payment method */}
+                  {(() => {
+                    const activeMethod = isReceivableCheckout ? settlementMethod : paymentMethod
+                    const req = paymentSettings.requiredFields || {}
 
-                  <label className="block">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Payment Remarks</span>
-                    <input className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setPaymentRemarks(event.target.value)} placeholder="Optional note" value={paymentRemarks} />
-                  </label>
+                    if (activeMethod === "CHEQUE") {
+                      return (
+                        <>
+                          <label className="block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                              Cheque No. {req.chequeNumber ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs font-mono font-bold outline-none focus:border-amber-500"
+                              onChange={(event) => setPaymentReference(event.target.value)}
+                              placeholder="e.g. CHK-0012948"
+                              value={paymentReference}
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                              Issuing Bank {req.bankName ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs outline-none focus:border-amber-500"
+                              onChange={(event) => setPaymentBankName(event.target.value)}
+                              placeholder="e.g. BDO, BPI, Metrobank"
+                              value={paymentBankName}
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                              Cheque Date
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-amber-300 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-amber-500"
+                              onChange={(event) => setPaymentChequeDate(event.target.value)}
+                              type="date"
+                              value={paymentChequeDate}
+                            />
+                          </label>
+
+                          <label className="block sm:col-span-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                              Cheque Remarks {req.remarks ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                              onChange={(event) => setPaymentRemarks(event.target.value)}
+                              placeholder="Optional clearing or account notes"
+                              value={paymentRemarks}
+                            />
+                          </label>
+                        </>
+                      )
+                    }
+
+                    if (activeMethod === "CARD") {
+                      return (
+                        <>
+                          <label className="block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
+                              Approval Code {req.cardApprovalCode ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-blue-300 bg-blue-50/40 px-2.5 py-1.5 text-xs font-mono font-bold outline-none focus:border-blue-500"
+                              onChange={(event) => setPaymentReference(event.target.value)}
+                              placeholder="Terminal approval code"
+                              value={paymentReference}
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
+                              Terminal / Bank {req.bankName ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-blue-300 bg-blue-50/40 px-2.5 py-1.5 text-xs outline-none focus:border-blue-500"
+                              onChange={(event) => setPaymentBankName(event.target.value)}
+                              placeholder="e.g. Maya POS, BDO, Visa"
+                              value={paymentBankName}
+                            />
+                          </label>
+
+                          <label className="block sm:col-span-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                              Card Payment Remarks {req.remarks ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                              onChange={(event) => setPaymentRemarks(event.target.value)}
+                              placeholder="Optional note"
+                              value={paymentRemarks}
+                            />
+                          </label>
+                        </>
+                      )
+                    }
+
+                    if (activeMethod === "BANK_TRANSFER") {
+                      return (
+                        <>
+                          <label className="block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
+                              Bank Name {req.bankName ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-blue-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-blue-500"
+                              onChange={(event) => setPaymentBankName(event.target.value)}
+                              placeholder="e.g. BPI, BDO, UnionBank"
+                              value={paymentBankName}
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
+                              Transfer Ref No. {req.referenceNumber ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-blue-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-blue-500"
+                              onChange={(event) => setPaymentReference(event.target.value)}
+                              placeholder="Reference / Transaction ID"
+                              value={paymentReference}
+                            />
+                          </label>
+
+                          <label className="block sm:col-span-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                              Payment Remarks {req.remarks ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                              onChange={(event) => setPaymentRemarks(event.target.value)}
+                              placeholder="Optional note"
+                              value={paymentRemarks}
+                            />
+                          </label>
+                        </>
+                      )
+                    }
+
+                    if (activeMethod === "GCASH" || activeMethod === "OTHER") {
+                      return (
+                        <>
+                          <label className="block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-900 block">
+                              Reference No. {req.referenceNumber ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-teal-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-teal-500"
+                              onChange={(event) => setPaymentReference(event.target.value)}
+                              placeholder="Traceability ref / GCash Ref"
+                              value={paymentReference}
+                            />
+                          </label>
+
+                          <label className="block sm:col-span-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                              Payment Remarks {req.remarks ? <span className="text-red-500 font-black">*</span> : null}
+                            </span>
+                            <input
+                              className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                              onChange={(event) => setPaymentRemarks(event.target.value)}
+                              placeholder="Optional note"
+                              value={paymentRemarks}
+                            />
+                          </label>
+                        </>
+                      )
+                    }
+
+                    return (
+                      <label className="block sm:col-span-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                          Payment Remarks {req.remarks ? <span className="text-red-500 font-black">*</span> : null}
+                        </span>
+                        <input
+                          className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                          onChange={(event) => setPaymentRemarks(event.target.value)}
+                          placeholder="Optional cash note"
+                          value={paymentRemarks}
+                        />
+                      </label>
+                    )
+                  })()}
                 </div>
 
                 {/* Accounts Receivable / Financing Summary */}
@@ -7600,6 +7951,23 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       </span>
                     </div>
                   </label>
+
+                  <label className="inline-flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={paymentMethodFilter.cheque}
+                      onChange={() => handleTogglePaymentMethod("cheque")}
+                      className="size-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer mt-0.5"
+                    />
+                    <div>
+                      <span className={paymentMethodFilter.cheque ? "text-amber-950 font-bold block leading-none" : "text-slate-600 block leading-none"}>
+                        Cheque
+                      </span>
+                      <span className="text-[10px] text-amber-700/80 font-semibold block mt-0.5">
+                        Bank Check
+                      </span>
+                    </div>
+                  </label>
                 </div>
               </div>
 
@@ -7786,6 +8154,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                         paymentMethodFilter.ar ? "AR" : null,
                         paymentMethodFilter.cash ? "Cash" : null,
                         paymentMethodFilter.online ? "Online" : null,
+                        paymentMethodFilter.cheque ? "Cheque" : null,
                       ].filter(Boolean).join("+")}
                 </span>
               </div>
@@ -7910,6 +8279,23 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </p>
                 <p className="mt-1 text-[11px] font-semibold text-purple-700/90">
                   Natitirang balanse sa credit installment
+                </p>
+              </div>
+            ) : paymentMethodFilter.cheque && !paymentMethodFilter.cash && !paymentMethodFilter.online && !paymentMethodFilter.ar ? (
+              <div className="relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 p-4 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-900">
+                    Cheque Collections (Bank Checks)
+                  </span>
+                  <span className="grid size-8 place-items-center rounded-xl bg-amber-600 text-white shadow-xs">
+                    <ReceiptText size={16} />
+                  </span>
+                </div>
+                <p className="mt-2 font-mono text-2xl font-black text-amber-950">
+                  {formatMoney(detailedMetrics.totalCheque || 0)}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
+                  Mga tseke para sa clearing o bank deposit
                 </p>
               </div>
             ) : (
@@ -8557,6 +8943,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                     💳 {formatStatus(sale.creditAccount.provider)}
                                     {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
                                   </span>
+                                ) : isChequeSale(sale) ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                                    📝 Cheque {(sale.payments || []).find((p) => p.paymentMethod === "CHEQUE")?.referenceNo ? `#${(sale.payments || []).find((p) => p.paymentMethod === "CHEQUE")?.referenceNo}` : ""}
+                                  </span>
                                 ) : isOnlineSale(sale) ? (
                                   <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 border border-teal-200 px-2 py-0.5 text-[10px] font-bold text-teal-800">
                                     🌐 {(sale.payments || []).length > 0 ? sale.payments.map((p) => formatStatus(p.paymentMethod)).join(", ") : formatStatus(sale.paymentMethod || "Online")}
@@ -8860,6 +9250,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                               <span className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-900">
                                 💳 {formatStatus(sale.creditAccount.provider)}
                                 {sale.creditAccount.term ? ` (${sale.creditAccount.term === "CASH_PROMO" ? "0% Interest" : formatStatus(sale.creditAccount.term)})` : ""}
+                              </span>
+                            ) : isChequeSale(sale) ? (
+                              <span className="inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
+                                📝 Cheque {(sale.payments || []).find((p) => p.paymentMethod === "CHEQUE")?.referenceNo ? `#${(sale.payments || []).find((p) => p.paymentMethod === "CHEQUE")?.referenceNo}` : ""}
                               </span>
                             ) : isOnlineSale(sale) ? (
                               <span className="inline-flex items-center gap-1 rounded bg-teal-50 border border-teal-200 px-1.5 py-0.5 text-[10px] font-bold text-teal-800">

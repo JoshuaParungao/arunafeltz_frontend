@@ -118,7 +118,10 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
       const providerName = formatStatus(provider)
       if ((sale?.payments || []).length > 0) {
         const dpMethods = sale.payments
-          .map((p) => formatStatus(p.paymentMethod))
+          .map((p) => {
+            const m = formatStatus(p.paymentMethod)
+            return p.referenceNo ? `${m} (#${p.referenceNo})` : m
+          })
           .join(", ")
         return `${providerName} (DP: ${dpMethods})`
       }
@@ -126,7 +129,10 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
     }
     if ((sale?.payments || []).length > 0) {
       return sale.payments
-        .map((p) => formatStatus(p.paymentMethod))
+        .map((p) => {
+          const m = formatStatus(p.paymentMethod)
+          return p.referenceNo ? `${m} (#${p.referenceNo})` : m
+        })
         .join(", ")
     }
     return "CASH"

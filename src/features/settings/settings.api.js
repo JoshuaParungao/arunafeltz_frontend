@@ -30,6 +30,11 @@ export async function getInstallmentBasisSettings() {
   return response.data
 }
 
+export async function getPaymentMethodSettings() {
+  const response = await apiClient.get("/settings/business-rules/payment-methods")
+  return response.data
+}
+
 export async function computeInstallmentTest(payload) {
   const response = await apiClient.post("/settings/business-rules/installment/test-compute", payload)
   return response.data
