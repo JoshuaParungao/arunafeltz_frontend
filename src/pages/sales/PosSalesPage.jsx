@@ -2864,7 +2864,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const customerDropdownRef = useRef(null)
   const customerInputRef = useRef(null)
 
-  const [serviceStaffList, setServiceStaffList] = useState([])
+  const [serviceStaffList, setServiceStaffListState] = useState([])
+  const setServiceStaffList = (list) => {
+    const sanitized = (Array.isArray(list) ? list : []).filter((s) => {
+      if (!s) return false
+      const un = String(s.username || "").toLowerCase()
+      const fn = String(s.fullName || "").toLowerCase()
+      const em = String(s.email || "").toLowerCase()
+      return !un.includes("calix") && !fn.includes("calix") && !em.includes("calix")
+    })
+    setServiceStaffListState(sanitized)
+  }
   const [isLoadingServiceStaff, setIsLoadingServiceStaff] = useState(false)
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("")
   const [selectedServiceStaffId, setSelectedServiceStaffId] = useState(() => {
