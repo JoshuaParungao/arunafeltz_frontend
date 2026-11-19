@@ -21,6 +21,7 @@ const IMMEDIATE_PAYMENT_METHODS = [
 
 const RECEIVABLE_PROVIDERS = [
   ["IN_HOUSE_INSTALLMENT", "In-House AR"],
+  ["CHEQUE", "Cheque (Bank Check)"],
   ["HOME_CREDIT", "Home Credit"],
   ["BILLEASE", "BillEase"],
   ["SALARY_DEDUCTION", "Salary Deduction"],

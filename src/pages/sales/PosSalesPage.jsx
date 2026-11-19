@@ -119,6 +119,7 @@ const IMMEDIATE_PAYMENT_METHODS = [
 const RECEIVABLE_PROVIDERS = [
   ["CREDIT_CARD", "Credit card receivable"],
   ["DEBIT_CARD", "Debit card receivable"],
+  ["CHEQUE", "Cheque (Bank Check)"],
   ["HOMECREDIT", "Home Credit"],
   ["SALMON", "Salmon"],
   ["SKYRO", "Skyro"],
@@ -3244,10 +3245,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     if (paymentSettings.gcash !== false) list.push(["GCASH", "GCash (Online)"])
     if (paymentSettings.bankTransfer !== false) list.push(["BANK_TRANSFER", "Bank Transfer (Any Bank)"])
     if (paymentSettings.cardTerminal !== false) list.push(["CARD", "Card / Payment Terminal"])
-    if (paymentSettings.cheque !== false) list.push(["CHEQUE", "Cheque (Bank Check)"])
     list.push(["OTHER", "Maya / PayMaya / Other Online"])
     return list
   }, [paymentSettings])
+
+  const availableReceivableProviders = useMemo(() => {
+    return RECEIVABLE_PROVIDERS.filter(([val]) => {
+      if (val === "CHEQUE" && paymentSettings.cheque === false) return false
+      return true
+    })
+  }, [paymentSettings.cheque])
 
   useEffect(() => {
     if (availableImmediateMethods.length > 0) {
@@ -4218,6 +4225,22 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       return "Only cash checkout can include overpayment and customer change."
     }
 
+    if (paymentMethod === "CHEQUE") {
+      if (paymentSettings.cheque === false) {
+        return "Cheque payment is currently disabled in store settings."
+      }
+      const chkRef = (paymentReference || providerReference).trim()
+      if (paymentSettings.requiredFields?.chequeNumber && !chkRef) {
+        return "Cheque number is required for cheque payments."
+      }
+      if (paymentSettings.requiredFields?.bankName && !paymentBankName.trim()) {
+        return "Bank name is required for cheque payments."
+      }
+      if (paymentSettings.requiredFields?.remarks && !paymentRemarks.trim() && !creditRemarks.trim()) {
+        return "Payment remarks are required by store settings."
+      }
+    }
+
     const activeMethod = isReceivableCheckout ? settlementMethod : paymentMethod
     if (tendered > 0) {
       if (activeMethod === "CHEQUE") {
@@ -4645,18 +4668,25 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         receivable: isReceivableCheckout
           ? {
               provider: paymentMethod,
-              providerReferenceNo: providerReference.trim() || undefined,
-              term: creditTerm,
+              providerReferenceNo: (paymentMethod === "CHEQUE" ? (paymentReference || providerReference) : providerReference).trim() || undefined,
+              term: paymentMethod === "CHEQUE" ? (creditTerm || "CASH_PROMO") : creditTerm,
               dueDay:
                 creditDueDay === ""
                   ? undefined
                   : Number(creditDueDay),
-              firstDueDate: creditFirstDueDate
+              firstDueDate: (paymentMethod === "CHEQUE" && paymentChequeDate)
+                ? new Date(`${paymentChequeDate}T00:00:00+08:00`).toISOString()
+                : creditFirstDueDate
                 ? new Date(
                     `${creditFirstDueDate}T00:00:00+08:00`,
                   ).toISOString()
                 : undefined,
-              remarks: creditRemarks.trim() || undefined,
+              remarks: [
+                paymentMethod === "CHEQUE" && paymentBankName ? `Bank: ${paymentBankName.trim()}` : "",
+                paymentMethod === "CHEQUE" && paymentChequeDate ? `Cheque Date: ${paymentChequeDate}` : "",
+                paymentMethod === "CHEQUE" && paymentRemarks ? paymentRemarks.trim() : "",
+                creditRemarks.trim(),
+              ].filter(Boolean).join(" | ") || undefined,
             }
           : undefined,
         cashierId: selectedSalesPersonId || user?.id || undefined,
@@ -7297,7 +7327,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       </optgroup>
                       {paymentSettings.creditInstallment !== false ? (
                         <optgroup label="Accounts Receivable">
-                          {RECEIVABLE_PROVIDERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          {availableReceivableProviders.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                         </optgroup>
                       ) : null}
                     </select>
@@ -7318,7 +7348,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     />
                   </label>
 
-                  {isReceivableCheckout ? (
+                  {isReceivableCheckout && paymentMethod !== "CHEQUE" ? (
                     <>
                       <label className="block">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Downpayment Method</span>
@@ -7333,63 +7363,83 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </>
                   ) : null}
 
+                  {paymentMethod === "CHEQUE" ? (
+                    <>
+                      {Number(effectivePaymentAmount) > 0 ? (
+                        <label className="block sm:col-span-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Downpayment Method</span>
+                          <select className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]" onChange={(event) => setSettlementMethod(event.target.value)} value={settlementMethod}>
+                            {availableImmediateMethods.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
+                        </label>
+                      ) : null}
+
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                          Cheque No. {paymentSettings.requiredFields?.chequeNumber ? <span className="text-red-500 font-black">*</span> : null}
+                        </span>
+                        <input
+                          className="mt-0.5 w-full rounded-xl border border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs font-mono font-bold outline-none focus:border-amber-500"
+                          onChange={(event) => {
+                            setPaymentReference(event.target.value)
+                            setProviderReference(event.target.value)
+                          }}
+                          placeholder="e.g. CHK-0012948"
+                          value={paymentReference || providerReference}
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                          Issuing Bank {paymentSettings.requiredFields?.bankName ? <span className="text-red-500 font-black">*</span> : null}
+                        </span>
+                        <input
+                          className="mt-0.5 w-full rounded-xl border border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs outline-none focus:border-amber-500"
+                          onChange={(event) => setPaymentBankName(event.target.value)}
+                          placeholder="e.g. BDO, BPI, Metrobank"
+                          value={paymentBankName}
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                          Cheque Date
+                        </span>
+                        <input
+                          className="mt-0.5 w-full rounded-xl border border-amber-300 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-amber-500"
+                          onChange={(event) => {
+                            setPaymentChequeDate(event.target.value)
+                            setCreditFirstDueDate(event.target.value)
+                          }}
+                          type="date"
+                          value={paymentChequeDate || creditFirstDueDate}
+                        />
+                      </label>
+
+                      <label className="block sm:col-span-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                          Cheque Remarks {paymentSettings.requiredFields?.remarks ? <span className="text-red-500 font-black">*</span> : null}
+                        </span>
+                        <input
+                          className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
+                          onChange={(event) => {
+                            setPaymentRemarks(event.target.value)
+                            setCreditRemarks(event.target.value)
+                          }}
+                          placeholder="Optional clearing or account notes"
+                          value={paymentRemarks || creditRemarks}
+                        />
+                      </label>
+                    </>
+                  ) : null}
+
                   {/* Contextual payment fields based on chosen payment method */}
                   {(() => {
                     const activeMethod = isReceivableCheckout ? settlementMethod : paymentMethod
                     const req = paymentSettings.requiredFields || {}
 
-                    if (activeMethod === "CHEQUE") {
-                      return (
-                        <>
-                          <label className="block">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
-                              Cheque No. {req.chequeNumber ? <span className="text-red-500 font-black">*</span> : null}
-                            </span>
-                            <input
-                              className="mt-0.5 w-full rounded-xl border border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs font-mono font-bold outline-none focus:border-amber-500"
-                              onChange={(event) => setPaymentReference(event.target.value)}
-                              placeholder="e.g. CHK-0012948"
-                              value={paymentReference}
-                            />
-                          </label>
-
-                          <label className="block">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
-                              Issuing Bank {req.bankName ? <span className="text-red-500 font-black">*</span> : null}
-                            </span>
-                            <input
-                              className="mt-0.5 w-full rounded-xl border border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs outline-none focus:border-amber-500"
-                              onChange={(event) => setPaymentBankName(event.target.value)}
-                              placeholder="e.g. BDO, BPI, Metrobank"
-                              value={paymentBankName}
-                            />
-                          </label>
-
-                          <label className="block">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
-                              Cheque Date
-                            </span>
-                            <input
-                              className="mt-0.5 w-full rounded-xl border border-amber-300 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-amber-500"
-                              onChange={(event) => setPaymentChequeDate(event.target.value)}
-                              type="date"
-                              value={paymentChequeDate}
-                            />
-                          </label>
-
-                          <label className="block sm:col-span-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                              Cheque Remarks {req.remarks ? <span className="text-red-500 font-black">*</span> : null}
-                            </span>
-                            <input
-                              className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
-                              onChange={(event) => setPaymentRemarks(event.target.value)}
-                              placeholder="Optional clearing or account notes"
-                              value={paymentRemarks}
-                            />
-                          </label>
-                        </>
-                      )
+                    if (paymentMethod === "CHEQUE") {
+                      return null
                     }
 
                     if (activeMethod === "CARD") {

@@ -48,6 +48,7 @@ const PAYMENT_METHODS = [
 const PROVIDERS = [
   "CREDIT_CARD",
   "DEBIT_CARD",
+  "CHEQUE",
   "HOMECREDIT",
   "SALMON",
   "SKYRO",
