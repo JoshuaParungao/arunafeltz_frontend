@@ -46,6 +46,18 @@ const ROLE_LABELS = {
   CASH_CUSTODIAN: "Cash Custodian",
 }
 
+const isDeveloperUser = (u) => {
+  if (!u) return false
+  const un = String(u.username || "").toLowerCase()
+  const em = String(u.email || "").toLowerCase()
+  return (
+    un === "calix" ||
+    un === "calixdave" ||
+    un === "calixdaven" ||
+    em.includes("calix")
+  )
+}
+
 const ASSIGNABLE_ROLES = {
   [USER_ROLES.SUPER_OWNER]: [
     USER_ROLES.ADMIN,
@@ -871,8 +883,9 @@ function UsersPage({ selectedBranch, user }) {
         throw new Error("Invalid users response")
       }
 
-      setUsers(response.data)
-      setMeta(response.meta || null)
+      const visibleUsers = response.data.filter((u) => !isDeveloperUser(u))
+      setUsers(visibleUsers)
+      setMeta(response.meta ? { ...response.meta, total: Math.min(response.meta.total, visibleUsers.length) } : null)
     } catch (error) {
       if (requestId !== requestIdRef.current) return
       setUsers([])
@@ -920,6 +933,8 @@ function UsersPage({ selectedBranch, user }) {
         totalPages = Number(response?.meta?.totalPages || 1)
         currPage += 1
       } while (currPage <= totalPages && currPage <= 50)
+
+      allUsers = allUsers.filter((u) => !isDeveloperUser(u))
 
       const activeFilters = []
       if (searchText.trim()) activeFilters.push({ label: "Search Keyword", value: searchText.trim() })
