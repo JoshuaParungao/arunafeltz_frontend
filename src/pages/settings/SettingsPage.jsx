@@ -2677,13 +2677,6 @@ const SETTINGS_CATEGORIES = [
     groups: ["Inventory Rules", "Service Rules", "Warranty Rules", "Cash Box Rules"],
   },
   {
-    id: "general",
-    label: "Business & System",
-    icon: Building2,
-    description: "Business profile, branch details, document numbering, and system preferences",
-    groups: ["Business Profile", "Branch Settings", "Document Numbering", "System Preferences"],
-  },
-  {
     id: "backup",
     label: "Backup & Recovery",
     icon: Database,
