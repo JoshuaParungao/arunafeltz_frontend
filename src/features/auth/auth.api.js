@@ -14,3 +14,8 @@ export async function updateCurrentUserProfile(payload) {
   const response = await apiClient.patch("/auth/profile", payload)
   return response.data
 }
+
+export async function verifyUserPassword(payload) {
+  const response = await apiClient.post("/auth/verify-password", payload)
+  return response.data
+}

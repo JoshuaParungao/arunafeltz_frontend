@@ -40,8 +40,8 @@ export async function computeInstallmentTest(payload) {
   return response.data
 }
 
-export async function resetTransactionalData() {
-  const response = await apiClient.post("/settings/reset-transactions")
+export async function resetTransactionalData(payload = {}) {
+  const response = await apiClient.post("/settings/reset-transactions", payload)
   return response.data
 }
 
