@@ -37,15 +37,10 @@ const OWNER_ROLES = new Set([
 ])
 
 const DEVICE_TYPE_PRESETS = [
-  "LAPTOP",
   "DESKTOP",
+  "LAPTOP",
   "GPU",
-  "MOTHERBOARD",
-  "MACBOOK",
   "PRINTER",
-  "MONITOR",
-  "SMARTPHONE / TABLET",
-  "CONSOLE",
   "PC COMPONENT",
   "OTHER",
 ]
@@ -67,7 +62,7 @@ function normalizeCategoryName(cat) {
 
 const EMPTY_SERVICE_FORM = {
   name: "",
-  deviceType: "LAPTOP",
+  deviceType: "DESKTOP",
   repairType: "ORDINARY_REPAIR",
   basePrice: "0",
   markupPercent: "0",
@@ -257,7 +252,7 @@ function ServiceEditorModal({
             <span className={labelClass}>Service Name *</span>
             <input
               className={inputClass}
-              maxLength="120"
+              maxLength="180"
               onChange={(event) => onChange("name", event.target.value)}
               placeholder="e.g. Laptop Deep Cleaning & Thermal Repaste"
               required
