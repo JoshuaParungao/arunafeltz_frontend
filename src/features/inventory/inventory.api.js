@@ -45,3 +45,8 @@ export async function updateInventorySerialBatch(serialId, payload) {
   return response.data
 }
 
+export async function updateInventoryBatchCode(batchId, payload) {
+  const response = await apiClient.patch(`/inventory/batches/${batchId}`, payload)
+  return response.data
+}
+

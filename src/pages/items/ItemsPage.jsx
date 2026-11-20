@@ -3,6 +3,7 @@ import { AlertCircle, AlertTriangle, Check, CheckCircle2, Edit3, Layers, Package
 
 import { USER_ROLES } from "../../constants/roles"
 import { createItem, getItemCategories, getItems, getUnits, updateItemById } from "../../features/items/items.api"
+import { getInventoryBatches, updateInventoryBatchCode } from "../../features/inventory/inventory.api"
 import { createItemCategory } from "../../features/categories/categories.api"
 import { createUnit } from "../../features/units/units.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
@@ -148,8 +149,62 @@ function StatusPill({ status }) {
   )
 }
 
-function ItemDetailModal({ canViewCost, item, onClose }) {
+function ItemDetailModal({ canViewCost, item, branchId, onClose }) {
   if (!item) return null
+
+  const [batches, setBatches] = useState([])
+  const [isLoadingBatches, setIsLoadingBatches] = useState(false)
+  const [editingBatchId, setEditingBatchId] = useState(null)
+  const [editBatchCode, setEditBatchCode] = useState("")
+  const [isSavingBatch, setIsSavingBatch] = useState(false)
+  const [batchError, setBatchError] = useState("")
+  const [batchSuccess, setBatchSuccess] = useState("")
+
+  const loadBatches = useCallback(async () => {
+    if (!item?.id) return
+    setIsLoadingBatches(true)
+    setBatchError("")
+    try {
+      const res = await getInventoryBatches({ itemId: item.id, ...(branchId ? { branchId } : {}) })
+      const rows = res?.data?.data || res?.data || []
+      setBatches(Array.isArray(rows) ? rows : [])
+    } catch {
+      setBatchError("Unable to load batches for this item.")
+    } finally {
+      setIsLoadingBatches(false)
+    }
+  }, [item?.id, branchId])
+
+  useEffect(() => {
+    loadBatches()
+  }, [loadBatches])
+
+  const handleStartEdit = (b) => {
+    setEditingBatchId(b.id)
+    setEditBatchCode(b.batchCode)
+    setBatchError("")
+    setBatchSuccess("")
+  }
+
+  const handleSaveBatch = async (batchId) => {
+    if (!editBatchCode.trim()) {
+      setBatchError("Batch code cannot be empty.")
+      return
+    }
+    setIsSavingBatch(true)
+    setBatchError("")
+    setBatchSuccess("")
+    try {
+      await updateInventoryBatchCode(batchId, { batchCode: editBatchCode.trim() })
+      setBatchSuccess("Batch code updated successfully.")
+      setEditingBatchId(null)
+      await loadBatches()
+    } catch (err) {
+      setBatchError(err?.response?.data?.message || err?.message || "Failed to update batch code.")
+    } finally {
+      setIsSavingBatch(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
@@ -254,6 +309,106 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Inventory Batches */}
+          <div className="rounded-xl border border-slate-200 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  Inventory Batches ({batches.length})
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  Edit or change batch code for this item.
+                </p>
+              </div>
+              {isLoadingBatches ? (
+                <span className="text-[10px] font-bold text-slate-400">Loading batches...</span>
+              ) : null}
+            </div>
+
+            {batchError ? (
+              <div className="rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-700 font-semibold">
+                {batchError}
+              </div>
+            ) : null}
+
+            {batchSuccess ? (
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-xs text-emerald-700 font-semibold">
+                {batchSuccess}
+              </div>
+            ) : null}
+
+            {batches.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-3 text-center text-xs text-slate-400">
+                No active batches in this branch. A new batch will be generated or assigned upon receiving or advance sale.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {batches.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-2.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      {editingBatchId === b.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            className="rounded-lg border border-[var(--color-maroon)] bg-white px-2 py-1 text-xs font-mono font-bold text-slate-900 outline-none"
+                            onChange={(e) => setEditBatchCode(e.target.value)}
+                            value={editBatchCode}
+                            placeholder="Type batch code..."
+                          />
+                          <button
+                            type="button"
+                            disabled={isSavingBatch}
+                            onClick={() => handleSaveBatch(b.id)}
+                            className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
+                          >
+                            {isSavingBatch ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingBatchId(null)}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-xs text-slate-900">
+                            {b.batchCode}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(b)}
+                            className="rounded p-1 text-slate-400 hover:text-[var(--color-maroon)] hover:bg-slate-100 transition"
+                            title="Edit or change batch code"
+                          >
+                            <Edit3 size={13} />
+                          </button>
+                        </div>
+                      )}
+                      <p className="mt-0.5 text-[10px] text-slate-500">
+                        Status: <strong className="text-slate-700">{b.status}</strong> · Received: {new Date(b.receivedAt || b.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className="rounded-lg bg-white border border-slate-200 px-2 py-1 text-center">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block">Available</span>
+                        <span className="font-mono font-bold text-emerald-700">{Number(b.quantityAvailable || 0)}</span>
+                      </div>
+                      <div className="rounded-lg bg-white border border-slate-200 px-2 py-1 text-center">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block">Total In</span>
+                        <span className="font-mono font-bold text-slate-700">{Number(b.quantityIn || 0)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -2246,6 +2401,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
       />
 
       <ItemDetailModal
+        branchId={selectedBranchId}
         canViewCost={canViewCost}
         item={detailItem}
         onClose={closeDetailModal}

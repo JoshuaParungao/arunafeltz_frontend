@@ -68,7 +68,9 @@ import {
   createSale,
   getSaleById,
   getSales,
+  swapSaleSerial,
 } from "../../features/sales/sales.api"
+import { getPurchaseOrders } from "../../features/purchase-orders/purchaseOrders.api"
 import {
   getInstallmentBasisSettings,
   getPaymentMethodSettings,
@@ -734,7 +736,40 @@ function SaleDetailDialog({
   isCheckoutPreview = false,
   onConfirmCheckout = null,
   isSubmittingCheckout = false,
+  onRefreshSale = null,
 }) {
+  const [swapSerialItem, setSwapSerialItem] = useState(null)
+  const [targetNewSerial, setTargetNewSerial] = useState("")
+  const [swapReason, setSwapReason] = useState("")
+  const [isSwapping, setIsSwapping] = useState(false)
+  const [swapError, setSwapError] = useState("")
+
+  const handleExecuteSwapSerial = async () => {
+    if (!targetNewSerial.trim()) {
+      setSwapError("Please enter the physical serial number.")
+      return
+    }
+    setIsSwapping(true)
+    setSwapError("")
+    try {
+      await swapSaleSerial(sale.id, {
+        saleItemId: swapSerialItem.saleItemId,
+        newSerialNumber: targetNewSerial.trim(),
+        reason: swapReason.trim() || undefined,
+      })
+      setSwapSerialItem(null)
+      setTargetNewSerial("")
+      setSwapReason("")
+      if (onRefreshSale) {
+        onRefreshSale()
+      }
+    } catch (err) {
+      setSwapError(err?.response?.data?.message || err?.message || "Failed to swap serial number.")
+    } finally {
+      setIsSwapping(false)
+    }
+  }
+
   const [previewCustomerName, setPreviewCustomerName] = useState(sale?.customer?.fullName || "")
   const [previewCustomerAddress, setPreviewCustomerAddress] = useState(sale?.customer?.address || "")
   const [previewCustomerPhone, setPreviewCustomerPhone] = useState(
@@ -1217,9 +1252,30 @@ function SaleDetailDialog({
                               {item.warrantyBadge ? ` | ${item.warrantyBadge}` : ""}
                             </p>
                             {item.serialNumbers?.length > 0 ? (
-                              <p className="text-[11px] font-mono text-slate-600">
-                                S/N: <strong className="text-slate-800">{item.serialNumbers.join(", ")}</strong>
-                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                <p className="text-[11px] font-mono text-slate-600">
+                                  S/N: <strong className="text-slate-800">{item.serialNumbers.join(", ")}</strong>
+                                </p>
+                                {!isCheckoutPreview && sale.status === "COMPLETED" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSwapSerialItem({
+                                        saleItemId: item.rawItem?.id || item.id,
+                                        currentSerial: item.serialNumbers[0],
+                                        itemName: item.description,
+                                      })
+                                      setTargetNewSerial("")
+                                      setSwapReason("")
+                                      setSwapError("")
+                                    }}
+                                    className="rounded px-1.5 py-0.5 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 hover:bg-amber-100 transition print:hidden cursor-pointer"
+                                    title="Physical serial mismatch? Click to swap/correct serial number"
+                                  >
+                                    Swap Serial
+                                  </button>
+                                ) : null}
+                              </div>
                             ) : null}
                             {Number(item.returnedQuantity || 0) > 0 ? (
                               <p className="text-[10px] font-bold text-orange-700">
@@ -1493,6 +1549,78 @@ function SaleDetailDialog({
             </div>
           ) : null}
         </section>
+
+        {swapSerialItem ? (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Correct / Swap Serial Number</h3>
+                  <p className="text-xs text-slate-500 truncate max-w-xs">{swapSerialItem.itemName}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setSwapSerialItem(null); setSwapError(""); }}
+                  className="text-slate-400 hover:text-slate-700 p-1"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Current Serial in System</span>
+                  <span className="font-mono font-bold text-rose-700">{swapSerialItem.currentSerial}</span>
+                </div>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold text-slate-700 block">Physical Serial Number (To Assign) *</span>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                    onChange={(e) => setTargetNewSerial(e.target.value)}
+                    placeholder="Scan or type physical serial barcode..."
+                    value={targetNewSerial}
+                    autoFocus
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold text-slate-700 block">Reason for Correction (Optional)</span>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                    onChange={(e) => setSwapReason(e.target.value)}
+                    placeholder="e.g. Accidental wrong box handed out physically"
+                    value={swapReason}
+                  />
+                </label>
+
+                {swapError ? (
+                  <div className="rounded-xl bg-rose-50 border border-rose-200 p-2.5 text-xs font-semibold text-rose-700">
+                    {swapError}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                <button
+                  type="button"
+                  onClick={() => { setSwapSerialItem(null); setSwapError(""); }}
+                  className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSwapping || !targetNewSerial.trim()}
+                  onClick={handleExecuteSwapSerial}
+                  className="rounded-xl bg-[var(--color-maroon)] px-4 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {isSwapping ? "Swapping..." : "Confirm Serial Swap"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,
@@ -3207,6 +3335,22 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [saleCheckoutPreview, setSaleCheckoutPreview] = useState(null)
   const saleRequestRef = useRef({ signature: "", key: "" })
 
+  const [openPurchaseOrders, setOpenPurchaseOrders] = useState([])
+
+  const loadOpenPurchaseOrders = useCallback(async (targetBranchId) => {
+    try {
+      const res = await getPurchaseOrders({
+        ...(targetBranchId ? { branchId: targetBranchId } : {}),
+        status: "ORDERED",
+        limit: 100,
+      })
+      const list = res?.data?.data || res?.data || []
+      setOpenPurchaseOrders(Array.isArray(list) ? list : [])
+    } catch {
+      // ignore
+    }
+  }, [])
+
   const termTotals = useMemo(() => {
     let cashGross = 0
     let totalDiscount = 0
@@ -3541,6 +3685,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (branchId) {
+      loadOpenPurchaseOrders(branchId)
+    } else {
+      setOpenPurchaseOrders([])
+    }
+  }, [branchId, loadOpenPurchaseOrders])
 
   const loadSales = useCallback(async () => {
     if (!branchId) {
@@ -4193,15 +4345,25 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           serialIds.add(line.serialId)
         }
       } else {
-        if (!line.batchId) return `Select a branch batch for ${line.item.itemName}.`
-        batchQuantities.set(line.batchId, (batchQuantities.get(line.batchId) || 0) + quantity)
+        const isZeroStock = !line.batches || line.batches.length === 0 || line.batches.every((b) => Number(b.quantityAvailable || 0) <= 0)
+        if (isZeroStock) {
+          if (!line.batchCode?.trim() && !line.batchId) {
+            return `Please select an incoming PO batch or type a batch code for 0-stock item ${line.item.itemName}.`
+          }
+        } else {
+          if (!line.batchId && !line.batchCode) return `Select a branch batch for ${line.item.itemName}.`
+          if (line.batchId) {
+            batchQuantities.set(line.batchId, (batchQuantities.get(line.batchId) || 0) + quantity)
+          }
+        }
       }
     }
 
     for (const [batchId, requestedQuantity] of batchQuantities) {
       const line = cart.find((entry) => entry.batchId === batchId)
       const batch = line?.batches.find((entry) => entry.id === batchId)
-      if (batch && requestedQuantity > Number(batch.quantityAvailable || 0)) {
+      const isZeroStock = !line?.batches || line.batches.length === 0 || line.batches.every((b) => Number(b.quantityAvailable || 0) <= 0)
+      if (!isZeroStock && batch && requestedQuantity > Number(batch.quantityAvailable || 0)) {
         return `${line.item.itemName} exceeds the selected batch's available quantity.`
       }
     }
@@ -4659,6 +4821,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             quantity: Number(line.quantity),
             discountAmount: Number(line.discountAmount || 0),
             batchId: line.isCustomSerial ? undefined : (line.batchId || undefined),
+            batchCode: line.batchCode?.trim() || undefined,
             serialId: (!line.isCustomSerial && line.serialId) ? line.serialId : undefined,
             serialNumber: (line.isCustomSerial && line.customSerialNumber?.trim()) ? line.customSerialNumber.trim() : undefined,
             warrantyType: line.warrantyType || undefined,
@@ -7152,7 +7315,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                 </select>
                               )}
                             </div>
-                          ) : (
+                          ) : line.batches && line.batches.length > 0 && line.batches.some((b) => Number(b.quantityAvailable || 0) > 0) ? (
                             <label className="block">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Source Batch</span>
                               <select
@@ -7168,6 +7331,61 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                 ))}
                               </select>
                             </label>
+                          ) : (
+                            (() => {
+                              const itemPoBatches = openPurchaseOrders.flatMap((po) =>
+                                (po.items || [])
+                                  .filter((poLine) => poLine.itemId === line.itemId && poLine.batchCode)
+                                  .map((poLine) => ({
+                                    poCode: po.poCode,
+                                    batchCode: poLine.batchCode,
+                                    quantity: poLine.quantity,
+                                  }))
+                              )
+
+                              return (
+                                <div className="space-y-1.5 rounded-xl border border-amber-300 bg-amber-50/75 p-2 text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1">
+                                      ⚠️ 0 Stock / Advance Sale (Batch Required)
+                                    </span>
+                                    {itemPoBatches.length > 0 ? (
+                                      <span className="rounded bg-amber-200/80 px-1.5 py-0.5 text-[9px] font-bold text-amber-950">
+                                        {itemPoBatches.length} PO Batch Available
+                                      </span>
+                                    ) : null}
+                                  </div>
+
+                                  <div className="grid gap-2 sm:grid-cols-2">
+                                    <label className="block">
+                                      <span className="text-[10px] font-bold uppercase text-slate-600 block">Pick Incoming PO Batch</span>
+                                      <select
+                                        className="mt-0.5 w-full rounded-lg border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                                        onChange={(e) => updateCartLine(line.localId, { batchCode: e.target.value })}
+                                        value={line.batchCode || ""}
+                                      >
+                                        <option value="">{itemPoBatches.length > 0 ? "Select PO Batch..." : "No Open PO for this item"}</option>
+                                        {itemPoBatches.map((poLine, i) => (
+                                          <option key={i} value={poLine.batchCode}>
+                                            {poLine.batchCode} ({poLine.poCode} · Qty {poLine.quantity})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+
+                                    <label className="block">
+                                      <span className="text-[10px] font-bold uppercase text-slate-600 block">Or Type Batch Code</span>
+                                      <input
+                                        className="mt-0.5 w-full rounded-lg border border-amber-300 bg-white px-2 py-1 text-xs font-mono font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)] placeholder:font-normal placeholder:text-slate-400"
+                                        onChange={(e) => updateCartLine(line.localId, { batchCode: e.target.value })}
+                                        placeholder="Type custom batch code..."
+                                        value={line.batchCode || ""}
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+                              )
+                            })()
                           )}
 
                           {/* Line Total & Warranty Banner */}
@@ -9716,6 +9934,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           }}
           onCancelSale={(sale) => setSaleToCancel(sale)}
           onClose={() => { setIsDetailOpen(false); setDetailSale(null); setDetailMessage("") }}
+          onRefreshSale={async () => {
+            if (detailSale?.id) {
+              try {
+                const res = await getSaleById(detailSale.id)
+                setDetailSale(res?.data || res)
+                loadSales()
+              } catch {
+                // ignore
+              }
+            }
+          }}
           onReturnItems={(sale) => setSaleToReturn(sale)}
           sale={detailSale}
         />

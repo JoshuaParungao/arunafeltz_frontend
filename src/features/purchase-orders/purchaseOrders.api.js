@@ -24,3 +24,8 @@ export async function updatePurchaseOrderStatus(id, payload) {
   const response = await apiClient.patch(`/purchase-orders/${id}/status`, payload)
   return response.data
 }
+
+export async function getPreSaleBatches(params = {}) {
+  const response = await apiClient.get("/purchase-orders/pre-sales", { params })
+  return response.data
+}

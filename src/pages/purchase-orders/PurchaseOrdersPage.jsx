@@ -6,6 +6,7 @@ import {
   createPurchaseOrder,
   getPurchaseOrderById,
   getPurchaseOrders,
+  getPreSaleBatches,
   updatePurchaseOrder,
   updatePurchaseOrderStatus,
 } from "../../features/purchase-orders/purchaseOrders.api"
@@ -18,7 +19,7 @@ import {
   printPurchaseOrder,
 } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
-const EMPTY_LINE = { itemId: "", description: "", quantity: "1", unitCost: "0", discountAmount: "0" }
+const EMPTY_LINE = { itemId: "", description: "", quantity: "1", unitCost: "0", discountAmount: "0", batchCode: "" }
 
 function apiError(error, fallback) {
   return error?.response?.data?.error?.message || error?.response?.data?.message || fallback
@@ -450,10 +451,22 @@ function PurchaseOrderForm({
             quantity: String(line.quantity),
             unitCost: effectiveUnitCost,
             discountAmount: String(line.discountAmount || 0),
+            batchCode: line.batchCode || "",
           }
         })
       : [{ ...EMPTY_LINE }],
   }))
+
+  const [preSaleBatches, setPreSaleBatches] = useState([])
+
+  useEffect(() => {
+    getPreSaleBatches({ ...(initial?.branchId ? { branchId: initial.branchId } : {}) })
+      .then((res) => {
+        const rows = res?.data || []
+        setPreSaleBatches(Array.isArray(rows) ? rows : [])
+      })
+      .catch(() => {})
+  }, [initial?.branchId])
 
   const totals = useMemo(
     () =>
@@ -846,6 +859,37 @@ function PurchaseOrderForm({
                     <Trash2 size={14} />
                   </button>
                 </div>
+
+                <div className="flex flex-col gap-2 pt-2 border-t border-slate-200/60 sm:flex-row sm:items-center sm:justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Batch Code:</span>
+                    <input
+                      className="w-56 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-mono font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)] placeholder:font-normal placeholder:text-slate-400"
+                      onChange={(event) => updateLine(index, { batchCode: event.target.value })}
+                      placeholder="Auto-generated if blank"
+                      value={line.batchCode || ""}
+                    />
+                  </div>
+
+                  {preSaleBatches.find((b) => b.itemId === line.itemId) ? (
+                    (() => {
+                      const matchingPreSale = preSaleBatches.find((b) => b.itemId === line.itemId);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => updateLine(index, {
+                            batchCode: matchingPreSale.batchCode,
+                            quantity: String(Math.max(Number(line.quantity || 1), Number(matchingPreSale.preSoldQty || 1)))
+                          })}
+                          className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-800 border border-amber-300 hover:bg-amber-100 transition cursor-pointer"
+                          title="Click to use this pre-sold batch from POS"
+                        >
+                          ⚡ Pre-sold in POS: <span className="font-mono">{matchingPreSale.batchCode}</span> ({matchingPreSale.preSoldQty} pcs needed) [Use Batch]
+                        </button>
+                      );
+                    })()
+                  ) : null}
+                </div>
               </article>
             ))}
           </div>
@@ -1068,6 +1112,7 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
         quantity: Number(line.quantity),
         unitCost: Number(line.unitCost),
         discountAmount: Number(line.discountAmount || 0),
+        ...(line.batchCode?.trim() ? { batchCode: line.batchCode.trim() } : {}),
       })),
     }
     try {
