@@ -42,6 +42,9 @@ export default function AddStockModal({
 
   const [quantity, setQuantity] = useState("1")
   const [unitCost, setUnitCost] = useState("")
+  const [transactionDate, setTransactionDate] = useState(() =>
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
+  )
   const [referenceNo, setReferenceNo] = useState("")
   const [remarks, setRemarks] = useState("Manual stock intake")
   const [serialNumbersText, setSerialNumbersText] = useState("")
@@ -61,6 +64,7 @@ export default function AddStockModal({
       setAvailableSerials([])
       setQuantity("1")
       setUnitCost("")
+      setTransactionDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
       setReferenceNo("")
       setRemarks("Manual stock intake")
       setSerialNumbersText("")
@@ -206,6 +210,7 @@ export default function AddStockModal({
           itemId: selectedItem.id,
           quantity: numQuantity,
           unitCost: unitCost ? Number(unitCost) : undefined,
+          transactionDate: transactionDate || undefined,
           referenceNo: referenceNo.trim() || undefined,
           remarks: remarks.trim() || "Manual stock intake",
           serialNumbers: isSerialized ? enteredSerials : undefined,
@@ -219,6 +224,7 @@ export default function AddStockModal({
           itemId: selectedItem.id,
           type: "DECREASE",
           quantity: numQuantity,
+          transactionDate: transactionDate || undefined,
           referenceNo: referenceNo.trim() || undefined,
           remarks: remarks.trim() || "Physical count / stock deduction",
           serialNumbers: isSerialized ? enteredSerials : undefined,
@@ -484,8 +490,20 @@ export default function AddStockModal({
                 )}
               </div>
 
-              {/* Reference & Remarks */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Transaction Date, Reference & Remarks */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Transaction Date
+                  </label>
+                  <input
+                    type="date"
+                    value={transactionDate}
+                    onChange={(e) => setTransactionDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Reference No. <span className="text-slate-400 font-normal">(Optional)</span>

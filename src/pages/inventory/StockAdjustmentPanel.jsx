@@ -24,6 +24,7 @@ export default function StockAdjustmentPanel({
   batchId,
   type,
   quantity,
+  transactionDate,
   referenceNo,
   remarks,
   serialNumbersText = "",
@@ -33,6 +34,7 @@ export default function StockAdjustmentPanel({
   onBatchChange,
   onTypeChange,
   onQuantityChange,
+  onTransactionDateChange,
   onReferenceNoChange,
   onRemarksChange,
   onSerialNumbersChange,
@@ -257,8 +259,21 @@ export default function StockAdjustmentPanel({
             </div>
           </div>
 
-          {/* Reference & Remarks Grid */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Transaction Date, Reference & Remarks Grid */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Transaction Date
+              </label>
+              <input
+                type="date"
+                disabled={isSaving}
+                value={transactionDate || ""}
+                onChange={(e) => onTransactionDateChange?.(e.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-rose-50"
+              />
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 Reference No. <span className="text-slate-400 font-normal">(Optional)</span>

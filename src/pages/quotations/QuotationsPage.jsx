@@ -269,6 +269,9 @@ export default function QuotationsPage({ selectedBranch, user }) {
   // Service Performer / Staff
   const [serviceStaffList, setServiceStaffList] = useState([])
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("")
+  const [quotationDate, setQuotationDate] = useState(() =>
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
+  )
   const [selectedServiceStaffId, setSelectedServiceStaffId] = useState("")
   const [showServiceForm, setShowServiceForm] = useState(false)
   const [serviceDescription, setServiceDescription] = useState("")
@@ -849,7 +852,9 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
     const previewDoc = {
       quotationCode: "PREVIEW",
-      createdAt: new Date().toISOString(),
+      createdAt: quotationDate
+        ? new Date(`${quotationDate}T12:00:00+08:00`).toISOString()
+        : new Date().toISOString(),
       branch: selectedBranch || user?.branch || { name: branchName },
       customer: activeCustomer || {
         fullName: customerSearch.trim(),
@@ -967,6 +972,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
         branchId,
         customerId: effectiveCustomerId,
         serviceDoneById,
+        quotationDate: quotationDate || undefined,
         title: isPcBuild ? "PC Build Quotation" : (formattedRemarks || undefined),
         notes: serializeQuotationNotes(formattedRemarks, {
           installmentCalculation: showFinancingCalc ? installmentCalculation : undefined,
@@ -1026,6 +1032,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
       // Reset builder cart
       setCart([])
       setRemarks("")
+      setQuotationDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
       loadQuotations()
     } catch (err) {
       setBuilderMessage(err?.response?.data?.message || err?.message || "Failed to create quotation.")
@@ -1227,8 +1234,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
                 </label>
               </div>
 
-              {/* Sales Person / Attributed Staff Selector */}
-              <div className="pt-2 border-t border-slate-100">
+              {/* Sales Person & Quotation Date */}
+              <div className="pt-2 border-t border-slate-100 grid gap-2 sm:grid-cols-2">
                 <label className="block">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
@@ -1262,6 +1269,18 @@ export default function QuotationsPage({ selectedBranch, user }) {
                         </option>
                       ))}
                   </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                    Quotation Date
+                  </span>
+                  <input
+                    type="date"
+                    value={quotationDate}
+                    onChange={(e) => setQuotationDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
+                  />
                 </label>
               </div>
 

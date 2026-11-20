@@ -147,7 +147,7 @@ export default function CreditsPage({ selectedBranch, user }) {
     paymentMethod: "CASH",
     referenceNo: "",
     remarks: "",
-    paidAt: "",
+    paidAt: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
   });
   const collectionRequestRef = useRef({ signature: "", key: "" });
   const canCancelCollections = COLLECTION_CANCELLER_ROLES.has(user?.role);
@@ -240,7 +240,7 @@ export default function CreditsPage({ selectedBranch, user }) {
         paymentMethod: "CASH",
         referenceNo: "",
         remarks: "",
-        paidAt: "",
+        paidAt: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
       });
       setShowCollectionForm(false);
       await Promise.all([refreshDetail(), loadAccounts()]);
@@ -966,9 +966,21 @@ export default function CreditsPage({ selectedBranch, user }) {
 
                 {showCollectionForm && detail.status === "ACTIVE" ? (
                   <form
-                    className="grid gap-2.5 rounded-xl border border-slate-200 bg-slate-50/75 p-3.5 md:grid-cols-2 lg:grid-cols-5"
+                    className="grid gap-2.5 rounded-xl border border-slate-200 bg-slate-50/75 p-3.5 md:grid-cols-2 lg:grid-cols-6"
                     onSubmit={submitCollection}
                   >
+                    <input
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                      onChange={(event) =>
+                        setCollectionForm((form) => ({
+                          ...form,
+                          paidAt: event.target.value,
+                        }))
+                      }
+                      title="Collection / Payment Date"
+                      type="date"
+                      value={collectionForm.paidAt}
+                    />
                     <input
                       className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                       max={Number(detail.remainingBalance)}

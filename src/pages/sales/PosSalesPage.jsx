@@ -2877,6 +2877,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   }
   const [isLoadingServiceStaff, setIsLoadingServiceStaff] = useState(false)
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("")
+  const [saleDate, setSaleDate] = useState(() =>
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
+  )
   const [selectedServiceStaffId, setSelectedServiceStaffId] = useState(() => {
     const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
     return draft?.selectedServiceStaffId || ""
@@ -4326,6 +4329,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setPaymentRemarks("")
     setPaymentBankName("")
     setPaymentChequeDate(new Date().toISOString().slice(0, 10))
+    setSaleDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
     setCreditTerm("MONTH_3")
     setCreditDueDay("")
     setCreditFirstDueDate("")
@@ -4377,7 +4381,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
     const previewSaleDoc = {
       receiptCode: "CHECKOUT-PREVIEW",
-      saleDate: new Date().toISOString(),
+      saleDate: saleDate
+        ? new Date(`${saleDate}T12:00:00+08:00`).toISOString()
+        : new Date().toISOString(),
       branch: activeBranch,
       customer: {
         ...customerObj,
@@ -4618,6 +4624,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const salePayload = {
         branchId,
         customerId: effectiveCustomerId,
+        saleDate: saleDate || undefined,
         serviceCharge: Number(serviceCharge || 0),
         remarks: formattedRemarks,
         items: cart.map((line) => {
@@ -6392,8 +6399,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </div>
               ) : null}
 
-              {/* Sales Person / Attributed Staff Selector */}
-              <div className="pt-2 border-t border-slate-100">
+              {/* Sales Person & Transaction Date */}
+              <div className="pt-2 border-t border-slate-100 grid gap-2 sm:grid-cols-2">
                 <label className="block">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
@@ -6427,6 +6434,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                         </option>
                       ))}
                   </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                    Transaction Date
+                  </span>
+                  <input
+                    type="date"
+                    value={saleDate}
+                    onChange={(e) => setSaleDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
+                  />
                 </label>
               </div>
 

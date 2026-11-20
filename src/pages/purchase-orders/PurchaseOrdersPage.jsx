@@ -425,6 +425,9 @@ function PurchaseOrderForm({
       initialSupplier?.address ||
       initial?.supplier?.address ||
       "",
+    orderDate:
+      toDateInput(initial?.orderDate) ||
+      new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
     expectedDate: toDateInput(initial?.expectedDate),
     notes: initial?.notes || "",
     internalNotes: initial?.internalNotes || "",
@@ -619,8 +622,8 @@ function PurchaseOrderForm({
           </div>
         </div>
 
-        {/* Row 2: PO Code, Expected Date, Supplier Notes */}
-        <div className="grid gap-3 sm:grid-cols-3">
+        {/* Row 2: PO Code, Order Date, Expected Date, Supplier Notes */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className={labelClass}>
               PO Code
@@ -635,6 +638,24 @@ function PurchaseOrderForm({
                 }
                 placeholder="Auto-generated if blank"
                 value={form.poCode}
+              />
+            </label>
+          </div>
+
+          <div>
+            <label className={labelClass}>
+              Order Date (PO Date)
+              <input
+                className={inputClass}
+                disabled={isLocked}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    orderDate: event.target.value,
+                  }))
+                }
+                type="date"
+                value={form.orderDate}
               />
             </label>
           </div>
@@ -1037,6 +1058,7 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
       supplierContact,
       supplierAddress,
       ...(!editing?.id && branchId ? { branchId } : {}),
+      orderDate: form.orderDate || null,
       expectedDate: form.expectedDate || null,
       notes: form.notes.trim() || null,
       internalNotes: form.internalNotes.trim() || null,

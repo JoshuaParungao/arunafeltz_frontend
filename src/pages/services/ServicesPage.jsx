@@ -94,6 +94,7 @@ const FIELD_CLASS =
   "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] hover:border-slate-300 placeholder:text-slate-400 placeholder:font-normal"
 
 const EMPTY_CREATE = {
+  receivedAt: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
   customerId: "",
   customerNameSnapshot: "",
   customerContactSnapshot: "",
@@ -2799,6 +2800,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     try {
       const response = await createServiceJob({
         ...(branchId ? { branchId } : {}),
+        receivedAt: createForm.receivedAt || undefined,
         jobTitle: createForm.jobTitle.trim(),
         customerId: createForm.customerId || undefined,
         customerNameSnapshot: !createForm.customerId ? createForm.customerNameSnapshot.trim() || undefined : undefined,
@@ -3186,6 +3188,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
       arrangement: "CASH",
       settlementMethod: "CASH",
       amount: String(selectedJob?.remainingBalance || ""),
+      paidAt: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
       referenceNo: "",
       remarks: "",
       providerReferenceNo: "",
@@ -3215,6 +3218,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
               : paymentForm.arrangement
             : undefined,
         amount,
+        paidAt: paymentForm.paidAt || undefined,
         referenceNo: paymentForm.referenceNo.trim() || undefined,
         remarks: paymentForm.remarks.trim() || undefined,
         receivable: isReceivable
@@ -3679,8 +3683,22 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                 <span><strong className="block text-sm text-amber-900 dark:text-amber-200">Quick / same-day service</strong><span className="text-xs text-amber-800 dark:text-amber-300">Skips IN PROGRESS and may move directly from received to service performed.</span></span>
               </label>
 
-              {/* Top Meta: Repair Category & Assigned Staff/Technician */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Top Meta: Date Received, Repair Category & Assigned Staff/Technician */}
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="Date Received *">
+                  <input
+                    className={FIELD_CLASS}
+                    onChange={(event) =>
+                      setCreateForm((form) => ({
+                        ...form,
+                        receivedAt: event.target.value,
+                      }))
+                    }
+                    required
+                    type="date"
+                    value={createForm.receivedAt || new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })}
+                  />
+                </Field>
                 <Field label="Repair category *">
                   <select
                     className={FIELD_CLASS}
@@ -4996,7 +5014,15 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
           <form onSubmit={submitPayment}>
             <div className="space-y-4 p-5 sm:p-6">
               <div className="rounded-2xl bg-slate-50 p-4"><p className="text-sm font-bold text-[var(--color-muted)]">Outstanding service amount</p><p className="mt-1 text-2xl font-black">{money(selectedJob?.remainingBalance)}</p></div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="Payment Date">
+                  <input
+                    className={FIELD_CLASS}
+                    onChange={(event) => setPaymentForm((form) => ({ ...form, paidAt: event.target.value }))}
+                    type="date"
+                    value={paymentForm.paidAt || ""}
+                  />
+                </Field>
                 <Field label="Settlement arrangement *"><select className={FIELD_CLASS} onChange={(event) => { const arrangement = event.target.value; setPaymentForm((form) => ({ ...form, arrangement, amount: RECEIVABLE_PROVIDER_VALUES.has(arrangement) ? "0" : String(selectedJob?.remainingBalance || "") })) }} value={paymentForm.arrangement}><optgroup label="Immediate settlement">{IMMEDIATE_PAYMENT_METHODS.map((method) => <option key={method} value={method}>{friendly(method)}</option>)}</optgroup><optgroup label="Accounts receivable">{RECEIVABLE_PROVIDERS.map((provider) => <option key={provider} value={provider}>{friendly(provider)}</option>)}</optgroup></select></Field>
                 <Field label={RECEIVABLE_PROVIDER_VALUES.has(paymentForm.arrangement) ? "Immediate settlement / downpayment" : "Payment amount *"}><input className={FIELD_CLASS} max={Number(selectedJob?.remainingBalance || 0)} min="0" onChange={(event) => setPaymentForm((form) => ({ ...form, amount: event.target.value }))} required step="0.01" type="number" value={paymentForm.amount} /></Field>
               </div>

@@ -313,6 +313,9 @@ function ReceivingForm({ initial, suppliers, purchaseOrders, catalogItems, isSav
 
     return {
       receivingCode: initial?.receivingCode || "",
+      receivingDate:
+        toDateInput(initial?.receivingDate) ||
+        new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
       supplierId: initial?.supplierId || po?.supplierId || "",
       purchaseOrderId: initial?.purchaseOrderId || "",
       supplierDeliveryNo: initial?.supplierDeliveryNo || "",
@@ -442,10 +445,14 @@ function ReceivingForm({ initial, suppliers, purchaseOrders, catalogItems, isSav
   return (
     <form onSubmit={(event) => { event.preventDefault(); onSave(form) }}>
       <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <label className={labelClass}>
             Receiving Code
             <input className={`${inputClass} font-mono`} onChange={(event) => setForm((current) => ({ ...current, receivingCode: event.target.value }))} placeholder="Auto-generated if blank" value={form.receivingCode} />
+          </label>
+          <label className={labelClass}>
+            Receiving Date
+            <input className={inputClass} onChange={(event) => setForm((current) => ({ ...current, receivingDate: event.target.value }))} type="date" value={form.receivingDate} />
           </label>
           <label className={labelClass}>
             Purchase Order
@@ -803,6 +810,7 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
     const payload = {
       ...(form.receivingCode.trim() ? { receivingCode: form.receivingCode.trim() } : {}),
       ...(!editing?.id ? { supplierId: form.supplierId, purchaseOrderId: form.purchaseOrderId || null, ...(branchId ? { branchId } : {}) } : {}),
+      receivingDate: form.receivingDate || null,
       supplierDeliveryNo: form.supplierDeliveryNo.trim() || null,
       supplierInvoiceNo: form.supplierInvoiceNo.trim() || null,
       referenceNo: form.referenceNo.trim() || null,

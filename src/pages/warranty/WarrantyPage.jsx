@@ -179,6 +179,7 @@ function unwrapList(response) {
 }
 
 const EMPTY_CREATE = {
+  receivedAt: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
   customerId: "",
   saleId: "",
   saleItemId: "",
@@ -473,6 +474,7 @@ export default function WarrantyPage({ initialContext, onNavigate, selectedBranc
     try {
       const response = await createWarrantyClaim({
         branchId,
+        receivedAt: createForm.receivedAt || undefined,
         customerId: createForm.customerId || undefined,
         saleId: createForm.saleId || undefined,
         saleItemId: createForm.saleItemId || undefined,
@@ -1703,7 +1705,16 @@ export default function WarrantyPage({ initialContext, onNavigate, selectedBranc
                 </Field>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Field label="Date Received">
+                  <input
+                    className={FIELD_CLASS}
+                    onChange={(event) => setCreateForm((form) => ({ ...form, receivedAt: event.target.value }))}
+                    type="date"
+                    value={createForm.receivedAt || new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })}
+                  />
+                </Field>
+
                 <Field label="Customer (Optional)">
                   <select
                     className={FIELD_CLASS}

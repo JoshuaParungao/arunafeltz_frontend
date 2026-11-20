@@ -166,6 +166,9 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [adjustBatchId, setAdjustBatchId] = useState("")
   const [adjustType, setAdjustType] = useState("INCREASE")
   const [adjustQuantity, setAdjustQuantity] = useState("1")
+  const [adjustTransactionDate, setAdjustTransactionDate] = useState(() =>
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
+  )
   const [adjustReferenceNo, setAdjustReferenceNo] = useState("")
   const [adjustRemarks, setAdjustRemarks] = useState("")
   const [adjustSerialNumbersText, setAdjustSerialNumbersText] = useState("")
@@ -193,6 +196,9 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [requestQuantity, setRequestQuantity] = useState("1")
   const [requestFulfillmentMethod, setRequestFulfillmentMethod] = useState("PICKUP")
   const [requestDeliveryCharge, setRequestDeliveryCharge] = useState("0")
+  const [requestTransferDate, setRequestTransferDate] = useState(() =>
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
+  )
   const [requestNotes, setRequestNotes] = useState("")
   const [requestTransferType, setRequestTransferType] = useState("STANDARD") // "STANDARD" | "BORROW"
   const [bulkRequestTransferType, setBulkRequestTransferType] = useState("STANDARD") // "STANDARD" | "BORROW"
@@ -373,6 +379,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     setRequestQuantity("1")
     setRequestFulfillmentMethod("PICKUP")
     setRequestDeliveryCharge("0")
+    setRequestTransferDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
     setRequestNotes("")
     setRequestTransferType("STANDARD")
   }
@@ -415,6 +422,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     setAdjustBatchId("")
     setAdjustType("INCREASE")
     setAdjustQuantity("1")
+    setAdjustTransactionDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
     setAdjustReferenceNo("")
     setAdjustRemarks("")
     setAdjustBatches([])
@@ -468,6 +476,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     setAdjustBatchId("")
     setAdjustType("INCREASE")
     setAdjustQuantity("1")
+    setAdjustTransactionDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
     setAdjustReferenceNo("")
     setAdjustRemarks("")
     setAdjustSerialNumbersText("")
@@ -536,6 +545,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         itemId: adjustItem.id,
         type: adjustType,
         quantity,
+        transactionDate: adjustTransactionDate || undefined,
         referenceNo: adjustReferenceNo.trim() || undefined,
         remarks: adjustRemarks.trim(),
         serialNumbers: adjustItem.isSerialized ? parsedSerials : undefined,
@@ -775,6 +785,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
       await createStockTransferRequest({
         fromBranchId: requestSourceBranchId,
         toBranchId: selectedBranch?.id,
+        transferDate: requestTransferDate || undefined,
         fulfillmentMethod: requestFulfillmentMethod,
         ...(requestFulfillmentMethod === "DELIVERY"
           ? { deliveryCharge }
@@ -855,6 +866,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
       await createStockTransferRequest({
         fromBranchId: requestSourceBranchId || viewingBranchId,
         toBranchId: selectedBranch?.id,
+        transferDate: requestTransferDate || undefined,
         fulfillmentMethod: requestFulfillmentMethod,
         ...(requestFulfillmentMethod === "DELIVERY"
           ? { deliveryCharge }
@@ -1077,6 +1089,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           batchId={adjustBatchId}
           type={adjustType}
           quantity={adjustQuantity}
+          transactionDate={adjustTransactionDate}
           referenceNo={adjustReferenceNo}
           remarks={adjustRemarks}
           serialNumbersText={adjustSerialNumbersText}
@@ -1084,6 +1097,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           onBatchChange={setAdjustBatchId}
           onTypeChange={setAdjustType}
           onQuantityChange={setAdjustQuantity}
+          onTransactionDateChange={setAdjustTransactionDate}
           onReferenceNoChange={setAdjustReferenceNo}
           onRemarksChange={setAdjustRemarks}
           onSerialNumbersChange={setAdjustSerialNumbersText}
@@ -1468,7 +1482,20 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                 </div>
               </div>
 
-              <div className="grid gap-2.5 sm:grid-cols-2">
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                    Request Date
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                    disabled={isRequesting}
+                    onChange={(event) => setRequestTransferDate(event.target.value)}
+                    type="date"
+                    value={requestTransferDate}
+                  />
+                </label>
+
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
                     Fulfillment Method
@@ -1812,19 +1839,34 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                   ) : null}
                 </div>
 
-                <label className="block">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
-                    Quantity
-                  </span>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
-                    disabled={isRequesting}
-                    min="1"
-                    onChange={(event) => setRequestQuantity(event.target.value)}
-                    type="number"
-                    value={requestQuantity}
-                  />
-                </label>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Quantity
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
+                      disabled={isRequesting}
+                      min="1"
+                      onChange={(event) => setRequestQuantity(event.target.value)}
+                      type="number"
+                      value={requestQuantity}
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Request Date
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
+                      disabled={isRequesting}
+                      onChange={(event) => setRequestTransferDate(event.target.value)}
+                      type="date"
+                      value={requestTransferDate}
+                    />
+                  </label>
+                </div>
 
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="block">

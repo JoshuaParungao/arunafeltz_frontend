@@ -97,6 +97,9 @@ export default function QuotationConversionDialog({
   const isInitialReceivable = RECEIVABLE_PROVIDER_VALUES.has(initialMethod)
 
   const [paymentMethod, setPaymentMethod] = useState(initialMethod)
+  const [saleDate, setSaleDate] = useState(() =>
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
+  )
   const [settlementMethod, setSettlementMethod] = useState(savedSettlement.settlementMethod || "CASH")
   const [amountPaid, setAmountPaid] = useState(
     savedSettlement.paymentAmount !== undefined
@@ -376,6 +379,7 @@ export default function QuotationConversionDialog({
         branchId,
         customerId: quotation.customer?.id || undefined,
         quotationId: quotation.id,
+        saleDate: saleDate || undefined,
         remarks: remarks.trim() || undefined,
         items: conversionLines.map((line) => ({
           itemId: line.itemId || undefined,
@@ -684,7 +688,17 @@ export default function QuotationConversionDialog({
               )}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <label className="block text-xs">
+                <span className="font-bold text-slate-600">Transaction / Sale Date</span>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[#002060]"
+                  onChange={(e) => setSaleDate(e.target.value)}
+                  type="date"
+                  value={saleDate}
+                />
+              </label>
+
               <label className="block text-xs">
                 <span className="font-bold text-slate-600">Payment Mode</span>
                 <select
