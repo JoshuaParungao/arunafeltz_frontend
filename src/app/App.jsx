@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react"
 
 import MainLayout from "../layouts/MainLayout"
 import LoginPage from "../pages/auth/LoginPage"
+import LandingPage from "../pages/landing/LandingPage"
 import BranchChooserPage from "../pages/branches/BranchChooserPage"
 import PagePlaceholder from "../pages/PagePlaceholder"
 import {
@@ -91,6 +92,7 @@ function App() {
   const [omniPreviewQuotation, setOmniPreviewQuotation] = useState(null)
   const [omniPreviewSale, setOmniPreviewSale] = useState(null)
   const [pageContext, setPageContext] = useState(null)
+  const [showLogin, setShowLogin] = useState(false)
 
   // Global Ctrl + K / Cmd + K shortcut listener
   useEffect(() => {
@@ -303,6 +305,7 @@ function App() {
     setUser(null)
     setSelectedBranch(null)
     setActivePage("pos")
+    setShowLogin(false)
   }
 
   const renderPage = () => {
@@ -513,7 +516,10 @@ function App() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={handleLogin} />
+    if (!showLogin) {
+      return <LandingPage onOpenLogin={() => setShowLogin(true)} />
+    }
+    return <LoginPage onBack={() => setShowLogin(false)} onLogin={handleLogin} />
   }
 
   if (needsBranchChooser(user, selectedBranch)) {

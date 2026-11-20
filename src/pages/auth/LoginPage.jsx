@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Eye, EyeOff } from "lucide-react"
+import { useEffect, useState } from "react"
+import { ArrowLeft, Eye, EyeOff } from "lucide-react"
 
 import { loginUser } from "../../features/auth/auth.api"
 
@@ -14,12 +14,22 @@ function getErrorMessage(error) {
   )
 }
 
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, onBack }) {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && typeof onBack === "function") {
+        onBack()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [onBack])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -56,6 +66,16 @@ function LoginPage({ onLogin }) {
   return (
     <main className="grid min-h-svh place-items-center bg-[var(--color-page)] px-4 py-8">
       <section className="w-full max-w-md rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-card">
+        {typeof onBack === "function" ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition rounded-lg px-2 py-1 -ml-1 hover:bg-slate-100"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Showcase</span>
+          </button>
+        ) : null}
         <div className="flex items-center gap-3">
           <img
             alt="Arunafeltz Computer Logo"
