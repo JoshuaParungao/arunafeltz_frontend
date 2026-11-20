@@ -1437,7 +1437,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
             </header>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-3.5">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-3.5">
               <div className="grid gap-2.5 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">Source Branch</span>
@@ -1554,9 +1554,9 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                 ) : null}
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr] items-start pt-1">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-start pt-1">
                 {/* Available Stock List */}
-                <section className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2.5">
+                <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                       Available Branch Stock
@@ -1591,8 +1591,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                           key={item.id}
                         >
                           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0">
-                              <p className="font-bold text-xs text-slate-900 leading-snug truncate">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-xs text-slate-900 leading-snug line-clamp-2 break-words">
                                 {item.itemName}
                               </p>
                               <div className="flex items-center gap-1.5 mt-0.5">
@@ -1602,7 +1602,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between sm:justify-end gap-2 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                            <div className="shrink-0 flex items-center justify-between sm:justify-end gap-2 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                               <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                                 Avail: {formatNumber(item.quantityAvailable)}
                               </span>
@@ -1627,7 +1627,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                 </section>
 
                 {/* Selected Products Cart */}
-                <section className="rounded-xl border border-slate-200 bg-white p-3 space-y-2.5 shadow-2xs">
+                <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 space-y-2.5 shadow-2xs">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
@@ -1656,8 +1656,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                           key={item.id}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-bold text-xs text-slate-900 truncate">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-xs text-slate-900 leading-snug line-clamp-2 break-words">
                                 {item.itemName}
                               </p>
                               <p className="text-[10px] text-slate-400">
