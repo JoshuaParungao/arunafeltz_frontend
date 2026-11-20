@@ -645,7 +645,7 @@ export default function DatabaseBackupRecoverySection({ user }) {
                   <span>Main Admin Password Verification Required</span>
                 </div>
                 <p className="text-[11px] text-amber-900/80 leading-relaxed">
-                  Para maiwasan ang aksidenteng pag-reset, ilagay muna ang iyong <strong>Main Admin password</strong> bago lumitaw ang mga controls para sa pag-reset ng operational records.
+                  To prevent accidental data resets, please enter your <strong>Main Admin password</strong> before accessing the operational record reset controls.
                 </p>
                 <div className="pt-1 flex flex-col sm:flex-row gap-2.5">
                   <input

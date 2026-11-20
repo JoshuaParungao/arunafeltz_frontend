@@ -137,7 +137,7 @@ function validateAndBuildPayload({
   }
 
   if (!SCHEDULE_TYPES.some((type) => type.value === draft.scheduleType)) {
-    return { error: "Pumili ng schedule type." }
+    return { error: "Please select a schedule type." }
   }
 
   if (!draft.anchorDate) {
@@ -188,7 +188,7 @@ function PreviewPanel({ preview, scheduleType }) {
   if (scheduleType === "MANUAL" || preview?.manualRequired) {
     return (
       <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold leading-5 text-amber-800">
-        Ang MANUAL schedule ay walang awtomatikong generated periods. Ang manual cutoff ay isasagawa sa active incentive cycle.
+        MANUAL schedules do not have automatically generated periods. Manual cutoffs are processed within the active incentive cycle.
       </div>
     )
   }
@@ -200,7 +200,7 @@ function PreviewPanel({ preview, scheduleType }) {
     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
       <div className="bg-slate-50/80 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
         <span className="text-xs font-black uppercase tracking-wider text-slate-700">
-          Preview ng Susunod na 4 Earning Periods
+          Preview of Next 4 Earning Periods
         </span>
         <span className="text-[11px] font-bold text-slate-500">
           Asia/Manila Schedule Time
@@ -298,7 +298,7 @@ function ScheduleCard({
             </div>
 
             <p className="mt-1 text-xs text-slate-500">
-              Independent cutoff at payout schedule para sa branch na ito.
+              Independent cutoff and payout schedule for this branch.
             </p>
           </div>
         </div>
@@ -329,7 +329,7 @@ function ScheduleCard({
               onChange={(e) => onDraftChange("scheduleType", e.target.value)}
               className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-rose-50 disabled:bg-slate-100"
             >
-              <option value="">Pumili ng schedule type</option>
+              <option value="">Select schedule type</option>
               {SCHEDULE_TYPES.map((type) => (
                 <option key={type.value} value={type.value}>
                   {type.label}
@@ -380,7 +380,7 @@ function ScheduleCard({
                   min="1"
                   step="1"
                   inputMode="numeric"
-                  placeholder="Hal. 14"
+                  placeholder="e.g., 14"
                   disabled={!canManage || Boolean(busyAction)}
                   value={draft.everyNDays}
                   onChange={(e) => onDraftChange("everyNDays", e.target.value)}
@@ -398,12 +398,12 @@ function ScheduleCard({
               </p>
               <p className="mt-1 text-xs text-slate-500 leading-4">
                 {draft.scheduleType === "WEEKLY"
-                  ? "7-day continuous cycle mula sa napiling anchor date."
+                  ? "7-day continuous cycle starting from the selected anchor date."
                   : draft.scheduleType === "MONTHLY"
-                    ? "Buwanang cutoff base sa anchor day at katapusan ng buwan."
+                    ? "Monthly cutoff based on the anchor day and end of month."
                     : draft.scheduleType === "MANUAL"
-                      ? "Walang awtomatikong cycle; manu-manong kinukwenta."
-                      : "Pumili muna ng schedule type sa itaas."}
+                      ? "No automated cycle; calculated manually."
+                      : "Select a schedule type above first."}
               </p>
             </div>
           )}
@@ -463,7 +463,7 @@ function ScheduleCard({
         <div className="mt-4">
           <label className="block">
             <span className="text-xs font-bold text-slate-700">
-              Schedule Version Notes (Opsyonal)
+              Schedule Version Notes (Optional)
             </span>
             <input
               type="text"
@@ -471,7 +471,7 @@ function ScheduleCard({
               disabled={!canManage || Boolean(busyAction)}
               value={draft.notes}
               onChange={(e) => onDraftChange("notes", e.target.value)}
-              placeholder="Hal. Setup para sa bagong cutoff window..."
+              placeholder="e.g., Setup for the new cutoff window..."
               className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-rose-50 disabled:bg-slate-100"
             />
           </label>
@@ -795,7 +795,7 @@ export default function IncentiveProgramSchedulesSettingsV2({
       {isLoading ? (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-card">
           <p className="text-xs font-bold text-slate-500">
-            Kinakarga ang program schedules...
+            Loading program schedules...
           </p>
         </div>
       ) : null}
@@ -803,7 +803,7 @@ export default function IncentiveProgramSchedulesSettingsV2({
       {!isLoading && branches.length === 0 ? (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-card">
           <p className="text-xs font-bold text-slate-500">
-            Walang available na branch.
+            No branches available.
           </p>
         </div>
       ) : null}

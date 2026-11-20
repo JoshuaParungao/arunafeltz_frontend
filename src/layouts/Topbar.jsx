@@ -743,7 +743,7 @@ function Topbar({
                 Unresolved Operational Items
               </h4>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                May {totalAlerts} items na nangangailangan ng atensyon sa iyong branch (Inventory, Warranty, Purchase Orders, etc.).
+                {totalAlerts} items require attention in your branch (Inventory, Warranty, Purchase Orders, etc.).
               </p>
 
               <div className="mt-3 flex items-center gap-2">

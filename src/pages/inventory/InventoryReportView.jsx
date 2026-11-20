@@ -410,9 +410,9 @@ export default function InventoryReportView({
       const valuationTotals = [
         ["Total Active SKUs", kpis.totalSkus],
         ["Total Units Available", kpis.totalUnitsAvailable],
-        ["Total Asset Valuation at Cost (Puhunan)", kpis.totalCostValuation],
+        ["Total Asset Valuation at Cost", kpis.totalCostValuation],
         ["Total Asset Valuation at SRP (Retail)", kpis.totalSrpValuation],
-        ["Projected Gross Margin (Tubo)", kpis.projectedProfit],
+        ["Projected Gross Margin", kpis.projectedProfit],
         ["Projected Profit Margin (%)", `${kpis.profitMargin.toFixed(1)}%`],
         ["Low-Stock Alerts", kpis.lowStockCount],
         ["Out-of-Stock SKUs", kpis.outOfStockCount],
@@ -429,7 +429,7 @@ export default function InventoryReportView({
         ["Reserved Stock", (row) => Number(row.reserved || 0)],
         ["Reorder Threshold", (row) => Number(row.reorder || 0)],
         ["Stock Health Status", (row) => row.healthLabel],
-        ["Unit Cost (Puhunan ₱)", (row) => Number(row.costPrice || 0)],
+        ["Unit Cost (₱)", (row) => Number(row.costPrice || 0)],
         ["Selling Price / SRP (₱)", (row) => Number(row.srp || 0)],
         ["Unit Profit Markup (₱)", (row) => Number(row.unitMarkup || 0)],
         ["Markup Percentage (%)", (row) => `${row.markupPercent.toFixed(1)}%`],
@@ -553,7 +553,7 @@ export default function InventoryReportView({
     <div className="space-y-6">
       {/* 1. EXECUTIVE FINANCIAL & OPERATIONAL KPI CARDS (POS Cashiering Standard) */}
       <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {/* Card 1: Asset Valuation at Cost (Puhunan) */}
+        {/* Card 1: Asset Valuation at Cost */}
         <div className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4.5 shadow-sm transition hover:shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
@@ -567,7 +567,7 @@ export default function InventoryReportView({
             {peso(kpis.totalCostValuation)}
           </p>
           <p className="mt-1 text-xs text-[var(--color-muted)] font-medium">
-            Cash capital tied up (Puhunan)
+            Cash capital tied up in inventory
           </p>
         </div>
 
@@ -589,7 +589,7 @@ export default function InventoryReportView({
           </p>
         </div>
 
-        {/* Card 3: Projected Gross Margin / Profit (Tubo) */}
+        {/* Card 3: Projected Gross Margin / Profit */}
         <div className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4.5 shadow-sm transition hover:shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">

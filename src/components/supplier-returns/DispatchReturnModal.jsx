@@ -190,7 +190,7 @@ export default function DispatchReturnModal({
               </button>
             </div>
             <p className="mt-1 text-[11px] text-slate-500">
-              💡 Kung Employee o Owner mismo ang nagdala sa opisina/depo ng supplier, opsyonal ang Vehicle Plate at Tracking #.
+              💡 If an employee or owner personally delivers the unit to the supplier depot or office, Vehicle Plate and Tracking # are optional.
             </p>
           </div>
 

@@ -301,7 +301,7 @@ export default function AddStockModal({
                 </div>
                 <div>
                   <p className="text-xs font-black">Add Stock (Increase)</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Magdagdag ng inventory</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Add inventory stock</p>
                 </div>
               </button>
 
@@ -324,7 +324,7 @@ export default function AddStockModal({
                 </div>
                 <div>
                   <p className="text-xs font-black">Deduct Stock (Decrease)</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Magbawas ng inventory</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Deduct inventory stock</p>
                 </div>
               </button>
             </div>
@@ -512,7 +512,7 @@ export default function AddStockModal({
                     type="text"
                     value={referenceNo}
                     onChange={(e) => setReferenceNo(e.target.value)}
-                    placeholder={isIncrease ? "Hal. Old stock, Delivery, Inv-01" : "Hal. ADJ-001, Count"}
+                    placeholder={isIncrease ? "e.g., Old stock, Delivery, Inv-01" : "e.g., ADJ-001, Count"}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                   />
                 </div>
@@ -525,7 +525,7 @@ export default function AddStockModal({
                     type="text"
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
-                    placeholder={isIncrease ? "Manual stock intake" : "Hal. Physical count adjustment, damaged item"}
+                    placeholder={isIncrease ? "Manual stock intake" : "e.g., Physical count adjustment, damaged item"}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                   />
                 </div>
@@ -554,8 +554,8 @@ export default function AddStockModal({
 
                   <p className="text-[11px] text-purple-700/80 font-medium">
                     {isIncrease
-                      ? "I-type o i-scan ang mga bagong serial numbers (bawat linya o pinaghihiwalay ng kuwit/comma)."
-                      : "I-type, i-scan, o piliin sa ibaba ang serial number(s) ng item na ibabawas."}
+                      ? "Type or scan the new serial numbers (one per line or separated by commas)."
+                      : "Type, scan, or select below the serial number(s) of the item to deduct."}
                   </p>
 
                   <textarea
@@ -568,7 +568,7 @@ export default function AddStockModal({
 
                   {hasDuplicateSerials ? (
                     <p className="text-xs font-bold text-rose-600 flex items-center gap-1">
-                      <AlertCircle size={13} /> May duplicate serial number sa listahan.
+                      <AlertCircle size={13} /> Duplicate serial number found in the list.
                     </p>
                   ) : null}
 
@@ -576,7 +576,7 @@ export default function AddStockModal({
                   {!isIncrease && availableSerials.length > 0 ? (
                     <div className="mt-3 pt-3 border-t border-purple-200/60">
                       <p className="text-[11px] font-black text-purple-900 mb-1.5">
-                        Available Serials sa Branch (Pindutin para mabilis maidagdag):
+                        Available Serials at Branch (Click to quickly add):
                       </p>
                       <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
                         {availableSerials.map((s) => {
@@ -615,7 +615,7 @@ export default function AddStockModal({
                 <div className="rounded-xl bg-slate-100/70 p-3 text-[11px] text-slate-500 font-medium flex items-center gap-2">
                   <Layers size={14} className="text-slate-400 shrink-0" />
                   <span>
-                    Awtomatikong gagawan ng date-based batch (<code className="font-mono text-slate-700">BAT-{new Date().toISOString().slice(0, 10).replace(/-/g, "")}-XXXX</code>) ang stock na ito nang walang error.
+                    A date-based batch (<code className="font-mono text-slate-700">BAT-{new Date().toISOString().slice(0, 10).replace(/-/g, "")}-XXXX</code>) will be automatically generated for this stock.
                   </span>
                 </div>
               ) : null}

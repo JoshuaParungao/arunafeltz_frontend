@@ -187,7 +187,7 @@ export default function StockAdjustmentPanel({
                 </div>
                 <div>
                   <p className="text-xs font-black">Add Stock (Increase)</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Magdagdag ng inventory</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Add inventory stock</p>
                 </div>
               </button>
 
@@ -210,7 +210,7 @@ export default function StockAdjustmentPanel({
                 </div>
                 <div>
                   <p className="text-xs font-black">Deduct Stock (Decrease)</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Magbawas ng inventory</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Deduct inventory stock</p>
                 </div>
               </button>
             </div>
@@ -283,7 +283,7 @@ export default function StockAdjustmentPanel({
                 disabled={isSaving}
                 value={referenceNo}
                 onChange={(e) => onReferenceNoChange(e.target.value)}
-                placeholder="Hal. ADJ-001, Inv, Count"
+                placeholder="e.g., ADJ-001, Inv, Count"
                 className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-rose-50"
               />
             </div>
@@ -297,7 +297,7 @@ export default function StockAdjustmentPanel({
                 disabled={isSaving}
                 value={remarks}
                 onChange={(e) => onRemarksChange(e.target.value)}
-                placeholder="Hal. Physical count adjustment, damaged item"
+                placeholder="e.g., Physical count adjustment, damaged item"
                 className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)] focus:ring-2 focus:ring-rose-50"
               />
             </div>
@@ -327,8 +327,8 @@ export default function StockAdjustmentPanel({
 
               <p className="text-[11px] text-purple-700/80 font-medium">
                 {isIncrease
-                  ? "I-type o i-scan ang mga bagong serial numbers (bawat linya o pinaghihiwalay ng kuwit/comma)."
-                  : "I-type o i-scan ang serial number(s) ng item na aalisin (bawat linya o pinaghihiwalay ng kuwit/comma)."}
+                  ? "Type or scan the new serial numbers (one per line or separated by commas)."
+                  : "Type or scan the serial number(s) of the item to remove (one per line or separated by commas)."}
               </p>
 
               <textarea
@@ -342,7 +342,7 @@ export default function StockAdjustmentPanel({
 
               {hasDuplicateSerials ? (
                 <p className="text-xs font-bold text-rose-600 flex items-center gap-1">
-                  <AlertCircle size={13} /> May duplicate serial number sa listahan.
+                  <AlertCircle size={13} /> Duplicate serial number found in the list.
                 </p>
               ) : null}
 
@@ -350,7 +350,7 @@ export default function StockAdjustmentPanel({
               {!isIncrease && availableSerials.length > 0 ? (
                 <div className="mt-3 pt-3 border-t border-purple-200/60">
                   <p className="text-[11px] font-black text-purple-900 mb-1.5">
-                    Available Serials sa Branch (Pindutin para mabilis maidagdag):
+                    Available Serials at Branch (Click to quickly add):
                   </p>
                   <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
                     {availableSerials.map((s) => {

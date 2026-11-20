@@ -133,7 +133,7 @@ function renderSlipHtml(transfer, copyLabel) {
         <div class="notice-title">MANDATORY INTER-BRANCH BORROW AGREEMENT:</div>
         <p class="notice-text">
           1. <strong>CUSTODIAL ACCOUNTABILITY:</strong> The receiving branch acknowledges legal receipt and custody of the items listed above. These items remain assets of the issuing branch until formally settled.<br/>
-          2. <strong>SETTLEMENT MODES:</strong> Borrowed stock must be settled either through (a) physical return ("Nasoli Na") or (b) cost absorption/transfer ("Babayaran Nalang").<br/>
+          2. <strong>SETTLEMENT MODES:</strong> Borrowed stock must be settled either through (a) physical stock return or (b) internal cost absorption / billing settlement.<br/>
           3. <strong>CONDITION:</strong> In the event of physical return, units must be returned complete with original accessories and packaging in identical working condition.
         </p>
       </div>

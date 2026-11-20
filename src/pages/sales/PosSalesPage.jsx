@@ -2628,7 +2628,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   )
   const [dateFilterPeriod, setDateFilterPeriod] = useState("TODAY") // "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "THIS_YEAR" | "ALL"
   const [showSalesmenLeaderboard, setShowSalesmenLeaderboard] = useState(false)
-  // 1. SALES CATEGORY (Ano ang binenta: All Sales, Items, Parts, Services)
+  // 1. SALES CATEGORY (What was sold: All Sales, Items, Parts, Services)
   const [salesCategory, setSalesCategory] = useState({
     allSales: true,
     items: false,
@@ -2636,7 +2636,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     services: false,
   })
 
-  // 2. PAYMENT METHOD (Paano binayaran: All Methods, AR, Cash, Online, Cheque)
+  // 2. PAYMENT METHOD (How it was paid: All Methods, AR, Cash, Online, Cheque)
   const [paymentMethodFilter, setPaymentMethodFilter] = useState({
     allMethods: true,
     ar: false,
@@ -2645,7 +2645,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     cheque: false,
   })
 
-  // 3. TOTAL COMPUTATION (Ano ang kasama sa total: Mark-up, Interest)
+  // 3. TOTAL COMPUTATION (Included in total: Mark-up, Interest)
   const [totalComputation, setTotalComputation] = useState({
     markup: true,
     interest: true,
@@ -2695,7 +2695,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         [key]: nextVal,
       }
 
-      // Kung na-check na lahat ng 3 specific categories, ibalik sa All Sales
+      // If all 3 specific categories are checked, revert to All Sales
       if (updated.items && updated.parts && updated.services) {
         setSelectedPriceTiers([])
         return {
@@ -2706,7 +2706,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         }
       }
 
-      // Kung na-uncheck lahat (walang naka-check), ibalik sa All Sales
+      // If all are unchecked, revert to All Sales
       const anyActive = updated.items || updated.parts || updated.services
       if (!anyActive) {
         setSelectedPriceTiers([])
@@ -2755,7 +2755,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         [key]: nextVal,
       }
 
-      // Kung na-check na lahat ng specific payment methods, ibalik sa All Methods
+      // If all specific payment methods are checked, revert to All Methods
       if (updated.ar && updated.cash && updated.online && updated.cheque) {
         return {
           allMethods: true,
@@ -2766,7 +2766,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         }
       }
 
-      // Kung na-uncheck lahat, ibalik sa All Methods
+      // If all are unchecked, revert to All Methods
       const anyActive = updated.ar || updated.cash || updated.online || updated.cheque
       if (!anyActive) {
         return {
@@ -5344,7 +5344,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             paymentMethodFilter.online ? "Online (GCash/Bank/Maya)" : null,
           ].filter(Boolean).join(", ") || "None"
 
-      const compSummary = `Mark-up: ${totalComputation.markup ? "Kasama" : "Excluded"}, Interest: ${totalComputation.interest ? "Kasama" : "Excluded"}`
+      const compSummary = `Mark-up: ${totalComputation.markup ? "Included" : "Excluded"}, Interest: ${totalComputation.interest ? "Included" : "Excluded"}`
 
       const itemColumns = [
         ["Receipt Code", (row) => row.receiptCode],
@@ -5356,9 +5356,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         ["Category", (row) => row.isService ? "Service" : row.isPart ? "Service Part" : "Item"],
         ["Price Tier", (row) => row.priceTier ? `Tier ${row.priceTier} (${TIER_LABELS[row.priceTier] || `Price ${row.priceTier}`})` : (row.isService ? "Service" : "—")],
         ["Quantity", (row) => row.quantity],
-        ["Unit Cost (Puhunan)", (row) => row.unitCost],
+        ["Unit Cost", (row) => row.unitCost],
         ["Unit Selling Price", (row) => row.unitPrice],
-        ["Mark-up (Patong)", (row) => row.lineMarkup],
+        ["Mark-up", (row) => row.lineMarkup],
         ["Line Total", (row) => row.lineTotal],
       ]
 
@@ -5386,9 +5386,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         totals: [
           ["Total Units Sold", totalItemsQty],
           ["Total Revenue", totalItemsRevenue],
-          ["Total Cost of Goods (Puhunan)", totalItemsCost],
-          ["Total Mark-up (Patong)", totalItemsMarkup],
-          ["Total Gross Profit (Tubo)", totalItemsProfit],
+          ["Total Cost of Goods", totalItemsCost],
+          ["Total Mark-up", totalItemsMarkup],
+          ["Total Gross Profit", totalItemsProfit],
         ],
       })
     } else {
@@ -5408,7 +5408,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             paymentMethodFilter.online ? "Online (GCash/Bank/Maya)" : null,
           ].filter(Boolean).join(", ") || "None"
 
-      const compSummary = `Mark-up: ${totalComputation.markup ? "Kasama" : "Excluded"}, Interest: ${totalComputation.interest ? "Kasama" : "Excluded"}`
+      const compSummary = `Mark-up: ${totalComputation.markup ? "Included" : "Excluded"}, Interest: ${totalComputation.interest ? "Included" : "Excluded"}`
 
       // Helper function to calculate effective computed total per receipt
       const getSaleReceiptComputed = (sale) => {
@@ -5486,7 +5486,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         ["Items Count", (row) => (row.items || []).length],
         ["Subtotal", (row) => Number(row.subtotal || 0)],
         ["Discount", (row) => Number(row.totalDiscount || 0)],
-        ["Mark-up (Patong)", (row) => getSaleReceiptComputed(row).saleMarkupTotal],
+        ["Mark-up", (row) => getSaleReceiptComputed(row).saleMarkupTotal],
         ["Interest Charge", (row) => getSaleReceiptComputed(row).saleInterest],
         ["Computed Total", (row) => getSaleReceiptComputed(row).computedReceiptTotal],
         ["Original Grand Total", (row) => Number(row.creditAccount?.regularPriceTotalAmount || row.grandTotal || 0)],
@@ -5530,10 +5530,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ["Actual Physical Cash in Drawer", detailedMetrics.totalPhysicalCash],
           ["Online Real-Time Payments (GCash/Maya/Bank)", detailedMetrics.totalOnlinePayments],
           ["Accounts Receivable Balance (AR)", detailedMetrics.totalArBalance],
-          ["Item Mark-up (Patong)", detailedMetrics.totalMarkup],
+          ["Item Mark-up", detailedMetrics.totalMarkup],
           ["Financing Interest Charges", detailedMetrics.totalInterest],
-          ["Total Cost of Goods (Puhunan)", detailedMetrics.totalCost],
-          ["Total Business Gross Profit (Tubo)", detailedMetrics.overallGrossProfit],
+          ["Total Cost of Goods", detailedMetrics.totalCost],
+          ["Total Business Gross Profit", detailedMetrics.overallGrossProfit],
           ["Top Sales Account (Highest Salesperson)", detailedMetrics.topSalesPerson ? `${detailedMetrics.topSalesPerson.name} (${formatMoney(detailedMetrics.topSalesPerson.totalSales)} · ${detailedMetrics.topSalesPerson.count} sales)` : "—"],
         ],
       })
@@ -5670,7 +5670,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
     // Grand Totals
     let computedGrandTotal = 0
-    let kabuuangSale = 0 // Raw kabuuang sale
+    let kabuuangSale = 0 // Raw unfiltered gross sales
 
     // Sales Person / Salesman aggregation
     const salesPersonsMap = {}
@@ -5798,7 +5798,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           }
           const costTotal = unitCost > 0 ? unitCost * qty : 0
 
-          // Markup (Patong sa Item)
+          // Item Mark-up
           const markupPct = Number(line.markupPercent || 0)
           const baseUnit = Number(line.baseUnitPriceSnapshot || 0)
           const unitPrice = Number(line.unitPrice || 0)
@@ -5850,7 +5850,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalCost += salePhysicalCost
       serviceRevenue += (saleServiceFromItems + saleServiceCharge)
 
-      // Check if sale matches 1. SALES CATEGORY (Ano ang binenta)
+      // Check if sale matches 1. SALES CATEGORY
       const hasParts = salePartsFromItems > 0
       const hasItems = saleItemsFromItems > 0
       const hasServices = (saleServiceFromItems + saleServiceCharge) > 0
@@ -5864,7 +5864,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         if (salesCategory.services && hasServices) matchesCategory = true
       }
 
-      // Check if sale matches 2. PAYMENT METHOD (Paano binayaran)
+      // Check if sale matches 2. PAYMENT METHOD
       const hasCash = hasCashPayment(sale)
       const hasAr = Boolean(sale.creditAccount)
       const hasOnline = isOnlineSale(sale)
@@ -7864,9 +7864,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               </div>
             </div>
 
-            {/* 3-Tier Filter Panel (ANO ANG BINENTA -> PAANO BINAYARAN -> ANO ANG KASAMA SA TOTAL) */}
+            {/* 3-Tier Filter Panel (SALES CATEGORY -> PAYMENT METHOD -> TOTAL COMPUTATION) */}
             <div className="flex flex-col gap-3.5 border-t border-slate-200/80 pt-3">
-              {/* Section 1: SALES CATEGORY (Ano ang binenta) */}
+              {/* Section 1: SALES CATEGORY */}
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-800 mb-2">
                   Sales Category
@@ -7921,7 +7921,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   </label>
                 </div>
 
-                {/* Sub-tiers for Items (Lilitaw kapag naka-check ang Items, automatic naka-select all ang Tier 1-5) */}
+                {/* Sub-tiers for Items (Appears when Items is checked; Tiers 1-5 selected by default) */}
                 {salesCategory.items && (
                   <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 p-2 sm:p-2.5 text-xs">
                     <span className="text-[11px] font-black uppercase tracking-wider text-blue-900 flex items-center gap-1 shrink-0">
@@ -7963,7 +7963,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       </button>
                       <span className="text-blue-300">|</span>
                       <span className="text-blue-800">
-                        {selectedPriceTiers.length === 5 ? "Lahat ng Tiers active" : `${selectedPriceTiers.length} of 5 active`}
+                        {selectedPriceTiers.length === 5 ? "All Tiers active" : `${selectedPriceTiers.length} of 5 active`}
                       </span>
                     </div>
                   </div>
@@ -7972,7 +7972,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
               <div className="h-px bg-slate-100" />
 
-              {/* Section 2: PAYMENT METHOD (Paano binayaran) */}
+              {/* Section 2: PAYMENT METHOD */}
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-800 mb-2">
                   Payment Method
@@ -8052,7 +8052,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
               <div className="h-px bg-slate-100" />
 
-              {/* Section 3: TOTAL COMPUTATION (Ano ang kasama sa total) */}
+              {/* Section 3: TOTAL COMPUTATION */}
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-800 mb-2">
                   Total Computation
@@ -8070,11 +8070,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </span>
                     {totalComputation.markup ? (
                       <span className="rounded bg-teal-100 text-teal-800 px-1.5 py-0.2 text-[9px] font-bold">
-                        Kasama sa Total (+{formatMoney(detailedMetrics.totalMarkup)})
+                        Included in Total (+{formatMoney(detailedMetrics.totalMarkup)})
                       </span>
                     ) : (
                       <span className="rounded bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 text-[9px] font-bold">
-                        Matic Excluded sa Total
+                        Excluded from Total
                       </span>
                     )}
                   </label>
@@ -8091,11 +8091,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </span>
                     {totalComputation.interest ? (
                       <span className="rounded bg-purple-100 text-purple-800 px-1.5 py-0.2 text-[9px] font-bold">
-                        Kasama sa Total (+{formatMoney(detailedMetrics.totalInterest)})
+                        Included in Total (+{formatMoney(detailedMetrics.totalInterest)})
                       </span>
                     ) : (
                       <span className="rounded bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 text-[9px] font-bold">
-                        Matic Excluded sa Total
+                        Excluded from Total
                       </span>
                     )}
                   </label>
@@ -8199,7 +8199,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             <div className="relative overflow-hidden rounded-2xl border border-emerald-500 bg-gradient-to-br from-emerald-100/90 via-white to-emerald-50/70 p-4 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900">
-                  Total Gross Sales (Kabuuang Benta)
+                  Total Gross Sales
                 </span>
                 <span className="grid size-8 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
                   <ReceiptText size={16} />
@@ -8211,12 +8211,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <div className="mt-1 flex flex-wrap items-center justify-between gap-1 text-[11px] font-semibold text-emerald-800/90">
                 <span>
                   {totalComputation.markup && totalComputation.interest
-                    ? "Kasama ang Mark-up at Interest"
+                    ? "Includes Mark-up and Interest"
                     : !totalComputation.markup && !totalComputation.interest
-                      ? "Base benta (Excluded ang Mark-up at Interest)"
+                      ? "Base sales (Mark-up and Interest excluded)"
                       : totalComputation.markup
-                        ? "Kasama ang Mark-up (Excluded ang Interest)"
-                        : "Kasama ang Interest (Excluded ang Mark-up)"}
+                        ? "Includes Mark-up (Interest excluded)"
+                        : "Includes Interest (Mark-up excluded)"}
                 </span>
                 <span className="rounded bg-emerald-200/80 px-1.5 py-0.2 text-[9px] font-black text-emerald-950">
                   {salesCategory.allSales
@@ -8255,7 +8255,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </p>
                 <div className="mt-1 flex items-center justify-between">
                   <p className="text-[11px] font-semibold text-blue-700/90">
-                    {totalComputation.markup ? "Kasama ang Mark-up sa Items" : "Puhunan lamang (Excluded Patong)"}
+                    {totalComputation.markup ? "Includes Mark-up on Items" : "Base Price only (Mark-up excluded)"}
                   </p>
                   <span className="rounded bg-blue-100 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">
                     📦 Items Only
@@ -8277,7 +8277,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </p>
                 <div className="mt-1 flex items-center justify-between">
                   <p className="text-[11px] font-semibold text-indigo-700/90">
-                    {totalComputation.markup ? "Kasama ang Mark-up sa Service Parts" : "Puhunan lamang (Excluded Patong)"}
+                    {totalComputation.markup ? "Includes Mark-up on Service Parts" : "Base Price only (Mark-up excluded)"}
                   </p>
                   <span className="rounded bg-indigo-100 px-1.5 py-0.2 text-[9px] font-bold text-indigo-800">
                     ⚙️ Service Parts (Catalog)
@@ -8299,7 +8299,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </p>
                 <div className="mt-1 flex items-center justify-between">
                   <p className="text-[11px] font-semibold text-blue-700/90">
-                    {totalComputation.markup ? "Kasama ang Mark-up sa Items" : "Puhunan lamang (Excluded Patong)"}
+                    {totalComputation.markup ? "Includes Mark-up on Items" : "Base Price only (Mark-up excluded)"}
                   </p>
                   <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${totalComputation.markup ? "bg-blue-100 text-blue-800" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
                     {totalComputation.markup ? "+Mark-up" : "Excl. Mark-up"}
@@ -8340,7 +8340,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   {formatMoney(detailedMetrics.totalPhysicalCash)}
                 </p>
                 <p className="mt-1 text-[11px] font-semibold text-emerald-700/90">
-                  Aktwal na hawak na benta sa kaha
+                  Actual cash on hand in register
                 </p>
               </div>
             ) : paymentMethodFilter.ar && !paymentMethodFilter.cash && !paymentMethodFilter.online ? (
@@ -8357,7 +8357,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   {formatMoney(detailedMetrics.totalArBalance)}
                 </p>
                 <p className="mt-1 text-[11px] font-semibold text-purple-700/90">
-                  Natitirang balanse sa credit installment
+                  Remaining credit installment balance
                 </p>
               </div>
             ) : paymentMethodFilter.cheque && !paymentMethodFilter.cash && !paymentMethodFilter.online && !paymentMethodFilter.ar ? (
@@ -8374,7 +8374,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   {formatMoney(detailedMetrics.totalCheque || 0)}
                 </p>
                 <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
-                  Mga tseke para sa clearing o bank deposit
+                  Checks for clearing or bank deposit
                 </p>
               </div>
             ) : (
@@ -8391,16 +8391,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   {formatMoney(detailedMetrics.serviceRevenue)}
                 </p>
                 <p className="mt-1 text-[11px] font-semibold text-amber-700/90">
-                  Revenue mula sa labor, repair, at service charges
+                  Revenue from labor, repair, and service charges
                 </p>
               </div>
             )}
 
-            {/* Card 4: Total Business Profit / Tubo */}
+            {/* Card 4: Total Business Profit */}
             <div className="relative overflow-hidden rounded-2xl border border-purple-300 bg-gradient-to-br from-purple-50 via-white to-purple-50/40 p-4 shadow-2xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-purple-900">
-                  Total Business Profit (Tubo)
+                  Total Business Profit
                 </span>
                 <span className="grid size-8 place-items-center rounded-xl bg-purple-600 text-white shadow-xs">
                   <TrendingUp size={16} />
@@ -8411,7 +8411,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               </p>
               <div className="mt-1 flex items-center justify-between">
                 <p className="text-[11px] font-semibold text-purple-700/90">
-                  Tubo sa item + serbisyo {subCategories.interest ? "+ financing interest" : ""}
+                  Profit from items + services {subCategories.interest ? "+ financing interest" : ""}
                 </p>
                 {detailedMetrics.computedGrandTotal > 0 ? (
                   <span className="rounded bg-purple-100 px-1.5 py-0.2 text-[9px] font-bold text-purple-800">
@@ -8424,16 +8424,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
           {/* Tier 2: 6 Breakdown Categories Strip (Aligned directly to Main & Sub Category Checkboxes) */}
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {/* Strip 1: Item & Parts Cost / Puhunan */}
+            {/* Strip 1: Item & Parts Cost */}
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
               <div className="flex items-center justify-between text-slate-500">
-                <span className="text-[10px] font-black uppercase tracking-wider">Item Cost (Puhunan)</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Item Cost</span>
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">Cost Basis</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-slate-900">
                 {formatMoney(detailedMetrics.totalCost)}
               </p>
-              <p className="text-[10px] text-slate-500">Puhunan ng mga naibentang item & piyesa</p>
+              <p className="text-[10px] text-slate-500">Cost of goods sold (items & parts)</p>
             </div>
 
             {/* Strip 2: Mark-up (Sub Category Checkbox) */}
@@ -8441,27 +8441,27 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <div className="flex items-center justify-between text-teal-700">
                 <span className="text-[10px] font-black uppercase tracking-wider">Item Mark-up</span>
                 <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${subCategories.markup ? "bg-teal-100 text-teal-800" : "bg-rose-100 text-rose-700"}`}>
-                  {subCategories.markup ? "Kasama sa Total" : "Matic Excluded"}
+                  {subCategories.markup ? "Included in Total" : "Auto Excluded"}
                 </span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-teal-950">
                 {formatMoney(detailedMetrics.totalMarkup)}
               </p>
-              <p className="text-[10px] text-teal-700/80">Patong na tubo sa ibabaw ng base price</p>
+              <p className="text-[10px] text-teal-700/80">Mark-up added above base price</p>
             </div>
 
-            {/* Strip 3: Interest sa AR Credit (Sub Category Checkbox) */}
+            {/* Strip 3: Financing Interest on AR Credit (Sub Category Checkbox) */}
             <div className={`rounded-xl border p-3 shadow-2xs transition ${subCategories.interest ? "border-purple-300 bg-purple-50/50" : "border-slate-200 bg-slate-50/60 opacity-80"}`}>
               <div className="flex items-center justify-between text-purple-700">
                 <span className="text-[10px] font-black uppercase tracking-wider">Financing Interest</span>
                 <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${subCategories.interest ? "bg-purple-100 text-purple-800" : "bg-rose-100 text-rose-700"}`}>
-                  {subCategories.interest ? "Kasama sa Total" : "Matic Excluded"}
+                  {subCategories.interest ? "Included in Total" : "Auto Excluded"}
                 </span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-purple-950">
                 {formatMoney(detailedMetrics.totalInterest)}
               </p>
-              <p className="text-[10px] text-purple-700/80">Interest charges mula sa credit accounts</p>
+              <p className="text-[10px] text-purple-700/80">Interest charges from credit accounts</p>
             </div>
 
             {/* Strip 4: Online Real-Time Payments (Main Category Checkbox) */}
@@ -8491,13 +8491,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             {/* Strip 6: Actual Physical Cash Collected in Register */}
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 shadow-2xs">
               <div className="flex items-center justify-between text-emerald-700">
-                <span className="text-[10px] font-black uppercase tracking-wider">Physical Cash (Kaha)</span>
-                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">💵 Sa Kaha</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Physical Cash (Drawer)</span>
+                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">💵 Cash Drawer</span>
               </div>
               <p className="mt-1 font-mono text-base font-black text-emerald-950">
                 {formatMoney(detailedMetrics.totalPhysicalCash)}
               </p>
-              <p className="text-[10px] text-emerald-700/80">Aktwal na perang papel at barya sa kaha</p>
+              <p className="text-[10px] text-emerald-700/80">Actual cash on hand in register</p>
             </div>
           </div>
 
@@ -8886,7 +8886,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                           <th className="px-4 py-3">Category</th>
                           <th className="px-4 py-3 text-right">Qty</th>
                           <th className="px-4 py-3 text-right">Selling Price</th>
-                          <th className="px-4 py-3 text-right">Mark-up (Patong)</th>
+                          <th className="px-4 py-3 text-right">Mark-up</th>
                           <th className="px-4 py-3 text-right">Line Total</th>
                           <th className="px-4 py-3">Customer & Staff</th>
                         </tr>
@@ -8981,7 +8981,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                           <span className="text-[11px] text-slate-600">Cust: {row.customerName}</span>
                           {row.lineMarkup > 0 ? (
                             <span className="font-mono text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5">
-                              Patong: +{formatMoney(row.lineMarkup)}
+                              Mark-up: +{formatMoney(row.lineMarkup)}
                             </span>
                           ) : null}
                         </div>
@@ -9107,7 +9107,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
                                 const saleInterest = cr ? Math.max(effectiveTotal - cashTotal, 0) : 0
 
-                                // Sub Category: "if di sila naka check matic di sila kasama sa total.."
+                                // Sub Category: If unchecked, automatically exclude from total
                                 let computedReceiptTotal = effectiveTotal
                                 if (!subCategories.markup && saleMarkupTotal > 0) {
                                   computedReceiptTotal = Math.max(computedReceiptTotal - saleMarkupTotal, 0)

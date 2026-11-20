@@ -1196,7 +1196,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                             ))}
                           </select>
                           <p className="text-[11px] text-slate-600">
-                            Ang sales ng mapipiling employee account dito ang magiging basehan (Branch Item Sale Pool) kung saan kukunin ang percentage (%) ng bawat employee sa branch na ito.
+                            Sales from the selected employee account serve as the basis for the Branch Item Sale Pool, from which each employee&apos;s share percentage (%) in this branch is calculated.
                           </p>
                         </div>
 
@@ -1233,7 +1233,7 @@ export default function EmployeesPage({ selectedBranch, user }) {
                               </div>
                             ) : (
                               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
-                                Pumili ng Pool Basis Employee Account sa itaas para ma-compute ang {shareRateNum}% Branch Pool Incentive.
+                                Select a Pool Basis Employee Account above to compute the {shareRateNum}% Branch Pool Incentive.
                               </div>
                             )}
                           </div>

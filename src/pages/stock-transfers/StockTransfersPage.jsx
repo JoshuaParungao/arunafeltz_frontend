@@ -401,7 +401,7 @@ function ProofPhotoUploader({ label, value, onChange, disabled }) {
             disabled={disabled}
             onClick={() => onChange("")}
             className="absolute top-1.5 right-1.5 bg-rose-600/90 hover:bg-rose-700 text-white p-1 rounded-full shadow-md transition"
-            title="Alisin ang Litrato"
+            title="Remove Photo"
           >
             <X size={13} />
           </button>
@@ -410,9 +410,9 @@ function ProofPhotoUploader({ label, value, onChange, disabled }) {
         <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-slate-300 hover:border-slate-400 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100/75 transition">
           <div className="flex items-center gap-2 text-slate-600 text-xs font-semibold">
             <Camera size={16} className="text-slate-500" />
-            <span>Kumuha ng Litrato (Camera) o Mag-upload ng Picture / Receipt</span>
+            <span>Take Photo (Camera) or Upload Image / Receipt</span>
           </div>
-          <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG o Screenshot (Awtomatikong kino-compress)</span>
+          <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, or Screenshot (Automatically compressed)</span>
           <input
             type="file"
             accept="image/*"
@@ -2207,7 +2207,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                         <Camera size={14} className="text-[var(--color-maroon)]" />
-                        Mga Katibayan at Resibo (Proof Photos & Receipts)
+                        Proof Photos & Receipts
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
                         {proofs.dispatchProof && (
@@ -2355,7 +2355,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                     <div className="flex justify-between items-center">
                       <p className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
-                        Step 1: Serial Number Assignment (Kailangan bago i-dispatch)
+                        Step 1: Serial Number Assignment (Required before dispatch)
                       </p>
                     </div>
 
@@ -2380,12 +2380,12 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
                           {available.length === 0 ? (
                             <p className="text-[11px] text-rose-600 italic">
-                              Walang available na serial number sa source branch para sa item na ito.
+                              No available serial numbers in the source branch for this item.
                             </p>
                           ) : (
                             <div>
                               <p className="text-[10px] font-semibold text-slate-500 mb-1">
-                                I-click ang serial number na ipapadala:
+                                Click the serial number(s) to dispatch:
                               </p>
                               <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1">
                                 {available.map((s) => {
@@ -2431,7 +2431,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 ) : (
                   <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-slate-700 text-xs space-y-1">
                     <p className="font-bold text-[11px] text-slate-900 uppercase tracking-wider">Step 1: Items to Transfer Out</p>
-                    <p className="text-[11px] text-slate-600">Lahat ng items sa transfer na ito ay non-serialized. Handa na para sa susunod na aksyon.</p>
+                    <p className="text-[11px] text-slate-600">All items in this transfer are non-serialized and ready for dispatch.</p>
                     <div className="mt-2 space-y-1">
                       {(transferOutTarget.items || []).map((item) => (
                         <div key={item.id} className="flex justify-between items-center bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
@@ -2446,7 +2446,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 {/* Step 2: Next Action: Delivery vs Pick up */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
-                    Step 2: Susunod na Aksyon (Next Action: Delivery o Pick up) *
+                    Step 2: Fulfillment Method (Delivery or Pick up) *
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
@@ -2463,7 +2463,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                         <span>🚚 Delivery (Out for Delivery)</span>
                       </div>
                       <p className="text-[10px] text-slate-500 mt-1">
-                        Ipapadala gamit ang courier, in-house driver, o delivery service. Magiging Out for Delivery ang status.
+                        Dispatched via courier, in-house driver, or delivery service. Status updates to Out for Delivery.
                       </p>
                     </button>
 
@@ -2481,7 +2481,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                         <span>🏢 Pick up (Branch Pick up)</span>
                       </div>
                       <p className="text-[10px] text-slate-500 mt-1">
-                        Kukunin o pi-pickup-in ng staff mula sa kabilang branch. Magiging Ready for Pick up ang status.
+                        Collected by authorized staff from the destination branch. Status updates to Ready for Pick up.
                       </p>
                     </button>
                   </div>
@@ -2532,7 +2532,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none transition focus:border-[var(--color-maroon)]"
                           disabled={isSubmittingTransferOut}
                           onChange={(e) => setTransferOutPickupPerson(e.target.value)}
-                          placeholder="e.g. Staff John mula sa Destination Branch"
+                          placeholder="e.g., Staff John from Destination Branch"
                           type="text"
                           value={transferOutPickupPerson}
                         />
@@ -2558,8 +2558,8 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 <ProofPhotoUploader
                   label={
                     transferOutMethod === "DELIVERY"
-                      ? "Litrato ng Patunay (Proof of Delivery / Waybill / Package Picture) *"
-                      : "Litrato ng Pag-Release / Claimant (Pick up Release Photo) *"
+                      ? "Proof of Delivery / Waybill / Package Photo *"
+                      : "Pick up Release / Claimant Photo *"
                   }
                   value={transferOutProofPhoto}
                   onChange={setTransferOutProofPhoto}
@@ -2575,7 +2575,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                     disabled={isSubmittingTransferOut}
                     onChange={(e) => setTransferOutRemarks(e.target.value)}
-                    placeholder="e.g. Iningatan ang packaging, handa na..."
+                    placeholder="e.g., Securely packaged and ready for transit..."
                     type="text"
                     value={transferOutRemarks}
                   />
@@ -2661,23 +2661,23 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP" ? (
                     <>
                       <PackageCheck size={15} className="text-amber-700" />
-                      <span>Kumpirmahin ang Pag-Claim (Branch Pick up Acknowledgement)</span>
+                      <span>Confirm Pick up Claim (Branch Pick up Acknowledgement)</span>
                     </>
                   ) : (
                     <>
                       <Truck size={15} className="text-sky-700" />
-                      <span>Kumpirmahin ang Natanggap na Delivery (Delivery Receipt Acknowledgement)</span>
+                      <span>Confirm Delivery Receipt (Delivery Receipt Acknowledgement)</span>
                     </>
                   )}
                 </p>
                 <p className="text-[11px] text-slate-700">
                   {receiveModalTransfer.fulfillmentMethod === "PICKUP" || receiveModalTransfer.fulfillmentStatus === "READY_FOR_PICKUP"
                     ? (user?.branchId === receiveModalTransfer.fromBranchId
-                        ? "Kumpirmahin na na-claim at na-release na ang stock sa claimant o authorized staff mula sa destination branch. Pagka-kumpirma, opisyal na itong mapapasok sa inventory ng kabilang branch."
-                        : "Pakisuri ang mga items at serial numbers na na-claim/nakuha ng inyong branch. Pagka-kumpirma, opisyal na itong maipapasok sa inventory ng inyong branch.")
+                        ? "Confirm that the stock has been claimed and released to the authorized representative from the destination branch. Once confirmed, stock will be officially recorded into the receiving branch inventory."
+                        : "Review the claimed items and serial numbers received by your branch. Once confirmed, stock will be officially added to your branch inventory.")
                     : (user?.branchId === receiveModalTransfer.fromBranchId
-                        ? "Kumpirmahin na natanggap/naihatid na ng courier ang stock sa destination branch. Pagka-kumpirma, opisyal na itong mapapasok sa inventory ng kabilang branch."
-                        : "Pakisuri ang mga items at serial numbers na naihatid ng delivery/courier. Pagka-kumpirma, opisyal na itong maipapasok sa inventory ng inyong branch.")}
+                        ? "Confirm that the courier has delivered the stock to the destination branch. Once confirmed, stock will be officially recorded into the receiving branch inventory."
+                        : "Inspect the delivered items and serial numbers received from the courier. Once confirmed, stock will be officially added to your branch inventory.")}
                 </p>
                 {receiveModalTransfer.fulfillmentReference ? (
                   <div className="pt-1 text-[11px] font-mono font-semibold text-slate-800">
@@ -2687,8 +2687,8 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   </div>
                 ) : null}
                 <div className="pt-1 flex items-center gap-4 text-[11px] font-semibold text-slate-600">
-                  <span>Source (Galing sa): <strong className="text-slate-900">{receiveModalTransfer.fromBranch?.name || receiveModalTransfer.fromBranch?.code}</strong></span>
-                  <span>Destination (Tumatanggap): <strong className="text-slate-900">{receiveModalTransfer.toBranch?.name || receiveModalTransfer.toBranch?.code}</strong></span>
+                  <span>Source Branch: <strong className="text-slate-900">{receiveModalTransfer.fromBranch?.name || receiveModalTransfer.fromBranch?.code}</strong></span>
+                  <span>Destination Branch: <strong className="text-slate-900">{receiveModalTransfer.toBranch?.name || receiveModalTransfer.toBranch?.code}</strong></span>
                 </div>
               </div>
 
@@ -2701,7 +2701,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                   <div className="rounded-xl border border-sky-200 bg-sky-50/75 p-3 space-y-1.5">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-sky-900 flex items-center gap-1">
                       <Camera size={13} className="text-sky-700" />
-                      Katibayan mula sa Source Branch (Proof of Dispatch / Release):
+                      Source Branch Proof (Proof of Dispatch / Release):
                     </p>
                     <div className="flex items-center gap-3">
                       <img
@@ -2711,8 +2711,8 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                         onClick={() => setActiveProofView({ url: proofImg, title: "Source Branch Proof of Dispatch" })}
                       />
                       <div className="text-[11px] text-slate-600">
-                        <p className="font-semibold text-slate-900">Na-upload ng nagpadala.</p>
-                        <p className="text-slate-500">I-click ang litrato upang palakihin.</p>
+                        <p className="font-semibold text-slate-900">Uploaded by sender.</p>
+                        <p className="text-slate-500">Click the image to enlarge.</p>
                       </div>
                     </div>
                   </div>
@@ -2721,7 +2721,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
 
               {/* Upload Receiver Proof Photo */}
               <ProofPhotoUploader
-                label="Litrato ng Natanggap na Items / Package Condition (Receive Proof Photo) *"
+                label="Received Items / Package Condition Photo (Receive Proof Photo) *"
                 value={receiveProofPhoto}
                 onChange={setReceiveProofPhoto}
                 disabled={isReceiving}

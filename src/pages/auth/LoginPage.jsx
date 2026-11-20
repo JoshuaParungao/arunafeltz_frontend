@@ -5,7 +5,7 @@ import { loginUser } from "../../features/auth/auth.api"
 
 function getErrorMessage(error) {
   if (error?.response?.status === 401) {
-    return "Maling username o password. Pakisuri at subukan muli."
+    return "Incorrect username or password. Please check your credentials and try again."
   }
   return (
     error?.response?.data?.message ||

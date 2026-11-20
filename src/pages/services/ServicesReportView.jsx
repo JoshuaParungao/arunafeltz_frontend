@@ -544,8 +544,8 @@ export default function ServicesReportView({
         ["Total Technician Labor Fees (Labor Cost)", kpis.totalTechnicianFeeCost],
         ["Total Net Shop Labor Profit", kpis.totalShopLaborProfit],
         ["Total Replacement Parts Value", kpis.totalPartsRevenue],
-        ["Total Cost of Parts (Puhunan)", kpis.totalPartsCost],
-        ["Total Parts Gross Profit (Tubo)", kpis.totalPartsMarkup],
+        ["Total Cost of Parts", kpis.totalPartsCost],
+        ["Total Parts Gross Profit", kpis.totalPartsMarkup],
         ["Total Combined Net Shop Profit", kpis.totalNetShopProfit],
         ["Total Payments Collected", kpis.totalPaidCollected],
         ["Total Settle & Released in POS Cashiering", kpis.totalPosBilledAmount],
@@ -575,8 +575,8 @@ export default function ServicesReportView({
         ["Tech Labor Fee / Cost (₱)", (row) => Number(row.techLaborCost || 0)],
         ["Net Shop Labor Profit (₱)", (row) => Number(row.shopLaborProfit || 0)],
         ["Parts Consumed Total (₱)", (row) => Number(row.partsSum || 0)],
-        ["Parts Cost Puhunan (₱)", (row) => Number(row.partsCostSum || 0)],
-        ["Parts Gross Profit Tubo (₱)", (row) => Number(row.partsMarkupSum || 0)],
+        ["Parts Cost (₱)", (row) => Number(row.partsCostSum || 0)],
+        ["Parts Gross Profit (₱)", (row) => Number(row.partsMarkupSum || 0)],
         ["Total Shop Net Profit (₱)", (row) => Number(row.totalShopProfit || 0)],
         ["Grand Total Price (₱)", (row) => Number(row.computedTotal || 0)],
         ["Amount Paid (₱)", (row) => Number(row.parsedPayment?.collectedAmount || 0)],
@@ -620,8 +620,8 @@ export default function ServicesReportView({
         ["Total Technician Labor Fee (Labor Cost)", kpis.totalTechnicianFeeCost],
         ["Total Net Shop Labor Profit", kpis.totalShopLaborProfit],
         ["Total Replacement Parts Revenue", kpis.totalPartsRevenue],
-        ["Total Replacement Parts Cost (Puhunan)", kpis.totalPartsCost],
-        ["Total Replacement Parts Gross Profit (Tubo)", kpis.totalPartsMarkup],
+        ["Total Replacement Parts Cost", kpis.totalPartsCost],
+        ["Total Replacement Parts Gross Profit", kpis.totalPartsMarkup],
         ["Combined Net Shop Earnings (Labor + Parts)", kpis.totalNetShopProfit],
         ["Combined Services & Parts Billing", kpis.totalGrossRevenue],
       ]
@@ -637,7 +637,7 @@ export default function ServicesReportView({
         ["Catalog Ref / Part Code", (row) => row.catalogCode],
         ["Part Serial Number", (row) => row.serialNumber],
         ["Quantity", (row) => row.quantity],
-        ["Unit Cost (Puhunan / Tech Cut)", (row) => Number(row.unitCost || 0)],
+        ["Unit Cost (Parts Cost / Tech Cut)", (row) => Number(row.unitCost || 0)],
         ["Unit Selling Price", (row) => Number(row.unitPrice || 0)],
         ["Mark-up / Shop Profit", (row) => Number(row.markup || 0)],
         ["Line Total (₱)", (row) => Number(row.lineTotal || 0)],
@@ -716,7 +716,7 @@ export default function ServicesReportView({
           </p>
           <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
             <span>Cost: {peso(kpis.totalPartsCost)}</span>
-            <span className="font-bold text-emerald-600">+{peso(kpis.totalPartsMarkup)} tubo</span>
+            <span className="font-bold text-emerald-600">+{peso(kpis.totalPartsMarkup)} profit</span>
           </div>
         </div>
 
@@ -800,7 +800,7 @@ export default function ServicesReportView({
                 Shop Financial Earnings &amp; Cost Transparency Breakdown
               </h4>
               <p className="text-[11px] text-emerald-800/80 dark:text-emerald-400">
-                Technician fees are strictly taken from Service / Labor Rate. Parts wholesale cost (puhunan) and markup are 100% retained by shop.
+                Technician fees are strictly calculated from the Service / Labor Rate. Replacement parts wholesale cost and mark-up are 100% retained by the shop.
               </p>
             </div>
           </div>
@@ -842,11 +842,11 @@ export default function ServicesReportView({
                 <span className="font-mono font-bold">{peso(kpis.totalPartsRevenue)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>Parts Cost (Puhunan):</span>
+                <span>Parts Cost:</span>
                 <span className="font-mono font-bold">-{peso(kpis.totalPartsCost)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-1 font-bold text-amber-950 dark:text-amber-200">
-                <span>Net Parts Markup (Tubo):</span>
+                <span>Net Parts Markup (Profit):</span>
                 <span className="font-mono text-emerald-600">+{peso(kpis.totalPartsMarkup)}</span>
               </div>
             </div>
@@ -862,7 +862,7 @@ export default function ServicesReportView({
                 <span className="font-mono font-bold">{peso(kpis.totalGrossRevenue)}</span>
               </div>
               <div className="flex justify-between text-rose-600 dark:text-rose-400">
-                <span>Total Costs (Puhunan + Tech):</span>
+                <span>Total Costs (Parts + Tech):</span>
                 <span className="font-mono font-bold">-{peso(kpis.totalPartsCost + kpis.totalTechnicianFeeCost)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-1 font-bold text-emerald-950 dark:text-emerald-200">
@@ -1093,7 +1093,7 @@ export default function ServicesReportView({
                   <th className="px-3.5 py-3 text-center">Status</th>
                   <th className="px-3.5 py-3">Payment &amp; POS</th>
                   <th className="px-3.5 py-3 text-right">Labor (Rate / Net)</th>
-                  <th className="px-3.5 py-3 text-right">Parts (Cost / Tubo)</th>
+                  <th className="px-3.5 py-3 text-right">Parts (Cost / Profit)</th>
                   <th className="px-3.5 py-3 text-right">Grand Total (Profit)</th>
                   <th className="px-3.5 py-3 text-right">Balance</th>
                   <th className="px-3.5 py-3">Warranty</th>
@@ -1234,11 +1234,11 @@ export default function ServicesReportView({
                           </div>
                           {job.partsSum > 0 ? (
                             <>
-                              <div className="text-[10px] text-slate-400 font-sans" title="Parts puhunan wholesale cost">
+                              <div className="text-[10px] text-slate-400 font-sans" title="Parts wholesale cost">
                                 Cost: {peso(job.partsCostSum)}
                               </div>
-                              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-bold" title="Parts markup / shop tubo">
-                                Tubo: +{peso(job.partsMarkupSum)}
+                              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-bold" title="Parts markup / shop profit">
+                                Profit: +{peso(job.partsMarkupSum)}
                               </div>
                             </>
                           ) : (
@@ -1251,7 +1251,7 @@ export default function ServicesReportView({
                           <div className="font-black text-slate-900 dark:text-white">
                             {peso(job.computedTotal)}
                           </div>
-                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-bold" title="Total Shop Profit (Net Labor + Parts Tubo)">
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-bold" title="Total Shop Profit (Net Labor + Parts Profit)">
                             Profit: +{peso(job.totalShopProfit)}
                           </div>
                         </td>
@@ -1335,7 +1335,7 @@ export default function ServicesReportView({
                     <td className="px-3.5 py-3 text-right">
                       <div>{peso(kpis.totalPartsRevenue)}</div>
                       <div className="text-[10px] text-slate-400 font-sans">Cost: {peso(kpis.totalPartsCost)}</div>
-                      <div className="text-[10px] text-emerald-600 font-sans">Tubo: +{peso(kpis.totalPartsMarkup)}</div>
+                      <div className="text-[10px] text-emerald-600 font-sans">Profit: +{peso(kpis.totalPartsMarkup)}</div>
                     </td>
                     <td className="px-3.5 py-3 text-right font-black text-slate-900 dark:text-white">
                       <div>{peso(kpis.totalRevenue)}</div>

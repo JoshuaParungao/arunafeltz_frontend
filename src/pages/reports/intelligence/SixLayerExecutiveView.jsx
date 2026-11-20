@@ -90,13 +90,13 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
     ]
 
     const layerRecords = [
-      { layer: "Layer A: Puhunan (Total Cost)", desc: "Product Acquisition Cost + Service Operational Cost", amount: lA.totalPuhunan, type: "Cost / Outflow" },
+      { layer: "Layer A: Total Cost", desc: "Product Acquisition Cost + Service Operational Cost", amount: lA.totalPuhunan, type: "Cost / Outflow" },
       { layer: "Layer B: Base Sales", desc: "Outright retail/SRP value before markups and interest", amount: lB.totalBaseSales, type: "Base Inflow" },
-      { layer: "Layer B: Pure Base Tubo", desc: "Base Sales minus Puhunan (Pure trading profit)", amount: lB.pureBaseTubo, type: "Pure Base Margin" },
+      { layer: "Layer B: Pure Base Margin", desc: "Base Sales minus Total Cost (Pure trading profit)", amount: lB.pureBaseTubo, type: "Pure Base Margin" },
       { layer: "Layer C: Total Mark-up", desc: "Store price additions on products and services", amount: lC.totalMarkup, type: "Additional Margin" },
-      { layer: "Layer D: Tubo With Mark-up", desc: "Base Sales + Mark-up minus Puhunan", amount: lD.tuboWithMarkup, type: "Merchandise Profit" },
+      { layer: "Layer D: Margin With Mark-up", desc: "Base Sales + Mark-up minus Total Cost", amount: lD.tuboWithMarkup, type: "Merchandise Profit" },
       { layer: "Layer E: Financing Interest", desc: "Installment interest yield from AR financing contracts", amount: lE.financingInterest, type: "Financing Income" },
-      { layer: "Layer F: Overall Total Kita", desc: "Consolidated profit: Base Margin + Mark-up + Financing Interest", amount: lF.overallTotalKita, type: "Total Enterprise Profit" },
+      { layer: "Layer F: Consolidated Profit", desc: "Consolidated profit: Base Margin + Mark-up + Financing Interest", amount: lF.overallTotalKita, type: "Total Enterprise Profit" },
     ]
 
     exportReportExcel({
@@ -111,11 +111,11 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
         ["Branch Scope", selectedBranch?.name || user?.branch?.name || "All Branches"],
       ],
       totals: [
-        ["Total Puhunan", lA.totalPuhunan || 0],
-        ["Total Pure Tubo", lB.pureBaseTubo || 0],
+        ["Total Cost", lA.totalPuhunan || 0],
+        ["Total Pure Margin", lB.pureBaseTubo || 0],
         ["Total Mark-up", lC.totalMarkup || 0],
         ["Total Financing Interest", lE.financingInterest || 0],
-        ["Consolidated Overall Kita", lF.overallTotalKita || 0],
+        ["Consolidated Overall Profit", lF.overallTotalKita || 0],
       ],
     })
   }
@@ -133,7 +133,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
             Executive Profit & Earnings Matrix
           </h2>
           <p className="text-xs text-slate-500">
-            Cleanly isolates Puhunan, Pure Base Margin, Mark-ups, and Financing Interest for complete financial clarity.
+            Cleanly isolates Total Cost, Pure Base Margin, Mark-ups, and Financing Interest for complete financial clarity.
           </p>
         </div>
 
@@ -163,7 +163,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
               <span className="rounded-lg bg-slate-200 px-2 py-0.5 font-mono text-[10px] font-black text-slate-700">LAYER A</span>
               <span className="text-[10px] font-bold uppercase text-slate-400">Total Outflow</span>
             </div>
-            <h3 className="mt-3 text-xs font-black uppercase tracking-wider text-slate-600">Puhunan (Total Cost)</h3>
+            <h3 className="mt-3 text-xs font-black uppercase tracking-wider text-slate-600">Total Cost</h3>
             <p className="mt-1 font-mono text-2xl font-black text-slate-900">{peso(lA.totalPuhunan)}</p>
           </div>
           <div className="mt-4 border-t border-slate-200/60 pt-3 text-[11px] text-slate-500 space-y-1">
@@ -185,7 +185,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
               <span className="rounded-lg bg-blue-200 px-2 py-0.5 font-mono text-[10px] font-black text-blue-800">LAYER B</span>
               <span className="text-[10px] font-bold uppercase text-blue-500">Pure Base Margin</span>
             </div>
-            <h3 className="mt-3 text-xs font-black uppercase tracking-wider text-blue-900">Pure Base Tubo (Without Markup)</h3>
+            <h3 className="mt-3 text-xs font-black uppercase tracking-wider text-blue-900">Pure Base Margin (Without Markup)</h3>
             <p className="mt-1 font-mono text-2xl font-black text-blue-800">{peso(lB.pureBaseTubo)}</p>
           </div>
           <div className="mt-4 border-t border-blue-200/60 pt-3 text-[11px] text-blue-800/80 space-y-1">
@@ -195,7 +195,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
             </div>
             <div className="flex justify-between">
               <span>Pure Margin Formula:</span>
-              <span className="font-semibold text-blue-600">Base Sales − Puhunan</span>
+              <span className="font-semibold text-blue-600">Base Sales − Cost</span>
             </div>
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
               <span className="rounded-lg bg-teal-200 px-2 py-0.5 font-mono text-[10px] font-black text-teal-900">LAYER D</span>
               <span className="text-[10px] font-bold uppercase text-teal-600">Merchandise Profit</span>
             </div>
-            <h3 className="mt-3 text-xs font-black uppercase tracking-wider text-teal-900">Tubo With Mark-up</h3>
+            <h3 className="mt-3 text-xs font-black uppercase tracking-wider text-teal-900">Margin With Mark-up</h3>
             <p className="mt-1 font-mono text-2xl font-black text-teal-800">{peso(lD.tuboWithMarkup)}</p>
           </div>
           <div className="mt-4 border-t border-teal-200/60 pt-3 text-[11px] text-teal-800/80 space-y-1">
@@ -232,7 +232,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
             </div>
             <div className="flex justify-between">
               <span>Formula:</span>
-              <span className="font-semibold text-teal-600">Base + Mark-up − Puhunan</span>
+              <span className="font-semibold text-teal-600">Base + Mark-up − Cost</span>
             </div>
           </div>
         </div>
@@ -257,13 +257,13 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
           <div>
             <div className="flex items-center justify-between">
               <span className="rounded-lg bg-[var(--color-maroon)] px-2.5 py-0.5 font-mono text-[10px] font-black text-white">
-                LAYER F · HERO KITA
+                LAYER F · CONSOLIDATED PROFIT
               </span>
               <span className="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-black text-[var(--color-maroon)]">
                 +{Number(lF.netReturnOnCostPercent || 0).toFixed(1)}% Return on Cost
               </span>
             </div>
-            <h3 className="mt-3 text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Overall Total Kita</h3>
+            <h3 className="mt-3 text-xs font-black uppercase tracking-wider text-[var(--color-maroon)]">Consolidated Profit</h3>
             <p className="mt-1 font-mono text-3xl font-black text-[var(--color-maroon)]">{peso(lF.overallTotalKita)}</p>
           </div>
           <div className="mt-4 border-t border-rose-200 pt-3 text-[11px] text-slate-600 space-y-1">
@@ -271,7 +271,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
               <span>Consolidated Inflow:</span>
               <span className="font-mono text-[var(--color-maroon)]">{peso(lF.consolidatedRevenue)}</span>
             </div>
-            <p className="text-[10px] text-slate-500">Formula: (Base Sales + Mark-up + Financing Interest) − Puhunan</p>
+            <p className="text-[10px] text-slate-500">Formula: (Base Sales + Mark-up + Financing Interest) − Total Cost</p>
           </div>
         </div>
       </div>
@@ -295,11 +295,11 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
                 <tr>
                   <th className="px-4 py-3">Branch</th>
                   <th className="px-3 py-3 text-right">Gross Sales</th>
-                  <th className="px-3 py-3 text-right">Puhunan</th>
-                  <th className="px-3 py-3 text-right text-blue-700">Pure Tubo</th>
+                  <th className="px-3 py-3 text-right">Cost</th>
+                  <th className="px-3 py-3 text-right text-blue-700">Pure Margin</th>
                   <th className="px-3 py-3 text-right text-amber-700">Mark-up</th>
                   <th className="px-3 py-3 text-right text-indigo-700">Financing Interest</th>
-                  <th className="px-4 py-3 text-right text-[var(--color-maroon)]">Overall Kita</th>
+                  <th className="px-4 py-3 text-right text-[var(--color-maroon)]">Consolidated Profit</th>
                   <th className="px-3 py-3 text-center">Margin %</th>
                 </tr>
               </thead>
