@@ -21,7 +21,6 @@ import {
 import { exportInventoryPdf, exportReportExcel } from "../../utils/businessDocumentExport"
 import {
   formatMainCategoryName,
-  formatSpecs,
   formatSubcategoryName,
 } from "../../utils/attributeFilter"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
@@ -141,7 +140,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const [searchText, setSearchText] = useState(initialContext?.search || "")
   const [mainCatFilter, setMainCatFilter] = useState("")
   const [subCatFilter, setSubCatFilter] = useState("")
-  const [brandFilter, setBrandFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState("")
   const [categoryOptions, setCategoryOptions] = useState([])
@@ -271,10 +269,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         params.categoryId = effectiveCategoryId
       }
 
-      if (brandFilter.trim()) {
-        params.brand = brandFilter.trim()
-      }
-
       const response = await getInventoryOverview(params)
       const result = response?.data || {}
 
@@ -287,7 +281,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     } finally {
       setIsLoading(false)
     }
-  }, [effectiveCategoryId, brandFilter, lowStockOnly, page, pageSize, searchText, statusFilter, viewingBranchId])
+  }, [effectiveCategoryId, lowStockOnly, page, pageSize, searchText, statusFilter, viewingBranchId])
 
   const loadRequestCatalog = useCallback(async () => {
     if (!isBulkRequestOpen || !requestSourceBranchId) {
@@ -319,7 +313,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
     setSearchText("")
     setMainCatFilter("")
     setSubCatFilter("")
-    setBrandFilter("")
     setStatusFilter("")
     setLowStockOnly("")
     setPage(1)
@@ -348,8 +341,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           id: item.id,
           itemCode: item.itemCode,
           itemName: item.itemName,
-          brand: item.brand,
-          modelName: item.modelName,
           availableQuantity,
           quantity: "1",
         },
@@ -592,10 +583,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         params.categoryId = effectiveCategoryId
       }
 
-      if (brandFilter.trim()) {
-        params.brand = brandFilter.trim()
-      }
-
       const exportItems = []
       let exportPage = 1
       let totalPages = 1
@@ -667,9 +654,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
       if (effectiveCategoryId) {
         params.categoryId = effectiveCategoryId
       }
-      if (brandFilter.trim()) {
-        params.brand = brandFilter.trim()
-      }
 
       const exportItems = []
       let exportPage = 1
@@ -695,7 +679,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         ["Category", (row) => formatMainCategoryName(row.category, row.categoryName || "—")],
         ["Subcategory", (row) => formatSubcategoryName(row.category)],
         ["Unit", (row) => row.unit?.name || row.unitName || (typeof row.unit === "string" ? row.unit : "—")],
-        ["Specifications", (row) => formatSpecs(row.attributes)],
         ["Serialized", (row) => (row.isSerialized ? "Yes" : "No")],
         ["Total Stock", (row) => Number(row.totalQuantity || 0)],
         ["Available Stock", (row) => Number(row.quantityAvailable || 0)],
@@ -1270,7 +1253,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         </div>
 
         {/* Active Filter Chips */}
-        {mainCatFilter || subCatFilter || brandFilter || statusFilter || lowStockOnly ? (
+        {mainCatFilter || subCatFilter || statusFilter || lowStockOnly ? (
           <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
               Active Filters:
@@ -1287,14 +1270,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                 Sub: {formatSubcategoryName(categoryOptions.find((c) => c.id === subCatFilter)) || "Subcategory"}
                 <button onClick={() => { setSubCatFilter(""); setPage(1) }} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {brandFilter ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-800">
-                Brand: {brandFilter}
-                <button onClick={() => { setBrandFilter(""); setPage(1) }} className="hover:text-red-600">
                   <X size={12} />
                 </button>
               </span>

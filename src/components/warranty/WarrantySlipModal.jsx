@@ -39,7 +39,6 @@ function renderSlipHtml(claim, slipType, copyLabel, options = {}) {
 
   const itemName = item.itemName || saleItem.itemNameSnapshot || "General Computer Product"
   const itemCode = item.itemCode || saleItem.itemCodeSnapshot || "—"
-  const brandModel = [item.brand, item.modelName].filter(Boolean).join(" ") || "—"
   const serialNumber = serial.serialNumber || claim.serialNumber || "—"
   const invoiceNo = sale.receiptCode || claim.receiptCode || "—"
   const claimCode = claim.claimCode || "WTY-PENDING"
@@ -126,7 +125,7 @@ function renderSlipHtml(claim, slipType, copyLabel, options = {}) {
           <thead>
             <tr>
               <th style="width: 20%;">Item Code</th>
-              <th style="width: 35%;">Item Description / Brand</th>
+              <th style="width: 35%;">Item Description</th>
               <th style="width: 25%;">Serial Number</th>
               <th style="width: 20%;">Current Status</th>
             </tr>
@@ -134,7 +133,7 @@ function renderSlipHtml(claim, slipType, copyLabel, options = {}) {
           <tbody>
             <tr>
               <td class="font-mono">${itemCode}</td>
-              <td><strong>${itemName}</strong><br/><small style="color: #64748b;">${brandModel}</small></td>
+              <td><strong>${itemName}</strong></td>
               <td class="font-mono"><strong>${serialNumber}</strong></td>
               <td><span class="status-pill">${claim.status || "IN"}</span></td>
             </tr>

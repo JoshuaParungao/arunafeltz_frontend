@@ -36,7 +36,6 @@ import {
 
 import {
   formatMainCategoryName,
-  formatSpecs,
   formatSubcategoryName,
 } from "../../utils/attributeFilter"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
@@ -425,7 +424,6 @@ export default function InventoryReportView({
         ["Category", (row) => formatMainCategoryName(row.category, textOf(row.categoryName, "—"))],
         ["Subcategory", (row) => formatSubcategoryName(row.category)],
         ["Unit", (row) => textOf(row.unit, textOf(row.unitName, "PCS"))],
-        ["Specifications", (row) => formatSpecs(row.attributes)],
         ["Serialized Tracking", (row) => (row.isSerialized ? "YES" : "NO")],
         ["Available On-Hand", (row) => Number(row.avail || 0)],
         ["Reserved Stock", (row) => Number(row.reserved || 0)],

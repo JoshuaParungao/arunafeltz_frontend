@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
 import { parseQuotationSettlement } from "./quotationSettlement"
+import { formatMainCategoryName, formatSubcategoryName } from "./attributeFilter"
 
 const MAROON = [122, 31, 43]
 const DARK = [31, 41, 55]
@@ -921,8 +922,8 @@ export function inventoryDocument(items, context = {}) {
     columns: [
       "Item Code",
       "Product Name",
-      "Brand",
       "Category",
+      "Subcategory",
       "Available",
       "Total In",
       "Batches",
@@ -935,8 +936,8 @@ export function inventoryDocument(items, context = {}) {
     rows: records.map((item) => [
       text(item.itemCode),
       text(item.itemName),
-      text(item.brand),
-      text(item.category?.name || item.categoryName),
+      text(formatMainCategoryName(item.category, item.categoryName)),
+      text(formatSubcategoryName(item.category)),
       quantity(item.quantityAvailable),
       quantity(item.quantityIn),
       quantity(item.batchCount),

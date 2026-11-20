@@ -8,7 +8,6 @@ import { createUnit } from "../../features/units/units.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import {
   formatMainCategoryName,
-  formatSpecs,
   formatSubcategoryName,
 } from "../../utils/attributeFilter"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
@@ -65,224 +64,13 @@ export function stripWarrantyTag(description) {
   return description.replace(/\[WARRANTY:\s*[^\]]+\]/gi, "").trim()
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function autoDetectSpecsFromItem({ itemName = "", brand = "", modelName = "", schema = [] }) {
-  if (!itemName || !Array.isArray(schema) || schema.length === 0) return {}
-
-  const text = `${brand || ""} ${modelName || ""} ${itemName}`.trim()
-  const detected = {}
-
-  for (const field of schema) {
-    const nameLower = field.name.toLowerCase()
-    const options = Array.isArray(field.options) ? field.options : []
-
-    // 1. Try matching predefined options (longest first)
-    if (options.length > 0) {
-      const sorted = [...options].sort((a, b) => b.length - a.length)
-      for (const opt of sorted) {
-        const escaped = opt.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")
-        const regex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}([^a-zA-Z0-9]|$)`, "i")
-        if (regex.test(text)) {
-          detected[field.name] = opt
-          break
-        }
-      }
-    }
-
-    if (detected[field.name]) continue
-
-    // 2. Specialized Regex Patterns
-    // Capacity / Storage / VRAM
-    if (nameLower.includes("capacity") || nameLower.includes("size") || nameLower.includes("vram")) {
-      const match = text.match(/\b(\d+)\s*(GB|TB|MB)\b/i)
-      if (match) {
-        detected[field.name] = `${match[1]}${match[2].toUpperCase()}`
-        continue
-      }
-    }
-
-    // Speed / Frequency
-    if (nameLower.includes("speed") || nameLower.includes("frequency")) {
-      const match = text.match(/\b(\d{3,5})\s*(MHz|MT\/s|GHz)\b/i)
-      if (match) {
-        const unit = match[2].toUpperCase() === "MT/S" ? " MT/s" : match[2].toUpperCase() === "GHZ" ? " GHz" : "MHz"
-        detected[field.name] = `${match[1]}${unit}`
-        continue
-      }
-    }
-
-    // Refresh Rate
-    if (nameLower.includes("refresh rate")) {
-      const match = text.match(/\b(\d{2,3})\s*Hz\b/i)
-      if (match) {
-        detected[field.name] = `${match[1]}Hz`
-        continue
-      }
-    }
-
-    // Memory Type
-    if (nameLower.includes("memory type")) {
-      const match = text.match(/\b(DDR5|DDR4|DDR3L?|GDDR6X?|GDDR5)\b/i)
-      if (match) {
-        detected[field.name] = match[1].toUpperCase()
-        continue
-      }
-    }
-
-    // Color
-    if (nameLower.includes("color")) {
-      const match = text.match(/\b(Black|White|Silver|Grey|Gray|Red|Blue|Pink|Green|Yellow|Gold)\b/i)
-      if (match) {
-        const c = match[1].toLowerCase()
-        detected[field.name] = c.charAt(0).toUpperCase() + c.slice(1)
-        continue
-      }
-    }
-
-    // RGB Lighting
-    if (nameLower.includes("rgb") || nameLower.includes("lighting")) {
-      if (/\b(Non-RGB|Without RGB|No RGB|None)\b/i.test(text)) {
-        detected[field.name] = "Non-RGB"
-        continue
-      } else if (/\b(ARGB|Addressable RGB|A-RGB)\b/i.test(text)) {
-        detected[field.name] = "ARGB"
-        continue
-      } else if (/\b(RGB)\b/i.test(text)) {
-        detected[field.name] = "RGB"
-        continue
-      }
-    }
-
-    // Pin Count (for RAM)
-    if (nameLower.includes("pin count") || nameLower.includes("pins")) {
-      if (/\bDDR5\b/i.test(text)) {
-        detected[field.name] = "288-Pin"
-        continue
-      } else if (/\bDDR4\b/i.test(text)) {
-        detected[field.name] = "288-Pin"
-        continue
-      } else if (/\bDDR3\b/i.test(text)) {
-        detected[field.name] = "240-Pin"
-        continue
-      }
-    }
-
-    // Form Factor
-    if (nameLower.includes("form factor")) {
-      if (/\b(SO-DIMM|SODIMM|Laptop)\b/i.test(text)) {
-        detected[field.name] = "SO-DIMM"
-        continue
-      } else if (/\b(DIMM|Desktop|UDIMM|U-DIMM)\b/i.test(text) || (nameLower.includes("ram") || text.includes("RAM"))) {
-        detected[field.name] = "DIMM"
-        continue
-      } else if (/\b(Micro-ATX|M-ATX|Micro ATX|mATX)\b/i.test(text)) {
-        detected[field.name] = "Micro-ATX"
-        continue
-      } else if (/\b(Mini-ITX|Mini ITX|ITX)\b/i.test(text)) {
-        detected[field.name] = "Mini-ITX"
-        continue
-      } else if (/\b(ATX)\b/i.test(text)) {
-        detected[field.name] = "ATX"
-        continue
-      } else if (/\b(M\.2\s*2280)\b/i.test(text)) {
-        detected[field.name] = "M.2 2280"
-        continue
-      } else if (/\b(2\.5["']?)\b/i.test(text)) {
-        detected[field.name] = '2.5"'
-        continue
-      } else if (/\b(3\.5["']?)\b/i.test(text)) {
-        detected[field.name] = '3.5"'
-        continue
-      }
-    }
-
-    // Wattage / Power
-    if (nameLower.includes("wattage") || nameLower.includes("power")) {
-      const match = text.match(/\b(\d{3,4})\s*W\b/i)
-      if (match) {
-        detected[field.name] = `${match[1]}W`
-        continue
-      }
-    }
-
-    // Efficiency Rating / 80 Plus
-    if (nameLower.includes("efficiency") || nameLower.includes("rating")) {
-      const match = text.match(/\b(80\s*Plus\s*(Titanium|Platinum|Gold|Silver|Bronze|White|Standard))\b/i)
-      if (match) {
-        detected[field.name] = match[1]
-        continue
-      }
-    }
-
-    // Socket
-    if (nameLower.includes("socket")) {
-      const match = text.match(/\b(AM4|AM5|LGA\s*1700|LGA\s*1851|LGA\s*1200|sTR5)\b/i)
-      if (match) {
-        detected[field.name] = match[1].toUpperCase()
-        continue
-      }
-    }
-
-    // Chipset
-    if (nameLower.includes("chipset")) {
-      const match = text.match(/\b(B450|B550|X570|A520|B650|X670|X870|H610|B660|B760|Z690|Z790)\b/i)
-      if (match) {
-        detected[field.name] = match[1].toUpperCase()
-        continue
-      }
-    }
-
-    // Resolution
-    if (nameLower.includes("resolution")) {
-      if (/\b(1920\s*x\s*1080|1080p|FHD)\b/i.test(text)) {
-        detected[field.name] = "1920 x 1080 (FHD)"
-        continue
-      } else if (/\b(2560\s*x\s*1440|1440p|2K|QHD)\b/i.test(text)) {
-        detected[field.name] = "2560 x 1440 (QHD)"
-        continue
-      } else if (/\b(3840\s*x\s*2160|4K|UHD)\b/i.test(text)) {
-        detected[field.name] = "3840 x 2160 (4K UHD)"
-        continue
-      }
-    }
-
-    // Brand
-    if (nameLower.includes("brand")) {
-      if (brand && brand.trim()) {
-        detected[field.name] = brand.trim()
-        continue
-      }
-      const knownBrands = [
-        "Kingston", "Corsair", "G.Skill", "TeamGroup", "Crucial", "Adata", "Samsung",
-        "Seagate", "Western Digital", "WD", "Asus", "MSI", "Gigabyte", "ASRock", "Palit",
-        "Zotac", "Galax", "Inno3D", "PowerColor", "Sapphire", "XFX", "AMD", "Intel",
-        "DeepCool", "Thermaltake", "NZXT", "Cooler Master", "SilverStone", "Seasonic",
-        "FSP", "Montech", "DarkFlash", "Lian Li", "Keychron", "Royal Kludge", "Logitech",
-        "Razer", "Redragon", "SteelSeries", "AOC", "ViewSonic", "BenQ", "LG", "Philips"
-      ]
-      for (const b of knownBrands) {
-        const regex = new RegExp(`(^|[^a-zA-Z0-9])${b}([^a-zA-Z0-9]|$)`, "i")
-        if (regex.test(text)) {
-          detected[field.name] = b
-          break
-        }
-      }
-    }
-  }
-
-  return detected
-}
-
 const EMPTY_ITEM_FORM = {
   itemCode: "",
   barcode: "",
   itemName: "",
   description: "",
-  brand: "",
-  modelName: "",
   categoryId: "",
   unitId: "",
-  attributes: {},
   isSerialized: false,
   hasWarranty: true,
   warrantyDuration: "1 YEAR WARRANTY",
@@ -309,11 +97,8 @@ function itemToForm(item) {
     barcode: item.barcode || "",
     itemName: item.itemName || "",
     description: stripWarrantyTag(item.description),
-    brand: item.brand || "",
-    modelName: item.modelName || "",
     categoryId: item.category?.id || item.categoryId || "",
     unitId: item.unit?.id || item.unitId || "",
-    attributes: item.attributes && typeof item.attributes === "object" ? { ...item.attributes } : {},
     isSerialized: Boolean(item.isSerialized),
     hasWarranty: warranty !== "NO WARRANTY",
     warrantyDuration: warranty,
@@ -367,17 +152,6 @@ function StatusPill({ status }) {
 
 function ItemDetailModal({ canViewCost, item, onClose }) {
   if (!item) return null
-
-  const visibleAttributes =
-    item.attributes && typeof item.attributes === "object"
-      ? Object.entries(item.attributes).filter(
-          ([key, val]) =>
-            key.toLowerCase() !== "serialrequirement" &&
-            val !== null &&
-            val !== undefined &&
-            String(val).trim() !== ""
-        )
-      : []
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
@@ -460,28 +234,6 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
               </p>
             </div>
           </div>
-
-          {/* Technical Specifications */}
-          {visibleAttributes.length > 0 ? (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
-                  ⚙️ Technical Specifications
-                </span>
-                <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 border border-indigo-200">
-                  {visibleAttributes.length} attributes
-                </span>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 text-xs">
-                {visibleAttributes.map(([key, val]) => (
-                  <div key={key} className="rounded-lg bg-white border border-indigo-100 p-2 shadow-2xs">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{key}</p>
-                    <p className="mt-0.5 font-bold text-slate-900">{String(val || "—")}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           <div className="rounded-xl border border-slate-200 p-3.5 space-y-2">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Selling Price Tiers</p>
@@ -1569,7 +1321,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [searchText, setSearchText] = useState(initialContext?.search || "")
   const [mainCatFilter, setMainCatFilter] = useState("")
   const [subCatFilter, setSubCatFilter] = useState("")
-  const [brandFilter, setBrandFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [serializedFilter, setSerializedFilter] = useState("")
   const [warrantyFilter, setWarrantyFilter] = useState("")
@@ -1684,10 +1435,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
         params.categoryId = effectiveCategoryId
       }
 
-      if (brandFilter.trim()) {
-        params.brand = brandFilter.trim()
-      }
-
       if (unitFilter) {
         params.unitId = unitFilter
       }
@@ -1704,7 +1451,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
     } finally {
       setIsLoading(false)
     }
-  }, [effectiveCategoryId, brandFilter, page, pageSize, searchText, selectedBranchId, serializedFilter, statusFilter, unitFilter, warrantyFilter])
+  }, [effectiveCategoryId, page, pageSize, searchText, selectedBranchId, serializedFilter, statusFilter, unitFilter, warrantyFilter])
 
   const openDetailModal = (item) => {
     setDetailItem(item)
@@ -1718,7 +1465,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
     setSearchText("")
     setMainCatFilter("")
     setSubCatFilter("")
-    setBrandFilter("")
     setUnitFilter("")
     setStatusFilter("")
     setSerializedFilter("")
@@ -1735,7 +1481,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
       if (statusFilter) params.status = statusFilter
       if (serializedFilter) params.isSerialized = serializedFilter
       if (effectiveCategoryId) params.categoryId = effectiveCategoryId
-      if (brandFilter.trim()) params.brand = brandFilter.trim()
       if (unitFilter) params.unitId = unitFilter
 
       const exportItems = []
@@ -1768,7 +1513,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
         ["Category", (row) => formatMainCategoryName(row.category, row.categoryName || "—")],
         ["Subcategory", (row) => formatSubcategoryName(row.category)],
         ["Unit", (row) => row.unit?.name || row.unitName || "—"],
-        ["Specifications", (row) => formatSpecs(row.attributes)],
         ["Serialized", (row) => (row.isSerialized ? "Yes" : "No")],
         ["Warranty", (row) => parseItemWarranty(row)],
         ["Min Stock", (row) => Number(row.minStock || 0)],
@@ -1877,15 +1621,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
       ? (cleanDesc ? `${cleanDesc} [WARRANTY: ${warrantyStr}]` : `[WARRANTY: ${warrantyStr}]`)
       : (cleanDesc || null)
 
-    const cleanedAttributes = {}
-    if (itemForm.attributes && typeof itemForm.attributes === "object") {
-      Object.entries(itemForm.attributes).forEach(([key, val]) => {
-        if (val !== undefined && val !== null && String(val).trim() !== "") {
-          cleanedAttributes[key] = String(val).trim()
-        }
-      })
-    }
-
     const payload = {
       ...(itemForm.itemCode.trim()
         ? { itemCode: itemForm.itemCode.trim().toUpperCase() }
@@ -1893,11 +1628,8 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
       itemName: itemForm.itemName.trim(),
       description: packagedDesc,
       barcode: itemForm.barcode.trim() || null,
-      brand: itemForm.brand.trim() || null,
-      modelName: itemForm.modelName.trim() || null,
       categoryId: itemForm.categoryId,
       unitId: itemForm.unitId,
-      attributes: Object.keys(cleanedAttributes).length > 0 ? cleanedAttributes : null,
       isSerialized: Boolean(itemForm.isSerialized),
       hasWarranty: warrantyStr !== "NO WARRANTY" && Boolean(warrantyStr),
       ...(canAdjustPrices
@@ -2221,7 +1953,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
         </div>
 
         {/* Active Filter Chips */}
-        {mainCatFilter || subCatFilter || brandFilter || unitFilter || statusFilter || serializedFilter || warrantyFilter ? (
+        {mainCatFilter || subCatFilter || unitFilter || statusFilter || serializedFilter || warrantyFilter ? (
           <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
               Active Filters:
@@ -2238,14 +1970,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                 Sub: {formatSubcategoryName(categoryOptions.find((c) => c.id === subCatFilter)) || "Subcategory"}
                 <button onClick={() => { setSubCatFilter(""); setPage(1) }} className="hover:text-red-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ) : null}
-            {brandFilter ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-800">
-                Brand: {brandFilter}
-                <button onClick={() => { setBrandFilter(""); setPage(1) }} className="hover:text-red-600">
                   <X size={12} />
                 </button>
               </span>
