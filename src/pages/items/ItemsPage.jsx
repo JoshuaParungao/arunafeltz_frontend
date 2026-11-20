@@ -6,7 +6,11 @@ import { createItem, getItemCategories, getItems, getUnits, updateItemById } fro
 import { createItemCategory } from "../../features/categories/categories.api"
 import { createUnit } from "../../features/units/units.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
-import { formatSpecs } from "../../utils/attributeFilter"
+import {
+  formatMainCategoryName,
+  formatSpecs,
+  formatSubcategoryName,
+} from "../../utils/attributeFilter"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 
@@ -364,6 +368,17 @@ function StatusPill({ status }) {
 function ItemDetailModal({ canViewCost, item, onClose }) {
   if (!item) return null
 
+  const visibleAttributes =
+    item.attributes && typeof item.attributes === "object"
+      ? Object.entries(item.attributes).filter(
+          ([key, val]) =>
+            key.toLowerCase() !== "serialrequirement" &&
+            val !== null &&
+            val !== undefined &&
+            String(val).trim() !== ""
+        )
+      : []
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
       <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl border border-slate-200">
@@ -404,9 +419,16 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
             </div>
 
             <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Brand / Model</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</p>
               <p className="mt-1 font-bold text-slate-900">
-                {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
+                {formatMainCategoryName(item.category)}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Subcategory</p>
+              <p className="mt-1 font-bold text-slate-900">
+                {formatSubcategoryName(item.category)}
               </p>
             </div>
 
@@ -414,13 +436,6 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Branch</p>
               <p className="mt-1 font-bold text-slate-900">
                 {item.branch?.code || item.branch?.name || "No branch"}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</p>
-              <p className="mt-1 font-bold text-slate-900">
-                {item.category?.name || "No category"}
               </p>
             </div>
 
@@ -447,18 +462,18 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
           </div>
 
           {/* Technical Specifications */}
-          {item.attributes && typeof item.attributes === "object" && Object.keys(item.attributes).length > 0 ? (
+          {visibleAttributes.length > 0 ? (
             <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
                   ⚙️ Technical Specifications
                 </span>
                 <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 border border-indigo-200">
-                  {Object.keys(item.attributes).length} attributes
+                  {visibleAttributes.length} attributes
                 </span>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 text-xs">
-                {Object.entries(item.attributes).map(([key, val]) => (
+                {visibleAttributes.map(([key, val]) => (
                   <div key={key} className="rounded-lg bg-white border border-indigo-100 p-2 shadow-2xs">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{key}</p>
                     <p className="mt-0.5 font-bold text-slate-900">{String(val || "—")}</p>
@@ -657,7 +672,7 @@ function ItemEditorModal({
     }
 
     if (selectedCategory && selectedCategory.parentId) {
-      setSubCatSearch(selectedCategory.name)
+      setSubCatSearch(formatSubcategoryName(selectedCategory, selectedMainCategory?.name))
     } else {
       setSubCatSearch("")
     }
@@ -672,8 +687,10 @@ function ItemEditorModal({
   const filteredSubcategories = useMemo(() => {
     const q = (subCatSearch || "").trim().toLowerCase()
     if (!q) return subcategoryOptions
-    return subcategoryOptions.filter((c) => c.name.toLowerCase().includes(q))
-  }, [subcategoryOptions, subCatSearch])
+    return subcategoryOptions.filter((c) =>
+      formatSubcategoryName(c, selectedMainCategory?.name).toLowerCase().includes(q)
+    )
+  }, [subcategoryOptions, subCatSearch, selectedMainCategory])
 
   const canCreateNewMainCat = useMemo(() => {
     const q = catSearch.trim()
@@ -686,10 +703,13 @@ function ItemEditorModal({
   const canCreateNewSubCat = useMemo(() => {
     const q = subCatSearch.trim()
     if (!q || !effectiveMainCatId) return false
+    if (selectedMainCategory && q.toLowerCase() === selectedMainCategory.name.toLowerCase()) {
+      return false
+    }
     return !subcategoryOptions.some(
-      (c) => c.name.toLowerCase() === q.toLowerCase()
+      (c) => formatSubcategoryName(c, selectedMainCategory?.name).toLowerCase() === q.toLowerCase()
     )
-  }, [subcategoryOptions, subCatSearch, effectiveMainCatId])
+  }, [subcategoryOptions, subCatSearch, effectiveMainCatId, selectedMainCategory])
 
   const handleCreateCategoryInline = async (nameToCreate) => {
     const trimmed = (nameToCreate || catSearch).trim()
@@ -740,7 +760,7 @@ function ItemEditorModal({
       if (onCategoryCreated) {
         onCategoryCreated(newSubCat)
       }
-      setSubCatSearch(newSubCat.name)
+      setSubCatSearch(formatSubcategoryName(newSubCat, selectedMainCategory?.name))
       onChange("categoryId", newSubCat.id)
       setIsSubDropdownOpen(false)
     } catch (err) {
@@ -759,7 +779,7 @@ function ItemEditorModal({
     const subs = categories.filter((c) => c.parentId === mainCat.id)
     if (subs.length > 0) {
       onChange("categoryId", subs[0].id)
-      setSubCatSearch(subs[0].name)
+      setSubCatSearch(formatSubcategoryName(subs[0], mainCat.name))
     } else {
       onChange("categoryId", mainCat.id)
       setSubCatSearch("")
@@ -956,7 +976,9 @@ function ItemEditorModal({
                     }}
                     placeholder={
                       effectiveMainCatId
-                        ? "Search or type new subcategory…"
+                        ? subcategoryOptions.length === 0
+                          ? `${selectedMainCategory?.name || ""} (type to add new…)`
+                          : "Search or type new subcategory…"
                         : "Select category first"
                     }
                   />
@@ -1002,6 +1024,7 @@ function ItemEditorModal({
                       {filteredSubcategories.length > 0 ? (
                         filteredSubcategories.map((subCat) => {
                           const isSelected = subCat.id === formCategoryId
+                          const cleanSubName = formatSubcategoryName(subCat, selectedMainCategory?.name)
                           return (
                             <button
                               key={subCat.id}
@@ -1013,11 +1036,11 @@ function ItemEditorModal({
                               }`}
                               onClick={() => {
                                 onChange("categoryId", subCat.id)
-                                setSubCatSearch(subCat.name)
+                                setSubCatSearch(cleanSubName)
                                 setIsSubDropdownOpen(false)
                               }}
                             >
-                              <span>{subCat.name}</span>
+                              <span>{cleanSubName}</span>
                               {isSelected && <Check size={13} />}
                             </button>
                           )
@@ -1438,7 +1461,11 @@ function PriceEditorModal({
   )
 }
 
-function ItemMobileCard({ canManagePrices, canViewCost, item, onEditPrices }) {
+function ItemMobileCard({ canManagePrices, canViewCost, categories = [], item, onEditPrices }) {
+  const needsSubcategory =
+    !item.category?.parentId &&
+    categories.some((c) => c.parentId === item.categoryId)
+
   return (
     <article className="rounded-3xl border border-[var(--color-border)] bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -1448,9 +1475,6 @@ function ItemMobileCard({ canManagePrices, canViewCost, item, onEditPrices }) {
           </p>
           <p className="mt-1 text-xs font-bold text-[var(--color-muted)]">
             {item.itemCode}
-          </p>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">
-            {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
           </p>
         </div>
 
@@ -1481,16 +1505,12 @@ function ItemMobileCard({ canManagePrices, canViewCost, item, onEditPrices }) {
             Category
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 font-bold text-[var(--color-text-strong)]">
-            {item.category?.parent ? (
-              <>
-                <span className="text-xs font-semibold text-[var(--color-muted)]">
-                  {item.category.parent.name}
-                </span>
-                <span className="text-xs text-[var(--color-muted)]">›</span>
-              </>
-            ) : null}
-            <span>{item.category?.name || "—"}</span>
-            {!item.category?.parentId ? (
+            <span className="text-xs font-semibold text-[var(--color-muted)]">
+              {formatMainCategoryName(item.category, "—")}
+            </span>
+            <span className="text-xs text-[var(--color-muted)]">›</span>
+            <span>{formatSubcategoryName(item.category)}</span>
+            {needsSubcategory ? (
               <span className="ml-auto inline-flex items-center gap-1 rounded bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold" title="Main Category (Needs Subcategory Alignment)">
                 ⚠️ Needs Subcategory
               </span>
@@ -1607,7 +1627,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
   const loadFilterOptions = useCallback(async () => {
     try {
       const categoryParams = {
-        limit: 250,
+        limit: 500,
       }
 
       if (selectedBranchId) {
@@ -1745,9 +1765,8 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
         ["Item Code", (row) => row.itemCode || "—"],
         ["Item Name", (row) => row.itemName || "—"],
         ["Barcode", (row) => row.barcode || "—"],
-        ["Brand", (row) => row.brand || "—"],
-        ["Model", (row) => row.modelName || "—"],
-        ["Category", (row) => row.category?.name || row.categoryName || "—"],
+        ["Category", (row) => formatMainCategoryName(row.category, row.categoryName || "—")],
+        ["Subcategory", (row) => formatSubcategoryName(row.category)],
         ["Unit", (row) => row.unit?.name || row.unitName || "—"],
         ["Specifications", (row) => formatSpecs(row.attributes)],
         ["Serialized", (row) => (row.isSerialized ? "Yes" : "No")],
@@ -1769,7 +1788,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
           "Category Filter",
           categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
         ],
-        ["Brand Filter", brandFilter.trim() || "All brands"],
         ["Status Filter", statusFilter || "All statuses"],
         ["Serialized Only", serializedFilter ? "Yes" : "All"],
       ]
@@ -2075,7 +2093,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
                 setSearchText(event.target.value)
                 setPage(1)
               }}
-              placeholder="Scan barcode / Search Item Code / Product Name / Model"
+              placeholder="Scan barcode / Search Item Code / Product Name"
               value={searchText}
             />
           </div>
@@ -2153,7 +2171,9 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
               </option>
               {subcategoryOptions.map((sub) => (
                 <option key={sub.id} value={sub.id}>
-                  {sub.name}
+                  {mainCatFilter
+                    ? formatSubcategoryName(sub)
+                    : `${formatSubcategoryName(sub)}${sub.parent?.name ? ` (${sub.parent.name})` : ""}`}
                 </option>
               ))}
             </select>
@@ -2216,7 +2236,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
             ) : null}
             {subCatFilter ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                Sub: {categoryOptions.find((c) => c.id === subCatFilter)?.name || "Subcategory"}
+                Sub: {formatSubcategoryName(categoryOptions.find((c) => c.id === subCatFilter)) || "Subcategory"}
                 <button onClick={() => { setSubCatFilter(""); setPage(1) }} className="hover:text-red-600">
                   <X size={12} />
                 </button>
@@ -2316,7 +2336,11 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
                   </thead>
 
                   <tbody className="divide-y divide-[var(--color-border)]">
-                    {displayedItems.map((item) => (
+                    {displayedItems.map((item) => {
+                      const needsSubcategory =
+                        !item.category?.parentId &&
+                        categoryOptions.some((c) => c.parentId === item.categoryId)
+                      return (
                       <tr key={item.id} className="align-top transition hover:bg-[var(--color-soft)]">
                         <td className="min-w-[220px] px-3 py-4">
                           <p className="font-bold text-[var(--color-text-strong)]">
@@ -2324,9 +2348,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
                           </p>
                           <p className="mt-1 text-xs font-semibold text-[var(--color-muted)]">
                             {item.itemCode}
-                          </p>
-                          <p className="mt-1 text-xs text-[var(--color-muted)]">
-                            {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
                           </p>
                         </td>
 
@@ -2336,15 +2357,13 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
 
                         <td className="min-w-[160px] px-3 py-4">
                           <div className="flex flex-col gap-0.5">
-                            {item.category?.parent ? (
-                              <span className="text-[11px] font-semibold text-[var(--color-muted)]">
-                                {item.category.parent.name} ›
-                              </span>
-                            ) : null}
-                            <span className="font-semibold text-[var(--color-text-strong)]">
-                              {item.category?.name || "—"}
+                            <span className="text-[11px] font-semibold text-[var(--color-muted)]">
+                              {formatMainCategoryName(item.category, "—")} ›
                             </span>
-                            {!item.category?.parentId ? (
+                            <span className="font-semibold text-[var(--color-text-strong)]">
+                              {formatSubcategoryName(item.category)}
+                            </span>
+                            {needsSubcategory ? (
                               <div className="mt-1 flex items-center">
                                 <span className="inline-flex items-center gap-1 rounded bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold" title="Main Category (Needs Subcategory Alignment)">
                                   ⚠️ Needs Subcategory
@@ -2427,7 +2446,8 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2438,6 +2458,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
                 <ItemMobileCard
                   canManagePrices={canManagePrices}
                   canViewCost={canViewCost}
+                  categories={categoryOptions}
                   item={item}
                   key={item.id}
                   onEditPrices={openPriceEditor}

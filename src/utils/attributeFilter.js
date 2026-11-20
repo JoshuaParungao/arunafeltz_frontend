@@ -168,8 +168,30 @@ export function matchesItemAttributes(item, { capacity, speed, type, specSearch 
 export function formatSpecs(attributes) {
   if (!attributes || typeof attributes !== "object") return "—"
   const entries = Object.entries(attributes).filter(
-    ([, v]) => v !== null && v !== undefined && String(v).trim() !== ""
+    ([key, v]) =>
+      key.toLowerCase() !== "serialrequirement" &&
+      v !== null &&
+      v !== undefined &&
+      String(v).trim() !== ""
   )
   if (entries.length === 0) return "—"
   return entries.map(([key, value]) => `${key}: ${value}`).join(" | ")
+}
+
+export function formatMainCategoryName(category, fallback = "No category") {
+  if (!category) return fallback
+  if (typeof category === "string") return category || fallback
+  return category.parent?.name || category.name || fallback
+}
+
+export function formatSubcategoryName(category, parentNameOverride = "") {
+  if (!category) return "—"
+  if (typeof category === "string") return category || "—"
+  const raw = String(category.name || "").trim()
+  if (!raw) return "—"
+  const parentName = String(category.parent?.name || parentNameOverride || "").trim()
+  if (parentName && raw.toUpperCase().endsWith(` (${parentName.toUpperCase()})`)) {
+    return raw.slice(0, -(parentName.length + 3)).trim()
+  }
+  return raw
 }

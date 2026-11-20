@@ -35,6 +35,7 @@ import {
   getUnits,
   updateUnitById,
 } from "../../features/units/units.api"
+import { formatSubcategoryName } from "../../utils/attributeFilter"
 
 function formatDate(value) {
   if (!value) return "—"
@@ -49,8 +50,6 @@ function formatDate(value) {
 
 
 const POPULAR_ATTRIBUTE_PRESETS = [
-  { name: "Brand", suggestions: [] },
-  { name: "Model", suggestions: [] },
   { name: "Capacity", suggestions: ["8GB", "16GB", "32GB", "64GB", "500GB", "1TB", "2TB"] },
   { name: "Speed / Frequency", suggestions: ["3200MHz", "3600MHz", "5200MHz", "5600MHz", "6000MHz"] },
   { name: "Socket", suggestions: ["AM4", "AM5", "LGA1700", "LGA1851"] },
@@ -145,7 +144,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
       try {
         const params = {
           page: String(page),
-          limit: "50",
+          limit: "500",
           ...(debouncedSearch ? { search: debouncedSearch } : {}),
           ...(statusFilter !== "ALL" ? { status: statusFilter } : {}),
           ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
@@ -261,7 +260,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
   const handleOpenEditCategoryModal = (category) => {
     setEditingCategory(category)
     setCatForm({
-      name: category.name || "",
+      name: formatSubcategoryName(category) === "—" ? "" : formatSubcategoryName(category),
       categoryCode: category.categoryCode || "",
       description: category.description || "",
       status: category.status || "ACTIVE",
@@ -827,7 +826,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                           {cat.categoryCode || "—"}
                         </td>
                         <td className="px-5 py-3.5">
-                          <div className="font-bold text-slate-900">{cat.name}</div>
+                          <div className="font-bold text-slate-900">{formatSubcategoryName(cat)}</div>
                           {cat.branch ? (
                             <div className="text-[10px] text-slate-500">
                               Branch: {cat.branch.name} ({cat.branch.code})
@@ -1163,7 +1162,7 @@ export default function CategoriesPage({ selectedBranch, user }) {
                     <GitBranch size={15} className="text-blue-700 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold">Configured Subcategories ({subcategoriesOfEditingCategory.length}): </span>
-                      {subcategoriesOfEditingCategory.map((s) => s.name).join(", ")}
+                      {subcategoriesOfEditingCategory.map((s) => formatSubcategoryName(s, editingCategory?.name)).join(", ")}
                     </div>
                   </div>
                 ) : null}

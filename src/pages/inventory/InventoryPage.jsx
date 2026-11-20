@@ -19,7 +19,11 @@ import {
 } from "../../features/inventory/inventory.api"
 
 import { exportInventoryPdf, exportReportExcel } from "../../utils/businessDocumentExport"
-import { formatSpecs } from "../../utils/attributeFilter"
+import {
+  formatMainCategoryName,
+  formatSpecs,
+  formatSubcategoryName,
+} from "../../utils/attributeFilter"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 function formatNumber(value) {
@@ -65,9 +69,6 @@ function InventoryMobileCard({ item, canAdjust, onView, onAdjust }) {
           <p className="mt-1 text-xs font-bold text-[var(--color-muted)]">
             {item.itemCode}
           </p>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">
-            {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
-          </p>
         </div>
 
         <StockBadge item={item} />
@@ -105,7 +106,8 @@ function InventoryMobileCard({ item, canAdjust, onView, onAdjust }) {
 
       <div className="mt-4 text-xs font-semibold leading-6 text-[var(--color-muted)]">
         <p>Branch: {item.branch?.code || item.branch?.name || "No branch"}</p>
-        <p>Category: {item.category?.name || "No category"}</p>
+        <p>Category: {formatMainCategoryName(item.category)}</p>
+        <p>Subcategory: {formatSubcategoryName(item.category)}</p>
         <p>Unit: {item.unit?.name || "No unit"}</p>
         <p>Tracking: {item.isSerialized ? "Serialized" : "Non-serialized"}</p>
       </div>
@@ -217,7 +219,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const loadCategories = useCallback(async () => {
     try {
       const response = await getItemCategories({
-        limit: 250,
+        limit: 500,
         ...(viewingBranchId ? { branchId: viewingBranchId } : {}),
       })
       const list = response?.data?.items
@@ -625,9 +627,10 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
         ["Search", searchText.trim() || "All inventory items"],
         [
           "Category",
-          categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
+          formatSubcategoryName(categoryOptions.find((c) => c.id === effectiveCategoryId)) !== "—"
+            ? formatSubcategoryName(categoryOptions.find((c) => c.id === effectiveCategoryId))
+            : "All categories",
         ],
-        ["Brand", brandFilter.trim() || "All brands"],
         ["Status", statusFilter || "All statuses"],
         ["Low stock only", lowStockOnly === "true" ? "Yes" : "No"],
       ]
@@ -689,9 +692,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
       const exportColumns = [
         ["Item Code", (row) => row.itemCode || "—"],
         ["Item Name", (row) => row.itemName || "—"],
-        ["Brand", (row) => row.brand || "—"],
-        ["Model", (row) => row.modelName || "—"],
-        ["Category", (row) => row.category?.name || row.categoryName || (typeof row.category === "string" ? row.category : "—")],
+        ["Category", (row) => formatMainCategoryName(row.category, row.categoryName || "—")],
+        ["Subcategory", (row) => formatSubcategoryName(row.category)],
         ["Unit", (row) => row.unit?.name || row.unitName || (typeof row.unit === "string" ? row.unit : "—")],
         ["Specifications", (row) => formatSpecs(row.attributes)],
         ["Serialized", (row) => (row.isSerialized ? "Yes" : "No")],
@@ -715,7 +717,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           "Category",
           categoryOptions.find((c) => c.id === effectiveCategoryId)?.name || "All categories",
         ],
-        ["Brand", brandFilter.trim() || "All brands"],
         ["Status", statusFilter || "All statuses"],
         ["Low stock only", lowStockOnly === "true" ? "Yes" : "No"],
       ]
@@ -1139,7 +1140,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                 setSearchText(event.target.value)
                 setPage(1)
               }}
-              placeholder="Search item code, item name, brand, or model..."
+              placeholder="Search item code or item name..."
               value={searchText}
             />
           </div>
@@ -1203,7 +1204,9 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
               </option>
               {subcategoryOptions.map((sub) => (
                 <option key={sub.id} value={sub.id}>
-                  {sub.name}
+                  {mainCatFilter
+                    ? formatSubcategoryName(sub)
+                    : `${formatSubcategoryName(sub)}${sub.parent?.name ? ` (${sub.parent.name})` : ""}`}
                 </option>
               ))}
             </select>
@@ -1282,7 +1285,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
             ) : null}
             {subCatFilter ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                Sub: {categoryOptions.find((c) => c.id === subCatFilter)?.name || "Subcategory"}
+                Sub: {formatSubcategoryName(categoryOptions.find((c) => c.id === subCatFilter)) || "Subcategory"}
                 <button onClick={() => { setSubCatFilter(""); setPage(1) }} className="hover:text-red-600">
                   <X size={12} />
                 </button>
@@ -1364,10 +1367,11 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                           {item.itemCode}
                         </p>
                         <p className="mt-1 text-xs text-[var(--color-muted)]">
-                          {[item.brand, item.modelName].filter(Boolean).join(" • ") || "No brand/model"}
-                        </p>
-                        <p className="mt-1 text-xs text-[var(--color-muted)]">
-                          {item.category?.name || "No category"} • {item.unit?.name || "No unit"}
+                          {formatMainCategoryName(item.category)}
+                          {formatSubcategoryName(item.category) !== formatMainCategoryName(item.category)
+                            ? ` › ${formatSubcategoryName(item.category)}`
+                            : ""}{" "}
+                          • {item.unit?.name || "No unit"}
                         </p>
                       </td>
 
@@ -1595,7 +1599,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                     <input
                       className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-800 outline-none transition focus:border-[var(--color-maroon)]"
                       onChange={(event) => setBulkSearchText(event.target.value)}
-                      placeholder="Search code, name, brand…"
+                      placeholder="Search code or name…"
                       value={bulkSearchText}
                     />
                   </div>
@@ -1619,9 +1623,6 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="font-mono text-[10px] font-bold text-slate-500">
                                   {item.itemCode}
-                                </span>
-                                <span className="text-[10px] text-slate-400">
-                                  {[item.brand, item.modelName].filter(Boolean).join(" • ")}
                                 </span>
                               </div>
                             </div>

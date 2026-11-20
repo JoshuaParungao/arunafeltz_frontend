@@ -19,6 +19,11 @@ import {
   X,
 } from "lucide-react"
 
+import {
+  formatMainCategoryName,
+  formatSubcategoryName,
+} from "../../utils/attributeFilter"
+
 function formatNumber(value) {
   const number = Number(value || 0)
   return number.toLocaleString("en-PH")
@@ -275,17 +280,17 @@ export default function InventoryDetailModal({
                       <span className="text-slate-500">Barcode</span>
                       <span className="font-mono font-semibold text-slate-800">{item.barcode || "—"}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Brand</span>
-                      <span className="font-semibold text-slate-800">{item.brand || "—"}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-500 shrink-0">Category</span>
+                      <span className="font-semibold text-slate-800 text-right">
+                        {formatMainCategoryName(item.category, "Uncategorized")}
+                      </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Model</span>
-                      <span className="font-semibold text-slate-800">{item.modelName || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Category</span>
-                      <span className="font-semibold text-slate-800">{item.category?.name || "Uncategorized"}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-500 shrink-0">Subcategory</span>
+                      <span className="font-semibold text-slate-800 text-right">
+                        {formatSubcategoryName(item.category)}
+                      </span>
                     </div>
                   </div>
                 </div>
