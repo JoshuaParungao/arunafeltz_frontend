@@ -66,7 +66,6 @@ export function stripWarrantyTag(description) {
 
 const EMPTY_ITEM_FORM = {
   itemCode: "",
-  barcode: "",
   itemName: "",
   description: "",
   categoryId: "",
@@ -94,7 +93,6 @@ function itemToForm(item) {
 
   return {
     itemCode: item.itemCode || "",
-    barcode: item.barcode || "",
     itemName: item.itemName || "",
     description: stripWarrantyTag(item.description),
     categoryId: item.category?.id || item.categoryId || "",
@@ -179,20 +177,6 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
         <div className="p-5 space-y-4">
           <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
             <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Item Code</p>
-              <p className="mt-1 font-mono font-bold text-slate-900">
-                {item.itemCode || "—"}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Barcode</p>
-              <p className="mt-1 font-mono font-bold text-slate-900">
-                {item.barcode || "No barcode"}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</p>
               <p className="mt-1 font-bold text-slate-900">
                 {formatMainCategoryName(item.category)}
@@ -207,13 +191,6 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
             </div>
 
             <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Branch</p>
-              <p className="mt-1 font-bold text-slate-900">
-                {item.branch?.code || item.branch?.name || "No branch"}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Unit</p>
               <p className="mt-1 font-bold text-slate-900">
                 {item.unit?.name || "No unit"}
@@ -221,9 +198,16 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
             </div>
 
             <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Item Notes</p>
+              <p className="mt-1 font-semibold text-slate-800">
+                {stripWarrantyTag(item.description) || "—"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tracking</p>
               <p className="mt-1 font-bold text-slate-900">
-                {item.isSerialized ? "Serialized" : "Non-serialized"}
+                {item.isSerialized ? "Serialized item (scans serials)" : "Non-serialized"}
               </p>
             </div>
 
@@ -235,9 +219,18 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3.5 space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Selling Price Tiers</p>
-            <div className="grid gap-2 grid-cols-2 sm:grid-cols-5 text-xs">
+          <div className="rounded-xl border border-slate-200 p-3.5 space-y-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Prices &amp; Stock Thresholds</p>
+            <div className="grid gap-2 grid-cols-2 sm:grid-cols-4 text-xs">
+              {canViewCost ? (
+                <div className="rounded-lg bg-amber-50/60 p-2.5 text-center border border-amber-200">
+                  <p className="text-[10px] font-bold text-amber-900">Cost Price</p>
+                  <p className="mt-0.5 font-mono font-black text-amber-950">
+                    {formatMoney(item.costPrice)}
+                  </p>
+                </div>
+              ) : null}
+
               {PRICE_FIELDS.map((priceField) => (
                 <div key={priceField.key} className="rounded-lg bg-slate-50 p-2.5 text-center border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-500">{priceField.label}</p>
@@ -246,17 +239,22 @@ function ItemDetailModal({ canViewCost, item, onClose }) {
                   </p>
                 </div>
               ))}
+
+              <div className="rounded-lg bg-slate-50 p-2.5 text-center border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-500">Minimum Stock</p>
+                <p className="mt-0.5 font-mono font-bold text-slate-900">
+                  {numberValue(item.minimumStock)}
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-slate-50 p-2.5 text-center border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-500">Reorder Level</p>
+                <p className="mt-0.5 font-mono font-bold text-slate-900">
+                  {numberValue(item.reorderLevel)}
+                </p>
+              </div>
             </div>
           </div>
-
-          {canViewCost ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-xs flex justify-between items-center">
-              <span className="font-bold uppercase tracking-wider text-amber-900">Cost Price</span>
-              <span className="font-mono font-black text-amber-950 text-sm">
-                {formatMoney(item.costPrice)}
-              </span>
-            </div>
-          ) : null}
         </div>
 
         <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50/75 px-5 py-3">
@@ -1509,13 +1507,13 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
       const exportColumns = [
         ["Item Code", (row) => row.itemCode || "—"],
         ["Item Name", (row) => row.itemName || "—"],
-        ["Barcode", (row) => row.barcode || "—"],
         ["Category", (row) => formatMainCategoryName(row.category, row.categoryName || "—")],
         ["Subcategory", (row) => formatSubcategoryName(row.category)],
         ["Unit", (row) => row.unit?.name || row.unitName || "—"],
+        ["Item Notes", (row) => stripWarrantyTag(row.description) || "—"],
         ["Serialized", (row) => (row.isSerialized ? "Yes" : "No")],
         ["Warranty", (row) => parseItemWarranty(row)],
-        ["Min Stock", (row) => Number(row.minStock || 0)],
+        ["Min Stock", (row) => Number(row.minimumStock ?? row.minStock ?? 0)],
         ["Reorder Level", (row) => Number(row.reorderLevel || 0)],
         ["Cost Price", (row) => Number(row.costPrice || 0)],
         ["Price 1", (row) => Number(row.price1 || 0)],
@@ -1627,7 +1625,6 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
         : {}),
       itemName: itemForm.itemName.trim(),
       description: packagedDesc,
-      barcode: itemForm.barcode.trim() || null,
       categoryId: itemForm.categoryId,
       unitId: itemForm.unitId,
       isSerialized: Boolean(itemForm.isSerialized),
@@ -1825,7 +1822,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
                 setSearchText(event.target.value)
                 setPage(1)
               }}
-              placeholder="Scan barcode / Search Item Code / Product Name"
+              placeholder="Search Item Code or Product Name..."
               value={searchText}
             />
           </div>

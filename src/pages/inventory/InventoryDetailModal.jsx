@@ -178,11 +178,6 @@ export default function InventoryDetailModal({
                 <span className="font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px]">
                   {item.itemCode}
                 </span>
-                {item.barcode ? (
-                  <span className="font-mono text-slate-400 text-[11px]">
-                    Barcode: {item.barcode}
-                  </span>
-                ) : null}
                 <span className="text-slate-300">•</span>
                 <span className="rounded-md bg-purple-50 border border-purple-200/70 text-purple-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                   {isSerialized ? "Serialized" : "Standard Product"}
@@ -276,10 +271,6 @@ export default function InventoryDetailModal({
                       <span className="text-slate-500">Item Code</span>
                       <span className="font-mono font-bold text-slate-900">{item.itemCode}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Barcode</span>
-                      <span className="font-mono font-semibold text-slate-800">{item.barcode || "—"}</span>
-                    </div>
                     <div className="flex justify-between gap-3">
                       <span className="text-slate-500 shrink-0">Category</span>
                       <span className="font-semibold text-slate-800 text-right">
@@ -290,6 +281,12 @@ export default function InventoryDetailModal({
                       <span className="text-slate-500 shrink-0">Subcategory</span>
                       <span className="font-semibold text-slate-800 text-right">
                         {formatSubcategoryName(item.category)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-500 shrink-0">Item Notes</span>
+                      <span className="font-semibold text-slate-800 text-right">
+                        {item.description ? item.description.replace(/\[WARRANTY:\s*[^\]]+\]/gi, "").trim() || "—" : "—"}
                       </span>
                     </div>
                   </div>
