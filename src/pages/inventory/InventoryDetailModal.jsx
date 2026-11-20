@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
   ArrowDownRight,
@@ -8,11 +8,13 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  Edit3,
   Hash,
   History,
   Layers,
   LoaderCircle,
   Package,
+  Plus,
   Search,
   Sliders,
   Tag,
@@ -23,6 +25,10 @@ import {
   formatMainCategoryName,
   formatSubcategoryName,
 } from "../../utils/attributeFilter"
+import {
+  createInventoryBatch,
+  updateInventoryBatchCode,
+} from "../../features/inventory/inventory.api"
 
 function formatNumber(value) {
   const number = Number(value || 0)
@@ -114,16 +120,118 @@ export default function InventoryDetailModal({
   canViewCost = false,
   onAdjust,
   onClose,
+  onBatchUpdated,
 }) {
   const [activeTab, setActiveTab] = useState("overview")
   const [serialSearch, setSerialSearch] = useState("")
   const [copiedSerial, setCopiedSerial] = useState("")
+
+  const [localBatches, setLocalBatches] = useState(batches)
+  const [editingBatchId, setEditingBatchId] = useState(null)
+  const [editBatchCode, setEditBatchCode] = useState("")
+  const [isSavingBatch, setIsSavingBatch] = useState(false)
+  const [isCreatingBatch, setIsCreatingBatch] = useState(false)
+  const [newBatchCode, setNewBatchCode] = useState("")
+  const [newBatchRemarks, setNewBatchRemarks] = useState("")
+  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false)
+  const [batchError, setBatchError] = useState("")
+  const [batchSuccess, setBatchSuccess] = useState("")
+
+  useEffect(() => {
+    setLocalBatches(batches)
+  }, [batches])
 
   if (!item) return null
 
   const isSerialized = Boolean(item.isSerialized)
   const availableQty = Number(item.quantityAvailable || 0)
   const totalInQty = Number(item.quantityIn || 0)
+
+  const handleStartEdit = (b) => {
+    setEditingBatchId(b.id)
+    setEditBatchCode(b.batchCode)
+    setBatchError("")
+    setBatchSuccess("")
+  }
+
+  const handleCancelEdit = () => {
+    setEditingBatchId(null)
+    setEditBatchCode("")
+  }
+
+  const handleSaveBatch = async (batchId) => {
+    const trimmed = editBatchCode.trim()
+    if (!trimmed) {
+      setBatchError("Batch code cannot be empty.")
+      return
+    }
+    setIsSavingBatch(true)
+    setBatchError("")
+    setBatchSuccess("")
+    try {
+      const res = await updateInventoryBatchCode(batchId, { batchCode: trimmed })
+      const updatedData = res?.data || { id: batchId, batchCode: trimmed }
+      setLocalBatches((prev) =>
+        prev.map((b) => (b.id === batchId ? { ...b, batchCode: trimmed, ...updatedData } : b))
+      )
+      setEditingBatchId(null)
+      setBatchSuccess("Batch code updated successfully.")
+      onBatchUpdated?.()
+      setTimeout(() => setBatchSuccess(""), 3500)
+    } catch (err) {
+      setBatchError(
+        err?.response?.data?.message ||
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Failed to update batch code."
+      )
+    } finally {
+      setIsSavingBatch(false)
+    }
+  }
+
+  const handleCreateBatch = async (e) => {
+    e?.preventDefault()
+    const trimmed = newBatchCode.trim()
+    if (!trimmed) {
+      setBatchError("Please enter a batch code.")
+      return
+    }
+    setIsSubmittingBatch(true)
+    setBatchError("")
+    setBatchSuccess("")
+    try {
+      const res = await createInventoryBatch({
+        itemId: item.id,
+        branchId: item.branch?.id,
+        batchCode: trimmed,
+        remarks: newBatchRemarks.trim() || undefined,
+      })
+      const created = res?.data || {
+        id: `temp-${Date.now()}`,
+        batchCode: trimmed,
+        quantityAvailable: 0,
+        quantityIn: 0,
+        costPrice: 0,
+      }
+      setLocalBatches((prev) => [created, ...prev])
+      setIsCreatingBatch(false)
+      setNewBatchCode("")
+      setNewBatchRemarks("")
+      setBatchSuccess(`Batch "${trimmed}" created successfully.`)
+      onBatchUpdated?.()
+      setTimeout(() => setBatchSuccess(""), 3500)
+    } catch (err) {
+      setBatchError(
+        err?.response?.data?.message ||
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Failed to create batch."
+      )
+    } finally {
+      setIsSubmittingBatch(false)
+    }
+  }
 
   const filteredSerials = useMemo(() => {
     if (!serialSearch.trim()) return availableSerials
@@ -150,7 +258,7 @@ export default function InventoryDetailModal({
 
   const tabs = [
     { id: "overview", label: "Overview", icon: Package },
-    { id: "batches", label: `Batches (${batches.length})`, icon: Layers },
+    { id: "batches", label: `Batches (${localBatches.length})`, icon: Layers },
     ...(isSerialized ? [{ id: "serials", label: `Serials (${availableSerials.length})`, icon: Hash }] : []),
     { id: "movements", label: `Movements (${stockMovements.length})`, icon: History },
   ]
@@ -219,7 +327,7 @@ export default function InventoryDetailModal({
           <div className="rounded-xl bg-white border border-slate-200/80 p-2.5 shadow-2xs">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Batches</p>
             <p className="mt-0.5 text-base font-black text-slate-800">
-              {formatNumber(batches.length)}
+              {formatNumber(localBatches.length)}
             </p>
           </div>
 
@@ -326,10 +434,126 @@ export default function InventoryDetailModal({
 
           {/* TAB 2: BATCHES */}
           {activeTab === "batches" ? (
-            <div className="space-y-3">
-              {batches.length > 0 ? (
+            <div className="space-y-3.5">
+              {/* Header & Actions Strip */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800">
+                    Inventory Batches ({localBatches.length})
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Track and edit batch numbers for this product.
+                  </p>
+                </div>
+                {!isCreatingBatch ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingBatch(true)
+                      setBatchError("")
+                      setBatchSuccess("")
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shrink-0"
+                  >
+                    <Plus size={13} className="text-[var(--color-maroon)]" />
+                    Setup / Add Batch
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Status messages */}
+              {batchError ? (
+                <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{batchError}</span>
+                </div>
+              ) : null}
+
+              {batchSuccess ? (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700">
+                  <CheckCircle2 size={14} className="shrink-0" />
+                  <span>{batchSuccess}</span>
+                </div>
+              ) : null}
+
+              {/* Create Batch Card */}
+              {isCreatingBatch ? (
+                <form
+                  onSubmit={handleCreateBatch}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-[var(--color-maroon)]">
+                      Setup New Batch Code
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingBatch(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Batch Code <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newBatchCode}
+                        onChange={(e) => setNewBatchCode(e.target.value)}
+                        placeholder="e.g. BAT-2026-001 or custom batch..."
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)]"
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Remarks (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={newBatchRemarks}
+                        onChange={(e) => setNewBatchRemarks(e.target.value)}
+                        placeholder="Optional remarks..."
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingBatch(false)}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingBatch}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] disabled:opacity-50"
+                    >
+                      {isSubmittingBatch ? (
+                        <>
+                          <LoaderCircle size={13} className="animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={13} />
+                          Save Batch
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+
+              {/* Table or Empty State */}
+              {localBatches.length > 0 ? (
                 <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                  <table className="w-full min-w-[500px] text-left text-xs">
+                  <table className="w-full min-w-[550px] text-left text-xs">
                     <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       <tr>
                         <th className="px-4 py-3">Batch Code</th>
@@ -337,30 +561,82 @@ export default function InventoryDetailModal({
                         <th className="px-4 py-3 text-right">Received Qty</th>
                         {canViewCost ? <th className="px-4 py-3 text-right">Cost Price</th> : null}
                         <th className="px-4 py-3 text-right">Expiry Date</th>
+                        <th className="px-4 py-3 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {batches.map((batch) => (
-                        <tr key={batch.id} className="hover:bg-slate-50/50 transition">
-                          <td className="px-4 py-3">
-                            <span className="font-mono font-bold text-slate-900">{batch.batchCode}</span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-bold text-[var(--color-maroon)]">
-                            {formatNumber(batch.quantityAvailable)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-slate-600">
-                            {formatNumber(batch.quantityIn || batch.quantityReceived)}
-                          </td>
-                          {canViewCost ? (
-                            <td className="px-4 py-3 text-right font-mono text-slate-700">
-                              {formatMoney(batch.costPrice)}
+                      {localBatches.map((batch) => {
+                        const isEditing = editingBatchId === batch.id
+                        return (
+                          <tr key={batch.id} className="hover:bg-slate-50/50 transition">
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={editBatchCode}
+                                    onChange={(e) => setEditBatchCode(e.target.value)}
+                                    className="rounded-lg border border-[var(--color-maroon)] bg-white px-2 py-1 text-xs font-mono font-bold text-slate-900 outline-none w-36 sm:w-44"
+                                    placeholder="Type batch code..."
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleSaveBatch(batch.id)
+                                      if (e.key === "Escape") handleCancelEdit()
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={isSavingBatch}
+                                    onClick={() => handleSaveBatch(batch.id)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-maroon)] px-2 py-1 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
+                                  >
+                                    <Check size={12} />
+                                    {isSavingBatch ? "Saving..." : "Save"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelEdit}
+                                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-slate-900">{batch.batchCode}</span>
+                                </div>
+                              )}
                             </td>
-                          ) : null}
-                          <td className="px-4 py-3 text-right text-slate-500">
-                            {batch.expiryDate ? dateOnly(batch.expiryDate) : "—"}
-                          </td>
-                        </tr>
-                      ))}
+                            <td className="px-4 py-3 text-right font-bold text-[var(--color-maroon)]">
+                              {formatNumber(batch.quantityAvailable)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-slate-600">
+                              {formatNumber(batch.quantityIn || batch.quantityReceived)}
+                            </td>
+                            {canViewCost ? (
+                              <td className="px-4 py-3 text-right font-mono text-slate-700">
+                                {formatMoney(batch.costPrice || batch.unitCost)}
+                              </td>
+                            ) : null}
+                            <td className="px-4 py-3 text-right text-slate-500">
+                              {batch.expiryDate ? dateOnly(batch.expiryDate) : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {!isEditing ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEdit(batch)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] transition shadow-2xs"
+                                  title="Edit batch code"
+                                >
+                                  <Edit3 size={11} />
+                                  Edit
+                                </button>
+                              ) : null}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -368,7 +644,21 @@ export default function InventoryDetailModal({
                 <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-xs">
                   <Layers className="mx-auto text-slate-300 mb-2" size={28} />
                   <p className="font-bold text-slate-700">No active batches</p>
-                  <p className="text-slate-400 mt-0.5">Batches are generated when stock is received or stocked in.</p>
+                  <p className="text-slate-400 mt-0.5 max-w-sm mx-auto">
+                    Batches are generated when stock is received or stocked in. You can also setup a batch code in advance.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingBatch(true)
+                      setBatchError("")
+                      setBatchSuccess("")
+                    }}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition"
+                  >
+                    <Plus size={13} />
+                    Setup Initial Batch Code
+                  </button>
                 </div>
               )}
             </div>

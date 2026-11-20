@@ -1096,6 +1096,10 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
           canViewCost={canViewInventoryCosts}
           onAdjust={() => setAdjustMode("ADJUST")}
           onClose={closeAdjustModal}
+          onBatchUpdated={() => {
+            openAdjustModal(adjustItem, "VIEW")
+            loadInventory()
+          }}
         />
       ) : null}
 

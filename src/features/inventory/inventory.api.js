@@ -50,3 +50,8 @@ export async function updateInventoryBatchCode(batchId, payload) {
   return response.data
 }
 
+export async function createInventoryBatch(payload) {
+  const response = await apiClient.post("/inventory/batches", payload)
+  return response.data
+}
+
