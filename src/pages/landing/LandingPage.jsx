@@ -92,7 +92,7 @@ export default function LandingPage({ onOpenLogin }) {
 
   return (
     <main
-      className="relative flex min-h-svh w-full flex-col items-center justify-center overflow-x-hidden bg-gradient-to-b from-slate-950 via-[#0d0406] to-slate-950 p-2 sm:p-4 select-none"
+      className="relative flex min-h-svh w-full flex-col items-center justify-center overflow-x-hidden bg-gradient-to-b from-slate-950 via-[#0d0406] to-slate-950 p-2 sm:p-4 select-none touch-manipulation"
       onTouchCancel={handleTouchCancel}
       onTouchEnd={handleTouchEnd}
       onTouchStart={handleTouchStart}
