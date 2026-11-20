@@ -188,7 +188,25 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
   const canOpenStockRequest = Boolean(selectedBranch?.id && requestSourceOptions.length > 0)
   const canAdjustStock = ["SUPER_OWNER", "BRANCH_OWNER", "ADMIN", "CASHIER", "TECHNICIAN"].includes(user?.role)
   const canViewInventoryCosts = ["SUPER_OWNER", "BRANCH_OWNER", "ADMIN"].includes(user?.role)
-  const filteredBulkItems = requestCatalogItems
+  const filteredBulkItems = useMemo(() => {
+    const inStockItems = requestCatalogItems.filter(
+      (item) => Number(item.quantityAvailable || 0) > 0
+    )
+    const tokens = bulkSearchText.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return inStockItems
+    return inStockItems.filter((item) => {
+      const haystack = [
+        item.itemCode,
+        item.itemName,
+        item.category?.name,
+        item.category?.parent?.name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+      return tokens.every((token) => haystack.includes(token))
+    })
+  }, [requestCatalogItems, bulkSearchText])
 
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
@@ -301,7 +319,7 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
       const response = await getRequestableStock({
         fromBranchId: requestSourceBranchId,
         search: bulkSearchText.trim() || undefined,
-        limit: 100,
+        limit: 500,
       })
       const result = response?.data || {}
       setRequestCatalogItems(Array.isArray(result.data) ? result.data : [])
