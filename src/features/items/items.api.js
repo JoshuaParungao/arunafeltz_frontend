@@ -29,3 +29,8 @@ export async function createItem(payload) {
   return response.data
 }
 
+export async function restoreEditsFromAudit() {
+  const response = await apiClient.post("/items/restore-edits-from-audit")
+  return response.data
+}
+

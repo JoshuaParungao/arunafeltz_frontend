@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, RotateCcw } from "lucide-react"
 
 import { getAuditLogById, getAuditLogs } from "../../features/audit-logs/auditLogs.api"
 import { getBranches } from "../../features/branches/branches.api"
+import { restoreEditsFromAudit } from "../../features/items/items.api"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
@@ -132,6 +133,8 @@ export default function AuditLogsPage({ selectedBranch, user }) {
   const [selectedLog, setSelectedLog] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
+  const [isRestoring, setIsRestoring] = useState(false)
 
   useEffect(() => {
     if (isSuperOwner) {
@@ -283,6 +286,25 @@ export default function AuditLogsPage({ selectedBranch, user }) {
     }
   }
 
+  const handleRestoreItemEdits = async () => {
+    if (!window.confirm("Do you want to re-apply all item updates recorded in the Audit Trail?")) {
+      return
+    }
+    setIsRestoring(true)
+    setSuccessMessage("")
+    setErrorMessage("")
+    try {
+      const res = await restoreEditsFromAudit()
+      const restored = res?.data?.restoredCount ?? res?.message
+      setSuccessMessage(`Successfully restored ${restored} item updates from the Audit Trail!`)
+      loadLogs()
+    } catch (err) {
+      setErrorMessage(err?.response?.data?.message || err.message || "Failed to restore item edits.")
+    } finally {
+      setIsRestoring(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       <section className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-card">
@@ -297,6 +319,18 @@ export default function AuditLogsPage({ selectedBranch, user }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {isSuperOwner ? (
+              <button
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white hover:opacity-90 transition disabled:opacity-50 shadow-xs"
+                disabled={isRestoring}
+                onClick={handleRestoreItemEdits}
+                title="Re-apply product edits from the audit trail"
+                type="button"
+              >
+                <RotateCcw className={isRestoring ? "animate-spin" : ""} size={14} />
+                {isRestoring ? "Restoring..." : "Restore Item Edits from Audit"}
+              </button>
+            ) : null}
             <button
               className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-xs font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-soft)] transition disabled:opacity-50"
               disabled={isLoading}
@@ -384,6 +418,12 @@ export default function AuditLogsPage({ selectedBranch, user }) {
           value={dateTo}
         />
       </section>
+
+      {successMessage ? (
+        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-4 text-sm font-bold text-emerald-700 dark:text-emerald-300">
+          {successMessage}
+        </div>
+      ) : null}
 
       {errorMessage ? (
         <div className="rounded-2xl bg-rose-500/10 border border-rose-500/30 p-4 text-sm font-bold text-rose-700 dark:text-rose-300">
