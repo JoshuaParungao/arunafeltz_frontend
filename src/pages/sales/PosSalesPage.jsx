@@ -1187,12 +1187,12 @@ function SaleDetailDialog({
 
                     <span className="font-bold text-slate-600">Address:</span>
                     <span className="col-span-2">
-                      {(isCheckoutPreview ? previewCustomerAddress : sale.customer?.address) || "—"}
+                      {(isCheckoutPreview ? previewCustomerAddress : (sale.customer?.address || sale.customerAddressSnapshot || sale.customerAddress || sale.quotation?.customer?.address)) || "—"}
                     </span>
 
                     <span className="font-bold text-slate-600">Contact No.:</span>
                     <span className="col-span-2">
-                      {(isCheckoutPreview ? previewCustomerPhone : (sale.customer?.mobileNumber || sale.customer?.email)) || "—"}
+                      {(isCheckoutPreview ? previewCustomerPhone : (sale.customer?.mobileNumber || sale.customer?.email || sale.customer?.contactNo || sale.customerPhone || sale.customerContactSnapshot || sale.quotation?.customer?.mobileNumber)) || "—"}
                     </span>
 
                     <span className="font-bold text-slate-600">Salesman:</span>

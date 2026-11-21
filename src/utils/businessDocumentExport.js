@@ -1300,16 +1300,34 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
         .toUpperCase()
     : "-"
 
+  const customerAddress =
+    customer.address ||
+    customer.companyAddress ||
+    sale?.customerAddress ||
+    sale?.customerAddressSnapshot ||
+    quotation?.customer?.address ||
+    context?.customerAddress ||
+    "-"
+
+  const customerContact =
+    customer.mobileNumber ||
+    customer.email ||
+    customer.contactNo ||
+    sale?.customerPhone ||
+    sale?.customerContactSnapshot ||
+    quotation?.customer?.mobileNumber ||
+    "-"
+
   const metaRows = [
     ["Date:", saleDateFormatted],
     [
       "Customer Name:",
-      sanitizeForPdf(customer.fullName || "Walk-in customer").toUpperCase(),
+      sanitizeForPdf(customer.fullName || sale?.customerNameSnapshot || "Walk-in customer").toUpperCase(),
     ],
-    ["Address:", sanitizeForPdf(customer.address || "-")],
+    ["Address:", sanitizeForPdf(customerAddress)],
     [
       "Contact No.:",
-      sanitizeForPdf(customer.mobileNumber || customer.email || "-"),
+      sanitizeForPdf(customerContact),
     ],
     [
       "Salesman:",

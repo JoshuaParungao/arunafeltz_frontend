@@ -81,11 +81,12 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
   }, [onClose])
 
   useEffect(() => {
-    if (!initialSale?.items || initialSale.items.length === 0) {
-      if (targetSaleId) {
+    const saleId = targetSaleId || initialSale?.id
+    if (!initialSale?.items || initialSale.items.length === 0 || (!initialSale?.customer?.address && saleId)) {
+      if (saleId) {
         let active = true
         setIsLoading(true)
-        getSaleById(targetSaleId)
+        getSaleById(saleId)
           .then((res) => {
             if (active) {
               setSale(res?.data || initialSale)
@@ -357,12 +358,12 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
 
                   <span className="font-bold text-slate-600">Address:</span>
                   <span className="col-span-2">
-                    {sale.customer?.address || "—"}
+                    {sale.customer?.address || sale.customerAddressSnapshot || sale.customerAddress || sale.quotation?.customer?.address || "—"}
                   </span>
 
                   <span className="font-bold text-slate-600">Contact No.:</span>
                   <span className="col-span-2">
-                    {sale.customer?.mobileNumber || sale.customer?.email || "—"}
+                    {sale.customer?.mobileNumber || sale.customer?.email || sale.customer?.contactNo || sale.customerPhone || sale.customerContactSnapshot || sale.quotation?.customer?.mobileNumber || "—"}
                   </span>
 
                   <span className="font-bold text-slate-600">Salesman:</span>
