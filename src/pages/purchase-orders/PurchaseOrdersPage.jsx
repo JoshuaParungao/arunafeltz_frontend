@@ -72,30 +72,88 @@ function toDateInput(value) {
 }
 
 function PurchaseOrderItemLookup({
-  catalogItems,
+  branchId,
+  catalogItems = [],
   itemId,
   onRepeat,
   onSelect,
 }) {
-  const selectedItem = catalogItems.find((item) => item.id === itemId)
+  const [remoteResults, setRemoteResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+
+  const allKnownItems = useMemo(() => {
+    const map = new Map()
+    for (const item of catalogItems || []) {
+      if (item?.id) map.set(item.id, item)
+    }
+    for (const item of remoteResults || []) {
+      if (item?.id) map.set(item.id, item)
+    }
+    return Array.from(map.values())
+  }, [catalogItems, remoteResults])
+
+  const selectedItem = useMemo(() => {
+    return allKnownItems.find((item) => item.id === itemId)
+  }, [allKnownItems, itemId])
 
   const getItemLabel = (item) => {
     if (!item) return ""
-
     return `${item.itemCode} · ${item.itemName}`
   }
 
   const [query, setQuery] = useState(() => getItemLabel(selectedItem))
   const [isOpen, setIsOpen] = useState(false)
 
+  useEffect(() => {
+    if (selectedItem) {
+      setQuery(getItemLabel(selectedItem))
+    } else if (!itemId) {
+      setQuery("")
+    }
+  }, [selectedItem, itemId])
+
   const normalizedQuery = query.trim().toLowerCase()
+
+  useEffect(() => {
+    const trimmed = query.trim()
+    if (!trimmed || (selectedItem && getItemLabel(selectedItem).toLowerCase() === trimmed.toLowerCase())) {
+      setRemoteResults([])
+      return
+    }
+
+    let active = true
+    const timer = window.setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const response = await getItems({
+          ...(branchId ? { branchId } : {}),
+          search: trimmed,
+          status: "ACTIVE",
+          limit: 25,
+        })
+        if (active) {
+          const list = response?.data?.items || response?.data?.data || []
+          setRemoteResults(Array.isArray(list) ? list : [])
+        }
+      } catch (err) {
+        // preserve local results on network failure
+      } finally {
+        if (active) setIsSearching(false)
+      }
+    }, 250)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [query, branchId, selectedItem])
 
   const matches = useMemo(() => {
     if (!normalizedQuery) {
-      return catalogItems.slice(0, 12)
+      return allKnownItems.slice(0, 15)
     }
 
-    return catalogItems
+    return allKnownItems
       .filter((item) => {
         const searchableValues = [
           item.itemCode,
@@ -111,27 +169,49 @@ function PurchaseOrderItemLookup({
             .includes(normalizedQuery),
         )
       })
-      .slice(0, 12)
-  }, [catalogItems, normalizedQuery])
+      .slice(0, 15)
+  }, [allKnownItems, normalizedQuery])
 
   const selectItem = (item) => {
     if (!item) return
 
     setQuery(getItemLabel(item))
     setIsOpen(false)
-    onSelect(item.id)
+    onSelect(item.id, item)
   }
 
-  const submitLookup = () => {
+  const submitLookup = async () => {
     const rawValue = query.trim()
 
     if (!rawValue) return
 
-    const exactItem = catalogItems.find(
+    let exactItem = allKnownItems.find(
       (item) =>
         String(item.barcode || "").toLowerCase() === rawValue.toLowerCase() ||
         String(item.itemCode || "").toLowerCase() === rawValue.toLowerCase(),
     )
+
+    if (!exactItem) {
+      try {
+        setIsSearching(true)
+        const response = await getItems({
+          ...(branchId ? { branchId } : {}),
+          search: rawValue,
+          status: "ACTIVE",
+          limit: 10,
+        })
+        const items = response?.data?.items || response?.data?.data || []
+        exactItem = items.find(
+          (item) =>
+            String(item.barcode || "").toLowerCase() === rawValue.toLowerCase() ||
+            String(item.itemCode || "").toLowerCase() === rawValue.toLowerCase(),
+        ) || items[0]
+      } catch (err) {
+        // ignore
+      } finally {
+        setIsSearching(false)
+      }
+    }
 
     if (exactItem) {
       if (exactItem.id === itemId) {
@@ -192,6 +272,12 @@ function PurchaseOrderItemLookup({
 
       {isOpen ? (
         <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {isSearching ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-[var(--color-maroon)] bg-amber-50 rounded-md mb-1">
+              <span className="size-1.5 rounded-full bg-[var(--color-maroon)] animate-ping" />
+              Searching database...
+            </div>
+          ) : null}
           {matches.length ? (
             matches.map((item) => (
               <button
@@ -232,7 +318,7 @@ function PurchaseOrderItemLookup({
           ) : (
             <div className="p-3">
               <p className="text-xs font-bold text-slate-800">
-                No matching catalog item
+                {isSearching ? "Searching..." : "No matching catalog item"}
               </p>
 
               <p className="mt-0.5 text-[11px] leading-4 text-slate-500">
@@ -398,6 +484,7 @@ function SupplierAutocompleteInput({
 }
 
 function PurchaseOrderForm({
+  branchId,
   initial,
   suppliers,
   catalogItems,
@@ -406,6 +493,7 @@ function PurchaseOrderForm({
   onSave,
 }) {
   const isLocked = Boolean(initial?.id && initial?.status !== "DRAFT")
+  const effectiveBranchId = branchId || initial?.branchId || ""
   const initialSupplier =
     suppliers.find((s) => s.id === initial?.supplierId) || initial?.supplier
 
@@ -505,10 +593,12 @@ function PurchaseOrderForm({
     }))
   }
 
-  const chooseItem = (index, itemId) => {
-    const item = catalogItems.find(
-      (entry) => entry.id === itemId,
-    )
+  const chooseItem = (index, itemId, chosenItem) => {
+    const item =
+      chosenItem ||
+      catalogItems.find(
+        (entry) => entry.id === itemId,
+      )
 
     updateLine(index, {
       itemId,
@@ -746,13 +836,14 @@ function PurchaseOrderForm({
               >
                 <div className="grid items-end gap-2.5 lg:grid-cols-[1.5fr_1.2fr_90px_110px_110px_38px]">
                   <PurchaseOrderItemLookup
+                    branchId={effectiveBranchId}
                     catalogItems={catalogItems}
                     itemId={line.itemId}
                     onRepeat={() =>
                       repeatItemScan(index)
                     }
-                    onSelect={(itemId) =>
-                      chooseItem(index, itemId)
+                    onSelect={(itemId, item) =>
+                      chooseItem(index, itemId, item)
                     }
                   />
 
@@ -1347,7 +1438,7 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
               </div>
               <button className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" onClick={() => setEditing(null)} type="button"><X size={16} /></button>
             </div>
-            <PurchaseOrderForm catalogItems={catalogItems} initial={editing} isSaving={isSaving} onClose={() => setEditing(null)} onSave={save} suppliers={suppliers} />
+            <PurchaseOrderForm branchId={branchId} catalogItems={catalogItems} initial={editing} isSaving={isSaving} onClose={() => setEditing(null)} onSave={save} suppliers={suppliers} />
           </section>
         </div>
       ) : null}
