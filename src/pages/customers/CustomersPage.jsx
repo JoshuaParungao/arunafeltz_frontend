@@ -413,8 +413,8 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
               <FormField label="Address">
                 <textarea
                   className={`${inputClass} min-h-[50px] h-[50px] resize-none`}
-                  maxLength={50}
-                  onChange={(event) => updateField("address", event.target.value.slice(0, 50))}
+                  maxLength={300}
+                  onChange={(event) => updateField("address", event.target.value.slice(0, 300))}
                   placeholder="Customer address"
                   value={form.address}
                 />

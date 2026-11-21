@@ -1226,8 +1226,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Address</span>
                   <input
                     className="mt-0.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
-                    maxLength={50}
-                    onChange={(e) => setCustomerAddress(e.target.value.slice(0, 50))}
+                    maxLength={300}
+                    onChange={(e) => setCustomerAddress(e.target.value.slice(0, 300))}
                     placeholder="City / Municipality"
                     value={customerAddress}
                   />

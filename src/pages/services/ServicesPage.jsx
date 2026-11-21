@@ -4361,11 +4361,11 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                   <Field label="Customer Address">
                     <input
                       className={FIELD_CLASS}
-                      maxLength={50}
+                      maxLength={300}
                       onChange={(event) =>
                         setCreateForm((form) => ({
                           ...form,
-                          customerAddressSnapshot: event.target.value.slice(0, 50),
+                          customerAddressSnapshot: event.target.value.slice(0, 300),
                         }))
                       }
                       placeholder="Barangay, City, Province"
