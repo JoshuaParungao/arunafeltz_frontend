@@ -174,7 +174,7 @@ export const APP_MODULES = [
   },
   {
     key: "audit-logs",
-    label: "Activity Audit Logs",
+    label: "Audit Trail / Activity Logs",
     group: "Reports & Audit",
     roles: OWNER_ADMIN_ROLES,
   },

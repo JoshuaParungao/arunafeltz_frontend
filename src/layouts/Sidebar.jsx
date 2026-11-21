@@ -91,7 +91,7 @@ function Sidebar({
       "Inventory & Purchasing": true,
       "Finance & Credits": false,
       "File Maintenance": false,
-      "Reports & Audit": false,
+      "Reports & Audit": true,
       ...(activeGroup ? { [activeGroup]: true } : {}),
     }
   })
