@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { AlertCircle, Download, LoaderCircle, Printer, X } from "lucide-react"
 import { getSaleById } from "../../features/sales/sales.api"
 import { exportWarrantyReceiptPdf, groupReceiptItems, printWarrantyReceipt } from "../../utils/businessDocumentExport"
+import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 
 function formatMoney(value) {
   const amount = Number(value || 0)
@@ -107,8 +108,8 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
     }
   }, [initialSale, targetSaleId])
 
-  const branchAddress = sale?.branch?.address || sale?.branch?.name || "Main Branch"
-  const branchContact = sale?.branch?.contactNo || "—"
+  const branchAddress = getBranchAddress(sale?.branch)
+  const branchContact = getBranchContact(sale?.branch)
 
   const isCredit = Boolean(sale?.creditAccount || sale?.receivable || (sale?.items || []).some((item) => item.baseUnitPriceSnapshot != null))
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { FileText, Printer, X } from "lucide-react"
 import { printBusinessHtml } from "../../utils/businessDocumentExport"
+import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 
 function formatDate(dateValue, withTime = true) {
   if (!dateValue) return "—"
@@ -58,16 +59,16 @@ function renderSlipHtml(transfer, copyLabel) {
           <div class="box-title">ISSUING BRANCH (LENDER)</div>
           <div class="detail-row"><span class="lbl">Branch Name:</span> <span class="val font-bold">${fromBranch.name || "—"}</span></div>
           <div class="detail-row"><span class="lbl">Branch Code:</span> <span class="val font-mono">${fromBranch.code || "—"}</span></div>
-          <div class="detail-row"><span class="lbl">Address:</span> <span class="val">${fromBranch.address || "—"}</span></div>
-          <div class="detail-row"><span class="lbl">Contact No.:</span> <span class="val">${fromBranch.contactNo || "—"}</span></div>
+          <div class="detail-row"><span class="lbl">Address:</span> <span class="val">${getBranchAddress(fromBranch)}</span></div>
+          <div class="detail-row"><span class="lbl">Contact No.:</span> <span class="val">${getBranchContact(fromBranch)}</span></div>
         </div>
 
         <div class="detail-box">
           <div class="box-title">RECEIVING BRANCH (BORROWER)</div>
           <div class="detail-row"><span class="lbl">Branch Name:</span> <span class="val font-bold">${toBranch.name || "—"}</span></div>
           <div class="detail-row"><span class="lbl">Branch Code:</span> <span class="val font-mono">${toBranch.code || "—"}</span></div>
-          <div class="detail-row"><span class="lbl">Address:</span> <span class="val">${toBranch.address || "—"}</span></div>
-          <div class="detail-row"><span class="lbl">Contact No.:</span> <span class="val">${toBranch.contactNo || "—"}</span></div>
+          <div class="detail-row"><span class="lbl">Address:</span> <span class="val">${getBranchAddress(toBranch)}</span></div>
+          <div class="detail-row"><span class="lbl">Contact No.:</span> <span class="val">${getBranchContact(toBranch)}</span></div>
         </div>
       </div>
 

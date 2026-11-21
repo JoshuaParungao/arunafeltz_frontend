@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 
 import { USER_ROLES, getRoleLabel } from "../../constants/roles"
+import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 import { createCustomer, getCustomers, updateCustomerById } from "../../features/customers/customers.api"
 import {
   getInventoryBatches,
@@ -799,10 +800,8 @@ function SaleDetailDialog({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [onClose])
 
-  const branchAddress =
-    sale?.branch?.address ||
-    "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
-  const branchContact = sale?.branch?.contactNo || "0961-873-5798 / 045-404-0673"
+  const branchAddress = getBranchAddress(sale?.branch)
+  const branchContact = getBranchContact(sale?.branch)
 
   const paymentType = useMemo(() => {
     if (sale?.creditAccount) {

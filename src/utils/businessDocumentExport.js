@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
 import { parseQuotationSettlement } from "./quotationSettlement"
 import { formatMainCategoryName, formatSubcategoryName } from "./attributeFilter"
+import { getBranchAddress, getBranchContact } from "../constants/branchDefaults"
 
 const MAROON = [122, 31, 43]
 const DARK = [31, 41, 55]
@@ -1278,16 +1279,12 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.setTextColor(50, 50, 50)
-  const branchAddress = sanitizeForPdf(
-    branch?.address || branch?.name || "Main Branch"
-  )
+  const branchAddress = sanitizeForPdf(getBranchAddress(branch))
   const addressLines = doc.splitTextToSize(branchAddress, leftColWidth)
   doc.text(addressLines, leftColX, leftY)
 
   leftY += addressLines.length * 3.4 + 1
-  const branchContact = sanitizeForPdf(
-    branch?.contactNo || "—"
-  )
+  const branchContact = sanitizeForPdf(getBranchContact(branch))
   doc.text(branchContact, leftColX, leftY)
   leftY += 4
 
@@ -1766,16 +1763,12 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.setTextColor(50, 50, 50)
-  const branchAddress = sanitizeForPdf(
-    branch?.address || branch?.name || "Main Branch"
-  )
+  const branchAddress = sanitizeForPdf(getBranchAddress(branch))
   const addressLines = doc.splitTextToSize(branchAddress, leftColWidth)
   doc.text(addressLines, leftColX, leftY)
 
   leftY += addressLines.length * 3.4 + 1
-  const branchContact = sanitizeForPdf(
-    branch?.contactNo || "—"
-  )
+  const branchContact = sanitizeForPdf(getBranchContact(branch))
   doc.text(branchContact, leftColX, leftY)
   leftY += 4
 
@@ -2547,9 +2540,8 @@ export function exportStatementOfAccountPdf({
 
   // 1. TOP RIGHT: Official Shop Letterhead
   const shopName = "ARUNAFELTZ COMPUTER PARTS and ACCESSORIES SHOP"
-  const shopAddr1 = branch?.address || "Kingspire Business Centre, Km.71, Mac Arthur Highway,"
-  const shopAddr2 = "San Isidro, City of San Fernando, Pampanga"
-  const shopContact = branch?.contactNo || "0997-732-7689/ 045-404-0673"
+  const shopAddress = getBranchAddress(branch)
+  const shopContact = getBranchContact(branch)
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8.5)
@@ -2559,9 +2551,13 @@ export function exportStatementOfAccountPdf({
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7.5)
   doc.setTextColor(71, 85, 105) // slate-600
-  doc.text(shopAddr1, pageWidth - margin, 18, { align: "right" })
-  doc.text(shopAddr2, pageWidth - margin, 21.5, { align: "right" })
-  doc.text(shopContact, pageWidth - margin, 25, { align: "right" })
+  const shopAddrLines = doc.splitTextToSize(shopAddress, 95)
+  let addrY = 18
+  shopAddrLines.forEach((line) => {
+    doc.text(line, pageWidth - margin, addrY, { align: "right" })
+    addrY += 3.5
+  })
+  doc.text(shopContact, pageWidth - margin, addrY, { align: "right" })
 
   // 2. TOP LEFT: Customer Details
   const custName = sanitizeForPdf(customer.fullName || customer.name || "CUSTOMER").toUpperCase()

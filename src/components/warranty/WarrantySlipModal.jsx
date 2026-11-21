@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { FileText, Printer, X } from "lucide-react"
 import { printBusinessHtml } from "../../utils/businessDocumentExport"
+import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 
 function formatDate(dateValue, withTime = true) {
   if (!dateValue) return "—"
@@ -30,8 +31,8 @@ function renderSlipHtml(claim, slipType, copyLabel, options = {}) {
   const createdBy = claim.createdBy || {}
 
   const shopName = branch.name || "ARUNAFELTZ COMPUTER TRADING"
-  const shopAddress = branch.address || "Main Branch, Philippines"
-  const shopContact = branch.contactNo || "Contact No. Available Upon Request"
+  const shopAddress = getBranchAddress(branch)
+  const shopContact = getBranchContact(branch)
 
   const customerName = customer.fullName || claim.customerNameSnapshot || "Walk-in Customer"
   const customerContact = customer.mobileNumber || customer.email || "—"

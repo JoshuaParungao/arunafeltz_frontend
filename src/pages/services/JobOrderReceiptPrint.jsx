@@ -1,4 +1,5 @@
 import { DEFAULT_SHOP_INFO, extractIntakeRecord } from "./serviceJobForms"
+import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 
 function formatDate(dateValue) {
   if (!dateValue) return ""
@@ -21,8 +22,8 @@ function PrintSquareBox({ checked = false }) {
 export default function JobOrderReceiptPrint({ isBlank = false, job = {} }) {
   const branch = job.branch || {}
   const shopName = branch.name || DEFAULT_SHOP_INFO.name || "ARUNAFELTZ COMPUTER PARTS and ACCESSORIES SHOP"
-  const shopAddress = branch.address || DEFAULT_SHOP_INFO.address || "Kingspire Business Centre, Km.71, Mac Arthur Highway, San Isidro, City of San Fernando, Pampanga"
-  const shopContact = branch.contactNo || DEFAULT_SHOP_INFO.contactNo || "0961-873-5798/ 045-404-0673"
+  const shopAddress = getBranchAddress(branch)
+  const shopContact = getBranchContact(branch)
 
   const intake = isBlank ? {} : extractIntakeRecord(job)
 

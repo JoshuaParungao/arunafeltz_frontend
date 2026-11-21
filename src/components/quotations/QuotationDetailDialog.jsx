@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { Download, FileText, Printer, X } from "lucide-react"
 import { exportCustomerQuotationPdf, groupQuotationItems, printCustomerQuotation } from "../../utils/businessDocumentExport"
 import { parseQuotationSettlement } from "../../utils/quotationSettlement"
+import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 
 function formatMoney(value) {
   const amount = Number(value || 0)
@@ -57,8 +58,8 @@ export default function QuotationDetailDialog({
     quotation?.cashier?.username ||
     "—"
 
-  const branchAddress = branch.address || branch.name || "Main Branch"
-  const branchContact = branch.contactNo || "—"
+  const branchAddress = getBranchAddress(branch)
+  const branchContact = getBranchContact(branch)
 
   const rawCode = String(quotation?.quotationCode || quotation?.code || (isPreview ? "PREVIEW" : "—")).trim()
   const numericMatch = rawCode.match(/\d+$/)

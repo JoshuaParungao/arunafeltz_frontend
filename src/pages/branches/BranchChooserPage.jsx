@@ -4,6 +4,7 @@ import { Building2, LogOut, MapPin, Phone } from "lucide-react"
 import Card from "../../components/ui/Card"
 import Badge from "../../components/ui/Badge"
 import { getBranches } from "../../features/branches/branches.api"
+import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 
 function BranchChooserPage({ onSelectBranch, onLogout, user }) {
   const [branches, setBranches] = useState([])
@@ -107,11 +108,11 @@ function BranchChooserPage({ onSelectBranch, onLogout, user }) {
                       <div className="mt-4 space-y-2 text-sm text-[var(--color-muted)]">
                         <p className="flex gap-2">
                           <MapPin className="mt-0.5 size-4 shrink-0" />
-                          <span>{branch.address || "No address set"}</span>
+                          <span>{getBranchAddress(branch)}</span>
                         </p>
                         <p className="flex gap-2">
                           <Phone className="mt-0.5 size-4 shrink-0" />
-                          <span>{branch.contactNo || "No contact number set"}</span>
+                          <span>{getBranchContact(branch)}</span>
                         </p>
                       </div>
                     </div>

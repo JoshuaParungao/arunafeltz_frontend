@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { FileText, Printer, X } from "lucide-react"
 import { printBusinessHtml } from "../../utils/businessDocumentExport"
+import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 
 function formatDate(dateValue, withTime = true) {
   if (!dateValue) return "—"
@@ -34,8 +35,8 @@ function renderVoucherHtml(returnData, copyLabel) {
   const items = returnData.items || []
 
   const shopName = branch.name || "ARUNAFELTZ COMPUTER TRADING"
-  const shopAddress = branch.address || "Main Branch, Philippines"
-  const shopContact = branch.contactNo || "Contact No. Available Upon Request"
+  const shopAddress = getBranchAddress(branch)
+  const shopContact = getBranchContact(branch)
 
   const supplierName = supplier.name || returnData.supplierNameSnapshot || "Supplier / Distributor"
   const supplierContact = supplier.contactPerson || returnData.supplierContactSnapshot || "—"
