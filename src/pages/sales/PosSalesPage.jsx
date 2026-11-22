@@ -6461,7 +6461,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       {posViewMode === "REGISTER" && canCreateSale ? (
         <div className="space-y-4">
-          <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-stretch">
           <div className="lg:col-span-5 min-w-0 space-y-3">
             {/* Customer & Price Tier Card (at the very top) */}
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
@@ -7111,9 +7111,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           </div>
 
           {/* Right Column: Active Cart (Full Cart) */}
-          <section className="lg:col-span-7 min-w-0 self-start rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col">
+          <section className="lg:col-span-7 min-w-0 rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col h-full">
             {/* Cart Header */}
-            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-3.5 py-2.5">
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-3.5 py-2.5 shrink-0">
               <div className="flex items-center gap-2">
                 <span className="grid size-7 place-items-center rounded-lg bg-[var(--color-maroon)] text-white">
                   <ShoppingCart size={15} />
@@ -7143,7 +7143,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </header>
 
             {isPcBuild ? (
-              <div className="border-b border-rose-200 bg-rose-50/75 px-3 py-2 text-xs space-y-2">
+              <div className="border-b border-rose-200 bg-rose-50/75 px-3 py-2 text-xs space-y-2 shrink-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-bold text-[var(--color-maroon)] flex items-center gap-1.5">
                     <Wrench size={13} />
@@ -7223,16 +7223,16 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               </div>
             ) : null}
 
-            {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800">{cartMessage}</div> : null}
+            {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800 shrink-0">{cartMessage}</div> : null}
 
             {cart.length === 0 ? (
-              <div className="min-h-[380px] grid place-content-center p-6 text-center text-slate-400">
+              <div className="flex-1 min-h-[320px] grid place-content-center p-6 text-center text-slate-400">
                 <ShoppingCart className="mx-auto text-slate-300" size={36} />
                 <p className="mt-2 text-sm font-bold text-slate-600">Cart is empty</p>
                 <p className="mt-0.5 text-xs text-slate-400">Search product or add service line on the left.</p>
               </div>
             ) : (
-              <div className="min-h-[380px] max-h-[680px] space-y-2 overflow-y-auto p-2.5 text-xs">
+              <div className="flex-1 min-h-[320px] lg:min-h-0 space-y-2 overflow-y-auto p-2.5 text-xs">
                 {cart.map((line, index) => {
                   const gross = getLineGross(line)
                   const selectedBatch = line.batches?.find((batch) => batch.id === line.batchId)
