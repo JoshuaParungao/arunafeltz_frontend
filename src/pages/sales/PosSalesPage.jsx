@@ -3082,6 +3082,32 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [isPriceTierDropdownOpen, setIsPriceTierDropdownOpen] = useState(false)
   const [tierDropdownPlacement, setTierDropdownPlacement] = useState("bottom")
   const priceTierDropdownRef = useRef(null)
+  const [leftColumnHeight, setLeftColumnHeight] = useState(null)
+  const leftColumnRef = useRef(null)
+
+  useEffect(() => {
+    if (!leftColumnRef.current) return
+    const updateHeight = () => {
+      if (window.innerWidth >= 1024 && leftColumnRef.current) {
+        setLeftColumnHeight(leftColumnRef.current.offsetHeight)
+      } else {
+        setLeftColumnHeight(null)
+      }
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateHeight()
+    })
+    observer.observe(leftColumnRef.current)
+    window.addEventListener("resize", updateHeight)
+
+    updateHeight()
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener("resize", updateHeight)
+    }
+  }, [posViewMode])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -6461,8 +6487,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       {posViewMode === "REGISTER" && canCreateSale ? (
         <div className="space-y-4">
-          <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-stretch">
-          <div className="lg:col-span-5 min-w-0 space-y-3">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
+          <div ref={leftColumnRef} className="lg:col-span-5 min-w-0 space-y-3">
             {/* Customer & Price Tier Card (at the very top) */}
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between">
@@ -7111,7 +7137,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           </div>
 
           {/* Right Column: Active Cart (Full Cart) */}
-          <section className="lg:col-span-7 min-w-0 rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col h-full">
+          <section
+            style={leftColumnHeight ? { height: `${leftColumnHeight}px`, maxHeight: `${leftColumnHeight}px` } : undefined}
+            className="lg:col-span-7 min-w-0 rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col"
+          >
             {/* Cart Header */}
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-3.5 py-2.5 shrink-0">
               <div className="flex items-center gap-2">
@@ -7226,13 +7255,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800 shrink-0">{cartMessage}</div> : null}
 
             {cart.length === 0 ? (
-              <div className="flex-1 min-h-[320px] grid place-content-center p-6 text-center text-slate-400">
+              <div className="flex-1 min-h-[300px] lg:min-h-0 grid place-content-center p-6 text-center text-slate-400">
                 <ShoppingCart className="mx-auto text-slate-300" size={36} />
                 <p className="mt-2 text-sm font-bold text-slate-600">Cart is empty</p>
                 <p className="mt-0.5 text-xs text-slate-400">Search product or add service line on the left.</p>
               </div>
             ) : (
-              <div className="flex-1 min-h-[320px] lg:min-h-0 space-y-2 overflow-y-auto p-2.5 text-xs">
+              <div className="flex-1 min-h-[300px] lg:min-h-0 space-y-2 overflow-y-auto p-2.5 text-xs">
                 {cart.map((line, index) => {
                   const gross = getLineGross(line)
                   const selectedBatch = line.batches?.find((batch) => batch.id === line.batchId)
