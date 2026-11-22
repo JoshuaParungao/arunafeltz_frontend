@@ -526,6 +526,28 @@ const ERROR_CODE_TRANSLATIONS = {
   RECEIVABLE_INITIAL_SETTLEMENT_EXCEEDS_TOTAL: "Downpayment cannot exceed the total purchase price.",
   SALE_NOT_FOUND: "Sale record not found.",
   BRANCH_ACCESS_DENIED: "You do not have access to records from another branch.",
+  BRANCH_REQUIRED: "Please select a branch before completing the sale.",
+  BRANCH_NOT_FOUND: "The selected branch was not found.",
+  CUSTOMER_REQUIRED: "Customer name is required before completing the sale.",
+  CUSTOMER_NOT_FOUND: "The selected customer record was not found.",
+  CUSTOMER_INACTIVE: "The selected customer is inactive.",
+  PRICE_TIER_REQUIRED: "Please select a valid price tier.",
+  SERIALIZED_QUANTITY_MUST_BE_ONE: "Serialized items must be sold one unit per line.",
+  SERIAL_NOT_ALLOWED_FOR_NON_SERIALIZED_ITEM: "Serial numbers cannot be assigned to non-serialized items.",
+  CUSTOM_LINE_INVENTORY_LINK_NOT_ALLOWED: "Custom service lines cannot be linked directly to inventory batches.",
+  DESCRIPTION_REQUIRED: "Description is required for every custom line item.",
+  UNIT_PRICE_REQUIRED: "Unit price is required.",
+  DISCOUNT_EXCEEDS_LINE_TOTAL: "Discount cannot exceed the total price of the item.",
+  SALE_CHANGE_EXCEEDS_CASH_TENDER: "Customer change cannot exceed the cash amount tendered.",
+  RECEIVABLE_BALANCE_REQUIRED: "An installment sale requires an outstanding balance.",
+  RECEIVABLE_REQUIRED_FOR_OUTSTANDING_BALANCE: "Outstanding balance requires an active installment plan.",
+  SALE_NOT_CREDITABLE: "This sale cannot be converted to a credit account.",
+  IN_HOUSE_CUSTOMER_REQUIRED: "Select an active customer for an in-house installment account.",
+  SALE_ALREADY_HAS_CREDIT_ACCOUNT: "This sale already has an active credit account.",
+  NEW_SERIAL_REQUIRED: "Please provide a replacement serial number.",
+  NEW_SERIAL_ALREADY_SOLD: "The entered replacement serial number has already been sold.",
+  SERVICE_DONE_BY_NOT_ELIGIBLE: "The selected staff member is not eligible for service assignment.",
+  FORBIDDEN: "You do not have permission to perform this action.",
   PAYMENT_METHOD_CASH_DISABLED: "Cash payments are currently disabled in store settings.",
   PAYMENT_METHOD_GCASH_DISABLED: "GCash payments are currently disabled in store settings.",
   PAYMENT_METHOD_BANK_TRANSFER_DISABLED: "Bank transfer payments are currently disabled in store settings.",
@@ -542,12 +564,45 @@ const ERROR_CODE_TRANSLATIONS = {
 
 function getApiErrorMessage(error, fallback) {
   const raw =
-    error?.response?.data?.message ||
     error?.response?.data?.error?.message ||
+    error?.response?.data?.message ||
     (typeof error?.response?.data?.error === "string" ? error.response.data.error : null) ||
     error?.message ||
     fallback
-  return ERROR_CODE_TRANSLATIONS[raw] || raw
+
+  if (!raw || typeof raw !== "string") {
+    return fallback || "Unable to complete request. Please try again."
+  }
+
+  if (ERROR_CODE_TRANSLATIONS[raw]) {
+    return ERROR_CODE_TRANSLATIONS[raw]
+  }
+
+  const isTechnical =
+    raw.includes("prisma.") ||
+    raw.includes("invocation:") ||
+    raw.includes("UserWhereInput") ||
+    raw.includes("WhereUniqueInput") ||
+    raw.includes("TypeError") ||
+    raw.includes("ReferenceError") ||
+    raw.includes("SyntaxError") ||
+    raw.includes("Cannot read property") ||
+    raw.includes("Cannot read properties") ||
+    raw.includes("is not a function") ||
+    raw.includes("SELECT ") ||
+    raw.includes("INSERT INTO") ||
+    raw.includes("UPDATE ") ||
+    raw.includes("DELETE FROM") ||
+    raw.includes("at Object.") ||
+    raw.includes(".js:") ||
+    raw.includes("{\n") ||
+    raw.includes("}\n")
+
+  if (isTechnical) {
+    return "Hindi maproseso ang transaksyon dahil sa maling detalye o validation error. Pakisuri ang mga nakalagay na impormasyon at subukan muli."
+  }
+
+  return raw
 }
 
 function getCatalogRows(response) {
