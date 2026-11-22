@@ -6460,7 +6460,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       ) : null}
 
       {posViewMode === "REGISTER" && canCreateSale ? (
-        <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
+        <div className="space-y-4">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
           <div className="lg:col-span-5 min-w-0 space-y-3">
             {/* Customer & Price Tier Card (at the very top) */}
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
@@ -7109,8 +7110,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             </section>
           </div>
 
-          {/* Right Column: Active Cart & Settlement */}
-          <section className="lg:col-span-7 min-w-0 self-start rounded-2xl border border-slate-200 bg-white shadow-2xs lg:sticky lg:top-4 overflow-hidden flex flex-col">
+          {/* Right Column: Active Cart (Full Cart) */}
+          <section className="lg:col-span-7 min-w-0 self-start rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col">
             {/* Cart Header */}
             <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/75 px-3.5 py-2.5">
               <div className="flex items-center gap-2">
@@ -7225,13 +7226,13 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             {cartMessage ? <div className="border-b border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800">{cartMessage}</div> : null}
 
             {cart.length === 0 ? (
-              <div className="h-[200px] grid place-content-center p-4 text-center text-slate-400">
-                <ShoppingCart className="mx-auto text-slate-300" size={30} />
-                <p className="mt-1.5 text-xs font-bold text-slate-600">Cart is empty</p>
-                <p className="mt-0.5 text-[11px] text-slate-400">Search product or add service line on the left.</p>
+              <div className="min-h-[380px] grid place-content-center p-6 text-center text-slate-400">
+                <ShoppingCart className="mx-auto text-slate-300" size={36} />
+                <p className="mt-2 text-sm font-bold text-slate-600">Cart is empty</p>
+                <p className="mt-0.5 text-xs text-slate-400">Search product or add service line on the left.</p>
               </div>
             ) : (
-              <div className="h-[200px] space-y-2 overflow-y-auto p-2.5 text-xs">
+              <div className="min-h-[380px] max-h-[680px] space-y-2 overflow-y-auto p-2.5 text-xs">
                 {cart.map((line, index) => {
                   const gross = getLineGross(line)
                   const selectedBatch = line.batches?.find((batch) => batch.id === line.batchId)
@@ -7562,9 +7563,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 })}
               </div>
             )}
+          </section>
+        </div>
 
-            {/* Surcharges, Totals, & Payment Setup */}
-            <div className="space-y-2.5 border-t border-slate-200 p-3.5 bg-slate-50/50 text-xs">
+        {/* Surcharges, Totals, & Payment Setup (Bottom Section) */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs text-xs space-y-3 mt-4">
+          <div className="grid gap-4 lg:grid-cols-12 items-start">
+            {/* Left Column: Surcharges, Remarks, Pricing Term, & Totals Breakdown */}
+            <div className="lg:col-span-5 min-w-0 space-y-3">
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Surcharge / Delivery Fee</span>
@@ -7637,7 +7643,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <span className="font-mono text-base font-black text-slate-900">{formatMoney(totals.grandTotal)}</span>
                 </div>
               </div>
+            </div>
 
+            {/* Right Column: Payment Arrangement & Action Buttons */}
+            <div className="lg:col-span-7 min-w-0 space-y-3">
               {/* Payment Settings */}
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-slate-800 font-bold">
@@ -8107,8 +8116,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </button>
               </div>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
+      </div>
       ) : null}
 
       {/* Quick link bar when in Register mode */}
