@@ -3062,7 +3062,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setServiceStaffListState(sanitized)
   }
   const [isLoadingServiceStaff, setIsLoadingServiceStaff] = useState(false)
-  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("")
+  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState(() => {
+    const draft = branchId && user?.id ? getFormDraft(`pos_draft_${user.id}_${branchId}`) : null
+    return draft?.selectedSalesPersonId || ""
+  })
   const [saleDate, setSaleDate] = useState(() =>
     new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
   )
@@ -3284,6 +3287,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         creditTerm,
         selectedServiceStaffId,
         serviceStaffSearch,
+        selectedSalesPersonId,
       })
     } else {
       clearFormDraft(draftKey)
@@ -3313,6 +3317,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     creditTerm,
     selectedServiceStaffId,
     serviceStaffSearch,
+    selectedSalesPersonId,
   ])
 
   const [sales, setSales] = useState([])
@@ -3681,8 +3686,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             setServiceStaffList(rows)
             if (user?.id) {
               setSelectedSalesPersonId((prev) => {
-                if (prev && rows.some((staff) => staff.id === prev)) return prev
-                return user.id
+                if (prev && (prev === user.id || rows.some((staff) => staff.id === prev))) return prev
+                return prev || user.id
               })
               if (rows.some((staff) => staff.id === user.id)) {
                 setSelectedServiceStaffId((prev) => prev || user.id)
@@ -3698,8 +3703,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 setServiceStaffList(qRows)
                 if (user?.id) {
                   setSelectedSalesPersonId((prev) => {
-                    if (prev && qRows.some((staff) => staff.id === prev)) return prev
-                    return user.id
+                    if (prev && (prev === user.id || qRows.some((staff) => staff.id === prev))) return prev
+                    return prev || user.id
                   })
                 }
               })
@@ -5246,21 +5251,33 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     const matchedCustomer = customers.find((c) => c.id === selectedCustomerId)
     const customerObj = matchedCustomer || (customerSearch.trim() ? { fullName: customerSearch.trim() } : { fullName: "Walk-in customer" })
 
+    const assignedSalesPerson = serviceStaffList.find((s) => s.id === selectedSalesPersonId)
+    const effectiveSalesman = assignedSalesPerson || user || { fullName: "Staff" }
+
     const previewQuotation = {
       quotationCode: "PREVIEW",
       createdAt: new Date().toISOString(),
       branch: activeBranch,
       customer: customerObj,
       preparedBy: user,
+      salesman: effectiveSalesman.fullName || effectiveSalesman.username || "Staff",
+      cashier: effectiveSalesman,
       isPcBuild,
       subtotal: totals.subtotal,
       totalDiscount: totals.totalDiscount,
       grandTotal: totals.grandTotal,
       pricingTerm,
-      notes: [
-        remarks.trim(),
-        `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
-      ].filter(Boolean).join(" "),
+      notes: serializeQuotationNotes(
+        [
+          remarks.trim(),
+          `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
+        ].filter(Boolean).join(" "),
+        {
+          salesmanId: effectiveSalesman.id,
+          salesmanName: effectiveSalesman.fullName || effectiveSalesman.username || "Staff",
+          pricingTerm,
+        }
+      ),
       items: cart.map((line, index) => ({
         id: line.localId || `item-${index}`,
         lineNo: index + 1,
@@ -5342,6 +5359,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
       ].filter(Boolean).join(" ")
 
+      const assignedSalesPerson = serviceStaffList.find((s) => s.id === selectedSalesPersonId)
+      const effectiveSalesman = assignedSalesPerson || user || { fullName: "Staff" }
+
       const settlementConfig = {
         paymentMethod,
         settlementMethod,
@@ -5352,6 +5372,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         creditFirstDueDate: isReceivableCheckout ? creditFirstDueDate : undefined,
         providerReference: isReceivableCheckout ? providerReference.trim() : undefined,
         pricingTerm,
+        salesmanId: effectiveSalesman.id,
+        salesmanName: effectiveSalesman.fullName || effectiveSalesman.username || "Staff",
       }
 
       const quotationPayload = {
@@ -5420,7 +5442,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const displayCode = String(createdQuote.quotationCode || "").match(/\d+$/)?.[0]?.padStart(5, "0") || createdQuote.quotationCode
 
       setNoticeMessage(`Quotation No. ${displayCode} created successfully!`)
-      setActiveQuotationDoc(createdQuote)
+      setActiveQuotationDoc({
+        ...createdQuote,
+        salesman: effectiveSalesman.fullName || effectiveSalesman.username || "Staff",
+        cashier: effectiveSalesman,
+      })
       setIsQuotationPreviewMode(false)
       setIsQuotationDocOpen(true)
       await loadQuotations()
@@ -6642,9 +6668,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       <button
                         type="button"
                         onClick={() => setSelectedSalesPersonId(user.id)}
-                        className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline"
+                        className="text-[10px] font-semibold text-slate-400 hover:text-[var(--color-maroon)] transition underline"
+                        title="Click to set sales person back to the logged in account"
                       >
-                        Reset ({user.fullName})
+                        Set to Me ({user.fullName})
                       </button>
                     ) : null}
                   </div>

@@ -1,4 +1,4 @@
-﻿import axios from "axios"
+import axios from "axios"
 
 import { API_CONFIG } from "../config/api.config"
 import { clearSession, getAccessToken } from "./sessionStorage"
