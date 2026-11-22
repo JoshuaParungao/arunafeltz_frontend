@@ -2998,7 +2998,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       const un = String(s.username || "").toLowerCase()
       const fn = String(s.fullName || "").toLowerCase()
       const em = String(s.email || "").toLowerCase()
-      return !un.includes("calix") && !fn.includes("calix") && !em.includes("calix")
+      if (un.includes("calix") || fn.includes("calix") || em.includes("calix")) return false
+      if (branchId && s.branchId && s.branchId !== branchId && s.role !== "SUPER_OWNER") {
+        return false
+      }
+      return true
     })
     setServiceStaffListState(sanitized)
   }
@@ -3621,9 +3625,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           if (rows.length > 0) {
             setServiceStaffList(rows)
             if (user?.id) {
-              setSelectedSalesPersonId((prev) => prev || user.id)
+              setSelectedSalesPersonId((prev) => {
+                if (prev && rows.some((staff) => staff.id === prev)) return prev
+                return user.id
+              })
               if (rows.some((staff) => staff.id === user.id)) {
                 setSelectedServiceStaffId((prev) => prev || user.id)
+              } else {
+                setSelectedServiceStaffId("")
               }
             }
           } else {
@@ -3632,6 +3641,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 if (!isMounted) return
                 const qRows = Array.isArray(qRes?.data) ? qRes.data : Array.isArray(qRes) ? qRes : []
                 setServiceStaffList(qRows)
+                if (user?.id) {
+                  setSelectedSalesPersonId((prev) => {
+                    if (prev && qRows.some((staff) => staff.id === prev)) return prev
+                    return user.id
+                  })
+                }
               })
               .catch(() => {})
           }
@@ -6589,7 +6604,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                       </option>
                     ) : null}
                     {serviceStaffList
-                      .filter((staff) => staff.id !== user?.id)
+                      .filter((staff) => staff.id !== user?.id && (!branchId || !staff.branchId || staff.branchId === branchId || staff.role === "SUPER_OWNER"))
                       .map((staff) => (
                         <option key={staff.id} value={staff.id}>
                           {staff.fullName}
