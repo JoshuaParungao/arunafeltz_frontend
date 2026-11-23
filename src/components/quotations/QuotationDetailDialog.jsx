@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react"
 import { createPortal } from "react-dom"
-import { Download, FileText, Printer, X } from "lucide-react"
+import { Download, Edit3, FileText, Printer, X } from "lucide-react"
 import { exportCustomerQuotationPdf, groupQuotationItems, printCustomerQuotation } from "../../utils/businessDocumentExport"
 import { parseQuotationSettlement } from "../../utils/quotationSettlement"
 import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
@@ -33,6 +33,7 @@ export default function QuotationDetailDialog({
   onConvertToSale = null,
   onSaveQuotation = null,
   isSavingQuotation = false,
+  onEditQuotation = null,
 }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -137,7 +138,19 @@ export default function QuotationDetailDialog({
               ) : null}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {isPreview ? (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 cursor-pointer"
+                  title="Close preview and return to builder to edit quote"
+                >
+                  <Edit3 size={15} />
+                  Edit Quote
+                </button>
+              ) : null}
+
               {isPreview && onSaveQuotation ? (
                 <button
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-emerald-700 disabled:opacity-50"
@@ -147,6 +160,21 @@ export default function QuotationDetailDialog({
                 >
                   <FileText size={15} />
                   {isSavingQuotation ? "Saving Quote…" : "Save Quotation"}
+                </button>
+              ) : null}
+
+              {onEditQuotation && !isPreview && !["CONVERTED", "CANCELLED"].includes(quotation.status) ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-800 shadow-xs transition hover:bg-amber-100 cursor-pointer"
+                  onClick={() => {
+                    onClose()
+                    onEditQuotation(quotation)
+                  }}
+                  type="button"
+                  title="Edit this saved quotation in Quotation Builder"
+                >
+                  <Edit3 size={15} />
+                  Edit Quotation
                 </button>
               ) : null}
 
@@ -405,6 +433,12 @@ export default function QuotationDetailDialog({
                   </p>
                   <p className="font-bold text-[11px] text-red-700">
                     CASH DISCOUNTED PRICE APPLIES ONLY FOR CASH, GCASH, BANK TRANSFER
+                  </p>
+                  <p className="font-bold text-[11px] text-slate-900 uppercase">
+                    NO WARRANTY ON SOFTWARE/S (O.S. - WINDOWS and MS OFFICE), IF ANY
+                  </p>
+                  <p className="font-bold text-[10px] text-red-700 uppercase">
+                    ALL PRICES ARE SUBJECT TO CHANGE WITHOUT PRIOR NOTICE
                   </p>
                 </div>
 

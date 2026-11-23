@@ -1655,7 +1655,16 @@ export function exportWarrantyReceiptPdf(sale, options = {}) {
     { align: "center" }
   )
 
-  finalY += 9
+  doc.setFontSize(6.5)
+  doc.setTextColor(150, 0, 0)
+  doc.text(
+    "ALL PRICES ARE SUBJECT TO CHANGE WITHOUT PRIOR NOTICE",
+    margin + contentWidth / 2,
+    finalY + 7.2,
+    { align: "center" }
+  )
+
+  finalY += 12
 
   // Signatures Section
   const sigColWidth = contentWidth / 4
@@ -2046,6 +2055,24 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   doc.setTextColor(150, 0, 0)
   doc.text(
     "CASH DISCOUNTED PRICE APPLIES ONLY FOR CASH, GCASH, BANK TRANSFER",
+    margin,
+    noteY
+  )
+  noteY += 3.6
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(7)
+  doc.setTextColor(0, 0, 0)
+  doc.text(
+    "NO WARRANTY ON SOFTWARE/S (O.S. - WINDOWS and MS OFFICE), IF ANY",
+    margin,
+    noteY
+  )
+  noteY += 3.4
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(6.5)
+  doc.setTextColor(150, 0, 0)
+  doc.text(
+    "ALL PRICES ARE SUBJECT TO CHANGE WITHOUT PRIOR NOTICE",
     margin,
     noteY
   )

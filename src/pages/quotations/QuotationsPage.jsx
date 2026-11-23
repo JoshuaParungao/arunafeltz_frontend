@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   CircleAlert,
+  Edit3,
   Eye,
   FileCheck2,
   FileSpreadsheet,
@@ -30,13 +31,14 @@ import {
   getQuotationById,
   getQuotations,
   getQuotationServiceStaff,
+  updateQuotation,
   updateQuotationStatus,
 } from "../../features/quotations/quotations.api"
 import { getServiceCatalog } from "../../features/service-jobs/serviceJobs.api"
 import { getItems } from "../../features/items/items.api"
 import { createCustomer, getCustomers } from "../../features/customers/customers.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
-import { serializeQuotationNotes } from "../../utils/quotationSettlement"
+import { parseQuotationSettlement, serializeQuotationNotes, stripSettlementTag } from "../../utils/quotationSettlement"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import { parseItemWarranty } from "../items/ItemsPage"
@@ -382,6 +384,7 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
   const [pricingTerm, setPricingTerm] = useState("CASH") // "CASH" | "SRP" | "REGULAR"
   const [isPcBuild, setIsPcBuild] = useState(false)
   const [remarks, setRemarks] = useState("")
+  const [editingQuotation, setEditingQuotation] = useState(null)
 
   const systemUnitCompleteness = useMemo(() => {
     if (!isPcBuild) return null
@@ -968,6 +971,127 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
     }
   }
 
+  const handleCancelEdit = () => {
+    setEditingQuotation(null)
+    setCart([])
+    setSelectedCustomerId("")
+    setCustomerSearch("")
+    setCustomerPhone("")
+    setCustomerAddress("")
+    setCustomerEmail("")
+    setRemarks("")
+    setIsPcBuild(false)
+    setNoticeMessage("Editing cancelled. Ready for new quotation.")
+  }
+
+  const handleEditQuotation = async (quotation) => {
+    if (!quotation?.id) return
+    setIsLoadingDetails(true)
+    try {
+      let detailed = quotation
+      if (!quotation.items || quotation.items.length === 0) {
+        const response = await getQuotationById(quotation.id)
+        detailed = response?.data || response || quotation
+      }
+
+      setEditingQuotation(detailed)
+
+      // Customer
+      if (detailed.customerId) {
+        setSelectedCustomerId(detailed.customerId)
+      } else {
+        setSelectedCustomerId("")
+      }
+      setCustomerSearch(detailed.customer?.fullName || detailed.customerName || "")
+      setCustomerPhone(detailed.customer?.mobileNumber || "")
+      setCustomerAddress(detailed.customer?.address || "")
+      setCustomerEmail(detailed.customer?.email || "")
+
+      // Sales person
+      const settlement = parseQuotationSettlement(detailed.notes) || {}
+      if (settlement?.salesmanId) {
+        setSelectedSalesPersonId(settlement.salesmanId)
+      } else if (detailed.serviceDoneById) {
+        setSelectedSalesPersonId(detailed.serviceDoneById)
+      } else if (detailed.salesman) {
+        const matchedStaff = serviceStaffList.find(
+          (s) => (s.fullName || s.username || "").toLowerCase() === String(detailed.salesman).toLowerCase()
+        )
+        if (matchedStaff) setSelectedSalesPersonId(matchedStaff.id)
+      }
+
+      // Date
+      if (detailed.createdAt) {
+        setQuotationDate(new Date(detailed.createdAt).toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
+      }
+
+      // Remarks / Pricing Term / PC Build
+      const userRemarks = stripSettlementTag(detailed.notes || "")
+      setRemarks(userRemarks.replace(/^\[PC BUILD\]\s*/i, "").trim())
+      if (settlement?.pricingTerm) {
+        setPricingTerm(settlement.pricingTerm)
+      }
+      setIsPcBuild(Boolean(detailed.isPcBuild))
+
+      // Cart Items
+      const loadedCart = (detailed.items || []).map((item, idx) => {
+        const isService = item.type === "SERVICE" || (!item.itemId && item.description)
+        if (isService) {
+          const rawDesc = String(item.description || "Service")
+          const cleanDesc = rawDesc.replace(/\s*\[Done by:[^\]]*\]/i, "").trim()
+          return {
+            localId: `service-${Date.now()}-${idx}-${Math.random().toString(36).slice(2)}`,
+            type: "SERVICE",
+            description: cleanDesc,
+            quantity: String(item.quantity || 1),
+            baseUnitPrice: String(item.unitPrice || 0),
+            markupPercent: item.markupPercent !== undefined && item.markupPercent !== null && item.markupPercent !== 0 ? String(item.markupPercent) : "",
+            unitPrice: String(item.unitPrice || 0),
+            discountAmount: String(item.discountAmount || 0),
+            serviceStaffId: item.serviceDoneById || detailed.serviceDoneById || "",
+            serviceStaffName: item.serviceDoneBy?.fullName || "",
+          }
+        }
+
+        const itemObj = item.item || {
+          id: item.itemId,
+          itemCode: item.itemCode,
+          itemName: item.description || item.itemName,
+          price1: item.unitPrice,
+          price2: item.unitPrice,
+          price3: item.unitPrice,
+          price4: item.unitPrice,
+          price5: item.unitPrice,
+          hasWarranty: Boolean(item.warrantyDuration),
+          warrantyDurationMonths: 12,
+        }
+
+        return {
+          localId: `product-${Date.now()}-${idx}-${Math.random().toString(36).slice(2)}`,
+          type: "PRODUCT",
+          item: itemObj,
+          itemId: itemObj.id,
+          priceTier: item.priceTier || 1,
+          quantity: String(item.quantity || 1),
+          markupPercent: item.markupPercent !== undefined && item.markupPercent !== null && item.markupPercent !== 0 ? String(item.markupPercent) : "",
+          discountAmount: String(item.discountAmount || 0),
+          warrantyDuration: item.warrantyDuration || parseItemWarranty(itemObj),
+        }
+      })
+
+      setCart(loadedCart)
+      setViewMode("BUILDER")
+      setIsPrintPreviewOpen(false)
+      setNoticeMessage(`Loaded Quotation #${detailed.quotationCode || detailed.id} for editing.`)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    } catch (err) {
+      console.error("Failed to load quotation for edit:", err)
+      alert("Failed to load quotation for editing.")
+    } finally {
+      setIsLoadingDetails(false)
+    }
+  }
+
   // Submit / Preview Quotation Builder
   const handlePreviewQuotation = () => {
     if (cart.length === 0) {
@@ -999,7 +1123,9 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
     const effectiveSalesman = assignedSalesPerson || user || { fullName: "Staff" }
 
     const previewDoc = {
-      quotationCode: "PREVIEW",
+      id: editingQuotation?.id,
+      quotationCode: editingQuotation?.quotationCode || "PREVIEW",
+      status: editingQuotation?.status || "DRAFT",
       createdAt: quotationDate
         ? new Date(`${quotationDate}T12:00:00+08:00`).toISOString()
         : new Date().toISOString(),
@@ -1166,6 +1292,34 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
         }),
       }
 
+      if (editingQuotation?.id) {
+        const response = await updateQuotation(editingQuotation.id, quotationPayload)
+        const updatedQuote = response?.data || response
+
+        setNoticeMessage(`Quotation ${updatedQuote.quotationCode || editingQuotation.quotationCode || ""} updated successfully!`)
+        setLastSavedCalc(showFinancingCalc ? installmentCalculation : null)
+        setActiveQuotationDoc({
+          ...updatedQuote,
+          salesman: effectiveSalesman.fullName || effectiveSalesman.username,
+        })
+        setIsQuotationPreviewMode(false)
+        setIsQuotationDocOpen(true)
+        setEditingQuotation(null)
+
+        // Reset builder cart
+        setCart([])
+        setRemarks("")
+        setSelectedCustomerId("")
+        setCustomerSearch("")
+        setCustomerPhone("")
+        setCustomerAddress("")
+        setCustomerEmail("")
+        setIsPcBuild(false)
+        setQuotationDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
+        loadQuotations()
+        return
+      }
+
       const response = await createQuotation(quotationPayload)
       const createdQuote = response?.data || response
 
@@ -1185,6 +1339,12 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
       // Reset builder cart
       setCart([])
       setRemarks("")
+      setSelectedCustomerId("")
+      setCustomerSearch("")
+      setCustomerPhone("")
+      setCustomerAddress("")
+      setCustomerEmail("")
+      setIsPcBuild(false)
       setQuotationDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }))
       loadQuotations()
     } catch (err) {
@@ -1269,6 +1429,25 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
       {/* VIEW MODE: BUILDER (POS CASHIERING STYLE) */}
       {viewMode === "BUILDER" ? (
         <div className="space-y-4">
+          {editingQuotation ? (
+            <div className="flex items-center justify-between rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-950 shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-amber-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-900">
+                  Editing Mode
+                </span>
+                <span>
+                  Modifying saved <strong>Quotation #{editingQuotation.quotationCode || editingQuotation.id}</strong> ({editingQuotation.status || "DRAFT"})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100 transition cursor-pointer"
+              >
+                <X size={13} /> Cancel Edit (New Quote)
+              </button>
+            </div>
+          ) : null}
           <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
             {/* Left Column (5 cols): Customer, Products Search, and Service Lines */}
             <div className="lg:col-span-5 min-w-0 space-y-3">
@@ -2147,12 +2326,12 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
                   {isCreatingQuotation ? (
                     <>
                       <LoaderCircle className="animate-spin" size={15} />
-                      Saving…
+                      {editingQuotation ? "Updating Quote…" : "Saving Quote…"}
                     </>
                   ) : (
                     <>
                       <FileText size={15} />
-                      Save & Print Quote
+                      {editingQuotation ? "Update & Print Quote" : "Save & Print Quote"}
                     </>
                   )}
                 </button>
@@ -2336,6 +2515,19 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
                                   </button>
                                 ) : null}
 
+                                {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
+                                  <button
+                                    className="inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 shadow-sm transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 cursor-pointer"
+                                    disabled={isLoadingDetails}
+                                    onClick={() => handleEditQuotation(quotation)}
+                                    title="Edit this saved quotation in the builder"
+                                    type="button"
+                                  >
+                                    <Edit3 size={13} />
+                                    <span>Edit</span>
+                                  </button>
+                                ) : null}
+
                                 <button
                                   className="inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-sm transition hover:bg-[var(--color-soft)]"
                                   disabled={isLoadingDetails}
@@ -2420,6 +2612,17 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
                                 Convert
                               </button>
                             ) : null}
+                            {quotation.status !== "CANCELLED" && quotation.status !== "CONVERTED" ? (
+                              <button
+                                className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100 cursor-pointer"
+                                disabled={isLoadingDetails}
+                                onClick={() => handleEditQuotation(quotation)}
+                                title="Edit quotation"
+                                type="button"
+                              >
+                                Edit
+                              </button>
+                            ) : null}
                             <button
                               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-strong)] shadow-2xs hover:bg-[var(--color-soft)]"
                               disabled={isLoadingDetails}
@@ -2460,6 +2663,7 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
         <QuotationDetailDialog
           onClose={() => setIsPrintPreviewOpen(false)}
           onConvertToSale={handleOpenConvert}
+          onEditQuotation={handleEditQuotation}
           quotation={selectedQuotation}
         />
       ) : null}

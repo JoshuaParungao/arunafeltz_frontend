@@ -536,6 +536,9 @@ export default function SaleReceiptModal({ sale: initialSale, saleId, onClose })
                 <p className="text-[10px] text-slate-600">
                   Pls. read all WARRANTY GUIDELINES &amp; PROCEDURES at the back of this page. (BRING–IN WARRANTY)
                 </p>
+                <p className="font-bold text-[10px] text-red-700 uppercase">
+                  ALL PRICES ARE SUBJECT TO CHANGE WITHOUT PRIOR NOTICE
+                </p>
               </div>
 
               {/* Signatures Section */}
