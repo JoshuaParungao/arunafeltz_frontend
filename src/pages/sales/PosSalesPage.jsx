@@ -7952,7 +7952,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                 <option value="">Select active batch</option>
                                 {line.batches.map((batch) => (
                                   <option key={batch.id} value={batch.id}>
-                                    {batch.batchCode} · {Number(batch.quantityAvailable || 0)} available
+                                    {batch.batchCode}{batch.supplierName ? ` [${batch.supplierName}]` : ""} · {Number(batch.quantityAvailable || 0)} available
                                   </option>
                                 ))}
                               </select>

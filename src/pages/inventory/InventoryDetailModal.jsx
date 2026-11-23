@@ -18,6 +18,7 @@ import {
   Search,
   Sliders,
   Tag,
+  Truck,
   X,
 } from "lucide-react"
 
@@ -129,9 +130,11 @@ export default function InventoryDetailModal({
   const [localBatches, setLocalBatches] = useState(batches)
   const [editingBatchId, setEditingBatchId] = useState(null)
   const [editBatchCode, setEditBatchCode] = useState("")
+  const [editSupplierName, setEditSupplierName] = useState("")
   const [isSavingBatch, setIsSavingBatch] = useState(false)
   const [isCreatingBatch, setIsCreatingBatch] = useState(false)
   const [newBatchCode, setNewBatchCode] = useState("")
+  const [newSupplierName, setNewSupplierName] = useState("")
   const [newBatchRemarks, setNewBatchRemarks] = useState("")
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false)
   const [batchError, setBatchError] = useState("")
@@ -149,7 +152,8 @@ export default function InventoryDetailModal({
 
   const handleStartEdit = (b) => {
     setEditingBatchId(b.id)
-    setEditBatchCode(b.batchCode)
+    setEditBatchCode(b.batchCode || "")
+    setEditSupplierName(b.supplierName || "")
     setBatchError("")
     setBatchSuccess("")
   }
@@ -157,6 +161,7 @@ export default function InventoryDetailModal({
   const handleCancelEdit = () => {
     setEditingBatchId(null)
     setEditBatchCode("")
+    setEditSupplierName("")
   }
 
   const handleSaveBatch = async (batchId) => {
@@ -169,13 +174,24 @@ export default function InventoryDetailModal({
     setBatchError("")
     setBatchSuccess("")
     try {
-      const res = await updateInventoryBatchCode(batchId, { batchCode: trimmed })
-      const updatedData = res?.data || { id: batchId, batchCode: trimmed }
+      const res = await updateInventoryBatchCode(batchId, {
+        batchCode: trimmed,
+        supplierName: editSupplierName.trim() || null,
+      })
+      const updatedData = res?.data || {
+        id: batchId,
+        batchCode: trimmed,
+        supplierName: editSupplierName.trim() || null,
+      }
       setLocalBatches((prev) =>
-        prev.map((b) => (b.id === batchId ? { ...b, batchCode: trimmed, ...updatedData } : b))
+        prev.map((b) =>
+          b.id === batchId
+            ? { ...b, batchCode: trimmed, supplierName: editSupplierName.trim() || null, ...updatedData }
+            : b
+        )
       )
       setEditingBatchId(null)
-      setBatchSuccess("Batch code updated successfully.")
+      setBatchSuccess("Batch updated successfully.")
       onBatchUpdated?.()
       setTimeout(() => setBatchSuccess(""), 3500)
     } catch (err) {
@@ -205,11 +221,13 @@ export default function InventoryDetailModal({
         itemId: item.id,
         branchId: item.branch?.id,
         batchCode: trimmed,
+        supplierName: newSupplierName.trim() || undefined,
         remarks: newBatchRemarks.trim() || undefined,
       })
       const created = res?.data || {
         id: `temp-${Date.now()}`,
         batchCode: trimmed,
+        supplierName: newSupplierName.trim() || null,
         quantityAvailable: 0,
         quantityIn: 0,
         costPrice: 0,
@@ -217,6 +235,7 @@ export default function InventoryDetailModal({
       setLocalBatches((prev) => [created, ...prev])
       setIsCreatingBatch(false)
       setNewBatchCode("")
+      setNewSupplierName("")
       setNewBatchRemarks("")
       setBatchSuccess(`Batch "${trimmed}" created successfully.`)
       onBatchUpdated?.()
@@ -428,6 +447,37 @@ export default function InventoryDetailModal({
                     </div>
                   </div>
                 </div>
+
+                {localBatches.length > 0 ? (
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-3 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <Truck size={13} className="text-blue-600" /> Active Batches & Suppliers
+                      </h4>
+                      <span className="text-[11px] font-bold text-slate-500">{localBatches.length} {localBatches.length === 1 ? "Batch" : "Batches"}</span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {localBatches.map((b) => (
+                        <div key={b.id} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white">
+                          <div className="min-w-0 pr-2">
+                            <span className="font-mono font-bold text-xs text-slate-900 block truncate">{b.batchCode}</span>
+                            {b.supplierName ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 mt-0.5">
+                                <Truck size={10} className="shrink-0" /> {b.supplierName}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 italic">No supplier tagged</span>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xs font-black text-[var(--color-maroon)]">{formatNumber(b.quantityAvailable)}</span>
+                            <span className="text-[10px] text-slate-400 block">avail</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -494,7 +544,7 @@ export default function InventoryDetailModal({
                       <X size={15} />
                     </button>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-3">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">
                         Batch Code <span className="text-rose-500">*</span>
@@ -503,9 +553,21 @@ export default function InventoryDetailModal({
                         type="text"
                         value={newBatchCode}
                         onChange={(e) => setNewBatchCode(e.target.value)}
-                        placeholder="e.g. BAT-2026-001 or custom batch..."
+                        placeholder="e.g. BAT-2026-001..."
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)]"
                         autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Supplier (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={newSupplierName}
+                        onChange={(e) => setNewSupplierName(e.target.value)}
+                        placeholder="e.g. PC Express, Ubertech..."
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                       />
                     </div>
                     <div>
@@ -557,6 +619,7 @@ export default function InventoryDetailModal({
                     <thead className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       <tr>
                         <th className="px-4 py-3">Batch Code</th>
+                        <th className="px-4 py-3">Supplier</th>
                         <th className="px-4 py-3 text-right">Available Qty</th>
                         <th className="px-4 py-3 text-right">Received Qty</th>
                         {canViewCost ? <th className="px-4 py-3 text-right">Cost Price</th> : null}
@@ -571,40 +634,44 @@ export default function InventoryDetailModal({
                           <tr key={batch.id} className="hover:bg-slate-50/50 transition">
                             <td className="px-4 py-3">
                               {isEditing ? (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="text"
-                                    value={editBatchCode}
-                                    onChange={(e) => setEditBatchCode(e.target.value)}
-                                    className="rounded-lg border border-[var(--color-maroon)] bg-white px-2 py-1 text-xs font-mono font-bold text-slate-900 outline-none w-36 sm:w-44"
-                                    placeholder="Type batch code..."
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") handleSaveBatch(batch.id)
-                                      if (e.key === "Escape") handleCancelEdit()
-                                    }}
-                                  />
-                                  <button
-                                    type="button"
-                                    disabled={isSavingBatch}
-                                    onClick={() => handleSaveBatch(batch.id)}
-                                    className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-maroon)] px-2 py-1 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
-                                  >
-                                    <Check size={12} />
-                                    {isSavingBatch ? "Saving..." : "Save"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={handleCancelEdit}
-                                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
+                                <input
+                                  type="text"
+                                  value={editBatchCode}
+                                  onChange={(e) => setEditBatchCode(e.target.value)}
+                                  className="rounded-lg border border-[var(--color-maroon)] bg-white px-2 py-1 text-xs font-mono font-bold text-slate-900 outline-none w-32 sm:w-40"
+                                  placeholder="Type batch code..."
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleSaveBatch(batch.id)
+                                    if (e.key === "Escape") handleCancelEdit()
+                                  }}
+                                />
                               ) : (
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono font-bold text-slate-900">{batch.batchCode}</span>
                                 </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editSupplierName}
+                                  onChange={(e) => setEditSupplierName(e.target.value)}
+                                  className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 outline-none w-32 sm:w-40 focus:border-[var(--color-maroon)]"
+                                  placeholder="Supplier name..."
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleSaveBatch(batch.id)
+                                    if (e.key === "Escape") handleCancelEdit()
+                                  }}
+                                />
+                              ) : batch.supplierName ? (
+                                <span className="inline-flex items-center gap-1.5 font-bold text-slate-800 bg-slate-100/80 px-2 py-0.5 rounded-md border border-slate-200/80">
+                                  <Truck size={12} className="text-blue-600 shrink-0" />
+                                  {batch.supplierName}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-[var(--color-maroon)]">
@@ -622,17 +689,36 @@ export default function InventoryDetailModal({
                               {batch.expiryDate ? dateOnly(batch.expiryDate) : "—"}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {!isEditing ? (
+                              {isEditing ? (
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={isSavingBatch}
+                                    onClick={() => handleSaveBatch(batch.id)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-maroon)] px-2.5 py-1 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
+                                  >
+                                    <Check size={12} />
+                                    {isSavingBatch ? "Saving..." : "Save"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelEdit}
+                                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
                                 <button
                                   type="button"
                                   onClick={() => handleStartEdit(batch)}
                                   className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:border-[var(--color-maroon)] hover:text-[var(--color-maroon)] transition shadow-2xs"
-                                  title="Edit batch code"
+                                  title="Edit batch and supplier"
                                 >
                                   <Edit3 size={11} />
                                   Edit
                                 </button>
-                              ) : null}
+                              )}
                             </td>
                           </tr>
                         )
@@ -771,8 +857,43 @@ export default function InventoryDetailModal({
                             {Number(mov.quantity) > 0 ? `+${formatNumber(mov.quantity)}` : formatNumber(mov.quantity)}
                           </td>
                           <td className="px-4 py-3">
-                            <p className="font-semibold text-slate-800">{mov.referenceNo || "—"}</p>
-                            {mov.remarks ? <p className="text-[11px] text-slate-500 truncate max-w-[200px]">{mov.remarks}</p> : null}
+                            {(() => {
+                              const batchObj =
+                                mov.batch ||
+                                localBatches.find(
+                                  (b) =>
+                                    b.id === mov.batchId ||
+                                    (mov.referenceNo && b.batchCode === mov.referenceNo)
+                                )
+                              const supplier =
+                                batchObj?.supplierName ||
+                                mov.supplierName ||
+                                mov.sourceSupplierName
+
+                              return (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-semibold text-slate-800">{mov.referenceNo || "—"}</p>
+                                    {batchObj?.batchCode ? (
+                                      <span className="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">
+                                        Batch: {batchObj.batchCode}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  {supplier ? (
+                                    <div className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-1.5 py-0.5 rounded-md">
+                                      <Truck size={11} className="text-blue-600 shrink-0" />
+                                      <span>Supplier: {supplier}</span>
+                                    </div>
+                                  ) : null}
+                                  {mov.remarks ? (
+                                    <p className="text-[11px] text-slate-500 truncate max-w-[280px]">
+                                      {mov.remarks}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              )
+                            })()}
                           </td>
                         </tr>
                       ))}
