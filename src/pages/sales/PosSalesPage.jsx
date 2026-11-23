@@ -4520,24 +4520,29 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           console.warn("Could not load inventory batches/serials for quotation item:", err)
         }
 
-        newCartLines.push({
-          localId: `quote-prod-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
-          type: "PRODUCT",
-          item: matchedItem,
-          itemId: matchedItem.id,
-          priceTier: Number(qItem.priceTier || 1),
-          quantity: String(qItem.quantity || 1),
-          markupPercent: String(qItem.markupPercent || 0),
-          discountAmount: String(qItem.discountAmount || 0),
-          batchId: batches[0]?.id || "",
-          serialId: "",
-          customSerialNumber: "",
-          isCustomSerial: false,
-          warrantyType: matchedItem.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
-          warrantyDuration: qItem.warrantyDuration || (matchedItem.hasWarranty ? "1 YEAR WARRANTY" : ""),
-          batches,
-          serials,
-        })
+        const lineCount = matchedItem.isSerialized ? Math.max(1, Math.floor(Number(qItem.quantity || 1))) : 1
+        const lineQty = matchedItem.isSerialized ? "1" : String(qItem.quantity || 1)
+
+        for (let unitIdx = 0; unitIdx < lineCount; unitIdx++) {
+          newCartLines.push({
+            localId: `quote-prod-${Date.now()}-${i}-${unitIdx}-${Math.random().toString(36).slice(2)}`,
+            type: "PRODUCT",
+            item: matchedItem,
+            itemId: matchedItem.id,
+            priceTier: Number(qItem.priceTier || 1),
+            quantity: lineQty,
+            markupPercent: String(qItem.markupPercent || 0),
+            discountAmount: unitIdx === 0 ? String(qItem.discountAmount || 0) : "0",
+            batchId: batches[0]?.id || "",
+            serialId: "",
+            customSerialNumber: "",
+            isCustomSerial: true,
+            warrantyType: matchedItem.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
+            warrantyDuration: qItem.warrantyDuration || (matchedItem.hasWarranty ? "1 YEAR WARRANTY" : ""),
+            batches,
+            serials,
+          })
+        }
       }
     }
 
