@@ -933,20 +933,29 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
         const response = await getQuotationById(quotation.id)
         detailed = response?.data || response || quotation
       }
+
+      try {
+        sessionStorage.setItem("pos_load_quotation_id", quotation.id)
+        sessionStorage.setItem("pos_load_quotation_data", JSON.stringify(detailed))
+      } catch {
+        // ignore
+      }
+
       if (onNavigate) {
-        onNavigate("pos", user, { loadQuotation: detailed })
+        onNavigate("pos", { loadQuotation: detailed })
       } else {
-        try {
-          sessionStorage.setItem("pos_load_quotation_id", quotation.id)
-        } catch {
-          // ignore
-        }
         window.location.hash = "#pos"
       }
     } catch (err) {
       console.error("Failed to load quotation details for conversion:", err)
+      try {
+        sessionStorage.setItem("pos_load_quotation_id", quotation.id)
+        sessionStorage.setItem("pos_load_quotation_data", JSON.stringify(quotation))
+      } catch {
+        // ignore
+      }
       if (onNavigate) {
-        onNavigate("pos", user, { loadQuotation: quotation })
+        onNavigate("pos", { loadQuotation: quotation })
       }
     } finally {
       setIsLoadingDetails(false)

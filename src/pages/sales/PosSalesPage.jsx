@@ -4549,6 +4549,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   // Auto-load Quotation if redirected from Quotations module
   useEffect(() => {
     let quote = initialContext?.loadQuotation
+    if (!quote) {
+      try {
+        const storedJson = sessionStorage.getItem("pos_load_quotation_data")
+        if (storedJson) {
+          quote = JSON.parse(storedJson)
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
     let quoteId = quote?.id || initialContext?.loadQuotationId
     if (!quoteId && !quote) {
       try {
@@ -4560,6 +4571,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     if ((quote || quoteId) && branchId) {
       try {
         sessionStorage.removeItem("pos_load_quotation_id")
+        sessionStorage.removeItem("pos_load_quotation_data")
       } catch {
         // Ignore
       }

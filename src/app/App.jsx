@@ -391,7 +391,7 @@ function App() {
     if (activePage === "quotations") {
       return (
         <QuotationsPage
-          onNavigate={setSafeActivePage}
+          onNavigate={(pageKey, ctx) => setSafeActivePage(pageKey, user, ctx)}
           selectedBranch={selectedBranch}
           user={user}
         />
