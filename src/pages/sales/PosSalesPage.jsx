@@ -85,7 +85,7 @@ import {
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
-import { serializeQuotationNotes } from "../../utils/quotationSettlement"
+import { parseQuotationSettlement, serializeQuotationNotes, stripSettlementTag } from "../../utils/quotationSettlement"
 import {
   CORE_SYSTEM_UNIT_PARTS,
   validateSystemUnitCompleteness,
@@ -3217,6 +3217,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const priceTierDropdownRef = useRef(null)
   const [leftColumnHeight, setLeftColumnHeight] = useState(null)
   const leftColumnRef = useRef(null)
+  const [activeQuotationToConvert, setActiveQuotationToConvert] = useState(null)
 
   useEffect(() => {
     if (!leftColumnRef.current) return
@@ -4408,6 +4409,162 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     }
   }, [initialContext, branchId])
 
+  // Load Quotation directly into POS Cart for Conversion into Sale
+  const handleSelectQuotation = useCallback(async (quote) => {
+    if (!quote) return
+
+    // 1. Set Customer Details
+    if (quote.customerId) {
+      setSelectedCustomerId(quote.customerId)
+      const found = customers.find((c) => c.id === quote.customerId)
+      if (found) {
+        setCustomerSearch(found.fullName || "")
+        setCustomerPhone(found.mobileNumber || "")
+        setCustomerAddress(found.address || "")
+        setCustomerEmail(found.email || "")
+        setCustomerCompany(found.companyName || "")
+        if (found.priceTier) setSelectedPriceTier(Number(found.priceTier))
+      } else if (quote.customer) {
+        setCustomerSearch(quote.customer.fullName || "")
+        setCustomerPhone(quote.customer.mobileNumber || "")
+        setCustomerAddress(quote.customer.address || "")
+        setCustomerEmail(quote.customer.email || "")
+        if (quote.customer.priceTier) setSelectedPriceTier(Number(quote.customer.priceTier))
+      }
+    } else if (quote.customer?.fullName) {
+      setCustomerSearch(quote.customer.fullName)
+      setCustomerPhone(quote.customer.mobileNumber || "")
+      setCustomerAddress(quote.customer.address || "")
+      setCustomerEmail(quote.customer.email || "")
+      if (quote.customer.priceTier) setSelectedPriceTier(Number(quote.customer.priceTier))
+    } else if (quote.customerNameSnapshot) {
+      setCustomerSearch(quote.customerNameSnapshot)
+      setCustomerPhone(quote.customerContactSnapshot || "")
+      setCustomerAddress(quote.customerAddressSnapshot || "")
+    }
+
+    // 2. Sales Person
+    const parsedSettlement = parseQuotationSettlement(quote.notes || "") || {}
+    const effectiveSalesmanId = parsedSettlement.salesmanId || quote.salesmanId || quote.preparedById || quote.cashierId || ""
+    if (effectiveSalesmanId) {
+      setSelectedSalesPersonId(effectiveSalesmanId)
+    }
+
+    // 3. Pricing term & remarks
+    const rawTerm = parsedSettlement.pricingTerm || quote.pricingTerm || "CASH"
+    setPricingTerm(rawTerm)
+    const cleanRemarks = stripSettlementTag(quote.remarks || quote.notes || "")
+    setRemarks(cleanRemarks)
+    setIsPcBuild(Boolean(quote.isPcBuild))
+
+    // 4. Quotation conversion tracking
+    setActiveQuotationToConvert({
+      id: quote.id,
+      quotationCode: quote.quotationCode,
+      customerName: quote.customer?.fullName || quote.customerNameSnapshot || "Customer",
+    })
+
+    // 5. Populate Cart Lines
+    const quoteItems = Array.isArray(quote.items) ? quote.items : []
+    const newCartLines = []
+
+    for (let i = 0; i < quoteItems.length; i++) {
+      const qItem = quoteItems[i]
+      if (qItem.type === "SERVICE" || (!qItem.itemId && !qItem.item)) {
+        // Service line
+        newCartLines.push({
+          localId: `quote-srv-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
+          type: "SERVICE",
+          description: qItem.description || "Service",
+          quantity: String(qItem.quantity || 1),
+          baseUnitPrice: String(qItem.baseUnitPrice || qItem.unitPrice || 0),
+          markupPercent: String(qItem.markupPercent || 0),
+          unitPrice: String(qItem.unitPrice || 0),
+          discountAmount: String(qItem.discountAmount || 0),
+          serviceStaffId: qItem.serviceStaffId || quote.serviceDoneById || null,
+          serviceStaffName: qItem.serviceStaffName || null,
+          serviceStaffRole: null,
+          warrantyDuration: qItem.warrantyDuration || "30 DAYS SERVICE WARRANTY",
+        })
+      } else {
+        // Product line
+        const matchedItem = items.find((it) => it.id === qItem.itemId || it.itemCode === qItem.item?.itemCode) || qItem.item || { id: qItem.itemId, itemName: qItem.description }
+        let batches = []
+        let serials = []
+
+        try {
+          const [batchRes, serialRes] = await Promise.all([
+            getInventoryBatches({ branchId, itemId: matchedItem.id, status: "ACTIVE", limit: 100 }),
+            matchedItem.isSerialized
+              ? getInventorySerials({ branchId, itemId: matchedItem.id, status: "AVAILABLE", limit: 100 })
+              : Promise.resolve(null),
+          ])
+          batches = getInventoryRows(batchRes).filter((b) => Number(b.quantityAvailable || 0) > 0)
+          serials = matchedItem.isSerialized ? getInventoryRows(serialRes) : []
+        } catch (err) {
+          console.warn("Could not load inventory batches/serials for quotation item:", err)
+        }
+
+        newCartLines.push({
+          localId: `quote-prod-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
+          type: "PRODUCT",
+          item: matchedItem,
+          itemId: matchedItem.id,
+          priceTier: Number(qItem.priceTier || 1),
+          quantity: String(qItem.quantity || 1),
+          markupPercent: String(qItem.markupPercent || 0),
+          discountAmount: String(qItem.discountAmount || 0),
+          batchId: batches[0]?.id || "",
+          serialId: "",
+          customSerialNumber: "",
+          isCustomSerial: false,
+          warrantyType: matchedItem.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
+          warrantyDuration: qItem.warrantyDuration || (matchedItem.hasWarranty ? "1 YEAR WARRANTY" : ""),
+          batches,
+          serials,
+        })
+      }
+    }
+
+    setCart(newCartLines)
+    setViewMode("REGISTER")
+    setNoticeMessage(`Loaded Quotation ${quote.quotationCode || ""} (${newCartLines.length} item${newCartLines.length === 1 ? "" : "s"}) into cart ready for sale checkout!`)
+  }, [branchId, customers, items])
+
+  // Auto-load Quotation if redirected from Quotations module
+  useEffect(() => {
+    let quote = initialContext?.loadQuotation
+    let quoteId = quote?.id || initialContext?.loadQuotationId
+    if (!quoteId && !quote) {
+      try {
+        quoteId = sessionStorage.getItem("pos_load_quotation_id")
+      } catch {
+        // Ignore
+      }
+    }
+    if ((quote || quoteId) && branchId) {
+      try {
+        sessionStorage.removeItem("pos_load_quotation_id")
+      } catch {
+        // Ignore
+      }
+      if (quote && quote.items && quote.items.length > 0) {
+        handleSelectQuotation(quote)
+      } else if (quoteId) {
+        getQuotationById(quoteId)
+          .then((res) => {
+            const loaded = res?.data || res
+            if (loaded && loaded.id) {
+              handleSelectQuotation(loaded)
+            }
+          })
+          .catch((err) => {
+            console.error("Failed to load quotation into POS:", err)
+          })
+      }
+    }
+  }, [initialContext, branchId, handleSelectQuotation])
+
   const updateCartLine = (localId, patch) => {
     setCart((current) =>
       current.map((line) => {
@@ -4729,6 +4886,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setCheckoutMessage("")
     setCartMessage("")
     setSelectedSalesPersonId("")
+    setActiveQuotationToConvert(null)
     if (user?.id && branchId) {
       clearFormDraft(`pos_draft_${user.id}_${branchId}`)
     }
@@ -5112,6 +5270,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             }
           : undefined,
         cashierId: selectedSalesPersonId || user?.id || undefined,
+        quotationId: activeQuotationToConvert?.id || undefined,
       }
       const requestSignature = JSON.stringify(salePayload)
 
@@ -6639,6 +6798,34 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
       {posViewMode === "REGISTER" && canCreateSale ? (
         <div className="space-y-4">
+          {activeQuotationToConvert ? (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/90 px-4 py-2.5 text-xs text-indigo-950 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="grid size-7 place-items-center rounded-xl bg-indigo-600 text-white shrink-0 font-bold text-xs shadow-xs">
+                  <FileText size={14} />
+                </span>
+                <div className="min-w-0 truncate">
+                  <span className="font-black text-indigo-950">
+                    Converting Quotation {activeQuotationToConvert.quotationCode} ({activeQuotationToConvert.customerName}) to Sale
+                  </span>
+                  <span className="hidden md:inline text-indigo-700 ml-2 font-medium">
+                    · All items, pricing, and customer details loaded into cart. Assign serials if needed, select payment, and click Complete Sale.
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveQuotationToConvert(null)
+                  setNoticeMessage("Quotation conversion cancelled. Cart preserved.")
+                }}
+                className="shrink-0 text-[11px] font-bold text-indigo-700 hover:text-red-700 hover:underline cursor-pointer"
+              >
+                Cancel Conversion
+              </button>
+            </div>
+          ) : null}
+
           <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
           <div ref={leftColumnRef} className="lg:col-span-5 min-w-0 space-y-3">
             {/* Customer & Price Tier Card (at the very top) */}
@@ -9969,17 +10156,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
                               {canConvert ? (
                                 <button
-                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition"
+                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition cursor-pointer"
                                   onClick={async () => {
                                     try {
                                       const detailed = await getQuotationById(quote.id)
-                                      setQuotationToConvert(detailed?.data || detailed)
+                                      await handleSelectQuotation(detailed?.data || detailed || quote)
                                     } catch (err) {
                                       setNoticeMessage(getApiErrorMessage(err, "Failed to load quotation items for conversion."))
                                     }
                                   }}
                                   type="button"
-                                  title="Convert directly into a completed sale"
+                                  title="Convert quotation into POS sale"
                                 >
                                   <ReceiptText size={12} /> Convert
                                 </button>
@@ -10060,11 +10247,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                         </button>
                         {canConvert ? (
                           <button
-                            className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition"
+                            className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition cursor-pointer"
                             onClick={async () => {
                               try {
                                 const detailed = await getQuotationById(quote.id)
-                                setQuotationToConvert(detailed?.data || detailed)
+                                await handleSelectQuotation(detailed?.data || detailed || quote)
                               } catch (err) {
                                 setNoticeMessage(getApiErrorMessage(err, "Failed to load quotation items for conversion."))
                               }
@@ -10262,9 +10449,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       {quotationToView ? (
         <QuotationDetailDialog
           onClose={() => setQuotationToView(null)}
-          onConvertToSale={(quote) => {
+          onConvertToSale={async (quote) => {
             setQuotationToView(null)
-            setQuotationToConvert(quote)
+            try {
+              const detailed = await getQuotationById(quote.id)
+              await handleSelectQuotation(detailed?.data || detailed || quote)
+            } catch {
+              await handleSelectQuotation(quote)
+            }
           }}
           quotation={quotationToView}
         />

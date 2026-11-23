@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   Trash2,
   User,
@@ -218,7 +219,139 @@ function getRoleLabel(role) {
   return role.replace(/_/g, " ")
 }
 
-export default function QuotationsPage({ selectedBranch, user }) {
+function SalesPersonCombobox({
+  value,
+  onChange,
+  staffList = [],
+  currentUser = null,
+  placeholder = "Search sales person / staff...",
+  inputRef = null,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+        setSearch("")
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  // Combine staff list and current user, ensuring uniqueness by id
+  const combinedStaff = useMemo(() => {
+    const list = [...(Array.isArray(staffList) ? staffList : [])]
+    if (currentUser?.id && !list.some((s) => s.id === currentUser.id)) {
+      list.unshift(currentUser)
+    }
+    return list
+  }, [staffList, currentUser])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return combinedStaff
+    return combinedStaff.filter((s) => {
+      const name = (s.fullName || s.username || "").toLowerCase()
+      const role = (s.role || "").toLowerCase()
+      return name.includes(q) || role.includes(q)
+    })
+  }, [combinedStaff, search])
+
+  const selectedStaff = combinedStaff.find((s) => s.id === value)
+  const displayName = selectedStaff ? (selectedStaff.fullName || selectedStaff.username || "") : ""
+
+  return (
+    <div className="relative text-xs w-full" ref={containerRef}>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          className={`w-full rounded-xl border px-2.5 py-1.5 text-xs font-semibold outline-none transition pr-7 ${
+            !value
+              ? "border-amber-300 bg-amber-50/25 text-slate-800 placeholder:text-amber-800/60 focus:bg-white focus:border-[var(--color-maroon)]"
+              : "border-slate-200 bg-slate-50/50 text-slate-800 focus:bg-white focus:border-[var(--color-maroon)]"
+          }`}
+          placeholder={displayName || placeholder}
+          value={isOpen ? search : displayName}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => {
+            setIsOpen(true)
+            setSearch("")
+          }}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onChange("")
+              setSearch("")
+              setIsOpen(false)
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-600 p-0.5 transition cursor-pointer"
+            title="Clear sales person"
+          >
+            <X size={13} />
+          </button>
+        ) : (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+            <Search size={12} />
+          </div>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+          {filtered.length === 0 ? (
+            <div className="p-3 text-center text-xs text-slate-400">
+              No matching staff found
+            </div>
+          ) : (
+            filtered.map((staff) => {
+              const name = staff.fullName || staff.username || "Staff"
+              const isSelected = staff.id === value
+              return (
+                <button
+                  key={staff.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(staff.id)
+                    setSearch("")
+                    setIsOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs transition border-b border-slate-100 last:border-b-0 cursor-pointer ${
+                    isSelected ? "bg-rose-50 text-[var(--color-maroon)] font-bold" : "hover:bg-slate-50 text-slate-700"
+                  }`}
+                >
+                  <div>
+                    <p className="font-bold">{name}</p>
+                    {staff.role && (
+                      <p className="text-[10px] text-slate-400 font-normal capitalize">
+                        {staff.role.replace(/_/g, " ").toLowerCase()}
+                      </p>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-bold text-[var(--color-maroon)]">Selected</span>
+                  )}
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
   const branchName = selectedBranch?.name || user?.branch?.name || "Selected Branch"
   const branchId = selectedBranch?.id || user?.branch?.id || user?.branchId || ""
 
@@ -790,18 +923,28 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
   const handleOpenConvert = async (quotation) => {
     if (!quotation?.id) return
-    if (quotation.items && quotation.items.length > 0) {
-      setQuotationToConvert(quotation)
-      return
-    }
     setIsLoadingDetails(true)
     try {
-      const response = await getQuotationById(quotation.id)
-      const detailed = response?.data || response || quotation
-      setQuotationToConvert(detailed)
+      let detailed = quotation
+      if (!quotation.items || quotation.items.length === 0) {
+        const response = await getQuotationById(quotation.id)
+        detailed = response?.data || response || quotation
+      }
+      if (onNavigate) {
+        onNavigate("pos", user, { loadQuotation: detailed })
+      } else {
+        try {
+          sessionStorage.setItem("pos_load_quotation_id", quotation.id)
+        } catch {
+          // ignore
+        }
+        window.location.hash = "#pos"
+      }
     } catch (err) {
       console.error("Failed to load quotation details for conversion:", err)
-      setQuotationToConvert(quotation)
+      if (onNavigate) {
+        onNavigate("pos", user, { loadQuotation: quotation })
+      }
     } finally {
       setIsLoadingDetails(false)
     }
@@ -843,6 +986,11 @@ export default function QuotationsPage({ selectedBranch, user }) {
     if (!selectedCustomerId && !customerSearch.trim()) {
       setBuilderMessage("Customer name is required before generating quotation.")
       customerInputRef.current?.focus()
+      return
+    }
+
+    if (!selectedSalesPersonId) {
+      setBuilderMessage("Please select a sales person before previewing quotation.")
       return
     }
 
@@ -928,6 +1076,11 @@ export default function QuotationsPage({ selectedBranch, user }) {
     if (!selectedCustomerId && !customerSearch.trim()) {
       setBuilderMessage("Customer name is required.")
       customerInputRef.current?.focus()
+      return
+    }
+
+    if (!selectedSalesPersonId) {
+      setBuilderMessage("Please select a sales person before creating a quotation.")
       return
     }
 
@@ -1115,9 +1268,10 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
       {/* VIEW MODE: BUILDER (POS CASHIERING STYLE) */}
       {viewMode === "BUILDER" ? (
-        <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-          {/* Left Column: Customer, Products Search, and Service Lines */}
-          <div className="space-y-4">
+        <div className="space-y-4">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-12 items-start">
+            {/* Left Column (5 cols): Customer, Products Search, and Service Lines */}
+            <div className="lg:col-span-5 min-w-0 space-y-3">
             {/* 1. Customer Selection Card */}
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
@@ -1236,40 +1390,30 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
               {/* Sales Person & Quotation Date */}
               <div className="pt-2 border-t border-slate-100 grid gap-2 sm:grid-cols-2">
-                <label className="block">
+                <div className="block">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                      Sales Person / Salesman
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                      Sales Person <span className="text-red-500 font-bold">*</span>
                     </span>
-                    {selectedSalesPersonId && user?.id && selectedSalesPersonId !== user.id ? (
+                    {user?.id && selectedSalesPersonId !== user.id ? (
                       <button
                         type="button"
                         onClick={() => setSelectedSalesPersonId(user.id)}
-                        className="text-[10px] font-bold text-[var(--color-maroon)] hover:underline"
+                        className="text-[10px] font-semibold text-slate-400 hover:text-[var(--color-maroon)] transition underline cursor-pointer"
+                        title="Click to set sales person to your logged in account"
                       >
-                        Reset ({user.fullName})
+                        Set to Me ({user.fullName || user.username})
                       </button>
                     ) : null}
                   </div>
-                  <select
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
-                    value={selectedSalesPersonId || user?.id || ""}
-                    onChange={(e) => setSelectedSalesPersonId(e.target.value)}
-                  >
-                    {user ? (
-                      <option value={user.id}>
-                        {user.fullName}
-                      </option>
-                    ) : null}
-                    {serviceStaffList
-                      .filter((staff) => staff.id !== user?.id)
-                      .map((staff) => (
-                        <option key={staff.id} value={staff.id}>
-                          {staff.fullName}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+                  <SalesPersonCombobox
+                    value={selectedSalesPersonId}
+                    onChange={(id) => setSelectedSalesPersonId(id)}
+                    staffList={serviceStaffList}
+                    currentUser={user}
+                    placeholder="Search sales person / staff *..."
+                  />
+                </div>
 
                 <label className="block">
                   <span className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500 block">
@@ -1560,34 +1704,49 @@ export default function QuotationsPage({ selectedBranch, user }) {
             </section>
           </div>
 
-          {/* Right Column: Quotation Cart & Settlement Actions */}
-          <div className="space-y-4">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          {/* Right Column: Quotation Cart (Roomy, Wide) */}
+          <div className="lg:col-span-7 min-w-0 flex flex-col h-full">
+            <section className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col h-full">
+              {/* Cart Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 p-2.5">
                 <div className="flex items-center gap-2">
                   <span className="grid size-7 place-items-center rounded-lg bg-rose-50 text-[var(--color-maroon)]">
                     <FileText size={15} />
                   </span>
                   <div>
                     <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                      Quotation Cart ({cart.length})
+                      Current Cart ({cart.length} {cart.length === 1 ? "Line" : "Lines"})
                     </h2>
                   </div>
                 </div>
 
-                <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isPcBuild}
-                    onChange={(e) => setIsPcBuild(e.target.checked)}
-                    className="size-3.5 rounded text-[var(--color-maroon)] focus:ring-0"
-                  />
-                  <span className="text-[11px] font-bold text-slate-700">PC Build</span>
-                </label>
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isPcBuild}
+                      onChange={(e) => setIsPcBuild(e.target.checked)}
+                      className="size-3.5 rounded text-[var(--color-maroon)] focus:ring-0"
+                    />
+                    <span className="text-[11px] font-bold text-slate-700">PC Build</span>
+                  </label>
+
+                  {cart.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setCart([])}
+                      className="text-[11px] font-bold text-slate-400 hover:text-red-600 transition underline cursor-pointer"
+                      title="Clear cart"
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
+              {/* PC Build Requirements Check */}
               {isPcBuild ? (
-                <div className="mx-4 mt-2 rounded-xl border border-rose-200 bg-rose-50/60 p-2 space-y-1.5 shadow-2xs">
+                <div className="mx-3 mt-2 rounded-xl border border-rose-200 bg-rose-50/60 p-2 space-y-1.5 shadow-2xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
                       🖥️ System Unit Requirements
@@ -1647,15 +1806,16 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
               {/* Cart Line Items */}
               {cart.length === 0 ? (
-                <div className="py-8 text-center text-slate-400 text-xs">
-                  <p className="font-bold text-slate-600">Quotation cart is empty</p>
-                  <p className="mt-0.5 text-[11px]">Search products or add service line on the left.</p>
+                <div className="flex-1 min-h-[300px] lg:min-h-0 grid place-content-center p-6 text-center text-slate-400">
+                  <ShoppingCart className="mx-auto text-slate-300" size={36} />
+                  <p className="mt-2 text-sm font-bold text-slate-600">Cart is empty</p>
+                  <p className="mt-0.5 text-xs text-slate-400">Search product or add service line on the left.</p>
                 </div>
               ) : (
-                <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1 text-xs">
+                <div className="flex-1 min-h-[300px] lg:min-h-0 space-y-2 overflow-y-auto p-2.5 text-xs">
                   {cart.map((line, index) => (
                     <article
-                      className="rounded-xl border border-slate-200 bg-slate-50/50 p-2.5 space-y-2 shadow-2xs"
+                      className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-2.5 space-y-2 shadow-2xs"
                       key={line.localId}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -1682,9 +1842,10 @@ export default function QuotationsPage({ selectedBranch, user }) {
                           ) : null}
                         </div>
                         <button
-                          className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition shrink-0"
+                          className="rounded-lg p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition shrink-0 cursor-pointer"
                           onClick={() => removeCartLine(line.localId)}
                           type="button"
+                          title="Remove item"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -1692,11 +1853,11 @@ export default function QuotationsPage({ selectedBranch, user }) {
 
                       {/* Product Line Controls */}
                       {line.type === "PRODUCT" ? (
-                        <div className="grid gap-1.5 grid-cols-4 pt-1 border-t border-slate-200/60">
+                        <div className="grid gap-2 grid-cols-4 pt-1.5 border-t border-slate-200/60">
                           <label className="block">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Tier</span>
                             <select
-                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold outline-none"
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-[var(--color-maroon)]"
                               onChange={(e) => updateCartLine(line.localId, { priceTier: Number(e.target.value) })}
                               value={line.priceTier}
                             >
@@ -1709,20 +1870,9 @@ export default function QuotationsPage({ selectedBranch, user }) {
                           </label>
 
                           <label className="block">
-                            <span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span>
-                            <input
-                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold outline-none"
-                              min="1"
-                              onChange={(e) => updateCartLine(line.localId, { quantity: e.target.value })}
-                              type="number"
-                              value={line.quantity}
-                            />
-                          </label>
-
-                          <label className="block">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Markup %</span>
                             <input
-                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs outline-none"
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                               max="99.99"
                               min="0"
                               onChange={(e) => updateCartLine(line.localId, { markupPercent: e.target.value })}
@@ -1734,9 +1884,20 @@ export default function QuotationsPage({ selectedBranch, user }) {
                           </label>
 
                           <label className="block">
+                            <span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span>
+                            <input
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold outline-none focus:border-[var(--color-maroon)]"
+                              min="1"
+                              onChange={(e) => updateCartLine(line.localId, { quantity: e.target.value })}
+                              type="number"
+                              value={line.quantity}
+                            />
+                          </label>
+
+                          <label className="block">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Discount</span>
                             <input
-                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-mono outline-none"
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
                               min="0"
                               onChange={(e) => updateCartLine(line.localId, { discountAmount: e.target.value })}
                               step="0.01"
@@ -1746,11 +1907,11 @@ export default function QuotationsPage({ selectedBranch, user }) {
                           </label>
                         </div>
                       ) : (
-                        <div className="grid gap-1.5 grid-cols-4 pt-1 border-t border-slate-200/60">
+                        <div className="grid gap-2 grid-cols-4 pt-1.5 border-t border-slate-200/60">
                           <label className="block">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Qty</span>
                             <input
-                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs"
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold outline-none focus:border-[var(--color-maroon)]"
                               min="1"
                               onChange={(e) => updateCartLine(line.localId, { quantity: e.target.value })}
                               type="number"
@@ -1758,9 +1919,9 @@ export default function QuotationsPage({ selectedBranch, user }) {
                             />
                           </label>
                           <label className="block">
-                            <span className="text-[10px] font-bold uppercase text-slate-500 block">Base (₱)</span>
+                            <span className="text-[10px] font-bold uppercase text-slate-500 block">Base Price (₱)</span>
                             <input
-                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-mono"
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
                               min="0"
                               onChange={(e) => updateCartLine(line.localId, { baseUnitPrice: e.target.value })}
                               step="0.01"
@@ -1771,7 +1932,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                           <label className="block">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Markup %</span>
                             <input
-                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs"
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-[var(--color-maroon)]"
                               max="99.99"
                               min="0"
                               onChange={(e) => updateCartLine(line.localId, { markupPercent: e.target.value })}
@@ -1784,7 +1945,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                           <label className="block">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Discount</span>
                             <input
-                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-mono"
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
                               min="0"
                               onChange={(e) => updateCartLine(line.localId, { discountAmount: e.target.value })}
                               step="0.01"
@@ -1799,7 +1960,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700">
                           <ShieldCheck size={12} /> {line.warrantyDuration || "1 YEAR WARRANTY"}
                         </span>
-                        <span className="font-mono font-black text-slate-900">
+                        <span className="font-mono font-black text-slate-900 text-xs">
                           ₱{money(getLineTotal(line, pricingTerm))}
                         </span>
                       </div>
@@ -1807,9 +1968,16 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   ))}
                 </div>
               )}
+            </section>
+          </div>
+        </div>
 
-              {/* Quotation Remarks */}
-              <label className="block pt-1 border-t border-slate-100">
+        {/* Surcharges, Totals, & Actions (Bottom Section) */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs text-xs space-y-3 mt-4">
+          <div className="grid gap-4 lg:grid-cols-12 items-start">
+            {/* Left Column (5 cols): Remarks, Pricing Terms, Financing Option, Totals Breakdown */}
+            <div className="lg:col-span-5 min-w-0 space-y-3">
+              <label className="block">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Quotation Remarks / Notes</span>
                 <input
                   className="mt-0.5 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-maroon)]"
@@ -1833,7 +2001,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <button
                     type="button"
                     onClick={() => setPricingTerm("CASH")}
-                    className={`rounded-xl py-2 px-1 text-center transition ${
+                    className={`rounded-xl py-2 px-1 text-center transition cursor-pointer ${
                       pricingTerm === "CASH"
                         ? "bg-[var(--color-maroon)] text-white shadow-2xs font-bold"
                         : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
@@ -1845,7 +2013,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <button
                     type="button"
                     onClick={() => setPricingTerm("SRP")}
-                    className={`rounded-xl py-2 px-1 text-center transition ${
+                    className={`rounded-xl py-2 px-1 text-center transition cursor-pointer ${
                       pricingTerm === "SRP"
                         ? "bg-blue-700 text-white shadow-2xs font-bold"
                         : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
@@ -1857,7 +2025,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <button
                     type="button"
                     onClick={() => setPricingTerm("REGULAR")}
-                    className={`rounded-xl py-2 px-1 text-center transition ${
+                    className={`rounded-xl py-2 px-1 text-center transition cursor-pointer ${
                       pricingTerm === "REGULAR"
                         ? "bg-indigo-700 text-white shadow-2xs font-bold"
                         : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium"
@@ -1921,8 +2089,8 @@ export default function QuotationsPage({ selectedBranch, user }) {
                 ) : null}
               </div>
 
-              {/* Totals Summary */}
-              <div className="rounded-xl border border-slate-200 bg-white p-2.5 space-y-1 text-xs">
+              {/* Totals Summary Breakdown */}
+              <div className="rounded-xl border border-slate-200 bg-white p-2.5 space-y-1 text-xs shadow-2xs">
                 <div className="flex justify-between text-slate-600">
                   <span>Products Gross</span>
                   <span className="font-mono">₱{money(totals.productGross)}</span>
@@ -1944,6 +2112,22 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   <span className="font-mono text-base font-black text-slate-900">₱{money(totals.grandTotal)}</span>
                 </div>
               </div>
+            </div>
+
+            {/* Right Column (7 cols): Messages & Action Buttons */}
+            <div className="lg:col-span-7 min-w-0 space-y-3">
+              {cart.length > 0 && !selectedCustomerId && !customerSearch.trim() ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900">
+                  <span>⚠️ Customer name is required to create a quotation.</span>
+                  <button
+                    type="button"
+                    onClick={() => customerInputRef.current?.focus()}
+                    className="font-bold text-[var(--color-maroon)] underline shrink-0 cursor-pointer"
+                  >
+                    Enter Name ↑
+                  </button>
+                </div>
+              ) : null}
 
               {builderMessage ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-xs font-bold text-rose-800 flex items-center gap-1.5">
@@ -1952,10 +2136,10 @@ export default function QuotationsPage({ selectedBranch, user }) {
                 </div>
               ) : null}
 
-              {/* Builder Action Buttons */}
+              {/* Action Buttons Toolbar: Preview, Save & Print Quote */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 shadow-2xs transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
                   disabled={cart.length === 0}
                   onClick={handlePreviewQuotation}
                   type="button"
@@ -1965,7 +2149,7 @@ export default function QuotationsPage({ selectedBranch, user }) {
                 </button>
 
                 <button
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3 py-2.5 text-xs font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3 py-2.5 text-xs font-black text-white shadow-soft transition hover:bg-[var(--color-maroon-hover)] disabled:opacity-50 cursor-pointer"
                   disabled={cart.length === 0 || isCreatingQuotation}
                   onClick={handleSaveQuotation}
                   type="button"
@@ -1983,10 +2167,11 @@ export default function QuotationsPage({ selectedBranch, user }) {
                   )}
                 </button>
               </div>
-            </section>
+            </div>
           </div>
-        </div>
-      ) : null}
+        </section>
+      </div>
+    ) : null}
 
       {/* VIEW MODE: HISTORY TABLE */}
       {viewMode === "HISTORY" ? (
