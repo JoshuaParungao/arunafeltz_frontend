@@ -4491,16 +4491,22 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         })
       } else {
         // Product line
-        const matchedItem = qItem.item || {
-          id: qItem.itemId,
-          itemCode: qItem.itemCode || qItem.item?.itemCode,
-          itemName: qItem.description || qItem.item?.itemName,
-          brand: qItem.item?.brand,
-          modelName: qItem.item?.modelName,
-          isSerialized: Boolean(qItem.item?.isSerialized),
-          hasWarranty: Boolean(qItem.warrantyDuration || qItem.item?.hasWarranty),
-          warrantyDurationMonths: qItem.item?.warrantyDurationMonths || 12,
-        }
+        const matchedItem = qItem.item
+          ? {
+              ...qItem.item,
+              category: qItem.item.category || null,
+              categoryCode: qItem.item.category?.categoryCode || qItem.item.categoryCode || "",
+            }
+          : {
+              id: qItem.itemId,
+              itemCode: qItem.itemCode || qItem.item?.itemCode,
+              itemName: qItem.description || qItem.item?.itemName,
+              brand: qItem.item?.brand,
+              modelName: qItem.item?.modelName,
+              isSerialized: Boolean(qItem.item?.isSerialized),
+              hasWarranty: Boolean(qItem.warrantyDuration || qItem.item?.hasWarranty),
+              warrantyDurationMonths: qItem.item?.warrantyDurationMonths || 12,
+            }
         let batches = []
         let serials = []
 
@@ -7551,11 +7557,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     </span>
                     {systemUnitCompleteness?.isComplete ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-800">
-                        <CheckCircle2 size={11} /> Complete (Ready)
+                        <CheckCircle2 size={11} /> Complete ({systemUnitCompleteness?.corePartsCount || 0}/6 parts)
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 border border-rose-300 px-2 py-0.5 text-[9px] font-black text-rose-800">
-                        <AlertCircle size={11} /> Incomplete ({systemUnitCompleteness?.missingComponents?.length || 0} missing)
+                        <AlertCircle size={11} /> Incomplete ({systemUnitCompleteness?.corePartsCount || 0}/3 required)
                       </span>
                     )}
                   </div>
@@ -7578,6 +7584,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                           className={`flex items-center justify-between rounded-md border px-2 py-1 text-[10px] font-semibold transition ${
                             isPresent
                               ? "border-emerald-200 bg-emerald-50/80 text-emerald-900"
+                              : systemUnitCompleteness?.isComplete
+                              ? "border-slate-200 bg-slate-50/50 text-slate-500"
                               : "border-rose-200 bg-rose-50/40 text-rose-700"
                           }`}
                           title={titleText}
@@ -7589,7 +7597,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                               <Check size={11} />
                             </span>
                           ) : (
-                            <span className="shrink-0 text-[8px] font-black uppercase text-rose-600 ml-1">Need</span>
+                            <span className={`shrink-0 text-[8px] font-black uppercase ml-1 ${
+                              systemUnitCompleteness?.isComplete ? "text-slate-400" : "text-rose-600"
+                            }`}>
+                              {systemUnitCompleteness?.isComplete ? "Opt" : "Need"}
+                            </span>
                           )}
                         </div>
                       )
@@ -7597,7 +7609,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   </div>
 
                   <p className="text-[9px] text-slate-500 italic">
-                    💡 Peripherals (Monitor, Keyboard, Mouse) are optional. Only the 6 core system unit parts are required.
+                    💡 Peripherals (Monitor, Keyboard, Mouse) are optional. Requires at least 3 of the 6 core system unit parts (CPU, Mobo, RAM, Storage, PSU, Case).
                   </p>
                 </div>
               </div>

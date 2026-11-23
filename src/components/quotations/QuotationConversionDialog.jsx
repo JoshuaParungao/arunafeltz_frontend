@@ -500,11 +500,11 @@ export default function QuotationConversionDialog({
                 </span>
                 {systemUnitCompleteness?.isComplete ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-black text-emerald-800">
-                    <CheckCircle2 size={12} /> Complete (Ready to Convert)
+                    <CheckCircle2 size={12} /> Complete ({systemUnitCompleteness?.corePartsCount || 0}/6 parts)
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 border border-rose-300 px-2.5 py-0.5 text-[10px] font-black text-rose-800">
-                    <AlertCircle size={12} /> Incomplete ({systemUnitCompleteness?.missingComponents?.length || 0} missing)
+                    <AlertCircle size={12} /> Incomplete ({systemUnitCompleteness?.corePartsCount || 0}/3 required)
                   </span>
                 )}
               </div>
@@ -527,6 +527,8 @@ export default function QuotationConversionDialog({
                       className={`flex items-center justify-between rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition ${
                         isPresent
                           ? "border-emerald-200 bg-white text-emerald-900"
+                          : systemUnitCompleteness?.isComplete
+                          ? "border-slate-200 bg-slate-50/50 text-slate-500"
                           : "border-rose-200 bg-white text-rose-700"
                       }`}
                       title={titleText}
@@ -538,7 +540,11 @@ export default function QuotationConversionDialog({
                           <Check size={12} />
                         </span>
                       ) : (
-                        <span className="shrink-0 text-[9px] font-black uppercase text-rose-600 ml-1">Need</span>
+                        <span className={`shrink-0 text-[9px] font-black uppercase ml-1 ${
+                          systemUnitCompleteness?.isComplete ? "text-slate-400" : "text-rose-600"
+                        }`}>
+                          {systemUnitCompleteness?.isComplete ? "Opt" : "Need"}
+                        </span>
                       )}
                     </div>
                   )
@@ -546,7 +552,7 @@ export default function QuotationConversionDialog({
               </div>
 
               <p className="text-[10px] text-slate-500 italic">
-                💡 Peripherals (Monitor, Keyboard, Mouse) are optional. Only the 6 core system unit parts are required.
+                💡 Peripherals (Monitor, Keyboard, Mouse) are optional. Requires at least 3 of the 6 core system unit parts (CPU, Mobo, RAM, Storage, PSU, Case).
               </p>
             </div>
           ) : null}
