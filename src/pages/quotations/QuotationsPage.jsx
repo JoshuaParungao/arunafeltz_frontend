@@ -1395,16 +1395,6 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
                       Sales Person <span className="text-red-500 font-bold">*</span>
                     </span>
-                    {user?.id && selectedSalesPersonId !== user.id ? (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSalesPersonId(user.id)}
-                        className="text-[10px] font-semibold text-slate-400 hover:text-[var(--color-maroon)] transition underline cursor-pointer"
-                        title="Click to set sales person to your logged in account"
-                      >
-                        Set to Me ({user.fullName || user.username})
-                      </button>
-                    ) : null}
                   </div>
                   <SalesPersonCombobox
                     value={selectedSalesPersonId}
