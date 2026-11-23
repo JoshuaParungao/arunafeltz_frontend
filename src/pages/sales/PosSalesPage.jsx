@@ -448,6 +448,138 @@ function ServiceLineStaffCombobox({
   )
 }
 
+function SalesPersonCombobox({
+  value,
+  onChange,
+  staffList = [],
+  currentUser = null,
+  placeholder = "Search sales person / staff...",
+  inputRef = null,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+        setSearch("")
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  // Combine staff list and current user, ensuring uniqueness by id
+  const combinedStaff = useMemo(() => {
+    const list = [...(Array.isArray(staffList) ? staffList : [])]
+    if (currentUser?.id && !list.some((s) => s.id === currentUser.id)) {
+      list.unshift(currentUser)
+    }
+    return list
+  }, [staffList, currentUser])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return combinedStaff
+    return combinedStaff.filter((s) => {
+      const name = (s.fullName || s.username || "").toLowerCase()
+      const role = (s.role || "").toLowerCase()
+      return name.includes(q) || role.includes(q)
+    })
+  }, [combinedStaff, search])
+
+  const selectedStaff = combinedStaff.find((s) => s.id === value)
+  const displayName = selectedStaff ? (selectedStaff.fullName || selectedStaff.username || "") : ""
+
+  return (
+    <div className="relative text-xs w-full" ref={containerRef}>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          className={`w-full rounded-xl border px-2.5 py-1.5 text-xs font-semibold outline-none transition pr-7 ${
+            !value
+              ? "border-amber-300 bg-amber-50/25 text-slate-800 placeholder:text-amber-800/60 focus:bg-white focus:border-[var(--color-maroon)]"
+              : "border-slate-200 bg-slate-50/50 text-slate-800 focus:bg-white focus:border-[var(--color-maroon)]"
+          }`}
+          placeholder={displayName || placeholder}
+          value={isOpen ? search : displayName}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => {
+            setIsOpen(true)
+            setSearch("")
+          }}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onChange("")
+              setSearch("")
+              setIsOpen(false)
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-600 p-0.5 transition cursor-pointer"
+            title="Clear sales person"
+          >
+            <X size={13} />
+          </button>
+        ) : (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+            <Search size={12} />
+          </div>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+          {filtered.length === 0 ? (
+            <div className="p-3 text-center text-xs text-slate-400">
+              No matching staff found
+            </div>
+          ) : (
+            filtered.map((staff) => {
+              const name = staff.fullName || staff.username || "Staff"
+              const isSelected = staff.id === value
+              return (
+                <button
+                  key={staff.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(staff.id)
+                    setSearch("")
+                    setIsOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs transition border-b border-slate-100 last:border-b-0 cursor-pointer ${
+                    isSelected ? "bg-rose-50 text-[var(--color-maroon)] font-bold" : "hover:bg-slate-50 text-slate-700"
+                  }`}
+                >
+                  <div>
+                    <p className="font-bold">{name}</p>
+                    {staff.role && (
+                      <p className="text-[10px] text-slate-400 font-normal capitalize">
+                        {staff.role.replace(/_/g, " ").toLowerCase()}
+                      </p>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-bold text-[var(--color-maroon)]">Selected</span>
+                  )}
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function isOnlinePaymentMethod(method, remarks = "", ref = "") {
   const m = String(method || "").toUpperCase()
   if (m === "GCASH" || m === "MAYA" || m === "PAYMAYA" || m === "BANK_TRANSFER") {
@@ -3045,6 +3177,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const customerRequestIdRef = useRef(0)
   const customerDropdownRef = useRef(null)
   const customerInputRef = useRef(null)
+  const salesPersonInputRef = useRef(null)
 
   const [serviceStaffList, setServiceStaffListState] = useState([])
   const setServiceStaffList = (list) => {
@@ -3710,16 +3843,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []
           if (rows.length > 0) {
             setServiceStaffList(rows)
-            if (user?.id) {
-              setSelectedSalesPersonId((prev) => {
-                if (prev && (prev === user.id || rows.some((staff) => staff.id === prev))) return prev
-                return prev || user.id
-              })
-              if (rows.some((staff) => staff.id === user.id)) {
-                setSelectedServiceStaffId((prev) => prev || user.id)
-              } else {
-                setSelectedServiceStaffId("")
-              }
+            setSelectedSalesPersonId((prev) => {
+              if (prev && (prev === user?.id || rows.some((staff) => staff.id === prev))) return prev
+              return ""
+            })
+            if (user?.id && rows.some((staff) => staff.id === user.id)) {
+              setSelectedServiceStaffId((prev) => prev || user.id)
+            } else {
+              setSelectedServiceStaffId("")
             }
           } else {
             getQuotationServiceStaff({ branchId })
@@ -3727,12 +3858,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 if (!isMounted) return
                 const qRows = Array.isArray(qRes?.data) ? qRes.data : Array.isArray(qRes) ? qRes : []
                 setServiceStaffList(qRows)
-                if (user?.id) {
-                  setSelectedSalesPersonId((prev) => {
-                    if (prev && (prev === user.id || qRows.some((staff) => staff.id === prev))) return prev
-                    return prev || user.id
-                  })
-                }
+                setSelectedSalesPersonId((prev) => {
+                  if (prev && (prev === user?.id || qRows.some((staff) => staff.id === prev))) return prev
+                  return ""
+                })
               })
               .catch(() => {})
           }
@@ -4599,6 +4728,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setProviderReference("")
     setCheckoutMessage("")
     setCartMessage("")
+    setSelectedSalesPersonId("")
     if (user?.id && branchId) {
       clearFormDraft(`pos_draft_${user.id}_${branchId}`)
     }
@@ -4610,6 +4740,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     const validationMessage = validateCart()
     if (validationMessage) {
       setCheckoutMessage(validationMessage)
+      return
+    }
+
+    if (!selectedSalesPersonId) {
+      setCheckoutMessage("Please select a sales person before completing the sale.")
+      salesPersonInputRef.current?.focus()
       return
     }
     setCheckoutMessage("")
@@ -4790,6 +4926,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     if (!effectiveName) {
       setCheckoutMessage("Customer name is required before completing the sale.")
       customerInputRef.current?.focus()
+      return
+    }
+
+    if (!selectedSalesPersonId) {
+      setCheckoutMessage("Please select a sales person before completing the sale.")
+      salesPersonInputRef.current?.focus()
       return
     }
 
@@ -5272,6 +5414,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       customerInputRef.current?.focus()
       return
     }
+    if (!selectedSalesPersonId) {
+      setCheckoutMessage("Please select a sales person before previewing quotation.")
+      salesPersonInputRef.current?.focus()
+      return
+    }
     setCheckoutMessage("")
 
     const matchedCustomer = customers.find((c) => c.id === selectedCustomerId)
@@ -5330,6 +5477,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     if (!hasCustomer) {
       setCheckoutMessage("Customer name is required before creating a quotation. Please enter or select a customer.")
       customerInputRef.current?.focus()
+      return
+    }
+    if (!selectedSalesPersonId) {
+      setCheckoutMessage("Please select a sales person before creating a quotation.")
+      salesPersonInputRef.current?.focus()
       return
     }
     setCheckoutMessage("")
@@ -6686,41 +6838,31 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
               {/* Sales Person & Transaction Date */}
               <div className="pt-2 border-t border-slate-100 grid gap-2 sm:grid-cols-2">
-                <label className="block">
+                <div className="block">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                      Sales Person
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                      Sales Person <span className="text-red-500 font-bold">*</span>
                     </span>
-                    {selectedSalesPersonId && user?.id && selectedSalesPersonId !== user.id ? (
+                    {user?.id && selectedSalesPersonId !== user.id ? (
                       <button
                         type="button"
                         onClick={() => setSelectedSalesPersonId(user.id)}
-                        className="text-[10px] font-semibold text-slate-400 hover:text-[var(--color-maroon)] transition underline"
-                        title="Click to set sales person back to the logged in account"
+                        className="text-[10px] font-semibold text-slate-400 hover:text-[var(--color-maroon)] transition underline cursor-pointer"
+                        title="Click to set sales person to your logged in account"
                       >
-                        Set to Me ({user.fullName})
+                        Set to Me ({user.fullName || user.username})
                       </button>
                     ) : null}
                   </div>
-                  <select
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:bg-white focus:border-[var(--color-maroon)]"
-                    value={selectedSalesPersonId || user?.id || ""}
-                    onChange={(e) => setSelectedSalesPersonId(e.target.value)}
-                  >
-                    {user ? (
-                      <option value={user.id}>
-                        {user.fullName}
-                      </option>
-                    ) : null}
-                    {serviceStaffList
-                      .filter((staff) => staff.id !== user?.id && (!branchId || !staff.branchId || staff.branchId === branchId || staff.role === "SUPER_OWNER"))
-                      .map((staff) => (
-                        <option key={staff.id} value={staff.id}>
-                          {staff.fullName}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+                  <SalesPersonCombobox
+                    value={selectedSalesPersonId}
+                    onChange={(id) => setSelectedSalesPersonId(id)}
+                    staffList={serviceStaffList}
+                    currentUser={user}
+                    placeholder="Search sales person / staff *..."
+                    inputRef={salesPersonInputRef}
+                  />
+                </div>
 
                 <label className="block">
                   <span className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500 block">
