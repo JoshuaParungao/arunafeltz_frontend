@@ -4491,19 +4491,31 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         })
       } else {
         // Product line
-        const matchedItem = items.find((it) => it.id === qItem.itemId || it.itemCode === qItem.item?.itemCode) || qItem.item || { id: qItem.itemId, itemName: qItem.description }
+        const matchedItem = qItem.item || {
+          id: qItem.itemId,
+          itemCode: qItem.itemCode || qItem.item?.itemCode,
+          itemName: qItem.description || qItem.item?.itemName,
+          brand: qItem.item?.brand,
+          modelName: qItem.item?.modelName,
+          isSerialized: Boolean(qItem.item?.isSerialized),
+          hasWarranty: Boolean(qItem.warrantyDuration || qItem.item?.hasWarranty),
+          warrantyDurationMonths: qItem.item?.warrantyDurationMonths || 12,
+        }
         let batches = []
         let serials = []
 
         try {
-          const [batchRes, serialRes] = await Promise.all([
-            getInventoryBatches({ branchId, itemId: matchedItem.id, status: "ACTIVE", limit: 100 }),
-            matchedItem.isSerialized
-              ? getInventorySerials({ branchId, itemId: matchedItem.id, status: "AVAILABLE", limit: 100 })
-              : Promise.resolve(null),
-          ])
-          batches = getInventoryRows(batchRes).filter((b) => Number(b.quantityAvailable || 0) > 0)
-          serials = matchedItem.isSerialized ? getInventoryRows(serialRes) : []
+          const itemIdToFetch = matchedItem.id || qItem.itemId
+          if (itemIdToFetch) {
+            const [batchRes, serialRes] = await Promise.all([
+              getInventoryBatches({ branchId, itemId: itemIdToFetch, status: "ACTIVE", limit: 100 }),
+              matchedItem.isSerialized
+                ? getInventorySerials({ branchId, itemId: itemIdToFetch, status: "AVAILABLE", limit: 100 })
+                : Promise.resolve(null),
+            ])
+            batches = getInventoryRows(batchRes).filter((b) => Number(b.quantityAvailable || 0) > 0)
+            serials = matchedItem.isSerialized ? getInventoryRows(serialRes) : []
+          }
         } catch (err) {
           console.warn("Could not load inventory batches/serials for quotation item:", err)
         }
@@ -4532,7 +4544,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setCart(newCartLines)
     setViewMode("REGISTER")
     setNoticeMessage(`Loaded Quotation ${quote.quotationCode || ""} (${newCartLines.length} item${newCartLines.length === 1 ? "" : "s"}) into cart ready for sale checkout!`)
-  }, [branchId, customers, items])
+  }, [branchId, customers])
 
   // Auto-load Quotation if redirected from Quotations module
   useEffect(() => {
