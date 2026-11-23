@@ -580,6 +580,137 @@ function SalesPersonCombobox({
   )
 }
 
+function BuilderCombobox({
+  value,
+  onChange,
+  staffList = [],
+  currentUser = null,
+  placeholder = "Search assembler / staff *...",
+  inputRef = null,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+        setSearch("")
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const combinedStaff = useMemo(() => {
+    const list = [...(Array.isArray(staffList) ? staffList : [])]
+    if (currentUser?.id && !list.some((s) => s.id === currentUser.id)) {
+      list.unshift(currentUser)
+    }
+    return list
+  }, [staffList, currentUser])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return combinedStaff
+    return combinedStaff.filter((s) => {
+      const name = (s.fullName || s.username || "").toLowerCase()
+      const role = (s.role || "").toLowerCase()
+      return name.includes(q) || role.includes(q)
+    })
+  }, [combinedStaff, search])
+
+  const selectedStaff = combinedStaff.find((s) => s.id === value)
+  const displayName = selectedStaff ? (selectedStaff.fullName || selectedStaff.username || "") : ""
+
+  return (
+    <div className="relative text-xs w-64 sm:w-72" ref={containerRef}>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          className={`w-full rounded-lg border px-2.5 py-1 text-xs font-semibold outline-none transition pr-7 ${
+            !value
+              ? "border-rose-400 bg-rose-50/70 text-slate-800 placeholder:text-rose-500/80 focus:bg-white focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-rose-200"
+              : "border-rose-300 bg-white text-slate-800 focus:border-[var(--color-maroon)]"
+          }`}
+          placeholder={displayName || placeholder}
+          value={isOpen ? search : displayName}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => {
+            setIsOpen(true)
+            setSearch("")
+          }}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onChange("")
+              setSearch("")
+              setIsOpen(false)
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-600 p-0.5 transition cursor-pointer"
+            title="Clear assembler"
+          >
+            <X size={13} />
+          </button>
+        ) : (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-rose-400">
+            <Search size={12} />
+          </div>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+          {filtered.length === 0 ? (
+            <div className="p-3 text-center text-xs text-slate-400">
+              No matching staff found
+            </div>
+          ) : (
+            filtered.map((staff) => {
+              const name = staff.fullName || staff.username || "Staff"
+              const isSelected = staff.id === value
+              return (
+                <button
+                  key={staff.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(staff.id)
+                    setSearch("")
+                    setIsOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs transition border-b border-slate-100 last:border-b-0 cursor-pointer ${
+                    isSelected ? "bg-rose-50 text-[var(--color-maroon)] font-bold" : "hover:bg-slate-50 text-slate-700"
+                  }`}
+                >
+                  <div>
+                    <p className="font-bold">{name}</p>
+                    {staff.role && (
+                      <p className="text-[10px] text-slate-400 font-normal capitalize">
+                        {staff.role.replace(/_/g, " ").toLowerCase()}
+                      </p>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-bold text-[var(--color-maroon)]">Selected</span>
+                  )}
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function isOnlinePaymentMethod(method, remarks = "", ref = "") {
   const m = String(method || "").toUpperCase()
   if (m === "GCASH" || m === "MAYA" || m === "PAYMAYA" || m === "BANK_TRANSFER") {
@@ -3181,6 +3312,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const customerDropdownRef = useRef(null)
   const customerInputRef = useRef(null)
   const salesPersonInputRef = useRef(null)
+  const builderInputRef = useRef(null)
 
   const [serviceStaffList, setServiceStaffListState] = useState([])
   const setServiceStaffList = (list) => {
@@ -4707,6 +4839,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       if (!pcBuildCheck.isComplete) {
         return pcBuildCheck.summaryMessage
       }
+      if (!selectedBuilderId) {
+        builderInputRef.current?.focus()
+        return "Assembled / Built By staff is required for PC Builds. Please search and select an assembler."
+      }
     }
 
     const hasCustomer = Boolean(selectedCustomerId || customerSearch.trim())
@@ -5679,6 +5815,11 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     if (!selectedSalesPersonId) {
       setCheckoutMessage("Please select a sales person before creating a quotation.")
       salesPersonInputRef.current?.focus()
+      return
+    }
+    if (isPcBuild && !selectedBuilderId) {
+      setCheckoutMessage("Assembled / Built By staff is required for PC Builds. Please search and select an assembler.")
+      builderInputRef.current?.focus()
       return
     }
     setCheckoutMessage("")
@@ -7531,22 +7672,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             {isPcBuild ? (
               <div className="border-b border-rose-200 bg-rose-50/75 px-3 py-2 text-xs space-y-2 shrink-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-bold text-[var(--color-maroon)] flex items-center gap-1.5">
+                  <span className="font-bold text-[var(--color-maroon)] flex items-center gap-1.5 shrink-0">
                     <Wrench size={13} />
-                    Assembled / Built By:
+                    Assembled / Built By <span className="text-red-600 font-black">*</span>
                   </span>
-                  <select
-                    className="rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                  <BuilderCombobox
                     value={selectedBuilderId}
-                    onChange={(e) => setSelectedBuilderId(e.target.value)}
-                  >
-                    <option value="">-- Select Staff / Assembler (Optional) --</option>
-                    {serviceStaffList.map((staff) => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.fullName}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(id) => setSelectedBuilderId(id)}
+                    staffList={serviceStaffList}
+                    currentUser={user}
+                    placeholder="Search assembler / staff *..."
+                    inputRef={builderInputRef}
+                  />
                 </div>
 
                 {/* System Unit Completeness Checklist */}
