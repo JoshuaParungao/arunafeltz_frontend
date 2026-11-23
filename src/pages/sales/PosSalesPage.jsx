@@ -4542,7 +4542,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     }
 
     setCart(newCartLines)
-    setViewMode("REGISTER")
+    setPosViewMode("REGISTER")
     setNoticeMessage(`Loaded Quotation ${quote.quotationCode || ""} (${newCartLines.length} item${newCartLines.length === 1 ? "" : "s"}) into cart ready for sale checkout!`)
   }, [branchId, customers])
 
