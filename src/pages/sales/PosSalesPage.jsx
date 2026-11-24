@@ -5843,6 +5843,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalDiscount: totals.totalDiscount,
       grandTotal: totals.grandTotal,
       pricingTerm,
+      remarks: remarks.trim() || undefined,
       notes: serializeQuotationNotes(
         [
           remarks.trim(),

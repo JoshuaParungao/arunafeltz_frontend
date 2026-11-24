@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
-import { parseQuotationSettlement } from "./quotationSettlement"
+import { parseQuotationSettlement, stripSettlementTag } from "./quotationSettlement"
 import { formatMainCategoryName, formatSubcategoryName } from "./attributeFilter"
 import { getBranchAddress, getBranchContact } from "../constants/branchDefaults"
 
@@ -1994,6 +1994,25 @@ export function exportCustomerQuotationPdf(quotation, options = {}) {
   })
 
   let finalY = doc.lastAutoTable?.finalY || tableStartY + 20
+
+  const rawRemarks = quotation?.remarks || quotation?.notes || options?.remarks || ""
+  const cleanRemarks = stripSettlementTag(rawRemarks).trim()
+
+  if (cleanRemarks) {
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7.5)
+    doc.setTextColor(0, 0, 0)
+    doc.text("Remarks: ", margin, finalY + 3.2)
+
+    const labelWidth = doc.getTextWidth("Remarks: ")
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(30, 30, 30)
+    const maxWidth = contentWidth - labelWidth
+    const wrapped = doc.splitTextToSize(cleanRemarks, maxWidth)
+    doc.text(wrapped, margin + labelWidth, finalY + 3.2)
+
+    finalY += Math.max(wrapped.length * 3.2, 4) + 0.5
+  }
 
   doc.setLineWidth(0.6)
   doc.setDrawColor(0, 0, 0)

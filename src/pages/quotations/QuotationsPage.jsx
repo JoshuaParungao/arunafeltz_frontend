@@ -1152,6 +1152,7 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
       subtotalAmount: totals.productGross + totals.serviceGross,
       totalDiscountAmount: totals.totalDiscount,
       pricingTerm,
+      remarks: remarks.trim() || undefined,
       notes: [
         remarks.trim(),
         `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,

@@ -41,5 +41,8 @@ export function parseQuotationSettlement(notes = "") {
  */
 export function stripSettlementTag(notes = "") {
   if (!notes || typeof notes !== "string") return ""
-  return notes.replace(SETTLEMENT_REGEX, "").trim()
+  return notes
+    .replace(SETTLEMENT_REGEX, "")
+    .replace(/(\[Term:\s*[^\]]+\]\s*)+/gi, "")
+    .trim()
 }

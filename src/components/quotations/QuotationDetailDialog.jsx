@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { Download, Edit3, FileText, Printer, X } from "lucide-react"
 import { exportCustomerQuotationPdf, groupQuotationItems, printCustomerQuotation } from "../../utils/businessDocumentExport"
-import { parseQuotationSettlement } from "../../utils/quotationSettlement"
+import { parseQuotationSettlement, stripSettlementTag } from "../../utils/quotationSettlement"
 import { getBranchAddress, getBranchContact } from "../../constants/branchDefaults"
 
 function formatMoney(value) {
@@ -49,6 +49,11 @@ export default function QuotationDetailDialog({
   const parsedSettlement = useMemo(() => {
     return parseQuotationSettlement(quotation?.notes)
   }, [quotation?.notes])
+
+  const cleanRemarks = useMemo(() => {
+    const raw = quotation?.remarks || quotation?.notes || ""
+    return stripSettlementTag(raw)
+  }, [quotation?.remarks, quotation?.notes])
 
   const salesman =
     quotation?.salesman ||
@@ -366,6 +371,14 @@ export default function QuotationDetailDialog({
                   </tbody>
                 </table>
               </div>
+
+              {/* Remarks / Notes matching Warranty Receipt */}
+              {cleanRemarks ? (
+                <div className="mt-2 mb-1 px-1 text-xs text-slate-700">
+                  <span className="font-bold text-slate-900">Remarks: </span>
+                  <span className="font-medium text-slate-800">{cleanRemarks}</span>
+                </div>
+              ) : null}
 
               {/* Double Border Separator */}
               <div className="border-t-2 border-b border-slate-900 my-1 pt-0.5" />
