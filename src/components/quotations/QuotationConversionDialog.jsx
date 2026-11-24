@@ -4,7 +4,7 @@ import { getInventoryBatches, getInventorySerials } from "../../features/invento
 import { getQuotationById } from "../../features/quotations/quotations.api"
 import { generateUUID } from "../../utils/uuid"
 import { createSale } from "../../features/sales/sales.api"
-import { parseQuotationSettlement, stripSettlementTag } from "../../utils/quotationSettlement"
+import { cleanUserRemarks, parseQuotationSettlement, stripSettlementTag } from "../../utils/quotationSettlement"
 import {
   CORE_SYSTEM_UNIT_PARTS,
   validateSystemUnitCompleteness,
@@ -113,7 +113,7 @@ export default function QuotationConversionDialog({
   const [creditTerm, setCreditTerm] = useState(savedSettlement.creditTerm || savedCalc?.term || "MONTH_3")
   const [creditDueDay, setCreditDueDay] = useState(savedSettlement.creditDueDay || "")
   const [creditFirstDueDate, setCreditFirstDueDate] = useState(savedSettlement.creditFirstDueDate || "")
-  const [remarks, setRemarks] = useState(stripSettlementTag(quotation?.notes || ""))
+  const [remarks, setRemarks] = useState(cleanUserRemarks(quotation?.notes || quotation?.remarks || ""))
 
   const requestRef = useRef({ signature: "", key: "" })
 

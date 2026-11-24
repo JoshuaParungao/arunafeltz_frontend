@@ -85,7 +85,7 @@ import {
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import QuotationConversionDialog from "../../components/quotations/QuotationConversionDialog"
-import { parseQuotationSettlement, serializeQuotationNotes, stripSettlementTag } from "../../utils/quotationSettlement"
+import { cleanUserRemarks, parseQuotationSettlement, serializeQuotationNotes, stripSettlementTag } from "../../utils/quotationSettlement"
 import {
   CORE_SYSTEM_UNIT_PARTS,
   validateSystemUnitCompleteness,
@@ -1129,7 +1129,7 @@ function SaleDetailDialog({
   )
   const [previewCustomerEmail, setPreviewCustomerEmail] = useState(sale?.customer?.email || "")
   const [previewCustomerCompany, setPreviewCustomerCompany] = useState(sale?.customer?.companyName || "")
-  const [previewRemarks, setPreviewRemarks] = useState(sale?.remarks || "")
+  const [previewRemarks, setPreviewRemarks] = useState(cleanUserRemarks(sale?.remarks || ""))
   const [checkoutError, setCheckoutError] = useState("")
 
   useEffect(() => {
@@ -1138,7 +1138,7 @@ function SaleDetailDialog({
     setPreviewCustomerPhone(sale?.customer?.mobileNumber || sale?.customer?.phone || "")
     setPreviewCustomerEmail(sale?.customer?.email || "")
     setPreviewCustomerCompany(sale?.customer?.companyName || "")
-    setPreviewRemarks(sale?.remarks || "")
+    setPreviewRemarks(cleanUserRemarks(sale?.remarks || ""))
     setCheckoutError("")
   }, [sale])
 
@@ -1674,14 +1674,18 @@ function SaleDetailDialog({
                 </div>
 
                 {/* Remarks / Notes */}
-                {(isCheckoutPreview ? previewRemarks : sale.remarks) ? (
-                  <div className="mt-2 mb-1 px-1 text-xs text-slate-700">
-                    <span className="font-bold text-slate-900">Remarks: </span>
-                    <span className="font-medium text-slate-800">
-                      {isCheckoutPreview ? previewRemarks : sale.remarks}
-                    </span>
-                  </div>
-                ) : null}
+                {(() => {
+                  const displayRemarks = stripSettlementTag(
+                    isCheckoutPreview ? previewRemarks : sale.remarks || ""
+                  )
+                  if (!displayRemarks) return null
+                  return (
+                    <div className="mt-2 mb-1 px-1 text-xs text-slate-700">
+                      <span className="font-bold text-slate-900">Remarks: </span>
+                      <span className="font-medium text-slate-800">{displayRemarks}</span>
+                    </div>
+                  )
+                })()}
 
                 {/* Double Border Separator */}
                 <div className="border-t-2 border-b border-slate-900 my-1 pt-0.5" />
@@ -4623,7 +4627,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     // 3. Pricing term & remarks
     const rawTerm = parsedSettlement.pricingTerm || quote.pricingTerm || "CASH"
     setPricingTerm(rawTerm)
-    const cleanRemarks = stripSettlementTag(quote.remarks || quote.notes || "")
+    const cleanRemarks = cleanUserRemarks(quote.remarks || quote.notes || "")
     setRemarks(cleanRemarks)
     setIsPcBuild(Boolean(quote.isPcBuild))
 
@@ -5164,16 +5168,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       },
       cashier: previewCashier,
       technician: technicianName ? { fullName: technicianName } : null,
-      remarks: isPcBuild
-        ? (() => {
-            const builder = serviceStaffList.find((s) => s.id === selectedBuilderId)
-            return builder?.fullName
-              ? `[PC BUILD] Assembled by: ${builder.fullName}${remarks.trim() ? ` | ${remarks.trim()}` : ""}`
-              : remarks.trim()
-                ? `[PC BUILD] ${remarks.trim()}`
-                : "[PC BUILD]"
-          })()
-        : remarks.trim() || undefined,
+      remarks: (() => {
+        const userNote = cleanUserRemarks(remarks)
+        if (isPcBuild) {
+          const builder = serviceStaffList.find((s) => s.id === selectedBuilderId)
+          return builder?.fullName
+            ? `[PC BUILD] Assembled by: ${builder.fullName}${userNote ? ` | ${userNote}` : ""}`
+            : userNote
+              ? `[PC BUILD] ${userNote}`
+              : "[PC BUILD]"
+        }
+        return userNote || undefined
+      })(),
       isPcBuild,
       subtotal: totals.subtotal,
       totalDiscount: totals.totalDiscount,
@@ -5387,22 +5393,20 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       setCustomerCompany(effectiveCompany)
       setCustomerEmail(effectiveEmail)
 
-      const effectiveRemarks = (
+      const userNote = cleanUserRemarks(
         overrideCustomerDetails?.remarks ?? remarks
-      ).trim()
-      setRemarks(effectiveRemarks)
+      )
+      setRemarks(userNote)
 
       const settlementAmount = Number(effectivePaymentAmount || 0)
-      const termTag = pricingTerm !== "CASH" ? `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]` : ""
       const builderStaff = serviceStaffList.find((s) => s.id === selectedBuilderId)
-      const rawBuildRemarks = isPcBuild
+      const formattedRemarks = isPcBuild
         ? builderStaff?.fullName
-          ? `[PC BUILD] Assembled by: ${builderStaff.fullName}${effectiveRemarks ? ` | ${effectiveRemarks}` : ""}`
-          : effectiveRemarks
-            ? `[PC BUILD] ${effectiveRemarks}`
+          ? `[PC BUILD] Assembled by: ${builderStaff.fullName}${userNote ? ` | ${userNote}` : ""}`
+          : userNote
+            ? `[PC BUILD] ${userNote}`
             : "[PC BUILD]"
-        : effectiveRemarks || ""
-      const formattedRemarks = [rawBuildRemarks, termTag].filter(Boolean).join(" ") || undefined
+        : userNote || undefined
 
       const salePayload = {
         branchId,
@@ -5843,18 +5847,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       totalDiscount: totals.totalDiscount,
       grandTotal: totals.grandTotal,
       pricingTerm,
-      remarks: remarks.trim() || undefined,
-      notes: serializeQuotationNotes(
-        [
-          remarks.trim(),
-          `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
-        ].filter(Boolean).join(" "),
-        {
-          salesmanId: effectiveSalesman.id,
-          salesmanName: effectiveSalesman.fullName || effectiveSalesman.username || "Staff",
-          pricingTerm,
-        }
-      ),
+      remarks: cleanUserRemarks(remarks) || undefined,
+      notes: serializeQuotationNotes(cleanUserRemarks(remarks), {
+        salesmanId: effectiveSalesman.id,
+        salesmanName: effectiveSalesman.fullName || effectiveSalesman.username || "Staff",
+        pricingTerm,
+      }),
       items: cart.map((line, index) => ({
         id: line.localId || `item-${index}`,
         lineNo: index + 1,
@@ -5940,11 +5938,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       )
       const serviceDoneById = serviceLineWithDoneBy?.serviceStaffId || undefined
 
-      const formattedRemarks = [
-        isPcBuild ? "[PC BUILD]" : "",
-        remarks.trim(),
-        `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
-      ].filter(Boolean).join(" ")
+      const userNote = cleanUserRemarks(remarks)
+      const formattedRemarks = isPcBuild
+        ? (userNote ? `[PC BUILD] | ${userNote}` : "[PC BUILD]")
+        : (userNote || undefined)
 
       const assignedSalesPerson = serviceStaffList.find((s) => s.id === selectedSalesPersonId)
       const effectiveSalesman = assignedSalesPerson || user || { fullName: "Staff" }

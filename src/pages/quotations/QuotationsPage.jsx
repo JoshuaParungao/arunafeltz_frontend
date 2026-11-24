@@ -38,7 +38,7 @@ import { getServiceCatalog } from "../../features/service-jobs/serviceJobs.api"
 import { getItems } from "../../features/items/items.api"
 import { createCustomer, getCustomers } from "../../features/customers/customers.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
-import { parseQuotationSettlement, serializeQuotationNotes, stripSettlementTag } from "../../utils/quotationSettlement"
+import { cleanUserRemarks, parseQuotationSettlement, serializeQuotationNotes, stripSettlementTag } from "../../utils/quotationSettlement"
 import { exportReportExcel } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import { parseItemWarranty } from "../items/ItemsPage"
@@ -1035,8 +1035,8 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
       }
 
       // Remarks / Pricing Term / PC Build
-      const userRemarks = stripSettlementTag(detailed.notes || "")
-      setRemarks(userRemarks.replace(/^\[PC BUILD\]\s*/i, "").trim())
+      const userRemarks = cleanUserRemarks(detailed.notes || detailed.remarks || "")
+      setRemarks(userRemarks)
       if (settlement?.pricingTerm) {
         setPricingTerm(settlement.pricingTerm)
       }
@@ -1251,11 +1251,10 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
       const assignedSalesPerson = serviceStaffList.find((s) => s.id === selectedSalesPersonId)
       const effectiveSalesman = assignedSalesPerson || user || { fullName: "Staff" }
 
-      const formattedRemarks = [
-        isPcBuild ? "[PC BUILD]" : "",
-        remarks.trim(),
-        `[Term: ${PRICING_TERMS[pricingTerm]?.label || pricingTerm}]`,
-      ].filter(Boolean).join(" ")
+      const userNote = cleanUserRemarks(remarks)
+      const formattedRemarks = isPcBuild
+        ? (userNote ? `[PC BUILD] | ${userNote}` : "[PC BUILD]")
+        : (userNote || undefined)
 
       const quotationPayload = {
         branchId,

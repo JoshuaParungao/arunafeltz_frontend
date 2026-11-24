@@ -37,12 +37,26 @@ export function parseQuotationSettlement(notes = "") {
 }
 
 /**
- * Removes the settlement tag from notes for clean customer display or PDF export.
+ * Removes the settlement tag, PC build tags, and term tags to get pure user-entered remarks.
+ */
+export function cleanUserRemarks(notes = "") {
+  if (!notes || typeof notes !== "string") return ""
+  return notes
+    .replace(/<!--SETTLEMENT:[\s\S]*?-->/g, "")
+    .replace(/\[Term:[^\]]*\]/gi, "")
+    .replace(/\[PC BUILD\](\s*Assembled by:[^|\]]+)?(\s*\|\s*)?/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+/**
+ * Removes the settlement tag and internal [Term: ...] tags from notes for clean customer display or PDF export.
  */
 export function stripSettlementTag(notes = "") {
   if (!notes || typeof notes !== "string") return ""
   return notes
-    .replace(SETTLEMENT_REGEX, "")
-    .replace(/(\[Term:\s*[^\]]+\]\s*)+/gi, "")
+    .replace(/<!--SETTLEMENT:[\s\S]*?-->/g, "")
+    .replace(/\[Term:[^\]]*\]/gi, "")
+    .replace(/\s+/g, " ")
     .trim()
 }
