@@ -4263,9 +4263,9 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
                           ref={customerInputRef}
                           autoComplete="off"
                           className={FIELD_CLASS}
-                          maxLength={30}
+                          maxLength={300}
                           onChange={(e) => {
-                            const val = e.target.value.slice(0, 30)
+                            const val = e.target.value.slice(0, 300)
                             setCustomerSearch(val)
                             setIsCustomerDropdownOpen(true)
                             setCreateForm((form) => ({

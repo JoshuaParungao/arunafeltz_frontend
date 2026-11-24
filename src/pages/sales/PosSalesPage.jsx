@@ -1420,10 +1420,10 @@ function SaleDetailDialog({
                   </span>
                   <input
                     className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] transition"
-                    maxLength={30}
+                    maxLength={300}
                     value={previewCustomerName}
                     onChange={(e) => {
-                      setPreviewCustomerName(e.target.value.slice(0, 30))
+                      setPreviewCustomerName(e.target.value.slice(0, 300))
                       if (checkoutError) setCheckoutError("")
                     }}
                     placeholder="e.g. Juan Dela Cruz"
@@ -7126,14 +7126,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <input
                     ref={customerInputRef}
                     aria-label="Search or enter customer name"
-                    maxLength={30}
+                    maxLength={300}
                     className={`w-full rounded-xl border bg-slate-50/50 py-1.5 pl-3 pr-8 text-xs font-medium outline-none transition focus:bg-white ${
                       !selectedCustomerId && !customerSearch.trim() && checkoutMessage?.includes("Customer name is required")
                         ? "border-red-400 focus:border-red-500"
                         : "border-slate-200 focus:border-[var(--color-maroon)]"
                     }`}
                     onChange={(event) => {
-                      const val = event.target.value.slice(0, 30)
+                      const val = event.target.value.slice(0, 300)
                       setCustomerSearch(val)
                       setIsCustomerDropdownOpen(true)
                       if (!val.trim()) {

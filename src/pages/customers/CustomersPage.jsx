@@ -336,8 +336,8 @@ function CustomerEditorModal({ activeBranch, customer, mode, onClose, onSaved })
               <input
                 autoFocus
                 className={inputClass}
-                maxLength={30}
-                onChange={(event) => updateField("fullName", event.target.value.slice(0, 30))}
+                maxLength={300}
+                onChange={(event) => updateField("fullName", event.target.value.slice(0, 300))}
                 placeholder="Customer full name"
                 required
                 value={form.fullName}
