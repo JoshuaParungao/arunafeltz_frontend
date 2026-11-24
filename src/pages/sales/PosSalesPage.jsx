@@ -1004,6 +1004,39 @@ function getLineTotal(line, term = "CASH") {
   return Math.max(getLineGross(line, term) - Number(line.discountAmount || 0), 0)
 }
 
+function getLineSerializedUnits(line) {
+  if (!line || !line.item?.isSerialized) return []
+
+  const targetQty = Math.max(1, Math.floor(Number(line.quantity || 1)))
+
+  if (line.isCustomSerial) {
+    const list = Array.isArray(line.customSerialNumbers) ? [...line.customSerialNumbers] : []
+    const pending = line.customSerialNumber?.trim()
+    if (pending && !list.some((s) => s.toLowerCase() === pending.toLowerCase())) {
+      list.push(pending)
+    }
+    return list.slice(0, targetQty).map((sn) => ({
+      serialNumber: sn,
+      batchId: line.batchId || undefined,
+    }))
+  }
+
+  // Pre-existing serials from inventory
+  const selectedIds = Array.isArray(line.selectedSerialIds) ? [...line.selectedSerialIds] : []
+  if (line.serialId && !selectedIds.includes(line.serialId)) {
+    selectedIds.unshift(line.serialId)
+  }
+
+  return selectedIds.slice(0, targetQty).map((id) => {
+    const foundSerial = (line.serials || []).find((s) => s.id === id)
+    return {
+      serialId: id,
+      serialNumber: foundSerial?.serialNumber || undefined,
+      batchId: foundSerial?.batch?.id || line.batchId || undefined,
+    }
+  })
+}
+
 function roundMoney(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100
 }
@@ -4257,7 +4290,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           discountAmount: "0",
           batchId: initialBatchId,
           serialId: initialSerialId,
-          customSerialNumber: preselectedSerial?.serialNumber || "",
+          customSerialNumber: "",
+          customSerialNumbers: preselectedSerial?.serialNumber ? [preselectedSerial.serialNumber] : [],
+          selectedSerialIds: initialSerialId ? [initialSerialId] : [],
           isCustomSerial,
           warrantyType: item.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
           warrantyDuration: parseItemWarranty(item),
@@ -4658,29 +4693,28 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           console.warn("Could not load inventory batches/serials for quotation item:", err)
         }
 
-        const lineCount = matchedItem.isSerialized ? Math.max(1, Math.floor(Number(qItem.quantity || 1))) : 1
-        const lineQty = matchedItem.isSerialized ? "1" : String(qItem.quantity || 1)
+        const lineQty = String(qItem.quantity || 1)
 
-        for (let unitIdx = 0; unitIdx < lineCount; unitIdx++) {
-          newCartLines.push({
-            localId: `quote-prod-${Date.now()}-${i}-${unitIdx}-${Math.random().toString(36).slice(2)}`,
-            type: "PRODUCT",
-            item: matchedItem,
-            itemId: matchedItem.id,
-            priceTier: Number(qItem.priceTier || 1),
-            quantity: lineQty,
-            markupPercent: String(qItem.markupPercent || 0),
-            discountAmount: unitIdx === 0 ? String(qItem.discountAmount || 0) : "0",
-            batchId: batches[0]?.id || "",
-            serialId: "",
-            customSerialNumber: "",
-            isCustomSerial: true,
-            warrantyType: matchedItem.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
-            warrantyDuration: qItem.warrantyDuration || (matchedItem.hasWarranty ? "1 YEAR WARRANTY" : ""),
-            batches,
-            serials,
-          })
-        }
+        newCartLines.push({
+          localId: `quote-prod-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
+          type: "PRODUCT",
+          item: matchedItem,
+          itemId: matchedItem.id,
+          priceTier: Number(qItem.priceTier || 1),
+          quantity: lineQty,
+          markupPercent: String(qItem.markupPercent || 0),
+          discountAmount: String(qItem.discountAmount || 0),
+          batchId: batches[0]?.id || "",
+          serialId: "",
+          selectedSerialIds: [],
+          customSerialNumber: "",
+          customSerialNumbers: [],
+          isCustomSerial: true,
+          warrantyType: matchedItem.isSerialized ? "MAJOR_PARTS" : "ACCESSORIES",
+          warrantyDuration: qItem.warrantyDuration || (matchedItem.hasWarranty ? "1 YEAR WARRANTY" : ""),
+          batches,
+          serials,
+        })
       }
     }
 
@@ -4887,22 +4921,28 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       }
 
       if (line.item.isSerialized) {
-        if (quantity !== 1) return `${line.item.itemName} must be sold one serialized unit per line.`
-        const serialVal = line.isCustomSerial ? line.customSerialNumber?.trim() : line.serialId
-        if (!serialVal) return `Select or scan a serial number for ${line.item.itemName}.`
+        const requiredQty = Math.max(1, Math.floor(quantity))
+        const units = getLineSerializedUnits(line)
 
-        if (line.isCustomSerial) {
-          const customSn = line.customSerialNumber?.trim().toLowerCase()
-          if (customSn) {
-            const itemSerialKey = `${line.item?.id || line.itemId}:${customSn}`
+        if (units.length < requiredQty) {
+          return `${line.item.itemName} requires ${requiredQty} serial number${requiredQty > 1 ? "s" : ""}, but only ${units.length} entered.`
+        }
+
+        for (const unit of units) {
+          if (unit.serialNumber) {
+            const itemSerialKey = `${line.item?.id || line.itemId}:${unit.serialNumber.toLowerCase()}`
             if (customSerials.has(itemSerialKey)) {
-              return `The same serial cannot be used more than once for ${line.item.itemName} in a sale.`
+              return `Duplicate serial "${unit.serialNumber}" found for ${line.item.itemName}. Each unit must have a unique serial.`
             }
             customSerials.add(itemSerialKey)
+          } else if (unit.serialId) {
+            if (serialIds.has(unit.serialId)) {
+              return "The same serial unit cannot be used more than once in a sale."
+            }
+            serialIds.add(unit.serialId)
+          } else {
+            return `Missing serial number for one of the ${line.item.itemName} units.`
           }
-        } else if (line.serialId) {
-          if (serialIds.has(line.serialId)) return "The same serial unit cannot be used more than once in a sale."
-          serialIds.add(line.serialId)
         }
       } else {
         const isZeroStock = !line.batches || line.batches.length === 0 || line.batches.every((b) => Number(b.quantityAvailable || 0) <= 0)
@@ -5217,11 +5257,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           lineTotal,
           warrantyDuration: line.warrantyDuration || (line.item?.hasWarranty ? "1 YEAR WARRANTY" : "—"),
           availableStock,
-          serial: line.isCustomSerial
-            ? { serialNumber: line.customSerialNumber?.trim() || "PENDING SCAN" }
-            : line.serialId
-              ? { serialNumber: line.serials?.find((serial) => serial.id === line.serialId)?.serialNumber || "—" }
-              : null,
+          serial: line.item?.isSerialized
+            ? {
+                serialNumber:
+                  getLineSerializedUnits(line)
+                    .map((u) => u.serialNumber)
+                    .filter(Boolean)
+                    .join(", ") || (line.customSerialNumber?.trim() || "PENDING SCAN"),
+              }
+            : null,
           batch: line.batchId ? line.batches?.find((batch) => batch.id === line.batchId) : null,
         }
       }),
@@ -5270,11 +5314,14 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setIsSubmittingSale(true)
     setCheckoutMessage("")
 
-    const cartSnapshot = cart.map((line) => ({
-      serialNumber: line.isCustomSerial
-        ? line.customSerialNumber?.trim()
-        : line.serials?.find((serial) => serial.id === line.serialId)?.serialNumber || null,
-    }))
+    const cartSnapshot = cart.flatMap((line) => {
+      if (line.item?.isSerialized) {
+        return getLineSerializedUnits(line).map((u) => ({
+          serialNumber: u.serialNumber || null,
+        }))
+      }
+      return [{ serialNumber: null }]
+    })
 
     try {
       let effectiveCustomerId = selectedCustomerId || undefined
@@ -5363,7 +5410,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         saleDate: saleDate || undefined,
         serviceCharge: Number(serviceCharge || 0),
         remarks: formattedRemarks,
-        items: cart.map((line) => {
+        items: cart.flatMap((line) => {
           const explicitMarkup =
             line.markupPercent === "" ||
             line.markupPercent === undefined ||
@@ -5379,16 +5426,39 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               ? `${rawDescription} [Done by: ${line.serviceStaffName}]`
               : rawDescription
 
-            return {
+            return [{
               description: finalDescription,
               quantity: Number(line.quantity),
               unitPrice: getLineUnitPrice(line, pricingTerm),
               markupPercent: effectiveMarkup,
               discountAmount: Number(line.discountAmount || 0),
-            }
+            }]
           }
 
-          return {
+          if (line.item?.isSerialized) {
+            const qty = Math.max(1, Math.floor(Number(line.quantity || 1)))
+            const lineSerials = getLineSerializedUnits(line)
+            const unitDiscount = Number(line.discountAmount || 0) / qty
+
+            return Array.from({ length: qty }, (_, idx) => {
+              const unit = lineSerials[idx] || {}
+              return {
+                itemId: line.itemId,
+                priceTier: Number(line.priceTier),
+                markupPercent: effectiveMarkup,
+                quantity: 1,
+                discountAmount: unitDiscount,
+                batchId: unit.batchId || (line.isCustomSerial ? undefined : (line.batchId || undefined)),
+                batchCode: line.batchCode?.trim() || undefined,
+                serialId: unit.serialId || undefined,
+                serialNumber: unit.serialNumber || undefined,
+                warrantyType: line.warrantyType || undefined,
+                warrantyDuration: line.warrantyDuration || undefined,
+              }
+            })
+          }
+
+          return [{
             itemId: line.itemId,
             priceTier: Number(line.priceTier),
             markupPercent: effectiveMarkup,
@@ -5400,7 +5470,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             serialNumber: (line.isCustomSerial && line.customSerialNumber?.trim()) ? line.customSerialNumber.trim() : undefined,
             warrantyType: line.warrantyType || undefined,
             warrantyDuration: line.warrantyDuration || undefined,
-          }
+          }]
         }),
         payments:
           settlementAmount > 0
@@ -5923,11 +5993,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             }
           }
 
-          const serialText = line.isCustomSerial
-            ? line.customSerialNumber?.trim()
-            : line.serialId
-              ? line.serials?.find((s) => s.id === line.serialId)?.serialNumber
-              : null
+          const serialsList = getLineSerializedUnits(line)
+            .map((u) => u.serialNumber)
+            .filter(Boolean)
+          const serialText =
+            serialsList.length > 0
+              ? serialsList.join(", ")
+              : line.isCustomSerial
+                ? line.customSerialNumber?.trim() || null
+                : line.serialId
+                  ? line.serials?.find((s) => s.id === line.serialId)?.serialNumber
+                  : null
 
           return {
             itemId: line.itemId,
@@ -6362,13 +6438,18 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   }
 
   const selectedSerialIds = useMemo(
-    () =>
-      new Set(
-        cart
-          .filter((line) => !line.isCustomSerial)
-          .map((line) => line.serialId)
-          .filter(Boolean),
-      ),
+    () => {
+      const set = new Set()
+      cart.forEach((line) => {
+        if (!line.isCustomSerial) {
+          if (line.serialId) set.add(line.serialId)
+          if (Array.isArray(line.selectedSerialIds)) {
+            line.selectedSerialIds.forEach((id) => set.add(id))
+          }
+        }
+      })
+      return set
+    },
     [cart],
   )
 
@@ -7849,13 +7930,12 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                             <label className="block">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Qty</span>
                               <input
-                                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold outline-none focus:border-[var(--color-maroon)] disabled:bg-slate-100"
-                                disabled={line.item.isSerialized}
-                                min="0.01"
+                                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold outline-none focus:border-[var(--color-maroon)]"
+                                min={line.item.isSerialized ? "1" : "0.01"}
                                 onChange={(event) =>
                                   updateCartLine(line.localId, { quantity: event.target.value })
                                 }
-                                step="0.01"
+                                step={line.item.isSerialized ? "1" : "0.01"}
                                 type="number"
                                 value={line.quantity}
                               />
@@ -7880,66 +7960,241 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
 
                           {/* Serial or Source Batch */}
                           {line.item.isSerialized ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[10px]">
-                                <span className="font-bold uppercase tracking-wider text-slate-500">
-                                  {line.isCustomSerial ? "Barcode / Serial Input" : "Available Serial"}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateCartLine(line.localId, {
-                                      isCustomSerial: !line.isCustomSerial,
-                                      serialId: !line.isCustomSerial ? "" : (line.serials[0]?.id || ""),
-                                      batchId: !line.isCustomSerial ? "" : (line.serials[0]?.batch?.id || ""),
-                                      customSerialNumber: "",
-                                    })
-                                  }
-                                  className="font-bold text-[var(--color-maroon)] underline hover:opacity-80"
-                                >
-                                  {line.isCustomSerial
-                                    ? "← Choose from existing serials"
-                                    : "+ Scan / Enter New Serial Barcode"}
-                                </button>
-                              </div>
+                            <div className="space-y-1.5 pt-0.5">
+                              {(() => {
+                                const targetQty = Math.max(1, Math.floor(Number(line.quantity || 1)))
+                                const enteredSerials = Array.isArray(line.customSerialNumbers) ? line.customSerialNumbers : []
+                                const selectedExistingIds = Array.isArray(line.selectedSerialIds)
+                                  ? line.selectedSerialIds
+                                  : line.serialId
+                                    ? [line.serialId]
+                                    : []
 
-                              {line.isCustomSerial ? (
-                                <div>
-                                  <input
-                                    autoFocus
-                                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
-                                    placeholder="Scan barcode or type serial number…"
-                                    value={line.customSerialNumber || ""}
-                                    onChange={(event) =>
-                                      updateCartLine(line.localId, {
-                                        customSerialNumber: event.target.value,
-                                      })
-                                    }
-                                  />
-                                </div>
-                              ) : (
-                                <select
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
-                                  onChange={(event) =>
-                                    updateCartLine(line.localId, { serialId: event.target.value })
-                                  }
-                                  value={line.serialId}
-                                >
-                                  <option value="">Select one serial</option>
-                                  {line.serials.map((serial) => (
-                                    <option
-                                      disabled={
-                                        selectedSerialIds.has(serial.id) &&
-                                        serial.id !== line.serialId
-                                      }
-                                      key={serial.id}
-                                      value={serial.id}
-                                    >
-                                      {serial.serialNumber} · {serial.batch?.batchCode || "No batch"}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
+                                const isComplete = line.isCustomSerial
+                                  ? enteredSerials.length >= targetQty || (targetQty === 1 && Boolean(line.customSerialNumber?.trim()))
+                                  : selectedExistingIds.length >= targetQty
+
+                                return (
+                                  <>
+                                    <div className="flex items-center justify-between text-[10px]">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-bold uppercase tracking-wider text-slate-600">
+                                          {line.isCustomSerial ? "Barcode / Serial Input" : "Available Serial"}
+                                        </span>
+                                        {line.isCustomSerial ? (
+                                          <span
+                                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold transition ${
+                                              isComplete
+                                                ? "bg-emerald-100 text-emerald-800"
+                                                : "bg-amber-100 text-amber-900"
+                                            }`}
+                                          >
+                                            {isComplete ? "✓ " : ""}
+                                            {enteredSerials.length}/{targetQty} serial{targetQty > 1 ? "s" : ""}
+                                          </span>
+                                        ) : (
+                                          <span
+                                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold transition ${
+                                              isComplete
+                                                ? "bg-emerald-100 text-emerald-800"
+                                                : "bg-amber-100 text-amber-900"
+                                            }`}
+                                          >
+                                            {isComplete ? "✓ " : ""}
+                                            {selectedExistingIds.length}/{targetQty} selected
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          updateCartLine(line.localId, {
+                                            isCustomSerial: !line.isCustomSerial,
+                                            serialId: !line.isCustomSerial ? "" : (line.serials[0]?.id || ""),
+                                            selectedSerialIds: !line.isCustomSerial ? [] : (line.serials[0]?.id ? [line.serials[0].id] : []),
+                                            batchId: !line.isCustomSerial ? "" : (line.serials[0]?.batch?.id || ""),
+                                            customSerialNumber: "",
+                                            customSerialNumbers: [],
+                                          })
+                                        }
+                                        className="font-bold text-[var(--color-maroon)] underline hover:opacity-80 cursor-pointer"
+                                      >
+                                        {line.isCustomSerial
+                                          ? "← Choose from existing serials"
+                                          : "+ Scan / Enter New Serial Barcode"}
+                                      </button>
+                                    </div>
+
+                                    {line.isCustomSerial ? (
+                                      <div className="space-y-1.5">
+                                        <input
+                                          autoFocus
+                                          className={`w-full rounded-lg border bg-white px-2.5 py-1 text-xs font-mono outline-none transition ${
+                                            isComplete
+                                              ? "border-emerald-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
+                                              : "border-slate-300 focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)]"
+                                          }`}
+                                          placeholder={
+                                            enteredSerials.length < targetQty
+                                              ? `Scan or type serial ${enteredSerials.length + 1} of ${targetQty} (press Enter)…`
+                                              : `All ${targetQty} serials entered (press Enter to add more)`
+                                          }
+                                          value={line.customSerialNumber || ""}
+                                          onChange={(event) =>
+                                            updateCartLine(line.localId, {
+                                              customSerialNumber: event.target.value,
+                                            })
+                                          }
+                                          onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                              event.preventDefault()
+                                              event.stopPropagation()
+                                              const raw = (line.customSerialNumber || "").trim()
+                                              if (!raw) return
+
+                                              // Check if duplicate on this line
+                                              if (enteredSerials.some((s) => s.toLowerCase() === raw.toLowerCase())) {
+                                                setCartMessage(`Serial "${raw}" is already added to this item.`)
+                                                return
+                                              }
+
+                                              // Check if duplicate across other cart lines
+                                              const inOtherLine = cart.some((cLine) => {
+                                                if (cLine.localId === line.localId) return false
+                                                const otherUnits = getLineSerializedUnits(cLine)
+                                                return otherUnits.some((u) => u.serialNumber?.toLowerCase() === raw.toLowerCase())
+                                              })
+                                              if (inOtherLine) {
+                                                setCartMessage(`Serial "${raw}" is already used in another cart line.`)
+                                                return
+                                              }
+
+                                              const nextList = [...enteredSerials, raw]
+                                              updateCartLine(line.localId, {
+                                                customSerialNumbers: nextList,
+                                                customSerialNumber: "",
+                                              })
+                                              setCartMessage("")
+                                            }
+                                          }}
+                                        />
+
+                                        {/* Serial Badges / Chips */}
+                                        {enteredSerials.length > 0 ? (
+                                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                            {enteredSerials.map((sn, idx) => (
+                                              <span
+                                                key={idx}
+                                                className="inline-flex items-center gap-1 rounded-md bg-slate-100 border border-slate-300/80 px-2 py-0.5 text-[11px] font-mono font-bold text-slate-800 shadow-2xs"
+                                              >
+                                                <span className="text-[9px] text-slate-500 font-sans font-normal">#{idx + 1}</span>
+                                                <span>{sn}</span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const updated = enteredSerials.filter((_, i) => i !== idx)
+                                                    updateCartLine(line.localId, { customSerialNumbers: updated })
+                                                  }}
+                                                  className="text-slate-400 hover:text-red-600 ml-0.5 font-bold cursor-pointer text-xs leading-none"
+                                                  title="Remove this serial"
+                                                >
+                                                  ×
+                                                </button>
+                                              </span>
+                                            ))}
+                                            {enteredSerials.length > 1 ? (
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  updateCartLine(line.localId, { customSerialNumbers: [], customSerialNumber: "" })
+                                                }
+                                                className="text-[10px] text-slate-400 hover:text-red-600 underline ml-1 cursor-pointer"
+                                              >
+                                                Clear all
+                                              </button>
+                                            ) : null}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-1.5">
+                                        <select
+                                          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-mono outline-none focus:border-[var(--color-maroon)]"
+                                          onChange={(event) => {
+                                            const val = event.target.value
+                                            if (!val) return
+                                            if (targetQty === 1) {
+                                              updateCartLine(line.localId, {
+                                                serialId: val,
+                                                selectedSerialIds: [val],
+                                              })
+                                            } else {
+                                              const updated = selectedExistingIds.includes(val)
+                                                ? selectedExistingIds
+                                                : [...selectedExistingIds, val]
+                                              updateCartLine(line.localId, {
+                                                selectedSerialIds: updated,
+                                                serialId: updated[0] || "",
+                                              })
+                                            }
+                                          }}
+                                          value={targetQty === 1 ? (line.serialId || "") : ""}
+                                        >
+                                          <option value="">
+                                            {targetQty === 1
+                                              ? "Select one serial"
+                                              : selectedExistingIds.length < targetQty
+                                                ? `-- Select serial ${selectedExistingIds.length + 1} of ${targetQty} --`
+                                                : `All ${targetQty} serials selected`}
+                                          </option>
+                                          {line.serials.map((serial) => (
+                                            <option
+                                              disabled={selectedSerialIds.has(serial.id) && !selectedExistingIds.includes(serial.id)}
+                                              key={serial.id}
+                                              value={serial.id}
+                                            >
+                                              {serial.serialNumber} · {serial.batch?.batchCode || "No batch"}
+                                            </option>
+                                          ))}
+                                        </select>
+
+                                        {/* Selected existing serials chips */}
+                                        {targetQty > 1 && selectedExistingIds.length > 0 ? (
+                                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                            {selectedExistingIds.map((id, idx) => {
+                                              const found = line.serials?.find((s) => s.id === id)
+                                              return (
+                                                <span
+                                                  key={id}
+                                                  className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[11px] font-mono font-bold text-blue-900 shadow-2xs"
+                                                >
+                                                  <span className="text-[9px] text-blue-500 font-sans font-normal">#{idx + 1}</span>
+                                                  <span>{found?.serialNumber || id}</span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const updated = selectedExistingIds.filter((sid) => sid !== id)
+                                                      updateCartLine(line.localId, {
+                                                        selectedSerialIds: updated,
+                                                        serialId: updated[0] || "",
+                                                      })
+                                                    }}
+                                                    className="text-blue-400 hover:text-red-600 ml-0.5 font-bold cursor-pointer text-xs leading-none"
+                                                    title="Remove serial"
+                                                  >
+                                                    ×
+                                                  </button>
+                                                </span>
+                                              )
+                                            })}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    )}
+                                  </>
+                                )
+                              })()}
                             </div>
                           ) : line.batches && line.batches.length > 0 && line.batches.some((b) => Number(b.quantityAvailable || 0) > 0) ? (
                             <label className="block">
