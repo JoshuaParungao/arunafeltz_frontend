@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react"
 
-import { getItems } from "../../features/items/items.api"
+import { getItemById, getItems } from "../../features/items/items.api"
 import { getPurchaseOrderById, getPurchaseOrders } from "../../features/purchase-orders/purchaseOrders.api"
 import PurchasesReportView from "../purchase-orders/PurchasesReportView"
 import {
@@ -92,6 +92,7 @@ function ReceivingItemLookup({
   branchId,
   catalogItems = [],
   disabled,
+  fallbackItem,
   itemId,
   onSelect,
 }) {
@@ -106,12 +107,15 @@ function ReceivingItemLookup({
     for (const item of remoteResults || []) {
       if (item?.id) map.set(item.id, item)
     }
+    if (fallbackItem?.id) {
+      map.set(fallbackItem.id, { ...fallbackItem, ...map.get(fallbackItem.id) })
+    }
     return Array.from(map.values())
-  }, [catalogItems, remoteResults])
+  }, [catalogItems, remoteResults, fallbackItem])
 
   const selectedItem = useMemo(() => {
-    return allKnownItems.find((entry) => entry.id === itemId)
-  }, [allKnownItems, itemId])
+    return allKnownItems.find((entry) => entry.id === itemId) || fallbackItem
+  }, [allKnownItems, itemId, fallbackItem])
 
   const itemLabel = (item) => {
     if (!item) return ""
@@ -374,7 +378,7 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
 
     const initialItems = initial?.items?.length
       ? initial.items.map((line) => ({
-          itemId: line.itemId,
+          itemId: line.itemId || line.item?.id || "",
           purchaseOrderItemId: line.purchaseOrderItemId || "",
           description: line.description,
           quantityReceived: String(line.quantityReceived),
@@ -388,7 +392,7 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
         ? po.items
             .filter((line) => Number(line.quantity) > Number(line.receivedQuantity))
             .map((line) => ({
-              itemId: line.itemId || "",
+              itemId: line.itemId || line.item?.id || "",
               purchaseOrderItemId: line.id,
               description: line.description,
               quantityReceived: String(Number(line.quantity) - Number(line.receivedQuantity)),
@@ -418,6 +422,68 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
   const selectedPo = purchaseOrders.find((order) => order.id === form.purchaseOrderId)
   const [serialScanInputs, setSerialScanInputs] = useState({})
   const [serialScanMessages, setSerialScanMessages] = useState({})
+  const [extraItems, setExtraItems] = useState({})
+
+  useEffect(() => {
+    let isCancelled = false
+    const missingLookups = []
+
+    form.items.forEach((line, index) => {
+      if (line.itemId && !catalogItems.some((c) => c.id === line.itemId) && !extraItems[line.itemId]) {
+        missingLookups.push({ type: "id", value: line.itemId, index })
+      }
+      if (!line.itemId && line.description) {
+        const match = line.description.match(/^([A-Za-z0-9_-]+)\s*·/)
+        if (match && match[1]) {
+          missingLookups.push({ type: "code", value: match[1], index })
+        }
+      }
+    })
+
+    if (missingLookups.length === 0) return
+
+    const resolveLookups = async () => {
+      for (const req of missingLookups) {
+        if (isCancelled) break
+        try {
+          if (req.type === "id") {
+            const res = await getItemById(req.value)
+            const item = res?.data || res
+            if (item && item.id) {
+              setExtraItems((prev) => ({ ...prev, [item.id]: item }))
+            }
+          } else if (req.type === "code") {
+            const res = await getItems({
+              ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+              search: req.value,
+              limit: 5,
+            })
+            const list = res?.data?.items || res?.data?.data || []
+            const match = list.find((it) => it.itemCode === req.value || String(it.itemCode).toLowerCase() === req.value.toLowerCase())
+            if (match) {
+              setExtraItems((prev) => ({ ...prev, [match.id]: match }))
+              setForm((prev) => {
+                const nextItems = [...prev.items]
+                if (nextItems[req.index] && !nextItems[req.index].itemId) {
+                  nextItems[req.index] = { ...nextItems[req.index], itemId: match.id }
+                  return { ...prev, items: nextItems }
+                }
+                return prev
+              })
+            }
+          }
+        } catch {
+          // ignore lookup fallback
+        }
+      }
+    }
+
+    resolveLookups()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [form.items, catalogItems, extraItems, effectiveBranchId])
 
   const unaddedPoLines = useMemo(() => {
     if (!selectedPo?.items) return []
@@ -436,7 +502,7 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
       items: [
         ...current.items.filter((l) => l.itemId || l.description),
         {
-          itemId: poLine.itemId || "",
+          itemId: poLine.itemId || poLine.item?.id || "",
           purchaseOrderItemId: poLine.id,
           description: poLine.description,
           quantityReceived: String(Number(poLine.quantity) - Number(poLine.receivedQuantity)),
@@ -535,7 +601,26 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
   }
   const choosePo = (purchaseOrderId) => {
     const order = purchaseOrders.find((entry) => entry.id === purchaseOrderId)
-    setForm((current) => ({ ...current, purchaseOrderId, supplierId: order?.supplierId || current.supplierId, items: order ? order.items.filter((line) => Number(line.quantity) > Number(line.receivedQuantity)).map((line) => ({ itemId: line.itemId || "", purchaseOrderItemId: line.id, description: line.description, quantityReceived: String(Number(line.quantity) - Number(line.receivedQuantity)), unitCost: String(line.unitCost), discountAmount: "0", batchCode: "", expiryDate: "", serialText: "" })) : current.items }))
+    setForm((current) => ({
+      ...current,
+      purchaseOrderId,
+      supplierId: order?.supplierId || current.supplierId,
+      items: order
+        ? order.items
+            .filter((line) => Number(line.quantity) > Number(line.receivedQuantity))
+            .map((line) => ({
+              itemId: line.itemId || line.item?.id || "",
+              purchaseOrderItemId: line.id,
+              description: line.description,
+              quantityReceived: String(Number(line.quantity) - Number(line.receivedQuantity)),
+              unitCost: String(line.unitCost),
+              discountAmount: "0",
+              batchCode: "",
+              expiryDate: "",
+              serialText: "",
+            }))
+        : current.items,
+    }))
   }
 
   const inputClass =
@@ -618,16 +703,30 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
 
           <div className="space-y-3">
             {form.items.map((line, index) => {
-              const item = catalogItems.find((entry) => entry.id === line.itemId)
               const remainingPo = selectedPo?.items?.find((entry) => entry.id === line.purchaseOrderItemId)
+              const resolvedItem =
+                catalogItems.find((entry) => entry.id === line.itemId) ||
+                extraItems[line.itemId] ||
+                (line.itemId && remainingPo?.item?.id === line.itemId ? remainingPo.item : null) ||
+                remainingPo?.item ||
+                catalogItems.find((entry) => entry.itemCode && line.description?.startsWith(entry.itemCode)) ||
+                Object.values(extraItems).find((entry) => entry.itemCode && line.description?.startsWith(entry.itemCode))
+
+              const isSerialized = Boolean(
+                resolvedItem?.isSerialized ??
+                remainingPo?.item?.isSerialized ??
+                remainingPo?.isSerialized ??
+                line.manualSerialized
+              )
               return (
                 <article className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3" key={`${index}-${line.purchaseOrderItemId || line.itemId}`}>
                   <div className="grid gap-2.5 lg:grid-cols-[1.2fr_1.2fr_90px_110px_110px_38px]">
                     <ReceivingItemLookup
                       branchId={effectiveBranchId}
                       catalogItems={catalogItems}
-                      disabled={Boolean(line.purchaseOrderItemId)}
-                      itemId={line.itemId}
+                      disabled={Boolean(line.purchaseOrderItemId && (line.itemId || resolvedItem?.id))}
+                      fallbackItem={resolvedItem}
+                      itemId={line.itemId || resolvedItem?.id}
                       onSelect={(itemId, item) => chooseItem(index, itemId, item)}
                     />
                     <label className="block">
@@ -645,9 +744,9 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
                       <input
                         className={`${inputClass} font-mono`}
                         max={remainingPo ? Number(remainingPo.quantity) - Number(remainingPo.receivedQuantity) : undefined}
-                        min={item?.isSerialized ? "1" : "0.01"}
+                        min={isSerialized ? "1" : "0.01"}
                         onChange={(event) => updateLine(index, { quantityReceived: event.target.value })}
-                        step={item?.isSerialized ? "1" : "0.01"}
+                        step={isSerialized ? "1" : "0.01"}
                         type="number"
                         value={line.quantityReceived}
                       />
@@ -706,12 +805,23 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
                       Expiry Date (Optional)
                       <input className={inputClass} onChange={(event) => updateLine(index, { expiryDate: event.target.value })} type="date" value={line.expiryDate} />
                     </label>
-                    {!item ? (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-white p-3 md:col-span-2 lg:col-span-3 text-xs">
-                        <p className="font-bold text-slate-800">Serial Number Tracking</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">Select an item first to determine serialization.</p>
+                    {!resolvedItem && !isSerialized ? (
+                      <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/40 p-3 md:col-span-2 lg:col-span-3 text-xs">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-bold text-amber-900">Item Serialization</p>
+                            <p className="mt-0.5 text-[11px] text-amber-700">Checking item serialization status. If this item requires serial numbers, click Track Serials below.</p>
+                          </div>
+                          <button
+                            className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-50 transition shrink-0"
+                            onClick={() => updateLine(index, { manualSerialized: true })}
+                            type="button"
+                          >
+                            Track Serials
+                          </button>
+                        </div>
                       </div>
-                    ) : item.isSerialized ? (
+                    ) : isSerialized ? (
                       <div className="space-y-2.5 rounded-xl border border-slate-200 bg-white p-3 md:col-span-2 lg:col-span-3 text-xs">
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                           <div>
@@ -806,8 +916,15 @@ function ReceivingForm({ branchId, initial, suppliers, purchaseOrders, catalogIt
                         />
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-500 self-center">
-                        Non-serialized item · Serial number not required
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-500 self-center flex items-center justify-between md:col-span-2 lg:col-span-3">
+                        <span>Non-serialized item · Serial number not required</span>
+                        <button
+                          className="text-[11px] font-semibold text-slate-500 hover:text-[var(--color-maroon)] transition ml-2"
+                          onClick={() => updateLine(index, { manualSerialized: true })}
+                          type="button"
+                        >
+                          Enable Serial Tracking
+                        </button>
                       </div>
                     )}
                   </div>
@@ -883,9 +1000,21 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
         // ignore fallback
       }
     }
+    const fetchedCatalog = itemResponse?.data?.items || []
+    const catalogMap = new Map()
+    for (const it of fetchedCatalog) {
+      if (it?.id) catalogMap.set(it.id, it)
+    }
+    for (const ord of ordersList) {
+      for (const poLine of ord.items || []) {
+        if (poLine.item?.id && !catalogMap.has(poLine.item.id)) {
+          catalogMap.set(poLine.item.id, poLine.item)
+        }
+      }
+    }
     setSuppliers(supplierResponse?.data?.items || [])
     setPurchaseOrders(ordersList)
-    setCatalogItems(itemResponse?.data?.items || [])
+    setCatalogItems(Array.from(catalogMap.values()))
   }, [branchId, initialContext?.purchaseOrderId])
 
   const load = useCallback(async () => {
@@ -917,7 +1046,25 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
       referenceNo: form.referenceNo.trim() || null,
       notes: form.notes.trim() || null,
       internalNotes: form.internalNotes.trim() || null,
-      items: form.items.map((line) => ({ itemId: line.itemId, purchaseOrderItemId: line.purchaseOrderItemId || null, description: line.description.trim(), quantityReceived: Number(line.quantityReceived), unitCost: Number(line.unitCost), discountAmount: Number(line.discountAmount || 0), batchCode: line.batchCode.trim() || null, expiryDate: line.expiryDate || null, serialNumbers: parseSerials(line.serialText) })),
+      items: form.items.map((line) => {
+        const poLine = form.purchaseOrderId
+          ? purchaseOrders
+              .find((po) => po.id === form.purchaseOrderId)
+              ?.items?.find((p) => p.id === line.purchaseOrderItemId)
+          : null
+        const resolvedId = line.itemId || poLine?.itemId || poLine?.item?.id
+        return {
+          itemId: resolvedId,
+          purchaseOrderItemId: line.purchaseOrderItemId || null,
+          description: line.description.trim(),
+          quantityReceived: Number(line.quantityReceived),
+          unitCost: Number(line.unitCost),
+          discountAmount: Number(line.discountAmount || 0),
+          batchCode: line.batchCode.trim() || null,
+          expiryDate: line.expiryDate || null,
+          serialNumbers: parseSerials(line.serialText),
+        }
+      }),
     }
     try { const response = editing?.id ? await updatePurchaseReceiving(editing.id, payload) : await createPurchaseReceiving(payload); setNotice(`${response?.data?.receivingCode || "Receiving"} saved as draft.`); setEditing(null); await Promise.all([load(), loadReferenceData()]) } catch (error) { setMessage(apiError(error, "Could not save purchase receiving.")) } finally { setIsSaving(false) }
   }
