@@ -4241,6 +4241,19 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const addProduct = async (item, preselectedSerial = null) => {
     if (!branchId || addingItemId) return
 
+    // If item is non-serialized and already exists in cart, simply increment its quantity
+    if (!item.isSerialized) {
+      const existingLine = cart.find(
+        (line) => line.type === "PRODUCT" && line.itemId === item.id
+      )
+      if (existingLine) {
+        const currentQty = Math.max(1, Math.floor(Number(existingLine.quantity || 1)))
+        updateCartLine(existingLine.localId, { quantity: String(currentQty + 1) })
+        setItemSearch("")
+        return
+      }
+    }
+
     setAddingItemId(item.id)
     setCartMessage("")
 
@@ -5468,10 +5481,10 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             markupPercent: effectiveMarkup,
             quantity: Number(line.quantity),
             discountAmount: Number(line.discountAmount || 0),
-            batchId: line.isCustomSerial ? undefined : (line.batchId || undefined),
+            batchId: line.batchId || undefined,
             batchCode: line.batchCode?.trim() || undefined,
-            serialId: (!line.isCustomSerial && line.serialId) ? line.serialId : undefined,
-            serialNumber: (line.isCustomSerial && line.customSerialNumber?.trim()) ? line.customSerialNumber.trim() : undefined,
+            serialId: undefined,
+            serialNumber: undefined,
             warrantyType: line.warrantyType || undefined,
             warrantyDuration: line.warrantyDuration || undefined,
           }]

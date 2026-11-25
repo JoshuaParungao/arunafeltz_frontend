@@ -784,6 +784,21 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
   // Builder Methods
   const addProductToCart = (item) => {
     if (!item) return
+
+    // If item is non-serialized and already in cart, increment quantity
+    if (!item.isSerialized) {
+      const existingLine = cart.find(
+        (line) => line.type === "PRODUCT" && line.itemId === item.id
+      )
+      if (existingLine) {
+        const currentQty = Math.max(1, Math.floor(Number(existingLine.quantity || 1)))
+        updateCartLine(existingLine.localId, { quantity: String(currentQty + 1) })
+        setItemSearch("")
+        setBuilderMessage("")
+        return
+      }
+    }
+
     const activeCustomer = customers.find((c) => c.id === selectedCustomerId)
     const itemTiers = availablePriceTiers(item)
     const targetTier = (activeCustomer?.priceTier ? Number(activeCustomer.priceTier) : null) || selectedPriceTier
