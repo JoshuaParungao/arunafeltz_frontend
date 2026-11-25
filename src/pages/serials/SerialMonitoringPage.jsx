@@ -215,8 +215,13 @@ function SerialDetailDialog({
                 <p className="text-[11px] text-slate-500 truncate">{serial.branch?.name || "—"}</p>
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
-                <p className="text-[10px] font-bold uppercase text-slate-500">Batch</p>
+                <p className="text-[10px] font-bold uppercase text-slate-500">Batch / Supplier</p>
                 <p className="mt-1 font-bold text-slate-900 truncate">{serial.batch?.batchCode || "No linked batch"}</p>
+                {serial.batch?.supplierName ? (
+                  <p className="text-[11px] font-medium text-slate-600 truncate mt-0.5">
+                    Supplier: {serial.batch.supplierName}
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -1424,6 +1429,11 @@ function SerialMonitoringPage({ initialContext, onNavigate, selectedBranch, user
                         <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-700">
                           <div className="flex flex-col gap-0.5">
                             <span>{serial.batch?.batchCode || "—"}</span>
+                            {serial.batch?.supplierName ? (
+                              <span className="text-[10px] text-slate-500 font-sans font-medium">
+                                {serial.batch.supplierName}
+                              </span>
+                            ) : null}
                             {isAutoBatch(serial) ? (
                               <span className="inline-flex items-center gap-1 w-fit rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200">
                                 POS Auto-Batch

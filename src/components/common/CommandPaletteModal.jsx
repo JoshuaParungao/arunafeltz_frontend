@@ -394,9 +394,20 @@ export default function CommandPaletteModal({
                             {s.status}
                           </span>
                         </div>
-                        <p className={`mt-0.5 text-xs truncate ${isSelected ? "text-blue-100" : "text-slate-600"}`}>
-                          {s.itemName} ({s.itemCode})
-                        </p>
+                        <div className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs truncate ${isSelected ? "text-blue-100" : "text-slate-600"}`}>
+                          <span className="truncate">{s.itemName} ({s.itemCode})</span>
+                          {s.supplierName ? (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.2 text-[10px] font-bold ${
+                                isSelected
+                                  ? "bg-white/20 text-blue-100"
+                                  : "bg-slate-100 text-slate-700 border border-slate-200"
+                              }`}
+                            >
+                              Supplier: {s.supplierName}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
 
                       <div className="text-right shrink-0 text-xs">
@@ -408,13 +419,27 @@ export default function CommandPaletteModal({
                             </p>
                           </>
                         ) : isAvailable ? (
-                          <span className={`font-semibold ${isSelected ? "text-emerald-300" : "text-emerald-600"}`}>
-                            Ready to sell
-                          </span>
+                          <>
+                            <span className={`font-semibold ${isSelected ? "text-emerald-300" : "text-emerald-600"}`}>
+                              Ready to sell
+                            </span>
+                            {s.supplierName ? (
+                              <p className={`text-[10px] font-semibold ${isSelected ? "text-blue-200" : "text-slate-500"}`}>
+                                {s.supplierName}
+                              </p>
+                            ) : null}
+                          </>
                         ) : (
-                          <span className={isSelected ? "text-slate-300" : "text-slate-500"}>
-                            {s.remarks || s.status}
-                          </span>
+                          <>
+                            <span className={isSelected ? "text-slate-300" : "text-slate-500"}>
+                              {s.remarks || s.status}
+                            </span>
+                            {s.supplierName ? (
+                              <p className={`text-[10px] ${isSelected ? "text-blue-200" : "text-slate-400"}`}>
+                                {s.supplierName}
+                              </p>
+                            ) : null}
+                          </>
                         )}
                       </div>
                     </button>
