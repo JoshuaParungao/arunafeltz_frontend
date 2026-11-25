@@ -3093,6 +3093,235 @@ function JobOrderLookupDialog({ branchId, cart = [], onClose, onSelectJob, sales
   )
 }
 
+function ServiceCatalogLookup({
+  catalog = [],
+  value = "",
+  onChange,
+  onClear,
+  placeholder = "-- Type to search service catalog or pick below --",
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [typedQuery, setTypedQuery] = useState(null)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const containerRef = useRef(null)
+
+  const selectedItem = useMemo(
+    () => (catalog || []).find((s) => s.id === value),
+    [catalog, value]
+  )
+
+  const formatItemLabel = (s) => {
+    if (!s) return ""
+    const priceStr = `₱${Number(s.basePrice || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`
+    const deviceStr = s.deviceType ? ` (${s.deviceType})` : ""
+    return `${s.name} — ${priceStr}${deviceStr}`
+  }
+
+  const displayValue =
+    typedQuery !== null
+      ? typedQuery
+      : selectedItem
+      ? formatItemLabel(selectedItem)
+      : ""
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+        setTypedQuery(null)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const searchResults = useMemo(() => {
+    const q = (typedQuery ?? "").trim().toLowerCase()
+    if (!q) return (catalog || []).slice(0, 50)
+    return (catalog || [])
+      .filter((s) => {
+        const name = (s.name || "").toLowerCase()
+        const desc = (s.description || "").toLowerCase()
+        const dev = (s.deviceType || "").toLowerCase()
+        const code = (s.code || "").toLowerCase()
+        return (
+          name.includes(q) ||
+          desc.includes(q) ||
+          dev.includes(q) ||
+          code.includes(q)
+        )
+      })
+      .slice(0, 50)
+  }, [catalog, typedQuery])
+
+  const handleSelectItem = (s) => {
+    if (!s) {
+      onChange("")
+      if (onClear) onClear()
+    } else {
+      onChange(s.id)
+    }
+    setTypedQuery(null)
+    setIsOpen(false)
+    setHighlightedIndex(-1)
+  }
+
+  const handleClear = () => {
+    onChange("")
+    if (onClear) onClear()
+    setTypedQuery("")
+    setIsOpen(false)
+    setHighlightedIndex(-1)
+  }
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div className="relative flex items-center">
+        <Search className="absolute left-2.5 text-violet-400 pointer-events-none" size={13} />
+        <input
+          type="text"
+          autoComplete="off"
+          className="w-full rounded-lg border border-violet-200 bg-white pl-7 pr-7 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-400 placeholder:text-slate-400 placeholder:font-normal"
+          placeholder={placeholder}
+          value={displayValue}
+          onChange={(e) => {
+            setTypedQuery(e.target.value)
+            setIsOpen(true)
+            setHighlightedIndex(-1)
+          }}
+          onFocus={() => {
+            setIsOpen(true)
+            if (typedQuery === null && !value) {
+              setTypedQuery("")
+            }
+          }}
+          onKeyDown={(e) => {
+            if (!isOpen) {
+              if (e.key === "ArrowDown" || e.key === "Enter") {
+                setIsOpen(true)
+                e.preventDefault()
+              }
+              return
+            }
+
+            if (e.key === "ArrowDown") {
+              e.preventDefault()
+              setHighlightedIndex((prev) =>
+                prev < searchResults.length - 1 ? prev + 1 : 0
+              )
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault()
+              setHighlightedIndex((prev) =>
+                prev > 0 ? prev - 1 : searchResults.length - 1
+              )
+            } else if (e.key === "Enter") {
+              e.preventDefault()
+              if (highlightedIndex >= 0 && searchResults[highlightedIndex]) {
+                handleSelectItem(searchResults[highlightedIndex])
+              } else if (searchResults.length > 0) {
+                handleSelectItem(searchResults[0])
+              }
+            } else if (e.key === "Escape") {
+              setIsOpen(false)
+              setTypedQuery(null)
+            }
+          }}
+        />
+        {(displayValue || value) && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-2 text-slate-400 hover:text-red-500 transition p-0.5 rounded cursor-pointer"
+            title="Clear selection"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-violet-200 bg-white shadow-2xl">
+          <div className="sticky top-0 bg-violet-50/95 backdrop-blur-sm px-3 py-1.5 border-b border-violet-100 flex items-center justify-between text-[10px] text-violet-800 font-bold">
+            <span>
+              {typedQuery
+                ? `Filter: "${typedQuery}"`
+                : "Type to filter saved services..."}
+            </span>
+            <span className="font-semibold text-violet-500">
+              {searchResults.length} {searchResults.length === 1 ? "match" : "matches"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleSelectItem(null)}
+            className={`block w-full border-b border-slate-100 px-3 py-1.5 text-left text-xs font-semibold transition hover:bg-slate-50 ${
+              !value ? "bg-violet-50 text-violet-700 font-bold" : "text-slate-500"
+            }`}
+          >
+            — None / Custom Manual Service —
+          </button>
+
+          {searchResults.length === 0 ? (
+            <div className="px-3 py-3 text-center text-xs text-slate-400">
+              No services matching "{typedQuery}".
+            </div>
+          ) : (
+            searchResults.map((s, idx) => {
+              const isSelected = s.id === value
+              const isHighlighted = highlightedIndex === idx
+              const price = Number(s.basePrice || 0)
+
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => handleSelectItem(s)}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs transition border-b border-slate-50 last:border-b-0 cursor-pointer ${
+                    isSelected
+                      ? "bg-violet-100/70 text-violet-900 font-bold"
+                      : isHighlighted
+                      ? "bg-violet-50 text-slate-900"
+                      : "hover:bg-slate-50 text-slate-800"
+                  }`}
+                >
+                  <div className="flex flex-col pr-2 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      {s.deviceType && (
+                        <span className="text-[9px] font-bold text-violet-700 bg-violet-100 border border-violet-200 px-1.5 py-0.2 rounded font-mono uppercase tracking-wider shrink-0">
+                          {s.deviceType}
+                        </span>
+                      )}
+                      <span className="font-semibold text-slate-900 truncate">
+                        {s.name}
+                      </span>
+                    </div>
+                    {s.description && s.description !== s.name && (
+                      <span className="text-[10px] text-slate-500 truncate mt-0.5">
+                        {s.description}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <span className="font-mono font-bold text-xs text-slate-900 block">
+                      ₱{price.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                    </span>
+                    {s.markupPercent ? (
+                      <span className="text-[9px] text-emerald-600 font-semibold">
+                        +{s.markupPercent}% markup
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const DATE_FILTER_LABELS = {
   TODAY: "Today",
   YESTERDAY: "Yesterday",
@@ -7659,18 +7888,17 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                           </button>
                         ) : null}
                       </div>
-                      <select
-                        className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-violet-500 transition"
+                      <ServiceCatalogLookup
+                        catalog={serviceCatalog}
                         value={selectedServiceCatalogId}
-                        onChange={(e) => handleSelectServiceCatalog(e.target.value)}
-                      >
-                        <option value="">-- Select from Saved Service Catalog or type below --</option>
-                        {serviceCatalog.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} — ₱{Number(s.basePrice || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })} {s.deviceType ? `(${s.deviceType})` : ""}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(catalogId) => handleSelectServiceCatalog(catalogId)}
+                        onClear={() => {
+                          setSelectedServiceCatalogId("")
+                          setServiceDescription("")
+                          setServiceUnitPrice("")
+                          setServiceMarkup("")
+                        }}
+                      />
                     </div>
                   ) : null}
 
