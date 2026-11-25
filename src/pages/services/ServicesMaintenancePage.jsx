@@ -496,6 +496,7 @@ function PartDetailModal({ item, onClose }) {
 
 function ManagePartCategoriesModal({
   categories = [],
+  onAddCategory,
   onClose,
   onDeleteCategory,
   onRenameCategory,
@@ -504,6 +505,7 @@ function ManagePartCategoriesModal({
   const [editingCat, setEditingCat] = useState(null)
   const [renameValue, setRenameValue] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
+  const [newCategoryInput, setNewCategoryInput] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [statusMessage, setStatusMessage] = useState("")
 
@@ -548,6 +550,21 @@ function ManagePartCategoriesModal({
       setStatusMessage("Failed to rename category.")
     } finally {
       setIsProcessing(false)
+    }
+  }
+
+  const handleAddCategory = (e) => {
+    if (e) e.preventDefault()
+    const clean = normalizeCategoryName(newCategoryInput)
+    if (!clean) return
+    if (categories.some((c) => normalizeCategoryName(c) === clean)) {
+      setStatusMessage(`Category "${clean}" already exists.`)
+      return
+    }
+    if (onAddCategory) {
+      onAddCategory(clean)
+      setNewCategoryInput("")
+      setStatusMessage(`Category "${clean}" added.`)
     }
   }
 
@@ -600,6 +617,30 @@ function ManagePartCategoriesModal({
             </button>
           </div>
         ) : null}
+
+        <form
+          className="p-3 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2"
+          onSubmit={handleAddCategory}
+        >
+          <input
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono uppercase font-bold text-slate-900 outline-none focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal placeholder:capitalize"
+            onChange={(e) => {
+              setNewCategoryInput(e.target.value)
+              setStatusMessage("")
+            }}
+            placeholder="New category name (e.g. MOTHERBOARD, GPU)..."
+            type="text"
+            value={newCategoryInput}
+          />
+          <button
+            className="inline-flex items-center gap-1 rounded-xl bg-[var(--color-maroon)] px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition cursor-pointer disabled:opacity-50"
+            disabled={!newCategoryInput.trim() || isProcessing}
+            type="submit"
+          >
+            <Plus size={13} />
+            Add
+          </button>
+        </form>
 
         <div className="p-3 border-b border-slate-100">
           <div className="relative">
@@ -2586,6 +2627,7 @@ export default function ServicesMaintenancePage({ user }) {
       {isCategoryManagerOpen ? (
         <ManagePartCategoriesModal
           categories={availablePartCategories}
+          onAddCategory={handleAddCustomCategory}
           onClose={() => setIsCategoryManagerOpen(false)}
           onDeleteCategory={handleDeleteCategory}
           onRenameCategory={handleRenameCategory}
