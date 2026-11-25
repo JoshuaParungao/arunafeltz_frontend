@@ -928,6 +928,234 @@ function SearchableServiceCombobox({
   )
 }
 
+function ServicePartsCatalogLookup({
+  catalog = [],
+  value = "",
+  currentPartName = "",
+  onChange,
+  disabled = false,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [typedQuery, setTypedQuery] = useState(null)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const containerRef = useRef(null)
+
+  const selectedPart = useMemo(
+    () => (catalog || []).find((p) => p.id === value),
+    [catalog, value]
+  )
+
+  const formatOptionLabel = (p) => {
+    if (!p) return ""
+    const cat = p.category ? `[${p.category}] ` : ""
+    const cost = money(p.costPrice)
+    const markup = money(p.markupAmount)
+    const type = p.repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"
+    return `${cat}${p.name} (Cost: ${cost} | Markup: ${markup} | Type: ${type})`
+  }
+
+  const displayValue =
+    typedQuery !== null
+      ? typedQuery
+      : selectedPart
+      ? formatOptionLabel(selectedPart)
+      : currentPartName || ""
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+        setTypedQuery(null)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const searchResults = useMemo(() => {
+    const q = (typedQuery ?? "").trim().toLowerCase()
+    if (!q) return (catalog || []).slice(0, 30)
+    return (catalog || [])
+      .filter((p) => {
+        const name = (p.name || "").toLowerCase()
+        const cat = (p.category || "").toLowerCase()
+        const desc = (p.description || "").toLowerCase()
+        const partNum = (p.partNumber || "").toLowerCase()
+        return (
+          name.includes(q) ||
+          cat.includes(q) ||
+          desc.includes(q) ||
+          partNum.includes(q)
+        )
+      })
+      .slice(0, 30)
+  }, [catalog, typedQuery])
+
+  const handleSelectPart = (p) => {
+    if (!p) {
+      onChange("", null)
+    } else {
+      onChange(p.id, p)
+    }
+    setTypedQuery(null)
+    setIsOpen(false)
+    setHighlightedIndex(-1)
+  }
+
+  const handleClear = () => {
+    onChange("", null)
+    setTypedQuery("")
+    setIsOpen(false)
+    setHighlightedIndex(-1)
+  }
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+        Quick Pick from Service Parts Catalog (Optional auto-fill)
+      </label>
+
+      <div className="relative flex items-center">
+        <Search className="absolute left-3 text-slate-400 pointer-events-none" size={13} />
+        <input
+          autoComplete="off"
+          className="w-full rounded-xl border border-slate-200 bg-white pl-8 pr-8 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-[var(--color-maroon)] focus:ring-1 focus:ring-[var(--color-maroon)] placeholder:text-slate-400 placeholder:font-normal"
+          disabled={disabled}
+          onChange={(e) => {
+            setTypedQuery(e.target.value)
+            setIsOpen(true)
+            setHighlightedIndex(-1)
+          }}
+          onFocus={() => {
+            setIsOpen(true)
+            if (typedQuery === null && !value) {
+              setTypedQuery("")
+            }
+          }}
+          onKeyDown={(e) => {
+            if (!isOpen) {
+              if (e.key === "ArrowDown" || e.key === "Enter") {
+                setIsOpen(true)
+                e.preventDefault()
+              }
+              return
+            }
+
+            if (e.key === "ArrowDown") {
+              e.preventDefault()
+              setHighlightedIndex((prev) =>
+                prev < searchResults.length - 1 ? prev + 1 : 0
+              )
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault()
+              setHighlightedIndex((prev) =>
+                prev > 0 ? prev - 1 : searchResults.length - 1
+              )
+            } else if (e.key === "Enter") {
+              e.preventDefault()
+              if (highlightedIndex >= 0 && searchResults[highlightedIndex]) {
+                handleSelectPart(searchResults[highlightedIndex])
+              } else if (searchResults.length > 0) {
+                handleSelectPart(searchResults[0])
+              }
+            } else if (e.key === "Escape") {
+              setIsOpen(false)
+              setTypedQuery(null)
+            }
+          }}
+          placeholder="Type part name or category to search (e.g. Battery, Screen, Acer)..."
+          type="text"
+          value={displayValue}
+        />
+
+        {displayValue ? (
+          <button
+            className="absolute right-2.5 text-slate-400 hover:text-slate-600 transition cursor-pointer p-0.5"
+            onClick={handleClear}
+            title="Clear part selection"
+            type="button"
+          >
+            <X size={13} />
+          </button>
+        ) : null}
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+          <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
+            <span>🔧 Service Parts Catalog ({catalog.length})</span>
+            <span className="text-[9.5px] font-normal lowercase text-slate-400">
+              {searchResults.length} matching
+            </span>
+          </div>
+
+          <button
+            className={`block w-full border-b border-slate-100 px-3.5 py-2 text-left text-xs font-semibold transition hover:bg-slate-50 ${
+              !value ? "bg-[var(--color-maroon)]/10 text-[var(--color-maroon)] font-black" : "text-slate-500"
+            }`}
+            onClick={() => handleSelectPart(null)}
+            type="button"
+          >
+            — Custom / Manual Part Entry —
+          </button>
+
+          {searchResults.length === 0 ? (
+            <div className="px-3.5 py-4 text-center text-xs text-slate-400">
+              No catalog parts matching &quot;{typedQuery}&quot;.
+            </div>
+          ) : (
+            searchResults.map((p, idx) => {
+              const isSelected = p.id === value
+              const isHighlighted = highlightedIndex === idx
+              const cost = Number(p.costPrice || 0)
+              const markup = Number(p.markupAmount || 0)
+              const srp = cost + markup
+
+              return (
+                <button
+                  key={p.id}
+                  className={`flex w-full items-center justify-between px-3.5 py-2.5 text-left text-xs transition border-b border-slate-50 last:border-b-0 cursor-pointer ${
+                    isSelected
+                      ? "bg-[var(--color-maroon)]/10 text-[var(--color-maroon)] font-bold"
+                      : isHighlighted
+                      ? "bg-slate-100 text-slate-900"
+                      : "hover:bg-slate-50 text-slate-800"
+                  }`}
+                  onClick={() => handleSelectPart(p)}
+                  type="button"
+                >
+                  <div className="flex flex-col pr-2 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      {p.category && (
+                        <span className="text-[9.5px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded font-mono uppercase tracking-wider shrink-0">
+                          {p.category}
+                        </span>
+                      )}
+                      <span className="font-semibold text-slate-900 truncate">
+                        {p.name}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-0.5">
+                      Cost: {money(cost)} · Markup: +{money(markup)} · Type:{" "}
+                      {p.repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <span className="font-mono font-black text-xs text-slate-900 block">
+                      {money(srp)}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400">Customer SRP</span>
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ServicePricingFields({
   serviceRate = "",
   technicianFee = "",
@@ -1399,25 +1627,14 @@ function ServicePricingFields({
                   </button>
                 </div>
 
-                {/* Catalog dropdown selection */}
+                {/* Searchable Service Parts Catalog Lookup */}
                 {servicePartsCatalog.length > 0 && (
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      Quick Pick from Service Parts Catalog (Optional auto-fill)
-                    </label>
-                    <select
-                      className={FIELD_CLASS}
-                      onChange={(e) => handleSelectCatalogPart(idx, e.target.value)}
-                      value={part.partCatalogId || ""}
-                    >
-                      <option value="">-- Custom / Manual Part Entry --</option>
-                      {servicePartsCatalog.map((sp) => (
-                        <option key={sp.id} value={sp.id}>
-                          [{sp.category || "PART"}] {sp.name} (Cost: {money(sp.costPrice)} | Markup: {money(sp.markupAmount)} | Type: {sp.repairType === "BOARD_LEVEL_REPAIR" ? "Board-Level" : "Standard"})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <ServicePartsCatalogLookup
+                    catalog={servicePartsCatalog}
+                    currentPartName={part.partName || ""}
+                    onChange={(catalogPartId) => handleSelectCatalogPart(idx, catalogPartId)}
+                    value={part.partCatalogId || ""}
+                  />
                 )}
 
                 <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
