@@ -3329,6 +3329,17 @@ const DATE_FILTER_LABELS = {
   THIS_MONTH: "1 Month",
   THIS_YEAR: "1 Year",
   ALL: "All Time",
+  CUSTOM: "Custom Range",
+}
+
+const getPeriodLabel = (period, from, to) => {
+  if (period === "CUSTOM") {
+    if (from && to) return `Custom (${from} to ${to})`
+    if (from) return `From ${from}`
+    if (to) return `Until ${to}`
+    return "Custom Range"
+  }
+  return DATE_FILTER_LABELS[period] || period
 }
 
 function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
@@ -3340,7 +3351,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [posViewMode, setPosViewMode] = useState(
     initialContext?.viewMode || (initialContext?.saleId ? "SALES_HISTORY" : "REGISTER")
   )
-  const [dateFilterPeriod, setDateFilterPeriod] = useState("TODAY") // "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "THIS_YEAR" | "ALL"
+  const [dateFilterPeriod, setDateFilterPeriod] = useState("TODAY") // "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "THIS_YEAR" | "ALL" | "CUSTOM"
+  const [customDateFrom, setCustomDateFrom] = useState("")
+  const [customDateTo, setCustomDateTo] = useState("")
   const [showSalesmenLeaderboard, setShowSalesmenLeaderboard] = useState(false)
   // 1. SALES CATEGORY (What was sold: All Sales, Items, Parts, Services)
   const [salesCategory, setSalesCategory] = useState({
@@ -4338,6 +4351,52 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     setSalesMessage("")
 
     try {
+      let queryStartDate = undefined
+      let queryEndDate = undefined
+
+      const now = new Date()
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+
+      if (dateFilterPeriod === "TODAY") {
+        queryStartDate = startOfToday.toISOString()
+        queryEndDate = endOfToday.toISOString()
+      } else if (dateFilterPeriod === "YESTERDAY") {
+        const startOfYesterday = new Date(startOfToday)
+        startOfYesterday.setDate(startOfYesterday.getDate() - 1)
+        const endOfYesterday = new Date(endOfToday)
+        endOfYesterday.setDate(endOfYesterday.getDate() - 1)
+        queryStartDate = startOfYesterday.toISOString()
+        queryEndDate = endOfYesterday.toISOString()
+      } else if (dateFilterPeriod === "THIS_WEEK") {
+        const startOfWeek = new Date(startOfToday)
+        startOfWeek.setDate(startOfWeek.getDate() - 6)
+        queryStartDate = startOfWeek.toISOString()
+        queryEndDate = endOfToday.toISOString()
+      } else if (dateFilterPeriod === "THIS_MONTH") {
+        const startOfMonth = new Date(startOfToday)
+        startOfMonth.setDate(startOfMonth.getDate() - 29)
+        queryStartDate = startOfMonth.toISOString()
+        queryEndDate = endOfToday.toISOString()
+      } else if (dateFilterPeriod === "THIS_YEAR") {
+        const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
+        queryStartDate = startOfYear.toISOString()
+        queryEndDate = endOfToday.toISOString()
+      } else if (dateFilterPeriod === "CUSTOM") {
+        if (customDateFrom) {
+          const from = new Date(customDateFrom + "T00:00:00")
+          if (!Number.isNaN(from.getTime())) {
+            queryStartDate = from.toISOString()
+          }
+        }
+        if (customDateTo) {
+          const to = new Date(customDateTo + "T23:59:59.999")
+          if (!Number.isNaN(to.getTime())) {
+            queryEndDate = to.toISOString()
+          }
+        }
+      }
+
       const response = await getSales({
         branchId,
         page: salesPage,
@@ -4346,6 +4405,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         status: salesStatus || undefined,
         paymentStatus: paymentStatus || undefined,
         priceTier: selectedPriceTiers.length > 0 ? selectedPriceTiers.join(",") : undefined,
+        startDate: queryStartDate,
+        endDate: queryEndDate,
       })
       if (requestId !== salesRequestIdRef.current) return
 
@@ -4361,7 +4422,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     } finally {
       if (requestId === salesRequestIdRef.current) setIsLoadingSales(false)
     }
-  }, [branchId, paymentStatus, selectedPriceTiers, salesPage, salesSearch, salesStatus])
+  }, [branchId, paymentStatus, selectedPriceTiers, salesPage, salesSearch, salesStatus, dateFilterPeriod, customDateFrom, customDateTo])
 
   const filteredTierSummary = useMemo(() => {
     let tierUnits = 0
@@ -6466,7 +6527,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         branch: activeBranch,
         generatedBy: user,
         filters: [
-          ["Timeframe Filter", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Timeframe Filter", getPeriodLabel(dateFilterPeriod, customDateFrom, customDateTo)],
           ["Sales Category Filter", catSummary],
           ["Price Tiers Filter", selectedPriceTiers.length === 5 ? "All Tiers (1-5)" : selectedPriceTiers.map((t) => `Tier ${t}`).join(", ")],
           ["Payment Method Filter", paySummary],
@@ -6596,7 +6657,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         branch: activeBranch,
         generatedBy: user,
         filters: [
-          ["Timeframe Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Timeframe Period", getPeriodLabel(dateFilterPeriod, customDateFrom, customDateTo)],
           ["Sales Category Filter", catSummary],
           ["Price Tiers Filter", selectedPriceTiers.length === 5 ? "All Tiers (1-5)" : selectedPriceTiers.map((t) => `Tier ${t}`).join(", ")],
           ["Payment Method Filter", paySummary],
@@ -6607,7 +6668,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
           ["Matching Receipts", displayedSales.length],
         ],
         totals: [
-          ["Timeframe Period", DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod],
+          ["Timeframe Period", getPeriodLabel(dateFilterPeriod, customDateFrom, customDateTo)],
           ["Sales Category Filter", catSummary],
           ["Payment Method Filter", paySummary],
           ["Total Computation Settings", compSummary],
@@ -6730,9 +6791,26 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
         return date >= startOfYear && date <= endOfToday
       }
+      if (dateFilterPeriod === "CUSTOM") {
+        if (!customDateFrom && !customDateTo) return true
+        let match = true
+        if (customDateFrom) {
+          const from = new Date(customDateFrom + "T00:00:00")
+          if (!Number.isNaN(from.getTime())) {
+            match = match && date >= from
+          }
+        }
+        if (customDateTo) {
+          const to = new Date(customDateTo + "T23:59:59.999")
+          if (!Number.isNaN(to.getTime())) {
+            match = match && date <= to
+          }
+        }
+        return match
+      }
       return true
     })
-  }, [sales, dateFilterPeriod])
+  }, [sales, dateFilterPeriod, customDateFrom, customDateTo])
 
   const detailedMetrics = useMemo(() => {
     let totalTransactions = 0
@@ -9187,11 +9265,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                     ["THIS_MONTH", "1 Month"],
                     ["THIS_YEAR", "1 Year"],
                     ["ALL", "All"],
+                    ["CUSTOM", "Custom Range"],
                   ].map(([val, lbl]) => (
                     <button
                       key={val}
                       type="button"
-                      onClick={() => setDateFilterPeriod(val)}
+                      onClick={() => {
+                        setDateFilterPeriod(val)
+                        setSalesPage(1)
+                      }}
                       className={`rounded-lg px-3 py-1.5 transition text-xs cursor-pointer ${
                         dateFilterPeriod === val
                           ? "bg-white text-slate-900 shadow-2xs font-black"
@@ -9210,6 +9292,53 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 </span>
               </div>
             </div>
+
+            {/* Custom Date Range Selector (Active when Custom Range is selected) */}
+            {dateFilterPeriod === "CUSTOM" && (
+              <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                  <Calendar size={13} className="text-[var(--color-maroon)]" /> Select Dates:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-400">From</span>
+                  <input
+                    type="date"
+                    value={customDateFrom}
+                    onChange={(e) => {
+                      setCustomDateFrom(e.target.value)
+                      setSalesPage(1)
+                    }}
+                    className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)] shadow-2xs cursor-pointer"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-400">To</span>
+                  <input
+                    type="date"
+                    value={customDateTo}
+                    onChange={(e) => {
+                      setCustomDateTo(e.target.value)
+                      setSalesPage(1)
+                    }}
+                    className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)] shadow-2xs cursor-pointer"
+                  />
+                </div>
+                {(customDateFrom || customDateTo) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomDateFrom("")
+                      setCustomDateTo("")
+                      setSalesPage(1)
+                    }}
+                    className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
+                    title="Clear custom dates"
+                  >
+                    Clear Dates
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* 3-Tier Filter Panel (SALES CATEGORY -> PAYMENT METHOD -> TOTAL COMPUTATION) */}
             <div className="flex flex-col gap-3.5 border-t border-slate-200/80 pt-3">
@@ -9462,7 +9591,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md border border-amber-300 bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950">
-                        Top Sales Account ({DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod})
+                        Top Sales Account ({getPeriodLabel(dateFilterPeriod, customDateFrom, customDateTo)})
                       </span>
                       {detailedMetrics.salesPersonsList.length > 1 ? (
                         <button
@@ -9505,7 +9634,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               {showSalesmenLeaderboard && detailedMetrics.salesPersonsList.length > 1 ? (
                 <div className="mt-3.5 border-t border-amber-200/80 pt-3">
                   <p className="text-[10px] font-black uppercase tracking-wider text-amber-900 mb-2">
-                    Sales Staff Performance Leaderboard ({DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod})
+                    Sales Staff Performance Leaderboard ({getPeriodLabel(dateFilterPeriod, customDateFrom, customDateTo)})
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {detailedMetrics.salesPersonsList.map((sp, idx) => (
@@ -10197,7 +10326,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
             <div className="p-8 text-center">
               <ReceiptText className="mx-auto text-slate-300" size={32} />
               <p className="mt-2 text-xs font-bold text-slate-700">
-                No sales records found for {DATE_FILTER_LABELS[dateFilterPeriod] || dateFilterPeriod}
+                No sales records found for {getPeriodLabel(dateFilterPeriod, customDateFrom, customDateTo)}
               </p>
               <p className="mt-0.5 text-[11px] text-slate-400">Try selecting another timeframe or resetting your filters.</p>
               <div className="mt-3 flex items-center justify-center gap-2">

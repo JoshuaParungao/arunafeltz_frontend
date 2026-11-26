@@ -148,6 +148,8 @@ export default function RecordSupplierPaymentModal({
   const paymentMethods = [
     { id: "CASH", label: "Cash Register / Vault", icon: Banknote, desc: "Deducts physical cash drawer & logs store expense" },
     { id: "BANK_TRANSFER", label: "Bank Transfer", icon: Landmark, desc: "Direct online bank transfer" },
+    { id: "CREDIT_CARD", label: "Credit Card (CC)", icon: CreditCard, desc: "Corporate / company card swipe or payment" },
+    { id: "WITHHOLDING", label: "Withholding Tax / Deduction", icon: FileText, desc: "Creditable tax withholding / deduction certificate" },
     { id: "GCASH", label: "GCash", icon: Smartphone, desc: "E-Wallet disbursement" },
     { id: "MAYA", label: "Maya", icon: Wallet, desc: "Maya wallet transfer" },
     { id: "CHECK", label: "Issued Check", icon: CreditCard, desc: "Company / Bank check" },

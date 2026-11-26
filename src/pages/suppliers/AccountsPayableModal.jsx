@@ -62,6 +62,7 @@ export default function AccountsPayableModal({
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [agingFilter, setAgingFilter] = useState("ALL") // "ALL" | "OVERDUE" | "CURRENT"
+  const [settlementFilter, setSettlementFilter] = useState("OUTSTANDING") // "OUTSTANDING" | "SETTLED" | "ALL"
 
   const branchId = selectedBranch?.id || user?.branchId || user?.branch?.id || ""
 
@@ -113,8 +114,14 @@ export default function AccountsPayableModal({
       list = list.filter((it) => !it.isOverdue)
     }
 
+    if (settlementFilter === "OUTSTANDING") {
+      list = list.filter((it) => Number(it.balance || 0) > 0)
+    } else if (settlementFilter === "SETTLED") {
+      list = list.filter((it) => Number(it.balance || 0) <= 0)
+    }
+
     return list
-  }, [data?.items, search, agingFilter])
+  }, [data?.items, search, agingFilter, settlementFilter])
 
   // Recalculate totals based on filtered items
   const totals = useMemo(() => {
@@ -413,14 +420,18 @@ export default function AccountsPayableModal({
             </p>
             <div className="mt-3 inline-block">
               <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 border-b-2 border-slate-900 pb-0.5 px-2 inline-block">
-                Outstanding Accounts Payable
+                {settlementFilter === "SETTLED"
+                  ? "Settled Accounts Payable"
+                  : settlementFilter === "ALL"
+                  ? "Accounts Payable (All Records)"
+                  : "Outstanding Accounts Payable"}
                 {currentSupplier ? ` — ${currentSupplier.name}` : ""}
               </h2>
             </div>
           </div>
 
           {/* Minimalist Interactive Filters (hidden in print) */}
-          <div className="no-print grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs">
+          <div className="no-print grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs">
             <div className="relative min-w-0">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -483,6 +494,25 @@ export default function AccountsPayableModal({
                 <option value="ALL">All Aging Statuses</option>
                 <option value="CURRENT">Current / Due Soon</option>
                 <option value="OVERDUE">Overdue Only</option>
+              </select>
+            </div>
+
+            <div className="min-w-0">
+              <select
+                className={`w-full min-w-0 rounded-lg border px-2.5 py-1.5 text-xs font-bold outline-none transition cursor-pointer ${
+                  settlementFilter === "OUTSTANDING"
+                    ? "border-amber-300 bg-amber-50/70 text-amber-900"
+                    : settlementFilter === "SETTLED"
+                    ? "border-emerald-300 bg-emerald-50/70 text-emerald-900"
+                    : "border-slate-200 bg-white text-slate-700"
+                }`}
+                value={settlementFilter}
+                onChange={(e) => setSettlementFilter(e.target.value)}
+                title="Settlement Filter (Hide or Show Settled / Paid accounts)"
+              >
+                <option value="OUTSTANDING">Outstanding Only (Hide Settled)</option>
+                <option value="SETTLED">Settled / Paid Only</option>
+                <option value="ALL">All Records (Unpaid & Settled)</option>
               </select>
             </div>
           </div>
