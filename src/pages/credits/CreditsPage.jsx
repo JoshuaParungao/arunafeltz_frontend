@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   LoaderCircle,
+  Percent,
   Printer,
   RefreshCw,
   Search,
@@ -306,6 +307,9 @@ export default function CreditsPage({ selectedBranch, user }) {
           const isCancelled = account.status === "CANCELLED";
           const remBalance = Number(account.remainingBalance || 0);
           const collected = Number(account.totalCollected || 0);
+          const regularOrBalance = Number(account.regularPriceTotalAmount || account.balanceAmount || 0);
+          const sourceOrPromo = Number(account.cashPromoTotalAmount || account.sourceTotalAmountSnapshot || 0);
+          const floatVar = Math.max(0, regularOrBalance - sourceOrPromo);
 
           return {
             balance: summary.balance + (!isDefaulted && !isCancelled ? remBalance : 0),
@@ -313,9 +317,10 @@ export default function CreditsPage({ selectedBranch, user }) {
             overdue: summary.overdue + (isOverdue(account) ? 1 : 0),
             defaultedBalance: summary.defaultedBalance + (isDefaulted ? remBalance : 0),
             defaultedCount: summary.defaultedCount + (isDefaulted ? 1 : 0),
+            floatVariance: summary.floatVariance + floatVar,
           };
         },
-        { balance: 0, collected: 0, overdue: 0, defaultedBalance: 0, defaultedCount: 0 },
+        { balance: 0, collected: 0, overdue: 0, defaultedBalance: 0, defaultedCount: 0, floatVariance: 0 },
       ),
     [accounts],
   );
@@ -331,6 +336,7 @@ export default function CreditsPage({ selectedBranch, user }) {
       overdue: totals.overdue,
       defaultedBalance: summary.totalDefaultedBalance !== undefined ? summary.totalDefaultedBalance : totals.defaultedBalance,
       defaultedCount: summary.totalDefaultedCount !== undefined ? summary.totalDefaultedCount : totals.defaultedCount,
+      floatVariance: summary.totalFloatVariance !== undefined ? summary.totalFloatVariance : totals.floatVariance,
     };
   }, [meta, totals]);
 
@@ -425,7 +431,7 @@ export default function CreditsPage({ selectedBranch, user }) {
         </div>
       ) : null}
 
-      <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -454,6 +460,23 @@ export default function CreditsPage({ selectedBranch, user }) {
             {money(displayTotals.collected)}
           </p>
           <p className="mt-0.5 text-[11px] text-slate-400 font-medium">Total collected payments</p>
+        </div>
+
+        <div className="rounded-2xl border border-indigo-200/80 bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+              Float & Fee Variances
+            </p>
+            <span className="grid size-7 place-items-center rounded-lg bg-indigo-50 text-indigo-700">
+              <Percent size={14} />
+            </span>
+          </div>
+          <p className="mt-1 font-mono text-xl font-black text-indigo-950">
+            {money(displayTotals.floatVariance)}
+          </p>
+          <p className="mt-0.5 text-[11px] text-indigo-600/80 font-medium">
+            {provider ? `${label(provider)} terminal fee / float` : "Bank CC fees & tax variances"}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -849,201 +872,250 @@ export default function CreditsPage({ selectedBranch, user }) {
               </div>
             ) : (
               <div className="max-h-[75vh] overflow-y-auto p-5 space-y-4">
-                <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
-                    <p className="text-[10px] font-bold uppercase text-slate-500">
-                      Source Total
-                    </p>
-                    <p className="mt-1 font-mono font-bold text-slate-900">
-                      {money(detail.sourceTotalAmountSnapshot)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
-                    <p className="text-[10px] font-bold uppercase text-slate-500">
-                      Initial Settlement
-                    </p>
-                    <p className="mt-1 font-mono font-bold text-slate-900">
-                      {money(detail.downpaymentAmount)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
-                    <p className="text-[10px] font-bold uppercase text-slate-500">
-                      Provider
-                    </p>
-                    <p className="mt-1 font-bold text-slate-900">
-                      {label(detail.provider)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
-                    <p className="text-[10px] font-bold uppercase text-slate-500">
-                      Remaining
-                    </p>
-                    <p className="mt-1 font-mono font-black text-[var(--color-maroon)]">
-                      {money(detail.remainingBalance)}
-                    </p>
-                  </div>
-                </div>
+                {(() => {
+                  const detailRegular = Number(detail.regularPriceTotalAmount || detail.balanceAmount || 0);
+                  const detailSource = Number(detail.cashPromoTotalAmount || detail.sourceTotalAmountSnapshot || 0);
+                  const detailFloat = Math.max(0, detailRegular - detailSource);
 
-                <div className="grid gap-2.5 rounded-xl border border-slate-200 bg-white p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-400">
-                      Term / Basis
-                    </p>
-                    <p className="mt-0.5 font-bold text-slate-800">
-                      {detail.term
-                        ? `${label(detail.term)} · ${Number(detail.termBasis).toFixed(4)}`
-                        : "Not applicable"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-400">
-                      Due Schedule
-                    </p>
-                    <p className="mt-0.5 font-bold text-slate-800">
-                      {detail.dueDay
-                        ? `Day ${detail.dueDay} · ${dateTime(detail.nextDueDate, true)}`
-                        : "Not applicable"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-400">
-                      Linked Source
-                    </p>
-                    <p className="mt-0.5 font-bold text-slate-800">
-                      {detail.sale?.receiptCode ||
-                        detail.serviceJob?.jobCode ||
-                        "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-400">
-                      Total Collected
-                    </p>
-                    <p className="mt-0.5 font-mono font-bold text-slate-800">{money(detail.totalCollected)}</p>
-                  </div>
-                </div>
+                  return (
+                    <>
+                      <div className={`grid gap-2.5 sm:grid-cols-2 ${detailFloat > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                          <p className="text-[10px] font-bold uppercase text-slate-500">
+                            Source Total
+                          </p>
+                          <p className="mt-1 font-mono font-bold text-slate-900">
+                            {money(detail.sourceTotalAmountSnapshot)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                          <p className="text-[10px] font-bold uppercase text-slate-500">
+                            Initial Settlement
+                          </p>
+                          <p className="mt-1 font-mono font-bold text-slate-900">
+                            {money(detail.downpaymentAmount)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                          <p className="text-[10px] font-bold uppercase text-slate-500">
+                            Provider
+                          </p>
+                          <p className="mt-1 font-bold text-slate-900">
+                            {label(detail.provider)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/75 p-3 text-xs">
+                          <p className="text-[10px] font-bold uppercase text-slate-500">
+                            Remaining
+                          </p>
+                          <p className="mt-1 font-mono font-black text-[var(--color-maroon)]">
+                            {money(detail.remainingBalance)}
+                          </p>
+                        </div>
+                        {detailFloat > 0 ? (
+                          <div className="rounded-xl border border-indigo-200 bg-indigo-50/75 p-3 text-xs">
+                            <p className="text-[10px] font-bold uppercase text-indigo-700">
+                              Float / CC Fee
+                            </p>
+                            <p className="mt-1 font-mono font-bold text-indigo-950">
+                              +{money(detailFloat)}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
 
-                {detail.status === "ACTIVE" ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition"
-                      onClick={() => setShowCollectionForm((value) => !value)}
-                      type="button"
-                    >
-                      <Banknote size={14} />
-                      Post Collection
-                    </button>
-                    {(detail.customerId || detail.customer?.id) ? (
-                      <button
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100 transition shadow-2xs"
-                        onClick={() => {
-                          const targetId = detail.customerId || detail.customer?.id;
-                          setSoaCustomer({
-                            id: targetId,
-                            fullName: detail.customer?.fullName || detail.serviceJob?.customerNameSnapshot,
-                            address: detail.customer?.address,
-                            mobileNumber: detail.customer?.mobileNumber,
-                            companyName: detail.customer?.companyName,
-                          });
-                        }}
-                        type="button"
-                      >
-                        <Printer size={14} className="text-indigo-600" />
-                        Statement of Account (SOA)
-                      </button>
-                    ) : null}
-                    {canCancelCollections ? (
-                      <button
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
-                        onClick={() => setShowDefaultModal(true)}
-                        type="button"
-                      >
-                        ⚠️ Declare Bad Debt / Default
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
+                      <div className="grid gap-2.5 rounded-xl border border-slate-200 bg-white p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-slate-400">
+                            Term / Basis
+                          </p>
+                          <p className="mt-0.5 font-bold text-slate-800">
+                            {detail.term
+                              ? `${label(detail.term)} · ${Number(detail.termBasis).toFixed(4)}`
+                              : "Not applicable"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-slate-400">
+                            Due Schedule
+                          </p>
+                          <p className="mt-0.5 font-bold text-slate-800">
+                            {detail.dueDay
+                              ? `Day ${detail.dueDay} · ${dateTime(detail.nextDueDate, true)}`
+                              : "Not applicable"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-slate-400">
+                            Linked Source
+                          </p>
+                          <p className="mt-0.5 font-bold text-slate-800">
+                            {detail.sale?.receiptCode ||
+                              detail.serviceJob?.jobCode ||
+                              "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-slate-400">
+                            Total Collected
+                          </p>
+                          <p className="mt-0.5 font-mono font-bold text-slate-800">{money(detail.totalCollected)}</p>
+                        </div>
+                      </div>
 
-                {showCollectionForm && detail.status === "ACTIVE" ? (
-                  <form
-                    className="grid gap-2.5 rounded-xl border border-slate-200 bg-slate-50/75 p-3.5 md:grid-cols-2 lg:grid-cols-6"
-                    onSubmit={submitCollection}
-                  >
-                    <input
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                      onChange={(event) =>
-                        setCollectionForm((form) => ({
-                          ...form,
-                          paidAt: event.target.value,
-                        }))
-                      }
-                      title="Collection / Payment Date"
-                      type="date"
-                      value={collectionForm.paidAt}
-                    />
-                    <input
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                      max={Number(detail.remainingBalance)}
-                      min="0.01"
-                      onChange={(event) =>
-                        setCollectionForm((form) => ({
-                          ...form,
-                          amount: event.target.value,
-                        }))
-                      }
-                      placeholder="Amount"
-                      required
-                      step="0.01"
-                      type="number"
-                      value={collectionForm.amount}
-                    />
-                    <select
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                      onChange={(event) =>
-                        setCollectionForm((form) => ({
-                          ...form,
-                          paymentMethod: event.target.value,
-                        }))
-                      }
-                      value={collectionForm.paymentMethod}
-                    >
-                      {PAYMENT_METHODS.map((value) => (
-                        <option key={value} value={value}>
-                          {label(value)}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                      onChange={(event) =>
-                        setCollectionForm((form) => ({
-                          ...form,
-                          referenceNo: event.target.value,
-                        }))
-                      }
-                      placeholder="Reference (optional)"
-                      value={collectionForm.referenceNo}
-                    />
-                    <input
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
-                      onChange={(event) =>
-                        setCollectionForm((form) => ({
-                          ...form,
-                          remarks: event.target.value,
-                        }))
-                      }
-                      placeholder="Remarks (optional)"
-                      value={collectionForm.remarks}
-                    />
-                    <button
-                      className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
-                      disabled={isSaving}
-                      type="submit"
-                    >
-                      {isSaving ? "Posting…" : "Save Collection"}
-                    </button>
-                  </form>
-                ) : null}
+                      {detail.status === "ACTIVE" ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition"
+                            onClick={() => setShowCollectionForm((value) => !value)}
+                            type="button"
+                          >
+                            <Banknote size={14} />
+                            Post Collection
+                          </button>
+                          {(detail.customerId || detail.customer?.id) ? (
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100 transition shadow-2xs"
+                              onClick={() => {
+                                const targetId = detail.customerId || detail.customer?.id;
+                                setSoaCustomer({
+                                  id: targetId,
+                                  fullName: detail.customer?.fullName || detail.serviceJob?.customerNameSnapshot,
+                                  address: detail.customer?.address,
+                                  mobileNumber: detail.customer?.mobileNumber,
+                                  companyName: detail.customer?.companyName,
+                                });
+                              }}
+                              type="button"
+                            >
+                              <Printer size={14} className="text-indigo-600" />
+                              Statement of Account (SOA)
+                            </button>
+                          ) : null}
+                          {canCancelCollections ? (
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
+                              onClick={() => setShowDefaultModal(true)}
+                              type="button"
+                            >
+                              ⚠️ Declare Bad Debt / Default
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {showCollectionForm && detail.status === "ACTIVE" ? (
+                        <form
+                          className="grid gap-2.5 rounded-xl border border-slate-200 bg-slate-50/75 p-3.5 md:grid-cols-2 lg:grid-cols-6"
+                          onSubmit={submitCollection}
+                        >
+                          {detailFloat > 0 || Number(detail.remainingBalance) > 0 ? (
+                            <div className="col-span-full rounded-xl border border-indigo-200 bg-indigo-50/75 p-3 text-xs text-indigo-950">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                  <p className="font-bold flex items-center gap-1.5">
+                                    <span>💳</span> Float & Terminal Fee Settlement
+                                  </p>
+                                  <p className="text-[11px] text-indigo-700 mt-0.5">
+                                    Shop Net: <strong className="font-mono">{money(detailSource || Math.max(0, Number(detail.remainingBalance) - detailFloat))}</strong> · CC Fee / Tax Float: <strong className="font-mono">+{money(detailFloat)}</strong> · Full Remaining: <strong className="font-mono">{money(detail.remainingBalance)}</strong>
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const netAmount = detailSource || Math.max(0, Number(detail.remainingBalance) - detailFloat);
+                                    setCollectionForm((form) => ({
+                                      ...form,
+                                      amount: String(detail.remainingBalance),
+                                      paymentMethod: detail.provider === "CREDIT_CARD" ? "CARD" : (form.paymentMethod || "CARD"),
+                                      remarks: `Net: ${money(netAmount)} | Float/Fee: ${money(detailFloat)} (Settled in full)`,
+                                    }));
+                                  }}
+                                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-2xs cursor-pointer"
+                                >
+                                  ⚡ Auto-Fill Full Settlement ({money(detail.remainingBalance)})
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                          <input
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                            onChange={(event) =>
+                              setCollectionForm((form) => ({
+                                ...form,
+                                paidAt: event.target.value,
+                              }))
+                            }
+                            title="Collection / Payment Date"
+                            type="date"
+                            value={collectionForm.paidAt}
+                          />
+                          <input
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                            max={Number(detail.remainingBalance)}
+                            min="0.01"
+                            onChange={(event) =>
+                              setCollectionForm((form) => ({
+                                ...form,
+                                amount: event.target.value,
+                              }))
+                            }
+                            placeholder="Amount"
+                            required
+                            step="0.01"
+                            type="number"
+                            value={collectionForm.amount}
+                          />
+                          <select
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                            onChange={(event) =>
+                              setCollectionForm((form) => ({
+                                ...form,
+                                paymentMethod: event.target.value,
+                              }))
+                            }
+                            value={collectionForm.paymentMethod}
+                          >
+                            {PAYMENT_METHODS.map((value) => (
+                              <option key={value} value={value}>
+                                {label(value)}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                            onChange={(event) =>
+                              setCollectionForm((form) => ({
+                                ...form,
+                                referenceNo: event.target.value,
+                              }))
+                            }
+                            placeholder="Reference (optional)"
+                            value={collectionForm.referenceNo}
+                          />
+                          <input
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[var(--color-maroon)]"
+                            onChange={(event) =>
+                              setCollectionForm((form) => ({
+                                ...form,
+                                remarks: event.target.value,
+                              }))
+                            }
+                            placeholder="Remarks (optional)"
+                            value={collectionForm.remarks}
+                          />
+                          <button
+                            className="rounded-xl bg-[var(--color-maroon)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[var(--color-maroon-hover)] transition disabled:opacity-50"
+                            disabled={isSaving}
+                            type="submit"
+                          >
+                            {isSaving ? "Posting…" : "Save Collection"}
+                          </button>
+                        </form>
+                      ) : null}
+                    </>
+                  );
+                })()}
 
                 <section className="space-y-2">
                   <div className="flex items-center gap-1.5">

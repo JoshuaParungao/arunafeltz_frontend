@@ -338,35 +338,52 @@ export default function CreditAccountDetailModal({
           ) : detail ? (
             <>
               {/* Financial Snapshot Summary */}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Principal Amount</p>
-                  <p className="mt-1 font-mono text-base font-bold text-slate-900">
-                    {money(detail.regularPriceTotalAmount || detail.principalAmount || detail.sourceTotalAmountSnapshot)}
-                  </p>
-                </div>
+              {(() => {
+                const detailRegular = Number(detail.regularPriceTotalAmount || detail.principalAmount || detail.balanceAmount || 0);
+                const detailSource = Number(detail.cashPromoTotalAmount || detail.sourceTotalAmountSnapshot || 0);
+                const detailFloat = Math.max(0, detailRegular - detailSource);
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Downpayment</p>
-                  <p className="mt-1 font-mono text-base font-bold text-slate-900">
-                    {money(detail.downpaymentAmount || detail.initialPaymentAmount)}
-                  </p>
-                </div>
+                return (
+                  <div className={`grid gap-3 sm:grid-cols-2 ${detailFloat > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Principal Amount</p>
+                      <p className="mt-1 font-mono text-base font-bold text-slate-900">
+                        {money(detail.regularPriceTotalAmount || detail.principalAmount || detail.sourceTotalAmountSnapshot)}
+                      </p>
+                    </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Remaining Balance</p>
-                  <p className="mt-1 font-mono text-base font-black text-rose-600">
-                    {money(detail.remainingBalance ?? detail.balanceAmount)}
-                  </p>
-                </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Downpayment</p>
+                      <p className="mt-1 font-mono text-base font-bold text-slate-900">
+                        {money(detail.downpaymentAmount || detail.initialPaymentAmount)}
+                      </p>
+                    </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly Due</p>
-                  <p className="mt-1 font-mono text-base font-bold text-slate-900">
-                    {money(detail.monthlyDueAmount)}
-                  </p>
-                </div>
-              </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Remaining Balance</p>
+                      <p className="mt-1 font-mono text-base font-black text-rose-600">
+                        {money(detail.remainingBalance ?? detail.balanceAmount)}
+                      </p>
+                    </div>
+
+                    {detailFloat > 0 ? (
+                      <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Float / CC Fee</p>
+                        <p className="mt-1 font-mono text-base font-bold text-indigo-900">
+                          +{money(detailFloat)}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly Due</p>
+                      <p className="mt-1 font-mono text-base font-bold text-slate-900">
+                        {money(detail.monthlyDueAmount)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Terms, Schedule & Details */}
               <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
@@ -436,9 +453,9 @@ export default function CreditAccountDetailModal({
                     <h3 className="text-xs font-bold text-slate-900">
                       Enter Collection Payment
                     </h3>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button
-                        className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                        className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                         onClick={() =>
                           setCollectionForm((f) => ({
                             ...f,
@@ -450,7 +467,7 @@ export default function CreditAccountDetailModal({
                         Monthly Due ({money(detail.monthlyDueAmount)})
                       </button>
                       <button
-                        className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                        className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                         onClick={() =>
                           setCollectionForm((f) => ({
                             ...f,
@@ -461,6 +478,29 @@ export default function CreditAccountDetailModal({
                       >
                         Full Balance ({money(detail.remainingBalance ?? detail.balanceAmount)})
                       </button>
+                      {(() => {
+                        const regular = Number(detail.regularPriceTotalAmount || detail.principalAmount || detail.balanceAmount || 0);
+                        const source = Number(detail.cashPromoTotalAmount || detail.sourceTotalAmountSnapshot || 0);
+                        const floatAmt = Math.max(0, regular - source);
+                        if (floatAmt <= 0) return null;
+                        const netAmt = source || Math.max(0, Number(detail.remainingBalance ?? detail.balanceAmount ?? 0) - floatAmt);
+                        return (
+                          <button
+                            className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 cursor-pointer"
+                            onClick={() =>
+                              setCollectionForm((f) => ({
+                                ...f,
+                                amount: String(detail.remainingBalance ?? detail.balanceAmount ?? ""),
+                                paymentMethod: detail.provider === "CREDIT_CARD" ? "CARD" : (f.paymentMethod || "CARD"),
+                                remarks: `Net: ${money(netAmt)} | Float/Fee: ${money(floatAmt)} (Settled in full)`,
+                              }))
+                            }
+                            type="button"
+                          >
+                            ⚡ Settle Float ({money(detail.remainingBalance ?? detail.balanceAmount)})
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
 
