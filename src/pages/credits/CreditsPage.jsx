@@ -149,6 +149,7 @@ export default function CreditsPage({ selectedBranch, user }) {
     referenceNo: "",
     remarks: "",
     paidAt: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
+    isFinalSettlement: false,
   });
   const collectionRequestRef = useRef({ signature: "", key: "" });
   const canCancelCollections = COLLECTION_CANCELLER_ROLES.has(user?.role);
@@ -217,6 +218,7 @@ export default function CreditsPage({ selectedBranch, user }) {
         referenceNo: collectionForm.referenceNo.trim() || undefined,
         remarks: collectionForm.remarks.trim() || undefined,
         paidAt: collectionForm.paidAt || undefined,
+        isFinalSettlement: Boolean(collectionForm.isFinalSettlement),
       };
       const requestSignature = JSON.stringify({
         creditAccountId: detail.id,
@@ -242,6 +244,7 @@ export default function CreditsPage({ selectedBranch, user }) {
         referenceNo: "",
         remarks: "",
         paidAt: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
+        isFinalSettlement: false,
       });
       setShowCollectionForm(false);
       await Promise.all([refreshDetail(), loadAccounts()]);
@@ -307,9 +310,10 @@ export default function CreditsPage({ selectedBranch, user }) {
           const isCancelled = account.status === "CANCELLED";
           const remBalance = Number(account.remainingBalance || 0);
           const collected = Number(account.totalCollected || 0);
-          const regularOrBalance = Number(account.regularPriceTotalAmount || account.balanceAmount || 0);
-          const sourceOrPromo = Number(account.cashPromoTotalAmount || account.sourceTotalAmountSnapshot || 0);
-          const floatVar = Math.max(0, regularOrBalance - sourceOrPromo);
+          const settledFloat =
+            account.status === "PAID"
+              ? Math.max(0, Number(account.balanceAmount || 0) - Number(account.totalCollected || 0))
+              : 0;
 
           return {
             balance: summary.balance + (!isDefaulted && !isCancelled ? remBalance : 0),
@@ -317,7 +321,7 @@ export default function CreditsPage({ selectedBranch, user }) {
             overdue: summary.overdue + (isOverdue(account) ? 1 : 0),
             defaultedBalance: summary.defaultedBalance + (isDefaulted ? remBalance : 0),
             defaultedCount: summary.defaultedCount + (isDefaulted ? 1 : 0),
-            floatVariance: summary.floatVariance + floatVar,
+            floatVariance: summary.floatVariance + settledFloat,
           };
         },
         { balance: 0, collected: 0, overdue: 0, defaultedBalance: 0, defaultedCount: 0, floatVariance: 0 },
@@ -1010,34 +1014,67 @@ export default function CreditsPage({ selectedBranch, user }) {
                           onSubmit={submitCollection}
                         >
                           {detailFloat > 0 || Number(detail.remainingBalance) > 0 ? (
-                            <div className="col-span-full rounded-xl border border-indigo-200 bg-indigo-50/75 p-3 text-xs text-indigo-950">
+                            <div className="col-span-full rounded-xl border border-indigo-200 bg-indigo-50/75 p-3 text-xs text-indigo-950 space-y-2">
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                   <p className="font-bold flex items-center gap-1.5">
-                                    <span>💳</span> Float & Terminal Fee Settlement
+                                    <span>💳</span> Remittance & Float Settlement Breakdown
                                   </p>
                                   <p className="text-[11px] text-indigo-700 mt-0.5">
-                                    Shop Net: <strong className="font-mono">{money(detailSource || Math.max(0, Number(detail.remainingBalance) - detailFloat))}</strong> · CC Fee / Tax Float: <strong className="font-mono">+{money(detailFloat)}</strong> · Full Remaining: <strong className="font-mono">{money(detail.remainingBalance)}</strong>
+                                    Shop Net: <strong className="font-mono">{money(detailSource || Math.max(0, Number(detail.remainingBalance) - detailFloat))}</strong> · CC Fee / Tax Float: <strong className="font-mono">+{money(detailFloat)}</strong> · Remaining: <strong className="font-mono">{money(detail.remainingBalance)}</strong>
                                   </p>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const netAmount = detailSource || Math.max(0, Number(detail.remainingBalance) - detailFloat);
-                                    setCollectionForm((form) => ({
-                                      ...form,
-                                      amount: String(detail.remainingBalance),
-                                      paymentMethod: detail.provider === "CREDIT_CARD" ? "CARD" : (form.paymentMethod || "CARD"),
-                                      remarks: `Net: ${money(netAmount)} | Float/Fee: ${money(detailFloat)} (Settled in full)`,
-                                    }));
-                                  }}
-                                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-2xs cursor-pointer"
-                                >
-                                  ⚡ Auto-Fill Full Settlement ({money(detail.remainingBalance)})
-                                </button>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {Number(detail.totalCollected) > 0 ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCollectionForm((form) => ({
+                                          ...form,
+                                          amount: "0",
+                                          isFinalSettlement: true,
+                                          paymentMethod: "OTHER",
+                                          remarks: `Absorb remaining balance ${money(detail.remainingBalance)} as Settled Float / Fee variance`,
+                                        }));
+                                      }}
+                                      className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 transition shadow-2xs cursor-pointer"
+                                    >
+                                      ⚡ Close & Absorb Remaining ({money(detail.remainingBalance)}) as Float
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const netAmount = detailSource || Math.max(0, Number(detail.remainingBalance) - detailFloat);
+                                        setCollectionForm((form) => ({
+                                          ...form,
+                                          amount: String(netAmount),
+                                          isFinalSettlement: true,
+                                          paymentMethod: detail.provider === "CREDIT_CARD" ? "CARD" : (form.paymentMethod || "CARD"),
+                                          remarks: `Actual Net Remittance: ${money(netAmount)} | Float/Fee: ${money(detail.remainingBalance - netAmount)} (Settled in full)`,
+                                        }));
+                                      }}
+                                      className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-2xs cursor-pointer"
+                                    >
+                                      ⚡ Settle Remittance ({money(detailSource || Math.max(0, Number(detail.remainingBalance) - detailFloat))}) + Absorb Float
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ) : null}
+
+                          <label className="col-span-full flex items-center gap-2 rounded-xl border border-indigo-200 bg-white p-2.5 text-xs font-bold text-indigo-950 cursor-pointer shadow-2xs">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(collectionForm.isFinalSettlement)}
+                              onChange={(e) => setCollectionForm((f) => ({ ...f, isFinalSettlement: e.target.checked }))}
+                              className="size-4 accent-indigo-600 rounded"
+                            />
+                            <span>
+                              Mark as Final Settlement upon posting (Zeroes out remaining balance and absorbs difference as Settled Float / Fee)
+                            </span>
+                          </label>
                           <input
                             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                             onChange={(event) =>
@@ -1053,7 +1090,7 @@ export default function CreditsPage({ selectedBranch, user }) {
                           <input
                             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-[var(--color-maroon)]"
                             max={Number(detail.remainingBalance)}
-                            min="0.01"
+                            min="0"
                             onChange={(event) =>
                               setCollectionForm((form) => ({
                                 ...form,
@@ -1061,7 +1098,7 @@ export default function CreditsPage({ selectedBranch, user }) {
                               }))
                             }
                             placeholder="Amount"
-                            required
+                            required={!collectionForm.isFinalSettlement}
                             step="0.01"
                             type="number"
                             value={collectionForm.amount}

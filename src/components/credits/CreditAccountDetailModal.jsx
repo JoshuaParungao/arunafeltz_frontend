@@ -96,6 +96,7 @@ export default function CreditAccountDetailModal({
     referenceNo: "",
     remarks: "",
     paidAt: "",
+    isFinalSettlement: false,
   })
 
   const collectionRequestRef = useRef({ signature: "", key: "" })
@@ -135,8 +136,9 @@ export default function CreditAccountDetailModal({
     e.preventDefault()
     if (!detail) return
 
+    const isFinal = Boolean(collectionForm.isFinalSettlement)
     const amountNum = Number(collectionForm.amount)
-    if (!amountNum || amountNum <= 0) {
+    if (!isFinal && (!amountNum || amountNum <= 0)) {
       setErrorMessage("Please enter a valid payment amount greater than 0.")
       return
     }
@@ -158,6 +160,7 @@ export default function CreditAccountDetailModal({
         referenceNo: collectionForm.referenceNo.trim() || undefined,
         remarks: collectionForm.remarks.trim() || undefined,
         paidAt: collectionForm.paidAt || undefined,
+        isFinalSettlement: isFinal,
       }
 
       const requestSignature = JSON.stringify({
@@ -185,6 +188,7 @@ export default function CreditAccountDetailModal({
         referenceNo: "",
         remarks: "",
         paidAt: "",
+        isFinalSettlement: false,
       })
       setShowCollectionForm(false)
 
@@ -479,30 +483,71 @@ export default function CreditAccountDetailModal({
                         Full Balance ({money(detail.remainingBalance ?? detail.balanceAmount)})
                       </button>
                       {(() => {
+                        const remaining = Number(detail.remainingBalance ?? detail.balanceAmount ?? 0);
+                        const collected = Number(detail.totalCollected ?? 0);
                         const regular = Number(detail.regularPriceTotalAmount || detail.principalAmount || detail.balanceAmount || 0);
                         const source = Number(detail.cashPromoTotalAmount || detail.sourceTotalAmountSnapshot || 0);
                         const floatAmt = Math.max(0, regular - source);
-                        if (floatAmt <= 0) return null;
-                        const netAmt = source || Math.max(0, Number(detail.remainingBalance ?? detail.balanceAmount ?? 0) - floatAmt);
-                        return (
-                          <button
-                            className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 cursor-pointer"
-                            onClick={() =>
-                              setCollectionForm((f) => ({
-                                ...f,
-                                amount: String(detail.remainingBalance ?? detail.balanceAmount ?? ""),
-                                paymentMethod: detail.provider === "CREDIT_CARD" ? "CARD" : (f.paymentMethod || "CARD"),
-                                remarks: `Net: ${money(netAmt)} | Float/Fee: ${money(floatAmt)} (Settled in full)`,
-                              }))
-                            }
-                            type="button"
-                          >
-                            ⚡ Settle Float ({money(detail.remainingBalance ?? detail.balanceAmount)})
-                          </button>
-                        );
+                        const netAmt = source || Math.max(0, remaining - floatAmt);
+
+                        if (remaining <= 0) return null;
+
+                        if (collected > 0) {
+                          return (
+                            <button
+                              className="rounded-md bg-emerald-50 border border-emerald-300 px-2 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                              onClick={() =>
+                                setCollectionForm((f) => ({
+                                  ...f,
+                                  amount: "0",
+                                  isFinalSettlement: true,
+                                  paymentMethod: "OTHER",
+                                  remarks: `Absorb remaining balance ${money(remaining)} as Settled Float / Fee`,
+                                }))
+                              }
+                              type="button"
+                            >
+                              ⚡ Close & Absorb Remaining ({money(remaining)}) as Float
+                            </button>
+                          );
+                        }
+
+                        if (floatAmt > 0) {
+                          return (
+                            <button
+                              className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 cursor-pointer"
+                              onClick={() =>
+                                setCollectionForm((f) => ({
+                                  ...f,
+                                  amount: String(netAmt),
+                                  isFinalSettlement: true,
+                                  paymentMethod: detail.provider === "CREDIT_CARD" ? "CARD" : (f.paymentMethod || "CARD"),
+                                  remarks: `Actual Net Remittance: ${money(netAmt)} | Float/Fee: ${money(remaining - netAmt)} (Settled in full)`,
+                                }))
+                              }
+                              type="button"
+                            >
+                              ⚡ Settle Remittance ({money(netAmt)}) + Absorb Float
+                            </button>
+                          );
+                        }
+
+                        return null;
                       })()}
                     </div>
                   </div>
+
+                  <label className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-white p-2 text-xs font-bold text-indigo-950 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(collectionForm.isFinalSettlement)}
+                      onChange={(e) => setCollectionForm((f) => ({ ...f, isFinalSettlement: e.target.checked }))}
+                      className="size-4 accent-indigo-600 rounded"
+                    />
+                    <span>
+                      Mark as Final Settlement (Zeroes out remaining balance and absorbs difference as Settled Float / Fee)
+                    </span>
+                  </label>
 
                   <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
                     <div>
@@ -510,10 +555,10 @@ export default function CreditAccountDetailModal({
                       <input
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono font-bold text-slate-900 outline-none focus:border-slate-600"
                         max={Number(detail.remainingBalance ?? detail.balanceAmount ?? 0)}
-                        min="0.01"
+                        min="0"
                         onChange={(e) => setCollectionForm((f) => ({ ...f, amount: e.target.value }))}
                         placeholder="0.00"
-                        required
+                        required={!collectionForm.isFinalSettlement}
                         step="0.01"
                         type="number"
                         value={collectionForm.amount}
