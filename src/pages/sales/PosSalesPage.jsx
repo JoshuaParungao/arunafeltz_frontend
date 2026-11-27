@@ -80,6 +80,7 @@ import {
   exportReportExcel,
   exportWarrantyReceiptPdf,
   groupReceiptItems,
+  printReport,
   printWarrantyReceipt,
 } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
@@ -6691,6 +6692,230 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
     }
   }
 
+  const handlePrintSalesPdf = () => {
+    if (historyTab === "QUOTATIONS") {
+      const printColumns = [
+        ["Quotation No", (row) => row.quoteNumber || "—"],
+        ["Date", (row) => row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-PH") : "—"],
+        ["Customer Name", (row) => row.customer?.fullName || "Walk-in Customer"],
+        ["Status", (row) => formatStatus(row.status)],
+        ["Items Count", (row) => (row.items || []).length],
+        ["Grand Total", (row) => `₱${formatMoney(row.grandTotal || 0)}`],
+        ["Prepared By", (row) => row.preparedBy?.fullName || row.cashier?.fullName || row.preparedBy?.username || "—"],
+        ["Service Done By", (row) => row.serviceDoneBy?.fullName || "—"],
+        ["Remarks", (row) => row.remarks || "—"],
+      ]
+      printReport({
+        label: "Customer Quotations",
+        filename: `Quotations-${new Date().toISOString().slice(0, 10)}`,
+        columns: printColumns,
+        records: quotations,
+        branch: activeBranch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", salesSearch.trim() || "All"],
+          ["Status", quotationStatusFilter || "All Quotation Statuses"],
+        ],
+        totals: [
+          ["Total Quotations", String(quotations.length)],
+          ["Combined Grand Total", `₱${formatMoney(quotations.reduce((sum, q) => sum + Number(q.grandTotal || 0), 0))}`],
+        ],
+      })
+    } else if (itemsViewMode === "ITEMS") {
+      const catSummary = salesCategory.allSales
+        ? "All Sales"
+        : [
+            salesCategory.items ? `Items${selectedPriceTiers.length < 5 ? ` (Tiers: ${selectedPriceTiers.join(", ")})` : ""}` : null,
+            salesCategory.parts ? "Parts" : null,
+            salesCategory.services ? "Services" : null,
+          ].filter(Boolean).join(", ") || "None"
+
+      const paySummary = paymentMethodFilter.allMethods
+        ? "All Methods"
+        : [
+            paymentMethodFilter.ar ? "AR" : null,
+            paymentMethodFilter.cash ? "Cash" : null,
+            paymentMethodFilter.online ? "Online (GCash/Bank/Maya)" : null,
+          ].filter(Boolean).join(", ") || "None"
+
+      const compSummary = `Mark-up: ${totalComputation.markup ? "Included" : "Excluded"}, Interest: ${totalComputation.interest ? "Included" : "Excluded"}`
+
+      const itemColumns = [
+        ["Receipt Code", (row) => row.receiptCode],
+        ["Date & Time", (row) => row.saleDate ? new Date(row.saleDate).toLocaleString("en-PH") : "—"],
+        ["Customer Name", (row) => row.customerName],
+        ["Sales Agent / Cashier", (row) => row.cashierName],
+        ["Item Code", (row) => row.itemCode],
+        ["Product / Description", (row) => row.itemName],
+        ["Category", (row) => row.isService ? "Service" : row.isPart ? "Service Part" : "Item"],
+        ["Price Tier", (row) => row.priceTier ? `Tier ${row.priceTier} (${TIER_LABELS[row.priceTier] || `Price ${row.priceTier}`})` : (row.isService ? "Service" : "—")],
+        ["Quantity", (row) => row.quantity],
+        ["Unit Cost", (row) => `₱${formatMoney(row.unitCost)}`],
+        ["Unit Selling Price", (row) => `₱${formatMoney(row.unitPrice)}`],
+        ["Mark-up", (row) => `₱${formatMoney(row.lineMarkup)}`],
+        ["Line Total", (row) => `₱${formatMoney(row.lineTotal)}`],
+      ]
+
+      const totalItemsRevenue = itemSalesRows.reduce((sum, r) => sum + Number(r.lineTotal || 0), 0)
+      const totalItemsMarkup = itemSalesRows.reduce((sum, r) => sum + Number(r.lineMarkup || 0), 0)
+      const totalItemsCost = itemSalesRows.reduce((sum, r) => sum + (Number(r.unitCost || 0) * Number(r.quantity || 1)), 0)
+      const totalItemsQty = itemSalesRows.reduce((sum, r) => sum + Number(r.quantity || 1), 0)
+      const totalItemsProfit = totalItemsRevenue - totalItemsCost
+
+      printReport({
+        label: `Itemized Sales Breakdown (${catSummary} · ${paySummary})`,
+        filename: `Item-Sales-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
+        columns: itemColumns,
+        records: itemSalesRows,
+        branch: activeBranch,
+        generatedBy: user,
+        filters: [
+          ["Timeframe Filter", getPeriodLabel(dateFilterPeriod, customDateFrom, customDateTo)],
+          ["Sales Category Filter", catSummary],
+          ["Price Tiers Filter", selectedPriceTiers.length === 5 ? "All Tiers (1-5)" : selectedPriceTiers.map((t) => `Tier ${t}`).join(", ")],
+          ["Payment Method Filter", paySummary],
+          ["Total Computation Settings", compSummary],
+          ["Total Line Items", String(itemSalesRows.length)],
+        ],
+        totals: [
+          ["Total Units Sold", String(totalItemsQty)],
+          ["Total Revenue", `₱${formatMoney(totalItemsRevenue)}`],
+          ["Total Cost of Goods", `₱${formatMoney(totalItemsCost)}`],
+          ["Total Mark-up", `₱${formatMoney(totalItemsMarkup)}`],
+          ["Total Gross Profit", `₱${formatMoney(totalItemsProfit)}`],
+        ],
+      })
+    } else {
+      const catSummary = salesCategory.allSales
+        ? "All Sales"
+        : [
+            salesCategory.items ? `Items${selectedPriceTiers.length < 5 ? ` (Tiers: ${selectedPriceTiers.join(", ")})` : ""}` : null,
+            salesCategory.parts ? "Parts" : null,
+            salesCategory.services ? "Services" : null,
+          ].filter(Boolean).join(", ") || "None"
+
+      const paySummary = paymentMethodFilter.allMethods
+        ? "All Methods"
+        : [
+            paymentMethodFilter.ar ? "AR" : null,
+            paymentMethodFilter.cash ? "Cash" : null,
+            paymentMethodFilter.online ? "Online (GCash/Bank/Maya)" : null,
+          ].filter(Boolean).join(", ") || "None"
+
+      const compSummary = `Mark-up: ${totalComputation.markup ? "Included" : "Excluded"}, Interest: ${totalComputation.interest ? "Included" : "Excluded"}`
+
+      const getSaleReceiptComputed = (sale) => {
+        const cr = sale.creditAccount
+        const cashTotal = Number(
+          cr?.cashPromoTotalAmount ||
+            cr?.sourceTotalAmountSnapshot ||
+            sale.grandTotal ||
+            sale.subtotal ||
+            0
+        )
+        const rawBasis = Number(cr?.termBasis || 0)
+        const termKey = cr?.term
+        const basis =
+          rawBasis > 0 && rawBasis < 1
+            ? rawBasis
+            : (termKey && DEFAULT_TERM_RATES[termKey]) || 1
+        const savedRegular = Number(cr?.regularPriceTotalAmount || 0)
+
+        const effectiveTotal =
+          basis < 1 && cashTotal > 0
+            ? (savedRegular > cashTotal
+                ? savedRegular
+                : Math.round((cashTotal / basis) * 100) / 100)
+            : (savedRegular > 0 ? savedRegular : Number(sale.grandTotal || 0))
+
+        const saleMarkupTotal = (sale.items || []).reduce((sum, it) => {
+          const markupPct = Number(it.markupPercent || 0)
+          const baseUnit = Number(it.baseUnitPriceSnapshot || 0)
+          const unitPrice = Number(it.unitPrice || 0)
+          const unitCost = Number(it.operationalUnitCostSnapshot || it.acquisitionUnitCostSnapshot || 0)
+          const qty = Number(it.quantity || 1)
+          let lineMarkup = 0
+          if (markupPct > 0 && baseUnit > 0) lineMarkup = Math.max(unitPrice - baseUnit, 0) * qty
+          else if (markupPct > 0 && unitPrice > 0) lineMarkup = Math.max(unitPrice - (unitPrice / (1 + markupPct / 100)), 0) * qty
+          else if (baseUnit > 0 && unitPrice > baseUnit) lineMarkup = (unitPrice - baseUnit) * qty
+          else if (unitCost > 0 && unitPrice > unitCost) lineMarkup = (unitPrice - unitCost) * qty
+          return sum + lineMarkup
+        }, 0)
+
+        const saleInterest = cr ? Math.max(effectiveTotal - cashTotal, 0) : 0
+
+        let computedReceiptTotal = effectiveTotal
+        if (!totalComputation.markup && saleMarkupTotal > 0) {
+          computedReceiptTotal = Math.max(computedReceiptTotal - saleMarkupTotal, 0)
+        }
+        if (!totalComputation.interest && saleInterest > 0) {
+          computedReceiptTotal = Math.max(computedReceiptTotal - saleInterest, 0)
+        }
+
+        const rawRemaining = Number(cr?.remainingBalance || 0)
+        const dp = Number(cr?.downpaymentAmount || sale.amountPaid || 0)
+        const collected = Number(cr?.totalCollected || 0)
+        const effectiveBal = cr
+          ? (basis < 1 && cashTotal > 0 && rawRemaining <= cashTotal
+              ? Math.max(0, Math.round((effectiveTotal - dp - collected) * 100) / 100)
+              : rawRemaining)
+          : 0
+
+        return {
+          effectiveTotal,
+          computedReceiptTotal,
+          saleMarkupTotal,
+          saleInterest,
+          effectiveBal,
+        }
+      }
+
+      const printColumns = [
+        ["Receipt Code", (row) => row.receiptCode || "—"],
+        ["Date & Time", (row) => (row.saleDate || row.createdAt) ? new Date(row.saleDate || row.createdAt).toLocaleString("en-PH") : "—"],
+        ["Customer Name", (row) => row.customer?.fullName || "Walk-in Customer"],
+        ["Payment Method", (row) => row.creditAccount ? formatStatus(row.creditAccount.provider) : formatStatus(row.paymentMethod || "CASH")],
+        ["Financing Term", (row) => row.creditAccount?.term ? formatStatus(row.creditAccount.term) : "—"],
+        ["Items Count", (row) => (row.items || []).length],
+        ["Mark-up", (row) => `₱${formatMoney(getSaleReceiptComputed(row).saleMarkupTotal)}`],
+        ["Interest Charge", (row) => `₱${formatMoney(getSaleReceiptComputed(row).saleInterest)}`],
+        ["Computed Total", (row) => `₱${formatMoney(getSaleReceiptComputed(row).computedReceiptTotal)}`],
+        ["Original Grand Total", (row) => `₱${formatMoney(row.creditAccount?.regularPriceTotalAmount || row.grandTotal || 0)}`],
+        ["Amount Paid", (row) => `₱${formatMoney(row.amountPaid || 0)}`],
+        ["Balance (AR)", (row) => `₱${formatMoney(getSaleReceiptComputed(row).effectiveBal)}`],
+        ["Sales Agent / Cashier", (row) => row.cashier?.fullName || row.cashier?.username || "—"],
+        ["Status", (row) => formatStatus(row.status)],
+      ]
+
+      printReport({
+        label: `Branch Sales Records (${catSummary} · ${paySummary})`,
+        filename: `Sales-Records-${dateFilterPeriod}-${new Date().toISOString().slice(0, 10)}`,
+        columns: printColumns,
+        records: displayedSales,
+        branch: activeBranch,
+        generatedBy: user,
+        filters: [
+          ["Timeframe Period", getPeriodLabel(dateFilterPeriod, customDateFrom, customDateTo)],
+          ["Sales Category Filter", catSummary],
+          ["Price Tiers Filter", selectedPriceTiers.length === 5 ? "All Tiers (1-5)" : selectedPriceTiers.map((t) => `Tier ${t}`).join(", ")],
+          ["Payment Method Filter", paySummary],
+          ["Total Computation Settings", compSummary],
+          ["Matching Receipts", String(displayedSales.length)],
+        ],
+        totals: [
+          ["Computed Total Gross Sales", `₱${formatMoney(detailedMetrics.computedGrandTotal)}`],
+          ["Raw Total Gross Sales", `₱${formatMoney(detailedMetrics.kabuuangSale)}`],
+          ["Items Gross Sales", `₱${formatMoney(detailedMetrics.effectiveItemsRevenue)}`],
+          ["Services & Labor Revenue", `₱${formatMoney(detailedMetrics.serviceRevenue)}`],
+          ["Cash in Drawer", `₱${formatMoney(detailedMetrics.totalPhysicalCash)}`],
+          ["Online Payments (GCash/Maya/Bank)", `₱${formatMoney(detailedMetrics.totalOnlinePayments)}`],
+          ["AR Balance", `₱${formatMoney(detailedMetrics.totalArBalance)}`],
+          ["Total Business Gross Profit", `₱${formatMoney(detailedMetrics.overallGrossProfit)}`],
+        ],
+      })
+    }
+  }
+
   const confirmCancellation = async (reason) => {
     if (!saleToCancel?.id || isCancellingSale) return
 
@@ -10082,6 +10307,22 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                 onExport={handleExportSalesExcel}
                 size="sm"
               />
+
+              <button
+                type="button"
+                onClick={handlePrintSalesPdf}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-900 shadow-2xs hover:bg-indigo-100 transition cursor-pointer"
+                title="Print or Export as PDF"
+              >
+                <Printer size={13} className="text-indigo-600" />
+                <span>
+                  {historyTab === "QUOTATIONS"
+                    ? "Print Quotes (PDF)"
+                    : itemsViewMode === "ITEMS"
+                    ? "Print Items (PDF)"
+                    : "Print Sales (PDF)"}
+                </span>
+              </button>
             </div>
           </div>
 

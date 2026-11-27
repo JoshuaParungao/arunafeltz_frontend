@@ -18,6 +18,7 @@ import {
   Layers,
   Lightbulb,
   LoaderCircle,
+  Printer,
   Receipt,
   RefreshCw,
   Search,
@@ -38,7 +39,7 @@ import {
   getCashHandovers,
   getCashTransactions,
 } from "../../features/cash-boxes/cashBoxes.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const CASH_IN_TYPES = new Set([
@@ -122,8 +123,8 @@ export default function CashBoxesReportView({
   // Active Audit Mode
   const [activeTab, setActiveTab] = useState("SHIFTS") // "SHIFTS" | "EXPENSES" | "CASHBOOK" | "HANDOVERS"
 
-  // Date Filtering
-  const [timeframe, setTimeframe] = useState("THIS_MONTH") // "ALL" | "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "LAST_30_DAYS" | "CUSTOM"
+  // Date Filtering (defaults to TODAY)
+  const [timeframe, setTimeframe] = useState("TODAY") // "ALL" | "TODAY" | "YESTERDAY" | "THIS_WEEK" | "THIS_MONTH" | "LAST_30_DAYS" | "CUSTOM"
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
 
@@ -831,6 +832,124 @@ export default function CashBoxesReportView({
     }
   }
 
+  const handlePrintReportPdf = () => {
+    const periodLabel = timeframe === "CUSTOM" && (dateFrom || dateTo)
+      ? `${dateFrom || "Start"} to ${dateTo || "Today"}`
+      : timeframe.replace(/_/g, " ")
+
+    if (activeTab === "SHIFTS") {
+      const columns = [
+        ["Shift Date", (g) => g.date || "—"],
+        ["Cashier / Staff", (g) => g.staffName || "Staff"],
+        ["Cash Box", (g) => g.boxName || "—"],
+        ["Starting Float", (g) => money(g.startingFloat)],
+        ["Cash Inflows", (g) => money(g.cashSales + g.servicesCash + g.creditCollected + g.floatAdded)],
+        ["Expenses", (g) => money(g.expenses)],
+        ["Bank Deposits", (g) => money(g.bankDeposits)],
+        ["Net Cash Flow", (g) => money(g.netFlow)],
+        ["Ending Balance", (g) => money(g.endingBalance)],
+      ]
+      printReport({
+        label: `Cashier Shift & Drawer Reconciliation (${periodLabel})`,
+        filename: `Cashier_Shift_Report_${timeframe}`,
+        columns,
+        records: shiftGroups,
+        branch: selectedBranch || user?.branch,
+        generatedBy: user,
+        filters: [
+          ["Timeframe Period", periodLabel],
+          ["Cash Box", selectedBoxFilter === "ALL" ? "All Cash Drawers" : boxes.find(b => b.id === selectedBoxFilter)?.name || selectedBoxFilter],
+        ],
+        totals: [
+          ["Total Cash Inflow", money(summaryMetrics.totalSalesInflow)],
+          ["Total Store Expenses", money(summaryMetrics.totalExpenses)],
+          ["Total Bank Deposits", money(summaryMetrics.totalBankDeposited)],
+          ["Net Cash Generated", money(summaryMetrics.netCashFlow)],
+        ],
+      })
+    } else if (activeTab === "EXPENSES") {
+      const columns = [
+        ["Date / Time", (v) => dateTime(v.transactionDate || v.createdAt)],
+        ["Voucher Code", (v) => v.transactionCode || "—"],
+        ["Drawer", (v) => v.cashBox?.name || "Cash Drawer"],
+        ["Description", (v) => v.description || "—"],
+        ["Ref No", (v) => v.referenceNo || "—"],
+        ["Staff", (v) => v.performedBy?.fullName || v.createdBy?.fullName || "Staff"],
+        ["Amount", (v) => money(v.amount)],
+        ["Balance After", (v) => money(v.balanceAfter)],
+      ]
+      printReport({
+        label: `Store Cash Expenses & Petty Cash Report (${periodLabel})`,
+        filename: `Store_Expenses_${timeframe}`,
+        columns,
+        records: expenseCategoryBreakdown.visibleVouchers,
+        branch: selectedBranch || user?.branch,
+        generatedBy: user,
+        filters: [
+          ["Timeframe Period", periodLabel],
+          ["Category", selectedExpenseCatFilter],
+        ],
+        totals: [
+          ["Total Expense Vouchers", String(expenseCategoryBreakdown.visibleVouchers.length)],
+          ["Total Operating Expenses", money(summaryMetrics.totalExpenses)],
+        ],
+      })
+    } else if (activeTab === "CASHBOOK") {
+      const columns = [
+        ["Date / Time", (tx) => dateTime(tx.transactionDate || tx.createdAt)],
+        ["Transaction Code", (tx) => tx.transactionCode || "—"],
+        ["Type", (tx) => formatStatus(tx.type)],
+        ["Description", (tx) => tx.description || "—"],
+        ["Ref No", (tx) => tx.referenceNo || "—"],
+        ["Staff", (tx) => tx.performedBy?.fullName || tx.createdBy?.fullName || "Staff"],
+        ["Amount", (tx) => `${CASH_IN_TYPES.has(tx.type) ? "+" : "-"}${money(tx.amount)}`],
+        ["Balance After", (tx) => money(tx.balanceAfter)],
+      ]
+      printReport({
+        label: `Master Cash Book & Audit Trail (${periodLabel})`,
+        filename: `Master_Cashbook_${timeframe}`,
+        columns,
+        records: sortedCashbookTransactions,
+        branch: selectedBranch || user?.branch,
+        generatedBy: user,
+        filters: [
+          ["Timeframe Period", periodLabel],
+          ["Total Transactions", String(sortedCashbookTransactions.length)],
+        ],
+        totals: [
+          ["Total Cash Inflows", money(summaryMetrics.totalSalesInflow)],
+          ["Total Cash Outflows", money(summaryMetrics.totalExpenses + summaryMetrics.totalBankDeposited)],
+          ["Net Flow", money(summaryMetrics.netCashFlow)],
+        ],
+      })
+    } else {
+      const columns = [
+        ["Handover Code", (h) => h.handoverCode || "—"],
+        ["Date / Time", (h) => dateTime(h.createdAt)],
+        ["Drawer", (h) => h.cashBox?.name || "Cash Drawer"],
+        ["From Staff", (h) => h.fromUser?.fullName || h.fromUser?.username || "Staff"],
+        ["To Staff", (h) => h.toUser?.fullName || h.toUser?.username || "Authorized Staff"],
+        ["Amount", (h) => money(h.amount)],
+        ["Status", (h) => formatStatus(h.status)],
+      ]
+      printReport({
+        label: `Shift Turnover & Cash Custody Handover Audit (${periodLabel})`,
+        filename: `Cash_Handovers_${timeframe}`,
+        columns,
+        records: sortedHandovers,
+        branch: selectedBranch || user?.branch,
+        generatedBy: user,
+        filters: [
+          ["Timeframe Period", periodLabel],
+          ["Total Handovers", String(sortedHandovers.length)],
+        ],
+        totals: [
+          ["Total Handovers Amount", money(sortedHandovers.reduce((s, h) => s + Number(h.amount || 0), 0))],
+        ],
+      })
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* 1. Date & Scope Controls */}
@@ -875,6 +994,16 @@ export default function CashBoxesReportView({
             >
               <RefreshCw size={14} className={isLoadingData ? "animate-spin text-[var(--color-maroon)]" : ""} />
               Refresh
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePrintReportPdf}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-900 shadow-2xs hover:bg-indigo-100 transition cursor-pointer"
+              title="Print or Export as PDF"
+            >
+              <Printer size={14} className="text-indigo-600" />
+              <span>Print / PDF</span>
             </button>
 
             <ExportExcelButton
