@@ -8532,7 +8532,7 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
                                             }`}
                                           >
                                             {isComplete ? "✓ " : ""}
-                                            {enteredSerials.length}/{targetQty} serial{targetQty > 1 ? "s" : ""}
+                                            {Math.max(enteredSerials.length, line.customSerialNumber?.trim() ? 1 : 0)}/{targetQty} serial{targetQty > 1 ? "s" : ""}
                                           </span>
                                         ) : (
                                           <span
