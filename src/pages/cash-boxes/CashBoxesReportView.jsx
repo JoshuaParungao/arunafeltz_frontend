@@ -157,36 +157,70 @@ export default function CashBoxesReportView({
 
       // Fetch transactions for selected box or across all boxes in branch
       let fetchedTxns = []
+
+      const fetchAllBoxTransactions = async (boxId, targetBox) => {
+        try {
+          const res1 = await getCashTransactions(boxId, { limit: 100, page: 1 })
+          const list1 = res1?.data?.data || res1?.data || []
+          let allBoxTxns = Array.isArray(list1) ? list1 : []
+          const totalPages = res1?.data?.meta?.totalPages || 1
+          if (totalPages > 1) {
+            const extraPages = Math.min(totalPages, 5)
+            const remainingPages = await Promise.all(
+              Array.from({ length: extraPages - 1 }, (_, i) =>
+                getCashTransactions(boxId, { limit: 100, page: i + 2 })
+                  .then((r) => r?.data?.data || r?.data || [])
+                  .catch(() => [])
+              )
+            )
+            allBoxTxns = allBoxTxns.concat(remainingPages.flat())
+          }
+          return allBoxTxns.map((t) => ({ ...t, cashBox: t.cashBox || targetBox }))
+        } catch {
+          return []
+        }
+      }
+
       if (selectedBoxFilter !== "ALL") {
-        const res = await getCashTransactions(selectedBoxFilter, { limit: 500 })
-        const list = res?.data?.data || res?.data || []
         const foundBox = currentBoxes.find((b) => b.id === selectedBoxFilter)
-        fetchedTxns = (Array.isArray(list) ? list : []).map((t) => ({
-          ...t,
-          cashBox: t.cashBox || foundBox,
-        }))
+        fetchedTxns = await fetchAllBoxTransactions(selectedBoxFilter, foundBox)
       } else if (currentBoxes.length > 0) {
         const results = await Promise.all(
-          currentBoxes.map(async (b) => {
-            try {
-              const res = await getCashTransactions(b.id, { limit: 200 })
-              const list = res?.data?.data || res?.data || []
-              return Array.isArray(list) ? list.map((t) => ({ ...t, cashBox: t.cashBox || b })) : []
-            } catch {
-              return []
-            }
-          })
+          currentBoxes.map((b) => fetchAllBoxTransactions(b.id, b))
         )
         fetchedTxns = results.flat()
       }
 
-      // Fetch handovers
-      const hoRes = await getCashHandovers({
-        branchId,
-        ...(selectedBoxFilter !== "ALL" ? { cashBoxId: selectedBoxFilter } : {}),
-        limit: 300,
-      })
-      const hoList = Array.isArray(hoRes?.data) ? hoRes.data : hoRes?.data?.data || []
+      // Fetch handovers safely with limit <= 100
+      let hoList = []
+      try {
+        const hoRes1 = await getCashHandovers({
+          branchId,
+          ...(selectedBoxFilter !== "ALL" ? { cashBoxId: selectedBoxFilter } : {}),
+          limit: 100,
+          page: 1,
+        })
+        const list1 = Array.isArray(hoRes1?.data) ? hoRes1.data : hoRes1?.data?.data || []
+        hoList = Array.isArray(list1) ? list1 : []
+        const hoPages = hoRes1?.data?.meta?.totalPages || 1
+        if (hoPages > 1) {
+          const extraHo = await Promise.all(
+            Array.from({ length: Math.min(hoPages, 3) - 1 }, (_, i) =>
+              getCashHandovers({
+                branchId,
+                ...(selectedBoxFilter !== "ALL" ? { cashBoxId: selectedBoxFilter } : {}),
+                limit: 100,
+                page: i + 2,
+              })
+                .then((r) => (Array.isArray(r?.data) ? r.data : r?.data?.data || []))
+                .catch(() => [])
+            )
+          )
+          hoList = hoList.concat(extraHo.flat())
+        }
+      } catch {
+        hoList = []
+      }
 
       setAllTransactions(fetchedTxns)
       setAllHandovers(hoList)
