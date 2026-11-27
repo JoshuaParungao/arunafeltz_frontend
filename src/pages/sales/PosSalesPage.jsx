@@ -3633,6 +3633,8 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
   const [leftColumnHeight, setLeftColumnHeight] = useState(null)
   const leftColumnRef = useRef(null)
   const [activeQuotationToConvert, setActiveQuotationToConvert] = useState(null)
+  const handledQuotationIdRef = useRef(null)
+  const handledJobOrderIdRef = useRef(null)
 
   useEffect(() => {
     if (!leftColumnRef.current) return
@@ -4871,6 +4873,9 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
       }
     }
     if (joId && branchId) {
+      if (handledJobOrderIdRef.current === joId) return
+      handledJobOrderIdRef.current = joId
+
       try {
         sessionStorage.removeItem("pos_load_jo_id")
       } catch {
@@ -5053,27 +5058,31 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         // Ignore
       }
     }
-    if ((quote || quoteId) && branchId) {
-      try {
-        sessionStorage.removeItem("pos_load_quotation_id")
-        sessionStorage.removeItem("pos_load_quotation_data")
-      } catch {
-        // Ignore
-      }
-      if (quote && quote.items && quote.items.length > 0) {
-        handleSelectQuotation(quote)
-      } else if (quoteId) {
-        getQuotationById(quoteId)
-          .then((res) => {
-            const loaded = res?.data || res
-            if (loaded && loaded.id) {
-              handleSelectQuotation(loaded)
-            }
-          })
-          .catch((err) => {
-            console.error("Failed to load quotation into POS:", err)
-          })
-      }
+
+    const targetQuoteId = quote?.id || quoteId
+    if (!targetQuoteId || !branchId) return
+    if (handledQuotationIdRef.current === targetQuoteId) return
+    handledQuotationIdRef.current = targetQuoteId
+
+    try {
+      sessionStorage.removeItem("pos_load_quotation_id")
+      sessionStorage.removeItem("pos_load_quotation_data")
+    } catch {
+      // Ignore
+    }
+    if (quote && quote.items && quote.items.length > 0) {
+      handleSelectQuotation(quote)
+    } else if (quoteId) {
+      getQuotationById(quoteId)
+        .then((res) => {
+          const loaded = res?.data || res
+          if (loaded && loaded.id) {
+            handleSelectQuotation(loaded)
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load quotation into POS:", err)
+        })
     }
   }, [initialContext, branchId, handleSelectQuotation])
 
@@ -6105,6 +6114,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
         `Sale ${sale.receiptCode} completed successfully${sale.creditAccount ? ` with receivable ${sale.creditAccount.creditCode}` : ""}.`,
       )
       saleRequestRef.current = { signature: "", key: "" }
+      if (activeQuotationToConvert?.id) {
+        handledQuotationIdRef.current = activeQuotationToConvert.id
+      }
+      setActiveQuotationToConvert(null)
+      if (typeof onNavigate === "function") {
+        try {
+          onNavigate("pos", user, null)
+        } catch {}
+      }
       resetCheckout()
       setSalesPage(1)
       await loadSales()
@@ -7619,7 +7637,15 @@ function PosSalesPage({ initialContext, onNavigate, selectedBranch, user }) {
               <button
                 type="button"
                 onClick={() => {
+                  if (activeQuotationToConvert?.id) {
+                    handledQuotationIdRef.current = activeQuotationToConvert.id
+                  }
                   setActiveQuotationToConvert(null)
+                  if (typeof onNavigate === "function") {
+                    try {
+                      onNavigate("pos", user, null)
+                    } catch {}
+                  }
                   setNoticeMessage("Quotation conversion cancelled. Cart preserved.")
                 }}
                 className="shrink-0 text-[11px] font-bold text-indigo-700 hover:text-red-700 hover:underline cursor-pointer"
