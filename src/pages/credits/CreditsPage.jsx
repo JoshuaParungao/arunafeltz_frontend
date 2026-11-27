@@ -212,13 +212,20 @@ export default function CreditsPage({ selectedBranch, user }) {
     setIsSaving(true);
     setMessage("");
     try {
+      const isFinal = Boolean(collectionForm.isFinalSettlement);
+      const amountNum = Number(collectionForm.amount) || 0;
+      if (!isFinal && amountNum <= 0) {
+        setMessage("Please enter a valid payment amount greater than 0.");
+        setIsSaving(false);
+        return;
+      }
       const collectionPayload = {
-        amount: Number(collectionForm.amount),
-        paymentMethod: collectionForm.paymentMethod,
-        referenceNo: collectionForm.referenceNo.trim() || undefined,
-        remarks: collectionForm.remarks.trim() || undefined,
+        amount: amountNum,
+        paymentMethod: collectionForm.paymentMethod || "OTHER",
+        referenceNo: collectionForm.referenceNo?.trim() || undefined,
+        remarks: collectionForm.remarks?.trim() || undefined,
         paidAt: collectionForm.paidAt || undefined,
-        isFinalSettlement: Boolean(collectionForm.isFinalSettlement),
+        isFinalSettlement: isFinal,
       };
       const requestSignature = JSON.stringify({
         creditAccountId: detail.id,
@@ -236,7 +243,11 @@ export default function CreditsPage({ selectedBranch, user }) {
         ...collectionPayload,
         idempotencyKey: collectionRequestRef.current.key,
       });
-      setNotice(`Collection posted to ${detail.creditCode}.`);
+      setNotice(
+        isFinal && amountNum === 0
+          ? `Credit account ${detail.creditCode} float absorbed and settled in full.`
+          : `Collection posted to ${detail.creditCode}.`
+      );
       collectionRequestRef.current = { signature: "", key: "" };
       setCollectionForm({
         amount: "",

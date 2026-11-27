@@ -20,7 +20,7 @@ import {
 import { generateUUID } from "../../utils/uuid"
 import { getUser } from "../../lib/sessionStorage"
 
-const PAYMENT_METHODS = ["CASH", "GCASH", "BANK_TRANSFER", "CARD", "OTHER"]
+const PAYMENT_METHODS = ["CASH", "GCASH", "BANK_TRANSFER", "CARD", "CHEQUE", "OTHER"]
 
 function money(value) {
   return `₱${Number(value || 0).toLocaleString("en-PH", {
@@ -180,7 +180,11 @@ export default function CreditAccountDetailModal({
         idempotencyKey: collectionRequestRef.current.key,
       })
 
-      setNoticeMessage(`Payment of ${money(amountNum)} successfully posted to ${detail.creditCode}!`)
+      setNoticeMessage(
+        isFinal && amountNum === 0
+          ? `Credit account ${detail.creditCode} float absorbed and settled in full!`
+          : `Payment of ${money(amountNum)} successfully posted to ${detail.creditCode}!`
+      )
       collectionRequestRef.current = { signature: "", key: "" }
       setCollectionForm({
         amount: "",
