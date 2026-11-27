@@ -1027,11 +1027,22 @@ export function groupReceiptItems(items = [], options = {}) {
       item.baseUnitPriceSnapshot != null
         ? Number(item.baseUnitPriceSnapshot)
         : null
+
+    const rawUnitPrice = Number(item.unitPrice || 0)
+    const hasMarkup =
+      (item.markupPercent != null && Number(item.markupPercent) > 0) ||
+      (baseSnapshot != null && rawUnitPrice > baseSnapshot)
+
+    // When an item has a mark-up, customer-facing unit price on the receipt must reflect the total unit price with mark-up
+    const effectiveBasePrice = hasMarkup
+      ? rawUnitPrice
+      : (baseSnapshot != null ? baseSnapshot : rawUnitPrice)
+
     const shouldScaleItem =
-      !isCreditCardWithDp && baseSnapshot != null && termBasis < 1
+      !isCreditCardWithDp && effectiveBasePrice > 0 && termBasis < 1
     const unitPrice = shouldScaleItem
-      ? Math.round((baseSnapshot / termBasis) * 100) / 100
-      : Number(baseSnapshot != null ? baseSnapshot : (item.unitPrice || 0))
+      ? Math.round((effectiveBasePrice / termBasis) * 100) / 100
+      : effectiveBasePrice
 
     const serial = (
       item.serialNumber ||
