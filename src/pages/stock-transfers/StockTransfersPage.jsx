@@ -34,7 +34,7 @@ import { getInventorySerials } from "../../features/inventory/inventory.api"
 import { getUser } from "../../lib/sessionStorage"
 import SerialScannerModal from "../../components/common/SerialScannerModal"
 import StockLoanSlipModal from "../../components/stock-transfers/StockLoanSlipModal"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import StockTransfersReportView from "./StockTransfersReportView"
 
@@ -1620,6 +1620,61 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
     }
   }
 
+  const handlePrintTransfersPdf = async () => {
+    try {
+      let exportPage = 1
+      let totalPages = 1
+      const exportTransfers = []
+
+      do {
+        const response = await getStockTransfers({
+          branchId: selectedBranchId,
+          ...(searchText.trim() ? { search: searchText.trim() } : {}),
+          ...(statusFilter ? { status: statusFilter } : {}),
+          page: exportPage,
+          limit: 100,
+        })
+
+        const pageItems = Array.isArray(response?.data) ? response.data : []
+        exportTransfers.push(...pageItems)
+        totalPages = Math.max(1, Number(response?.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages && exportPage <= 5)
+
+      const exportColumns = [
+        ["Transfer No", (row) => row.transferNumber || "—"],
+        ["Date", (row) => formatDate(row.createdAt)],
+        ["Source Branch", (row) => row.sourceBranch?.name || "—"],
+        ["Destination Branch", (row) => row.targetBranch?.name || "—"],
+        ["Status", (row) => formatStatus(row.status)],
+        ["Total Units", (row) => (row.items || []).reduce((s, it) => s + Number(it.quantity || 0), 0)],
+        ["Total Value", (row) => `₱${(row.items || []).reduce((s, it) => s + (Number(it.quantity || 0) * Number(it.costPrice || 0)), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Requested By", (row) => row.requestedBy?.fullName || row.requestedBy?.username || "—"],
+        ["Received By", (row) => row.receivedBy?.fullName || row.receivedBy?.username || "—"],
+        ["Remarks", (row) => row.notes || row.remarks || "—"],
+      ]
+
+      printReport({
+        label: "Stock Transfers Report",
+        filename: `Stock-Transfers-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportTransfers,
+        branch: { name: user?.branch?.name || "All Branches" },
+        generatedBy: user,
+        filters: [
+          ["Search Query", searchText.trim() || "All"],
+          ["Status", statusFilter || "All statuses"],
+          ["Direction", directionFilter === "OUT" ? "Outbound" : directionFilter === "IN" ? "Inbound" : "All Transfers"],
+        ],
+        totals: [
+          ["Total Transfers", String(exportTransfers.length)],
+        ],
+      })
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.message || "Could not print stock transfers report.")
+    }
+  }
+
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
@@ -1635,6 +1690,7 @@ export default function StockTransfersPage({ initialContext, selectedBranch, use
                 filteredCount={pagination?.totalItems ?? transfers.length}
                 label="Export Transfers (.xlsx)"
                 onExport={handleExportTransfersExcel}
+                onPrint={handlePrintTransfersPdf}
               />
             ) : null}
             <button className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" onClick={loadTransfers} type="button">

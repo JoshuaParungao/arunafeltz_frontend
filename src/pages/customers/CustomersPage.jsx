@@ -34,7 +34,7 @@ import SaleReceiptModal from "../../components/sales/SaleReceiptModal"
 import JobOrderReceiptModal from "../../components/services/JobOrderReceiptModal"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
 import CreditAccountDetailModal from "../../components/credits/CreditAccountDetailModal"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import AccountsReceivableModal from "./AccountsReceivableModal"
 import CustomerStatementOfAccountModal from "./CustomerStatementOfAccountModal"
@@ -1625,6 +1625,79 @@ function CustomersPage({ initialContext, selectedBranch, user }) {
     }
   }
 
+  const handlePrintCustomersPdf = async () => {
+    try {
+      setIsExporting(true)
+      let allCustomers = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore && page <= 5) {
+        const query = {
+          page,
+          limit: 100,
+          search: search.trim() || undefined,
+          status: statusFilter || undefined,
+        }
+        const res = await getCustomers(query)
+        const chunk = res.data?.data || res.data?.items || res.data || []
+        if (Array.isArray(chunk) && chunk.length > 0) {
+          allCustomers = allCustomers.concat(chunk)
+          if (chunk.length < 100) hasMore = false
+          else page++
+        } else {
+          hasMore = false
+        }
+      }
+
+      if (allCustomers.length === 0) {
+        allCustomers = customers
+      }
+
+      const activeFilters = [
+        ["Branch Scope", activeBranch?.name || "All Branches"],
+        ["Status Filter", statusFilter || "All Statuses"],
+        ["Search Query", search.trim() || "All"],
+      ]
+
+      const headers = [
+        "Full Name",
+        "Company / Org",
+        "Mobile Number",
+        "Email Address",
+        "Registered Branch",
+        "Status",
+      ]
+
+      const rows = allCustomers.map((c) => [
+        c.fullName || "-",
+        c.companyName || "-",
+        c.mobileNumber || "-",
+        c.email || "-",
+        c.branch?.name || activeBranch?.name || "-",
+        c.status || "ACTIVE",
+      ])
+
+      printReport({
+        title: "CUSTOMERS DIRECTORY REPORT",
+        branchName: activeBranch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "customers_directory",
+        headers,
+        rows,
+        activeFilters,
+        totals: [
+          ["Total Registered Customers", String(allCustomers.length)],
+        ],
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to print customers report: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const openEditor = (mode, customer = null) => {
     setEditor({ mode, customer, key: `${mode}-${customer?.id || Date.now()}` })
   }
@@ -1729,6 +1802,7 @@ function CustomersPage({ initialContext, selectedBranch, user }) {
               count={pagination?.totalItems || customers.length}
               isExporting={isExporting}
               onClick={handleExportCustomersExcel}
+              onPrint={handlePrintCustomersPdf}
             />
             {canManage ? (
               <button

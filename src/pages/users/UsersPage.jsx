@@ -35,7 +35,7 @@ import {
   rejectUser,
   updateUserById,
 } from "../../features/users/users.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const ROLE_LABELS = {
@@ -1028,6 +1028,82 @@ function UsersPage({ selectedBranch, user }) {
     }
   }
 
+  const handlePrintUsersPdf = async () => {
+    try {
+      setIsExporting(true)
+      let allUsers = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore && page <= 5) {
+        const query = {
+          page,
+          limit: 100,
+          search: search.trim() || undefined,
+          role: roleFilter || undefined,
+          status: statusFilter || undefined,
+          branchId: isSuperOwner ? (selectedBranchId || undefined) : undefined,
+        }
+        const res = await getUsers(query)
+        const chunk = res.data?.items || res.data?.data || res.data || []
+        if (Array.isArray(chunk) && chunk.length > 0) {
+          allUsers = allUsers.concat(chunk)
+          if (chunk.length < 100) hasMore = false
+          else page++
+        } else {
+          hasMore = false
+        }
+      }
+
+      if (allUsers.length === 0) {
+        allUsers = users
+      }
+
+      const activeFilters = [
+        ["Branch", activeBranch?.name || "All Branches"],
+        ["Role Filter", roleFilter || "All Roles"],
+        ["Status Filter", statusFilter || "All Statuses"],
+        ["Search Query", search.trim() || "All"],
+      ]
+
+      const headers = [
+        "Full Name",
+        "Username",
+        "Role",
+        "Branch",
+        "Status",
+        "Last Login",
+      ]
+
+      const rows = allUsers.map((u) => [
+        u.fullName || "-",
+        u.username || "-",
+        ROLE_LABELS[u.role] || u.role,
+        u.branch?.name || "-",
+        u.status || "ACTIVE",
+        u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString("en-PH") : "Never",
+      ])
+
+      printReport({
+        title: "STAFF & USER ACCOUNTS DIRECTORY REPORT",
+        branchName: activeBranch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "staff_accounts",
+        headers,
+        rows,
+        activeFilters,
+        totals: [
+          ["Total Staff Accounts", String(allUsers.length)],
+        ],
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to print staff accounts report.")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const handleSaved = (savedUser, action) => {
     setEditor(null)
     setLifecycleRequest(null)
@@ -1089,6 +1165,7 @@ function UsersPage({ selectedBranch, user }) {
             count={total}
             isExporting={isExporting}
             onClick={handleExportUsersExcel}
+            onPrint={handlePrintUsersPdf}
           />
           <button
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#7A1F2B] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#641824] disabled:cursor-not-allowed disabled:opacity-60"

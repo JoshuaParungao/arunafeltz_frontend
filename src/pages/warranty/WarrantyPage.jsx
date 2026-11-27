@@ -35,7 +35,7 @@ import {
   returnLoanerUnit,
   updateWarrantyClaimStatus,
 } from "../../features/warranty-claims/warrantyClaims.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import WarrantySlipModal from "../../components/warranty/WarrantySlipModal"
 import WarrantyReportView from "./WarrantyReportView"
@@ -415,6 +415,94 @@ export default function WarrantyPage({ initialContext, onNavigate, selectedBranc
     } catch (error) {
       console.error(error)
       setErrorMessage("Failed to export warranty claims: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handlePrintWarrantyPdf = async () => {
+    try {
+      setIsExporting(true)
+      let allClaims = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore && page <= 5) {
+        const query = {
+          page,
+          limit: 100,
+          branchId: selectedBranchId || undefined,
+          status: statusFilter || undefined,
+          search: search.trim() || undefined,
+          tab: activeTab === "supplier" ? "supplier" : activeTab === "replaced_log" ? "replaced_log" : undefined,
+        }
+        const res = await getWarrantyClaims(query)
+        const chunk = res.data?.data || res.data?.items || res.data || []
+        if (Array.isArray(chunk) && chunk.length > 0) {
+          allClaims = allClaims.concat(chunk)
+          if (chunk.length < 100) hasMore = false
+          else page++
+        } else {
+          hasMore = false
+        }
+      }
+
+      if (allClaims.length === 0) {
+        allClaims = claims
+      }
+
+      const activeFilters = [
+        ["Branch", branchName || "All Branches"],
+        ["Tab", activeTab === "supplier" ? "Supplier RMA" : activeTab === "replaced_log" ? "Replacements Log" : "Customer Claims"],
+        ["Status", statusFilter || "All Statuses"],
+        ["Search", search.trim() || "All"],
+      ]
+
+      const headers = [
+        "RMA Code",
+        "Created Date",
+        "Status",
+        "Customer Name",
+        "Item / Product",
+        "Serial Number",
+        "Supplier",
+        "Claim Type",
+        "Resolution",
+      ]
+
+      const rows = allClaims.map((c) => {
+        const customerName = c.customerNameSnapshot || c.customer?.fullName || "Walk-in"
+        const created = c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "-"
+        const itemName = c.itemNameSnapshot || c.item?.itemName || "-"
+
+        return [
+          c.claimCode || "-",
+          created,
+          friendly(c.status || "-"),
+          customerName,
+          itemName,
+          c.serialNumber || "-",
+          c.supplier?.name || "-",
+          friendly(c.claimType || "WARRANTY"),
+          c.actionTaken || c.remarks || "-",
+        ]
+      })
+
+      printReport({
+        title: activeTab === "supplier" ? "WARRANTY SUPPLIER RMA REPORT" : activeTab === "replaced_log" ? "WARRANTY REPLACEMENTS LOG" : "WARRANTY CLAIMS REPORT",
+        branchName: branchName || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: `warranty_${activeTab}`,
+        headers,
+        rows,
+        activeFilters,
+        totals: [
+          ["Total Warranty Records", String(allClaims.length)],
+        ],
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to print warranty claims: " + (error.message || "Unknown error"))
     } finally {
       setIsExporting(false)
     }
@@ -883,6 +971,7 @@ export default function WarrantyPage({ initialContext, onNavigate, selectedBranc
               count={meta?.total || claims.length}
               isExporting={isExporting}
               onClick={handleExportWarrantyExcel}
+              onPrint={handlePrintWarrantyPdf}
             />
 
             {canCreate ? (

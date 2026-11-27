@@ -1030,14 +1030,8 @@ export default function InventoryPage({ initialContext, selectedBranch, user }) 
                 filteredCount={pagination?.totalItems ?? items.length}
                 label="Export (.xlsx)"
                 onExport={handleExportInventoryExcel}
+                onPrint={handleExportInventoryPdf}
               />
-              <button
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
-                onClick={handleExportInventoryPdf}
-                type="button"
-              >
-                Export PDF
-              </button>
               <button
                 className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
                 onClick={loadInventory}

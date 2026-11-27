@@ -32,7 +32,8 @@ import {
 import { getPurchaseOrders } from "../../features/purchase-orders/purchaseOrders.api"
 import { getPurchaseReceivings } from "../../features/purchase-receivings/purchaseReceivings.api"
 import { getSuppliers } from "../../features/suppliers/suppliers.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 function money(value) {
   const amount = Number(value || 0)
@@ -638,8 +639,8 @@ export default function PurchasesReportView({
     }
   }, [processedOrders, purchaseReceivings, costVarianceItems, supplierScorecards])
 
-  // Handle Export to Excel
-  const handleExportCurrentView = async () => {
+  // Handle Export to Excel & Print PDF
+  const handleExportOrPrintCurrentView = async (mode = "excel") => {
     setIsExporting(true)
     try {
       const branchLabel = selectedBranch?.name || selectedBranch?.code || "Branch"
@@ -662,7 +663,7 @@ export default function PurchasesReportView({
           ["Notes", (r) => r.notes || "—"],
         ]
 
-        exportReportExcel({
+        const payload = {
           label: "Purchase Orders & Fulfillment Report",
           filename: `PO-Fulfillment-Report-${branchLabel}-${dateStr}`,
           columns,
@@ -683,7 +684,9 @@ export default function PurchasesReportView({
             ["Total Received Landed Value", filteredOrders.reduce((s, r) => s + r.receivedAmount, 0)],
             ["Outstanding Backlog", filteredOrders.reduce((s, r) => s + r.pendingAmount, 0)],
           ],
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "RECEIVINGS_LOG") {
         const columns = [
           ["Receiving Code", (r) => r.receivingCode || "—"],
@@ -700,7 +703,7 @@ export default function PurchasesReportView({
           ["Delivery Notes", (r) => r.notes || "—"],
         ]
 
-        exportReportExcel({
+        const payload = {
           label: "Inbound Goods Receivings Report",
           filename: `Inbound-Receivings-Report-${branchLabel}-${dateStr}`,
           columns,
@@ -718,7 +721,9 @@ export default function PurchasesReportView({
             ["Total Inbound Deliveries", filteredReceivings.length],
             ["Total Landed Goods Cost", filteredReceivings.reduce((s, r) => s + Number(r.grandTotal || 0), 0)],
           ],
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "COST_VARIANCE") {
         const columns = [
           ["Receiving Code", (r) => r.receivingCode],
@@ -737,7 +742,7 @@ export default function PurchasesReportView({
           ["Invoice / DR #", (r) => r.invoiceNo],
         ]
 
-        exportReportExcel({
+        const payload = {
           label: "Supplier Cost Variance & Discrepancy Audit",
           filename: `Supplier-Cost-Variance-${branchLabel}-${dateStr}`,
           columns,
@@ -754,7 +759,9 @@ export default function PurchasesReportView({
             ["Total Line Items Analyzed", filteredCostVariances.length],
             ["Net Cost Variance", filteredCostVariances.reduce((s, r) => s + r.totalDiff, 0)],
           ],
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "SUPPLIER_SCORECARD") {
         const columns = [
           ["Supplier Name", (r) => r.supplierName],
@@ -771,7 +778,7 @@ export default function PurchasesReportView({
           ["Net Cost Variance (₱)", (r) => r.netCostVariance],
         ]
 
-        exportReportExcel({
+        const payload = {
           label: "Supplier Delivery Performance Scorecard",
           filename: `Supplier-Performance-Scorecard-${branchLabel}-${dateStr}`,
           columns,
@@ -789,15 +796,20 @@ export default function PurchasesReportView({
             ["Combined Delivered Value", filteredScorecards.reduce((s, r) => s + r.receivedSpend, 0)],
             ["Total Cost Discrepancy Net", filteredScorecards.reduce((s, r) => s + r.netCostVariance, 0)],
           ],
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       }
     } catch (err) {
       console.error("Export failed:", err)
-      setErrorMessage("Could not export report to Excel. Please try again.")
+      setErrorMessage("Could not export report. Please try again.")
     } finally {
       setIsExporting(false)
     }
   }
+
+  const handleExportCurrentView = () => handleExportOrPrintCurrentView("excel")
+  const handlePrintCurrentViewPdf = () => handleExportOrPrintCurrentView("print")
 
   return (
     <div className="space-y-5">
@@ -840,15 +852,20 @@ export default function PurchasesReportView({
               ))}
             </div>
 
-            <button
+            <ExportExcelButton
+              count={
+                activeTab === "PO_FULFILLMENT"
+                  ? filteredOrders.length
+                  : activeTab === "RECEIVINGS_LOG"
+                  ? filteredReceivings.length
+                  : activeTab === "COST_VARIANCE"
+                  ? filteredCostVariances.length
+                  : filteredScorecards.length
+              }
+              isExporting={isExporting}
               onClick={handleExportCurrentView}
-              disabled={isExporting || isLoading}
-              type="button"
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-emerald-700 px-4 py-2.5 text-xs font-black text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50"
-            >
-              <FileSpreadsheet size={15} />
-              {isExporting ? "Exporting…" : "Export Excel (.xlsx)"}
-            </button>
+              onPrint={handlePrintCurrentViewPdf}
+            />
 
             <button
               onClick={loadData}

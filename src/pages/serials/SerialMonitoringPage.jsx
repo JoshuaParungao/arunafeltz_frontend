@@ -31,7 +31,7 @@ import {
 } from "../../features/inventory/inventory.api"
 import { getItems } from "../../features/items/items.api"
 import apiClient from "../../lib/apiClient"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const SERIAL_MANAGER_ROLES = new Set([
@@ -1205,6 +1205,61 @@ function SerialMonitoringPage({ initialContext, onNavigate, selectedBranch, user
     }
   }
 
+  const handlePrintSerialsPdf = async () => {
+    try {
+      let exportPage = 1
+      let totalPages = 1
+      const exportSerials = []
+
+      do {
+        const response = await getInventorySerials({
+          branchId: selectedBranchId,
+          ...(searchText.trim() ? { search: searchText.trim() } : {}),
+          ...(statusFilter ? { status: statusFilter } : {}),
+          ...(itemFilter ? { itemId: itemFilter } : {}),
+          page: exportPage,
+          limit: 100,
+        })
+
+        const pageItems = Array.isArray(response?.data) ? response.data : []
+        exportSerials.push(...pageItems)
+        totalPages = Math.max(1, Number(response?.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages && exportPage <= 5)
+
+      const exportColumns = [
+        ["Serial Number", (row) => row.serialNumber || "—"],
+        ["Item Code", (row) => row.item?.itemCode || "—"],
+        ["Product Name", (row) => row.item?.itemName || "—"],
+        ["Batch Code", (row) => row.batch?.batchCode || "—"],
+        ["Status", (row) => formatSerialStatus(row.status)],
+        ["Selling Price", (row) => `₱${Number(row.item?.price1 || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Branch Name", (row) => row.branch?.name || viewingBranch?.name || "—"],
+        ["Date Encoded", (row) => row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-PH") : "—"],
+      ]
+
+      printReport({
+        label: "Serialized Inventory Monitoring Report",
+        filename: `Serials-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportSerials,
+        branch: viewingBranch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", searchText.trim() || "All"],
+          ["Status", statusFilter || "All statuses"],
+          ["Selected Item", itemOptions.find((it) => it.id === itemFilter)?.itemName || "All serialized products"],
+          ["Branch", viewingBranch?.name || "All accessible branches"],
+        ],
+        totals: [
+          ["Total Serials", String(exportSerials.length)],
+        ],
+      })
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error, "Could not print serials report."))
+    }
+  }
+
   const openSerialDetails = async (serial) => {
     setDetailSerial(serial)
     setMovements([])
@@ -1305,6 +1360,7 @@ function SerialMonitoringPage({ initialContext, onNavigate, selectedBranch, user
               filteredCount={totalItems}
               label="Export Serials (.xlsx)"
               onExport={handleExportSerialsExcel}
+              onPrint={handlePrintSerialsPdf}
             />
             {canManage ? (
               <button

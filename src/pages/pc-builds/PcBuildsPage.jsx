@@ -41,7 +41,7 @@ import {
 
 import { getSales } from "../../features/sales/sales.api"
 import SaleReceiptModal from "../../components/sales/SaleReceiptModal"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const COMPONENT_CATEGORIES = [
@@ -423,6 +423,51 @@ export default function PcBuildsPage({ selectedBranch, user }) {
     }
   }
 
+  const handlePrintPcBuildsPdf = async () => {
+    try {
+      setIsExporting(true)
+      const activeFilters = [
+        ["Branch Scope", selectedBranch?.name || user?.branch?.name || "All Branches"],
+        ["Search Query", search.trim() || "All"],
+      ]
+
+      const headers = [
+        "Receipt Code",
+        "Sale Date",
+        "Customer Name",
+        "Components Count",
+        "Build Total",
+      ]
+
+      const rows = filteredBuilds.map((build) => [
+        build.receiptCode || "-",
+        build.saleDate ? new Date(build.saleDate).toLocaleDateString() : "-",
+        build.customer?.fullName || "Walk-in Customer",
+        String((build.items || []).length),
+        `₱${Number(build.grandTotal || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      ])
+
+      printReport({
+        title: "PC BUILDS & ASSEMBLED SYSTEMS DIRECTORY REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "pc_builds_directory",
+        headers,
+        rows,
+        activeFilters,
+        totals: [
+          ["Total PC Builds", String(filteredBuilds.length)],
+          ["Combined Builds Value", `₱${filteredBuilds.reduce((s, b) => s + Number(b.grandTotal || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ],
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to print PC builds report.")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Top Header */}
@@ -458,6 +503,7 @@ export default function PcBuildsPage({ selectedBranch, user }) {
               count={filteredBuilds.length}
               isExporting={isExporting}
               onClick={handleExportPcBuildsExcel}
+              onPrint={handlePrintPcBuildsPdf}
             />
           </div>
         </div>

@@ -39,7 +39,7 @@ import { getSales } from "../../features/sales/sales.api"
 import { getServiceJobs } from "../../features/service-jobs/serviceJobs.api"
 import { getUsers } from "../../features/users/users.api"
 import { getRoleLabel } from "../../constants/roles"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import CashBoxesReportView from "./CashBoxesReportView"
 
@@ -274,7 +274,7 @@ export default function CashBoxesPage({
 
   const [isExporting, setIsExporting] = useState(false)
 
-  const handleExportCashExcel = async () => {
+  const handleExportOrPrintCash = async (mode = "excel") => {
     setIsExporting(true)
     try {
       if (tab === "handovers") {
@@ -325,7 +325,7 @@ export default function CashBoxesPage({
           h.remarks || "-",
         ])
 
-        exportReportExcel({
+        const payload = {
           title: "CASH HANDOVERS & SHIFT TURNOVER REPORT",
           branchName: branchName || "All Branches",
           generatedBy: user?.fullName || user?.username || "System",
@@ -333,7 +333,13 @@ export default function CashBoxesPage({
           headers,
           rows,
           activeFilters,
-        })
+        }
+
+        if (mode === "print") {
+          printReport(payload)
+        } else {
+          exportReportExcel(payload)
+        }
       } else {
         let allTxns = []
         let currPage = 1
@@ -390,7 +396,7 @@ export default function CashBoxesPage({
           ]
         })
 
-        exportReportExcel({
+        const payload = {
           title: tab === "expenses" ? "STORE CASH EXPENSES REPORT" : "CASH REGISTER TRANSACTIONS REPORT",
           branchName: branchName || "All Branches",
           generatedBy: user?.fullName || user?.username || "System",
@@ -398,7 +404,13 @@ export default function CashBoxesPage({
           headers,
           rows,
           activeFilters,
-        })
+        }
+
+        if (mode === "print") {
+          printReport(payload)
+        } else {
+          exportReportExcel(payload)
+        }
       }
     } catch (error) {
       console.error(error)
@@ -407,6 +419,9 @@ export default function CashBoxesPage({
       setIsExporting(false)
     }
   }
+
+  const handleExportCashExcel = () => handleExportOrPrintCash("excel")
+  const handlePrintCashPdf = () => handleExportOrPrintCash("print")
 
   const reloadActive = async () => {
     await Promise.all([loadBoxes(), loadDigitalChannels()])
@@ -839,6 +854,7 @@ export default function CashBoxesPage({
                 count={tab === "handovers" ? (handoverMeta?.total || handovers.length) : (transactionMeta?.total || transactions.length)}
                 isExporting={isExporting}
                 onClick={handleExportCashExcel}
+                onPrint={handlePrintCashPdf}
               />
             )}
 

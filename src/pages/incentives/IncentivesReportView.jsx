@@ -35,7 +35,7 @@ import {
   getIncentives,
 } from "../../features/incentives/incentives.api"
 import { getUsers } from "../../features/users/users.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 const TYPES = [
@@ -472,8 +472,8 @@ export default function IncentivesReportView({
     return Math.max(1, Math.ceil(total / pageSize))
   }, [activeTab, staffMatrix.length, filteredEntries.length, filteredCycles.length, filteredClaims.length])
 
-  // Professional Multi-Perspective Excel Export
-  const handleExportExcel = async () => {
+  // Professional Multi-Perspective Excel/PDF Export
+  const handleExportOrPrint = async (mode = "excel") => {
     setIsExporting(true)
     try {
       const activeFilters = [
@@ -521,7 +521,7 @@ export default function IncentivesReportView({
           s.totalEntries,
         ])
 
-        exportReportExcel({
+        const payload = {
           title: "STAFF COMMISSIONS & INCENTIVES PERFORMANCE REPORT",
           branchName,
           generatedBy: user?.fullName || user?.username || "Management",
@@ -529,7 +529,9 @@ export default function IncentivesReportView({
           headers,
           rows,
           activeFilters,
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "TRANSACTIONS") {
         const headers = [
           "Source Code",
@@ -561,7 +563,7 @@ export default function IncentivesReportView({
           e.reversalReason || "—",
         ])
 
-        exportReportExcel({
+        const payload = {
           title: "ITEMIZED INCENTIVE ATTRIBUTION TRANSACTION LEDGER",
           branchName,
           generatedBy: user?.fullName || user?.username || "Management",
@@ -569,7 +571,9 @@ export default function IncentivesReportView({
           headers,
           rows,
           activeFilters,
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "CYCLES") {
         const headers = [
           "Period Code",
@@ -603,7 +607,7 @@ export default function IncentivesReportView({
           ]
         })
 
-        exportReportExcel({
+        const payload = {
           title: "INCENTIVE SCHEDULE & CUTOFF CYCLES AUDIT REPORT",
           branchName,
           generatedBy: user?.fullName || user?.username || "Management",
@@ -611,7 +615,9 @@ export default function IncentivesReportView({
           headers,
           rows,
           activeFilters,
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "CLAIMS") {
         const headers = [
           "Claim ID",
@@ -637,7 +643,7 @@ export default function IncentivesReportView({
           dateTime(c.createdAt),
         ])
 
-        exportReportExcel({
+        const payload = {
           title: "INCENTIVE CLAIMS & DISBURSEMENTS AUDIT REPORT",
           branchName,
           generatedBy: user?.fullName || user?.username || "Management",
@@ -645,7 +651,9 @@ export default function IncentivesReportView({
           headers,
           rows,
           activeFilters,
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       }
     } catch (err) {
       console.error("Export error:", err)
@@ -653,6 +661,9 @@ export default function IncentivesReportView({
       setIsExporting(false)
     }
   }
+
+  const handleExportExcel = () => handleExportOrPrint("excel")
+  const handlePrintPdf = () => handleExportOrPrint("print")
 
   // Top 3 earners for podium
   const topEarners = useMemo(() => {
@@ -810,6 +821,7 @@ export default function IncentivesReportView({
               }
               isExporting={isExporting}
               onClick={handleExportExcel}
+              onPrint={handlePrintPdf}
             />
           </div>
         </div>

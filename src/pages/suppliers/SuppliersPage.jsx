@@ -57,6 +57,7 @@ import {
   exportReceivingPdf,
   printReceiving,
   exportReportExcel,
+  printReport,
 } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import AccountsPayableModal from "./AccountsPayableModal"
@@ -1715,6 +1716,79 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
     }
   }
 
+  const handlePrintSuppliersPdf = async () => {
+    try {
+      setIsExporting(true)
+      let allSuppliers = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore && page <= 5) {
+        const query = {
+          page,
+          limit: 100,
+          search: search.trim() || undefined,
+          status: statusFilter || undefined,
+        }
+        const res = await getSuppliers(query)
+        const chunk = res.data?.items || res.data?.data || res.data || []
+        if (Array.isArray(chunk) && chunk.length > 0) {
+          allSuppliers = allSuppliers.concat(chunk)
+          if (chunk.length < 100) hasMore = false
+          else page++
+        } else {
+          hasMore = false
+        }
+      }
+
+      if (allSuppliers.length === 0) {
+        allSuppliers = suppliers
+      }
+
+      const activeFilters = [
+        ["Branch", selectedBranch?.name || user?.branch?.name || "All Branches"],
+        ["Status Filter", statusFilter || "All Statuses"],
+        ["Search Query", search.trim() || "All"],
+      ]
+
+      const headers = [
+        "Supplier Code",
+        "Supplier Name",
+        "Contact Person",
+        "Mobile / Phone",
+        "Email Address",
+        "Status",
+      ]
+
+      const rows = allSuppliers.map((s) => [
+        s.supplierCode || s.code || "-",
+        s.name || "-",
+        s.contactPerson || "-",
+        s.phone || s.mobile || "-",
+        s.email || "-",
+        s.status || "ACTIVE",
+      ])
+
+      printReport({
+        title: "SUPPLIERS DIRECTORY REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "suppliers_directory",
+        headers,
+        rows,
+        activeFilters,
+        totals: [
+          ["Total Suppliers", String(allSuppliers.length)],
+        ],
+      })
+    } catch (error) {
+      console.error(error)
+      setMessage("Failed to print suppliers report: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const openLedger = async (supplier) => {
     setSelectedSupplier(supplier)
     setHistoryData(null)
@@ -1825,6 +1899,7 @@ export default function SuppliersPage({ onNavigate, selectedBranch, user }) {
               count={pagination?.total || suppliers.length}
               isExporting={isExporting}
               onClick={handleExportSuppliersExcel}
+              onPrint={handlePrintSuppliersPdf}
             />
             <button
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]"

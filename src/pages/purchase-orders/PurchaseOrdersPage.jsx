@@ -17,6 +17,7 @@ import {
   exportPurchaseOrderPdf,
   exportReportExcel,
   printPurchaseOrder,
+  printReport,
 } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 const EMPTY_LINE = { itemId: "", description: "", quantity: "1", unitCost: "0", discountAmount: "0", batchCode: "" }
@@ -1162,6 +1163,61 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
     }
   }
 
+  const handlePrintOrdersPdf = async () => {
+    try {
+      let exportPage = 1
+      let totalPages = 1
+      const exportOrders = []
+
+      do {
+        const response = await getPurchaseOrders({
+          branchId: selectedBranchId,
+          ...(search.trim() ? { search: search.trim() } : {}),
+          ...(status ? { status } : {}),
+          page: exportPage,
+          limit: 100,
+        })
+
+        const pageItems = Array.isArray(response?.data?.items) ? response.data.items : []
+        exportOrders.push(...pageItems)
+        totalPages = Math.max(1, Number(response?.data?.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages && exportPage <= 5)
+
+      const exportColumns = [
+        ["PO Number", (row) => row.poNumber || "—"],
+        ["Date", (row) => row.orderDate ? dateOnly(row.orderDate) : dateOnly(row.createdAt)],
+        ["Supplier", (row) => row.supplier?.name || "—"],
+        ["Status", (row) => formatStatus(row.status)],
+        ["Items Count", (row) => (row.items || []).length],
+        ["Subtotal", (row) => `₱${Number(row.subtotal || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Total Discount", (row) => `₱${Number(row.totalDiscount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Grand Total", (row) => `₱${Number(row.totalAmount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Created By", (row) => row.createdByUser?.fullName || row.createdByUser?.username || "—"],
+        ["Notes", (row) => row.notes || "—"],
+      ]
+
+      printReport({
+        label: "Purchase Orders Report",
+        filename: `Purchase-Orders-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportOrders,
+        branch: selectedBranch || user?.branch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", search.trim() || "All"],
+          ["Status", status ? formatStatus(status) : "All statuses"],
+        ],
+        totals: [
+          ["Total POs", String(exportOrders.length)],
+          ["Combined PO Total Value", `₱${exportOrders.reduce((s, o) => s + Number(o.totalAmount || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ],
+      })
+    } catch (error) {
+      setMessage(apiError(error, "Could not print purchase orders report."))
+    }
+  }
+
   const save = async (form) => {
     setIsSaving(true)
     setMessage("")
@@ -1279,6 +1335,7 @@ export default function PurchaseOrdersPage({ selectedBranch, user, onNavigate })
                   filteredCount={pagination?.totalItems ?? orders.length}
                   label="Export POs (.xlsx)"
                   onExport={handleExportOrdersExcel}
+                  onPrint={handlePrintOrdersPdf}
                 />
                 <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-maroon)] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[var(--color-maroon-hover)]" onClick={() => setEditing({})} type="button">
                   <Plus size={15} />New PO

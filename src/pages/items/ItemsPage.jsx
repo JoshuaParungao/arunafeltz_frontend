@@ -6,7 +6,7 @@ import { createItem, getItemCategories, getItems, getUnits, updateItemById } fro
 import { getInventoryBatches, updateInventoryBatchCode } from "../../features/inventory/inventory.api"
 import { createItemCategory } from "../../features/categories/categories.api"
 import { createUnit } from "../../features/units/units.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import {
   formatMainCategoryName,
   formatSubcategoryName,
@@ -1710,6 +1710,59 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
     }
   }
 
+  const handlePrintItemsPdf = async () => {
+    try {
+      let exportPage = 1
+      let totalPages = 1
+      const exportItems = []
+
+      do {
+        const response = await getItems({
+          branchId: selectedBranchId,
+          ...(search.trim() ? { search: search.trim() } : {}),
+          ...(mainCategoryFilter ? { categoryId: mainCategoryFilter } : {}),
+          page: exportPage,
+          limit: 100,
+        })
+
+        const pageItems = Array.isArray(response?.data?.items) ? response.data.items : []
+        exportItems.push(...pageItems)
+        totalPages = Math.max(1, Number(response?.data?.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages && exportPage <= 5)
+
+      const printColumns = [
+        ["Item Code", (row) => row.itemCode || "—"],
+        ["Product Name", (row) => row.itemName || "—"],
+        ["Brand", (row) => row.brand || "—"],
+        ["Category", (row) => formatMainCategoryName(row.category?.name) || "—"],
+        ["Subcategory", (row) => formatSubcategoryName(row.subcategory?.name) || "—"],
+        ["Price 1", (row) => `₱${Number(row.price1 || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Cost Price", (row) => `₱${Number(row.costPrice || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Serialized", (row) => (row.isSerialized ? "Yes" : "No")],
+        ["Status", (row) => row.status || "ACTIVE"],
+      ]
+
+      printReport({
+        label: "Product Catalog Masterlist",
+        filename: `Product-Catalog-${new Date().toISOString().slice(0, 10)}`,
+        columns: printColumns,
+        records: exportItems.length > 0 ? exportItems : items,
+        branch: selectedBranch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", search.trim() || "All"],
+          ["Category", mainCategoryFilter || "All categories"],
+        ],
+        totals: [
+          ["Total Catalog Items", String(exportItems.length > 0 ? exportItems.length : items.length)],
+        ],
+      })
+    } catch (error) {
+      setErrorMessage("Could not print product catalog.")
+    }
+  }
+
   const openNewItem = () => {
     setEditingItem(null)
     setItemEditorError("")
@@ -1939,6 +1992,7 @@ function ItemsPage({ initialContext, onNavigate, selectedBranch, user }) {
             filteredCount={pagination?.totalItems ?? items.length}
             label="Export Catalog (.xlsx)"
             onExport={handleExportItemsExcel}
+            onPrint={handlePrintItemsPdf}
           />
 
           {canManageCatalog ? (

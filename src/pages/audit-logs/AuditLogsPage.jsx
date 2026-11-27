@@ -4,7 +4,7 @@ import { RefreshCw, RotateCcw } from "lucide-react"
 import { getAuditLogById, getAuditLogs } from "../../features/audit-logs/auditLogs.api"
 import { getBranches } from "../../features/branches/branches.api"
 import { restoreEditsFromAudit } from "../../features/items/items.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 function isoBoundary(value, end = false) {
@@ -286,6 +286,93 @@ export default function AuditLogsPage({ selectedBranch, user }) {
     }
   }
 
+  const handlePrintAuditLogsPdf = async () => {
+    try {
+      setIsExporting(true)
+      let allLogs = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore && page <= 5) {
+        const query = {
+          page,
+          limit: 100,
+          branchId: isSuperOwner ? (branchIdFilter || undefined) : undefined,
+          action: actionFilter || undefined,
+          entity: entityFilter || undefined,
+          search: search.trim() || undefined,
+          dateFrom: isoBoundary(dateFrom, false),
+          dateTo: isoBoundary(dateTo, true),
+        }
+        const res = await getAuditLogs(query)
+        const chunk = res.data?.data || res.data?.items || res.data || []
+        if (Array.isArray(chunk) && chunk.length > 0) {
+          allLogs = allLogs.concat(chunk)
+          if (chunk.length < 100) hasMore = false
+          else page++
+        } else {
+          hasMore = false
+        }
+      }
+
+      if (allLogs.length === 0) {
+        allLogs = logs
+      }
+
+      const activeBranchId = isSuperOwner ? branchIdFilter : (user?.branchId || user?.branch?.id)
+      const branchNameExport = isSuperOwner
+        ? activeBranchId
+          ? branches.find((b) => b.id === activeBranchId)?.name || "Branch"
+          : "All Branches"
+        : selectedBranch?.name || user?.branch?.name || "Assigned Branch"
+
+      const activeFilters = [
+        ["Branch", branchNameExport],
+        ["Action Type", actionFilter || "All Actions"],
+        ["Module / Entity", entityFilter || "All Entities"],
+        ["Search Query", search.trim() || "All"],
+      ]
+
+      const headers = [
+        "Timestamp",
+        "Action",
+        "Module",
+        "Actor / User",
+        "Role",
+        "Target Entity ID",
+        "Branch",
+      ]
+
+      const rows = allLogs.map((log) => [
+        log.createdAt ? new Date(log.createdAt).toLocaleString() : "-",
+        formatAction(log.action),
+        formatEntity(log.entityName),
+        log.user?.fullName || log.user?.username || "System",
+        log.user?.role || "-",
+        log.entityId || "-",
+        log.branch?.name || "-",
+      ])
+
+      printReport({
+        title: "SYSTEM AUDIT & ACTIVITY LOGS REPORT",
+        branchName: branchNameExport,
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "audit_logs",
+        headers,
+        rows,
+        activeFilters,
+        totals: [
+          ["Total Audit Entries", String(allLogs.length)],
+        ],
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to print audit logs: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const handleRestoreItemEdits = async () => {
     if (!window.confirm("Do you want to re-apply all item updates recorded in the Audit Trail?")) {
       return
@@ -343,6 +430,7 @@ export default function AuditLogsPage({ selectedBranch, user }) {
               count={meta?.total || logs.length}
               isExporting={isExporting}
               onClick={handleExportAuditLogsExcel}
+              onPrint={handlePrintAuditLogsPdf}
             />
           </div>
         </div>

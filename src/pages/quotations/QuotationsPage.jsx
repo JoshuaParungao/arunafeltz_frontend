@@ -39,7 +39,7 @@ import { getItems } from "../../features/items/items.api"
 import { createCustomer, getCustomers } from "../../features/customers/customers.api"
 import { getInstallmentBasisSettings } from "../../features/settings/settings.api"
 import { cleanUserRemarks, parseQuotationSettlement, serializeQuotationNotes, stripSettlementTag } from "../../utils/quotationSettlement"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import { parseItemWarranty } from "../items/ItemsPage"
 import QuotationDetailDialog from "../../components/quotations/QuotationDetailDialog"
@@ -902,7 +902,7 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
     }
   }, [quotations])
 
-  const handleExportExcel = () => {
+  const getQuotationExportPayload = () => {
     const exportColumns = [
       ["Quotation No", (row) => row.quoteNumber || row.quotationCode || "—"],
       ["Date", (row) => row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-PH") : "—"],
@@ -919,7 +919,7 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
       ["Remarks", (row) => row.remarks || "—"],
     ]
 
-    exportReportExcel({
+    return {
       label: "Customer Quotations",
       filename: `Quotations-${new Date().toISOString().slice(0, 10)}`,
       columns: exportColumns,
@@ -931,10 +931,18 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
         ["Status Filter", statusFilter || "ALL"],
       ],
       totals: [
-        ["Total Filtered Quotations", filteredQuotations.length],
-        ["Combined Quoted Value", filteredQuotations.reduce((sum, q) => sum + Number(q.grandTotal || q.totalAmount || 0), 0)],
+        ["Total Filtered Quotations", String(filteredQuotations.length)],
+        ["Combined Quoted Value", `₱${filteredQuotations.reduce((sum, q) => sum + Number(q.grandTotal || q.totalAmount || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
       ],
-    })
+    }
+  }
+
+  const handleExportExcel = () => {
+    exportReportExcel(getQuotationExportPayload())
+  }
+
+  const handlePrintPdf = () => {
+    printReport(getQuotationExportPayload())
   }
 
   // Term totals for the 3 standard options: Cash Discounted, SRP (Cash / 0.96), Regular (Cash / 0.875)
@@ -2685,6 +2693,7 @@ export default function QuotationsPage({ onNavigate, selectedBranch, user }) {
                 filteredCount={filteredQuotations.length}
                 label="Export Quotations (.xlsx)"
                 onExport={handleExportExcel}
+                onPrint={handlePrintPdf}
               />
             </div>
 

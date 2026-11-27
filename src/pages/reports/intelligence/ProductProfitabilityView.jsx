@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 
 import { getProductProfitabilityReport } from "../../../features/reports/intelligence.api"
-import { exportReportExcel } from "../../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../../utils/businessDocumentExport"
 import ExportExcelButton from "../../../components/common/ExportExcelButton"
 
 function peso(val) {
@@ -92,7 +92,7 @@ export default function ProductProfitabilityView({ selectedBranch, user, dateRan
       ["Margin %", (r) => Number(r.marginPercent || 0).toFixed(2) + "%"],
     ]
 
-    exportReportExcel({
+    const payload = {
       label: "Product Profitability Report",
       filename: `Product-Profitability-${new Date().toISOString().slice(0, 10)}`,
       columns: exportColumns,
@@ -105,13 +105,53 @@ export default function ProductProfitabilityView({ selectedBranch, user, dateRan
         ["Category", category || "All categories"],
       ],
       totals: [
-        ["Total Products Sold", records.length],
-        ["Total Units Sold", summary.totalQuantitySold || 0],
-        ["Total Cost", summary.totalPuhunan || 0],
-        ["Total Base Sales", summary.totalBaseSales || 0],
-        ["Total Mark-up", summary.totalMarkup || 0],
-        ["Total Base Margin", summary.totalPureTubo || 0],
-        ["Total Profit (Margin w/ Markup)", summary.totalTuboWithMarkup || 0],
+        ["Total Products Sold", String(records.length)],
+        ["Total Units Sold", String(summary.totalQuantitySold || 0)],
+        ["Total Cost", peso(summary.totalPuhunan || 0)],
+        ["Total Base Sales", peso(summary.totalBaseSales || 0)],
+        ["Total Mark-up", peso(summary.totalMarkup || 0)],
+        ["Total Base Margin", peso(summary.totalPureTubo || 0)],
+        ["Total Profit (Margin w/ Markup)", peso(summary.totalTuboWithMarkup || 0)],
+        ["Overall Margin", Number(summary.overallMarginPercent || 0).toFixed(2) + "%"],
+      ],
+    }
+
+    exportReportExcel(payload)
+  }
+
+  const handlePrintPdf = () => {
+    const exportColumns = [
+      ["Product Name", (r) => r.itemName || "—"],
+      ["Category", (r) => r.category || "—"],
+      ["Qty Sold", (r) => r.totalQuantity || 0],
+      ["Total Cost", (r) => peso(r.totalPuhunan || 0)],
+      ["Base Sales", (r) => peso(r.totalBaseSales || 0)],
+      ["Mark-up", (r) => peso(r.totalMarkup || 0)],
+      ["Base Margin", (r) => peso(r.totalPureTubo || 0)],
+      ["Total Profit", (r) => peso(r.totalTuboWithMarkup || 0)],
+      ["Margin %", (r) => Number(r.marginPercent || 0).toFixed(2) + "%"],
+    ]
+
+    printReport({
+      label: "Product Profitability Report",
+      filename: `Product-Profitability-${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      records,
+      branch: selectedBranch || user?.branch,
+      generatedBy: user,
+      filters: [
+        ["Date Range", dateRange?.dateFrom ? `${dateRange.dateFrom} to ${dateRange.dateTo || "Today"}` : "All time"],
+        ["Search", search.trim() || "All"],
+        ["Category", category || "All categories"],
+      ],
+      totals: [
+        ["Total Products Sold", String(records.length)],
+        ["Total Units Sold", String(summary.totalQuantitySold || 0)],
+        ["Total Cost", peso(summary.totalPuhunan || 0)],
+        ["Total Base Sales", peso(summary.totalBaseSales || 0)],
+        ["Total Mark-up", peso(summary.totalMarkup || 0)],
+        ["Total Base Margin", peso(summary.totalPureTubo || 0)],
+        ["Total Profit (Margin w/ Markup)", peso(summary.totalTuboWithMarkup || 0)],
         ["Overall Margin", Number(summary.overallMarginPercent || 0).toFixed(2) + "%"],
       ],
     })
@@ -224,6 +264,7 @@ export default function ProductProfitabilityView({ selectedBranch, user, dateRan
             filteredCount={records.length}
             label="Export Profitability (.xlsx)"
             onExport={handleExportExcel}
+            onPrint={handlePrintPdf}
           />
           <button
             className="grid size-9 place-items-center rounded-xl border border-slate-200 hover:bg-slate-50"

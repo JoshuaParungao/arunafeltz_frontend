@@ -19,7 +19,7 @@ import {
   getBranchFinancialComparison,
   getServiceProfitabilityReport,
 } from "../../../features/reports/intelligence.api"
-import { exportReportExcel } from "../../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../../utils/businessDocumentExport"
 import ExportExcelButton from "../../../components/common/ExportExcelButton"
 
 function peso(val) {
@@ -99,7 +99,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
       { layer: "Layer F: Consolidated Profit", desc: "Consolidated profit: Base Margin + Mark-up + Financing Interest", amount: lF.overallTotalKita, type: "Total Enterprise Profit" },
     ]
 
-    exportReportExcel({
+    const payload = {
       label: "Six-Layer Executive Profitability Matrix",
       filename: `Executive-Profit-Matrix-${new Date().toISOString().slice(0, 10)}`,
       columns: exportColumns,
@@ -111,11 +111,59 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
         ["Branch Scope", selectedBranch?.name || user?.branch?.name || "All Branches"],
       ],
       totals: [
-        ["Total Cost", lA.totalPuhunan || 0],
-        ["Total Pure Margin", lB.pureBaseTubo || 0],
-        ["Total Mark-up", lC.totalMarkup || 0],
-        ["Total Financing Interest", lE.financingInterest || 0],
-        ["Consolidated Overall Profit", lF.overallTotalKita || 0],
+        ["Total Cost", peso(lA.totalPuhunan || 0)],
+        ["Total Pure Margin", peso(lB.pureBaseTubo || 0)],
+        ["Total Mark-up", peso(lC.totalMarkup || 0)],
+        ["Total Financing Interest", peso(lE.financingInterest || 0)],
+        ["Consolidated Overall Profit", peso(lF.overallTotalKita || 0)],
+      ],
+    }
+
+    exportReportExcel(payload)
+  }
+
+  const handlePrintPdf = () => {
+    const lA = metrics.layerA || {}
+    const lB = metrics.layerB || {}
+    const lC = metrics.layerC || {}
+    const lD = metrics.layerD || {}
+    const lE = metrics.layerE || {}
+    const lF = metrics.layerF || {}
+
+    const exportColumns = [
+      ["Executive Profit Layer", (row) => row.layer],
+      ["Strategic Scope & Definition", (row) => row.desc],
+      ["Classification", (row) => row.type],
+      ["Amount (₱)", (row) => peso(row.amount || 0)],
+    ]
+
+    const layerRecords = [
+      { layer: "Layer A: Total Cost", desc: "Product Acquisition Cost + Service Operational Cost", amount: lA.totalPuhunan, type: "Cost / Outflow" },
+      { layer: "Layer B: Base Sales", desc: "Outright retail/SRP value before markups and interest", amount: lB.totalBaseSales, type: "Base Inflow" },
+      { layer: "Layer B: Pure Base Margin", desc: "Base Sales minus Total Cost (Pure trading profit)", amount: lB.pureBaseTubo, type: "Pure Base Margin" },
+      { layer: "Layer C: Total Mark-up", desc: "Store price additions on products and services", amount: lC.totalMarkup, type: "Additional Margin" },
+      { layer: "Layer D: Margin With Mark-up", desc: "Base Sales + Mark-up minus Total Cost", amount: lD.tuboWithMarkup, type: "Merchandise Profit" },
+      { layer: "Layer E: Financing Interest", desc: "Installment interest yield from AR financing contracts", amount: lE.financingInterest, type: "Financing Income" },
+      { layer: "Layer F: Consolidated Profit", desc: "Consolidated profit: Base Margin + Mark-up + Financing Interest", amount: lF.overallTotalKita, type: "Total Enterprise Profit" },
+    ]
+
+    printReport({
+      label: "Six-Layer Executive Profitability Matrix",
+      filename: `Executive-Profit-Matrix-${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      records: layerRecords,
+      branch: selectedBranch || user?.branch,
+      generatedBy: user,
+      filters: [
+        ["Date Range", dateRange?.dateFrom ? `${dateRange.dateFrom} to ${dateRange.dateTo || "Today"}` : "All history"],
+        ["Branch Scope", selectedBranch?.name || user?.branch?.name || "All Branches"],
+      ],
+      totals: [
+        ["Total Cost", peso(lA.totalPuhunan || 0)],
+        ["Total Pure Margin", peso(lB.pureBaseTubo || 0)],
+        ["Total Mark-up", peso(lC.totalMarkup || 0)],
+        ["Total Financing Interest", peso(lE.financingInterest || 0)],
+        ["Consolidated Overall Profit", peso(lF.overallTotalKita || 0)],
       ],
     })
   }
@@ -142,6 +190,7 @@ export default function SixLayerExecutiveView({ selectedBranch, user, dateRange 
             filteredCount={6}
             label="Export Matrix (.xlsx)"
             onExport={handleExportExcel}
+            onPrint={handlePrintPdf}
           />
           <button
             className="grid size-9 place-items-center rounded-xl border border-slate-200 hover:bg-slate-50"

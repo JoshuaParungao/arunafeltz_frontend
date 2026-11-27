@@ -30,6 +30,7 @@ import {
   exportReceivingPdf,
   exportReportExcel,
   printReceiving,
+  printReport,
 } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 const EMPTY_LINE = { itemId: "", purchaseOrderItemId: "", description: "", quantityReceived: "1", unitCost: "0", discountAmount: "0", batchCode: "", expiryDate: "", serialText: "" }
@@ -1131,6 +1132,60 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
     }
   }
 
+  const handlePrintReceivingsPdf = async () => {
+    try {
+      let exportPage = 1
+      let totalPages = 1
+      const exportReceivings = []
+
+      do {
+        const response = await getPurchaseReceivings({
+          branchId: selectedBranchId,
+          ...(search.trim() ? { search: search.trim() } : {}),
+          ...(status ? { status } : {}),
+          page: exportPage,
+          limit: 100,
+        })
+
+        const pageItems = Array.isArray(response?.data?.items) ? response.data.items : []
+        exportReceivings.push(...pageItems)
+        totalPages = Math.max(1, Number(response?.data?.pagination?.totalPages || 1))
+        exportPage += 1
+      } while (exportPage <= totalPages && exportPage <= 5)
+
+      const exportColumns = [
+        ["RR Number", (row) => row.receivingCode || "—"],
+        ["Date", (row) => row.receivedDate ? dateOnly(row.receivedDate) : dateOnly(row.createdAt)],
+        ["Supplier", (row) => row.supplier?.name || "—"],
+        ["Invoice / DR #", (row) => row.invoiceNumber || row.deliveryReceiptNumber || "—"],
+        ["PO Code", (row) => row.purchaseOrder?.poNumber || "—"],
+        ["Status", (row) => formatStatus(row.status)],
+        ["Total Amount", (row) => `₱${Number(row.totalAmount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Received By", (row) => row.receivedByUser?.fullName || row.receivedByUser?.username || "—"],
+        ["Notes", (row) => row.notes || "—"],
+      ]
+
+      printReport({
+        label: "Purchase Receivings & Deliveries Report",
+        filename: `Receivings-${new Date().toISOString().slice(0, 10)}`,
+        columns: exportColumns,
+        records: exportReceivings,
+        branch: selectedBranch || user?.branch,
+        generatedBy: user,
+        filters: [
+          ["Search Query", search.trim() || "All"],
+          ["Status", status ? formatStatus(status) : "All statuses"],
+        ],
+        totals: [
+          ["Total Deliveries", String(exportReceivings.length)],
+          ["Combined Delivery Value", `₱${exportReceivings.reduce((s, r) => s + Number(r.totalAmount || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ],
+      })
+    } catch (error) {
+      setMessage(apiError(error, "Could not print purchase receivings report."))
+    }
+  }
+
   const totalPages = Math.max(1, pagination.totalPages || 1)
   return (
     <div className="space-y-5">
@@ -1155,6 +1210,7 @@ export default function PurchaseReceivingsPage({ initialContext, selectedBranch,
                   filteredCount={pagination?.totalItems ?? receivings.length}
                   label="Export (.xlsx)"
                   onExport={handleExportReceivingsExcel}
+                  onPrint={handlePrintReceivingsPdf}
                 />
                 <button
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-maroon)] px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-[var(--color-maroon-hover)]"

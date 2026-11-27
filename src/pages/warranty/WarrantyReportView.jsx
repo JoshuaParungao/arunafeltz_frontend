@@ -27,7 +27,8 @@ import {
   X,
 } from "lucide-react"
 
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 // --- Helper Date & Format Functions ---
 function dateTime(value) {
@@ -403,68 +404,72 @@ export default function WarrantyReportView({
     }
   }, [filteredClaims])
 
-  // 9. Excel Exporters
+  // 9. Excel & PDF Exporters
+  const getSummaryPayload = () => {
+    const activeFilters = [
+      ["Timeframe Range", TIMEFRAME_OPTIONS.find((t) => t.id === timeframe)?.label || timeframe],
+      ["Search Query", search.trim() || "All"],
+      ["Claim Status", statusFilter ? formatStatus(statusFilter) : "All Statuses"],
+      ["Resolution Outcome", resolutionFilter ? resolutionLabel(resolutionFilter) : "All Outcomes"],
+      ["Supplier Filter", supplierFilter || "All Suppliers"],
+      ["Branch", selectedBranch?.name || "All Branches"],
+    ]
+
+    const summaryTotals = [
+      ["Total Warranty Claims In Period", kpis.total],
+      ["Active In-Store Diagnostics", kpis.inStoreActive],
+      ["With Suppliers (Distributor RMA)", kpis.withSuppliers],
+      ["Immediate Stock Replacements (Swaps)", kpis.immediateSwaps],
+      ["Ready for Customer Pickup / Release", kpis.readyForRelease],
+      ["Successfully Released & Concluded", kpis.releasedOut],
+      ["Supplier Replacements Received", kpis.supplierReplaced],
+      ["Supplier Repaired Units", kpis.supplierRepaired],
+      ["Supplier Credit Memo (CM)", kpis.supplierCreditMemo],
+      ["Shrinkage Loss Write-Offs", kpis.shrinkageWriteOff],
+      ["Customer Claims Rejected", kpis.customerRejected],
+    ]
+
+    const columns = [
+      ["Claim Code", (row) => row.claimCode],
+      ["Date Received", (row) => dateOnly(row.receivedAt || row.createdAt)],
+      ["Customer Name", (row) => row.customerName],
+      ["Customer Contact", (row) => row.customerContact],
+      ["Reference Invoice", (row) => row.receiptCode],
+      ["Original Purchase Date", (row) => row.saleDate],
+      ["Item Description", (row) => row.itemName],
+      ["Item Code", (row) => row.itemCode],
+      ["Defective Serial No.", (row) => row.serialNumber],
+      ["Reported Issue", (row) => row.issueDescription || "—"],
+      ["Technical Diagnosis", (row) => row.diagnosis || "—"],
+      ["Lifecycle Status", (row) => formatStatus(row.status)],
+      ["Supplier Name", (row) => row.supplierName || "—"],
+      ["Supplier RMA Ref No.", (row) => row.supplierReferenceNo || "—"],
+      ["Date Dispatched to Supplier", (row) => dateOnly(row.sentToSupplierAt)],
+      ["Supplier Turnaround (Days)", (row) => row.supplierAgingDays || 0],
+      ["Resolution Outcome", (row) => row.resolutionName],
+      ["Replacement Serial No.", (row) => row.replacementSerialNumber || row.replacementSerial?.serialNumber || "—"],
+      ["Replacement Terms", (row) => row.replacementWarrantyDuration || "—"],
+      ["Date Released to Customer", (row) => dateOnly(row.releasedAt)],
+      ["Handled / Released By", (row) => row.releasedBy?.fullName || row.statusUpdatedBy?.fullName || row.createdBy?.fullName || "—"],
+      ["Action Taken & Remarks", (row) => `${row.actionTaken ? row.actionTaken + ". " : ""}${row.remarks || ""}`.trim() || "—"],
+    ]
+
+    return {
+      title: `WARRANTY & CUSTOMER CLAIMS SUMMARY REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
+      filename: `Warranty-Claims-Summary-${timeframe}-${new Date().toISOString().slice(0, 10)}`,
+      columns,
+      records: filteredClaims,
+      branch: selectedBranch,
+      generatedBy: user,
+      filters: activeFilters,
+      totals: summaryTotals,
+    }
+  }
+
   const handleExportSummaryExcel = () => {
     setIsExporting(true)
     try {
-      const activeFilters = [
-        ["Timeframe Range", TIMEFRAME_OPTIONS.find((t) => t.id === timeframe)?.label || timeframe],
-        ["Search Query", search.trim() || "All"],
-        ["Claim Status", statusFilter ? formatStatus(statusFilter) : "All Statuses"],
-        ["Resolution Outcome", resolutionFilter ? resolutionLabel(resolutionFilter) : "All Outcomes"],
-        ["Supplier Filter", supplierFilter || "All Suppliers"],
-        ["Branch", selectedBranch?.name || "All Branches"],
-      ]
-
-      const summaryTotals = [
-        ["Total Warranty Claims In Period", kpis.total],
-        ["Active In-Store Diagnostics", kpis.inStoreActive],
-        ["With Suppliers (Distributor RMA)", kpis.withSuppliers],
-        ["Immediate Stock Replacements (Swaps)", kpis.immediateSwaps],
-        ["Ready for Customer Pickup / Release", kpis.readyForRelease],
-        ["Successfully Released & Concluded", kpis.releasedOut],
-        ["Supplier Replacements Received", kpis.supplierReplaced],
-        ["Supplier Repaired Units", kpis.supplierRepaired],
-        ["Supplier Credit Memo (CM)", kpis.supplierCreditMemo],
-        ["Shrinkage Loss Write-Offs", kpis.shrinkageWriteOff],
-        ["Customer Claims Rejected", kpis.customerRejected],
-      ]
-
-      const columns = [
-        ["Claim Code", (row) => row.claimCode],
-        ["Date Received", (row) => dateOnly(row.receivedAt || row.createdAt)],
-        ["Customer Name", (row) => row.customerName],
-        ["Customer Contact", (row) => row.customerContact],
-        ["Reference Invoice", (row) => row.receiptCode],
-        ["Original Purchase Date", (row) => row.saleDate],
-        ["Item Description", (row) => row.itemName],
-        ["Item Code", (row) => row.itemCode],
-        ["Defective Serial No.", (row) => row.serialNumber],
-        ["Reported Issue", (row) => row.issueDescription || "—"],
-        ["Technical Diagnosis", (row) => row.diagnosis || "—"],
-        ["Lifecycle Status", (row) => formatStatus(row.status)],
-        ["Supplier Name", (row) => row.supplierName || "—"],
-        ["Supplier RMA Ref No.", (row) => row.supplierReferenceNo || "—"],
-        ["Date Dispatched to Supplier", (row) => dateOnly(row.sentToSupplierAt)],
-        ["Supplier Turnaround (Days)", (row) => row.supplierAgingDays || 0],
-        ["Resolution Outcome", (row) => row.resolutionName],
-        ["Replacement Serial No.", (row) => row.replacementSerialNumber || row.replacementSerial?.serialNumber || "—"],
-        ["Replacement Terms", (row) => row.replacementWarrantyDuration || "—"],
-        ["Date Released to Customer", (row) => dateOnly(row.releasedAt)],
-        ["Handled / Released By", (row) => row.releasedBy?.fullName || row.statusUpdatedBy?.fullName || row.createdBy?.fullName || "—"],
-        ["Action Taken & Remarks", (row) => `${row.actionTaken ? row.actionTaken + ". " : ""}${row.remarks || ""}`.trim() || "—"],
-      ]
-
-      exportReportExcel({
-        title: `WARRANTY & CUSTOMER CLAIMS SUMMARY REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
-        filename: `Warranty-Claims-Summary-${timeframe}-${new Date().toISOString().slice(0, 10)}`,
-        columns,
-        records: filteredClaims,
-        branch: selectedBranch,
-        generatedBy: user,
-        filters: activeFilters,
-        totals: summaryTotals,
-      })
+      exportReportExcel(getSummaryPayload())
     } catch (err) {
       console.error("Export warranty summary excel failed:", err)
     } finally {
@@ -472,58 +477,70 @@ export default function WarrantyReportView({
     }
   }
 
+  const handlePrintSummaryPdf = () => {
+    printReport(getSummaryPayload())
+  }
+
+  const getSupplierRmaPayload = () => {
+    const activeFilters = [
+      ["Timeframe Range", TIMEFRAME_OPTIONS.find((t) => t.id === timeframe)?.label || timeframe],
+      ["Search Query", search.trim() || "All"],
+      ["Supplier Filter", supplierFilter || "All Suppliers"],
+      ["Total Dispatched RMA Records", supplierRmaRows.length],
+      ["Branch", selectedBranch?.name || "All Branches"],
+    ]
+
+    const supplierTotals = [
+      ["Total Supplier RMA Records", supplierRmaRows.length],
+      ["Currently With Suppliers (Pending)", kpis.withSuppliers],
+      ["Turnaround Overdue (>14 Days)", kpis.overdueSupplierCount],
+      ["Supplier Replacements Replenished", kpis.supplierReplaced],
+      ["Supplier Repaired Units", kpis.supplierRepaired],
+      ["Supplier Credit Memo (CM)", kpis.supplierCreditMemo],
+      ["Supplier RMA Shrinkage Losses", kpis.shrinkageWriteOff],
+    ]
+
+    const columns = [
+      ["Claim Code", (row) => row.claimCode],
+      ["Date Sent to Supplier", (row) => dateOnly(row.sentToSupplierAt)],
+      ["Supplier / Distributor", (row) => row.supplierName || "—"],
+      ["Supplier RMA Reference No.", (row) => row.supplierReferenceNo || "—"],
+      ["Item Description", (row) => row.itemName],
+      ["Dispatched Serial No.", (row) => row.serialNumber],
+      ["Days with Supplier", (row) => row.supplierAgingDays],
+      ["RMA Status / Outcome", (row) => row.status === "SENT_TO_SUPPLIER" ? "PENDING WITH SUPPLIER" : row.resolutionName],
+      ["Replacement Serial Received", (row) => row.replacementSerialNumber || row.replacementSerial?.serialNumber || "—"],
+      ["Customer Owner", (row) => row.customerName],
+      ["Customer Contact", (row) => row.customerContact],
+      ["Original Invoice Ref", (row) => row.receiptCode],
+      ["Supplier Action & Notes", (row) => `${row.actionTaken ? row.actionTaken + ". " : ""}${row.remarks || ""}`.trim() || "—"],
+    ]
+
+    return {
+      title: `SUPPLIER RMA LOGISTICS & RESOLUTION AUDIT REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
+      filename: `Supplier-RMA-Audit-${timeframe}-${new Date().toISOString().slice(0, 10)}`,
+      columns,
+      records: supplierRmaRows,
+      branch: selectedBranch,
+      generatedBy: user,
+      filters: activeFilters,
+      totals: supplierTotals,
+    }
+  }
+
   const handleExportSupplierRmaExcel = () => {
     setIsExporting(true)
     try {
-      const activeFilters = [
-        ["Timeframe Range", TIMEFRAME_OPTIONS.find((t) => t.id === timeframe)?.label || timeframe],
-        ["Search Query", search.trim() || "All"],
-        ["Supplier Filter", supplierFilter || "All Suppliers"],
-        ["Total Dispatched RMA Records", supplierRmaRows.length],
-        ["Branch", selectedBranch?.name || "All Branches"],
-      ]
-
-      const supplierTotals = [
-        ["Total Supplier RMA Records", supplierRmaRows.length],
-        ["Currently With Suppliers (Pending)", kpis.withSuppliers],
-        ["Turnaround Overdue (>14 Days)", kpis.overdueSupplierCount],
-        ["Supplier Replacements Replenished", kpis.supplierReplaced],
-        ["Supplier Repaired Units", kpis.supplierRepaired],
-        ["Supplier Credit Memo (CM)", kpis.supplierCreditMemo],
-        ["Supplier RMA Shrinkage Losses", kpis.shrinkageWriteOff],
-      ]
-
-      const columns = [
-        ["Claim Code", (row) => row.claimCode],
-        ["Date Sent to Supplier", (row) => dateOnly(row.sentToSupplierAt)],
-        ["Supplier / Distributor", (row) => row.supplierName || "—"],
-        ["Supplier RMA Reference No.", (row) => row.supplierReferenceNo || "—"],
-        ["Item Description", (row) => row.itemName],
-        ["Dispatched Serial No.", (row) => row.serialNumber],
-        ["Days with Supplier", (row) => row.supplierAgingDays],
-        ["RMA Status / Outcome", (row) => row.status === "SENT_TO_SUPPLIER" ? "PENDING WITH SUPPLIER" : row.resolutionName],
-        ["Replacement Serial Received", (row) => row.replacementSerialNumber || row.replacementSerial?.serialNumber || "—"],
-        ["Customer Owner", (row) => row.customerName],
-        ["Customer Contact", (row) => row.customerContact],
-        ["Original Invoice Ref", (row) => row.receiptCode],
-        ["Supplier Action & Notes", (row) => `${row.actionTaken ? row.actionTaken + ". " : ""}${row.remarks || ""}`.trim() || "—"],
-      ]
-
-      exportReportExcel({
-        title: `SUPPLIER RMA LOGISTICS & RESOLUTION AUDIT REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
-        filename: `Supplier-RMA-Audit-${timeframe}-${new Date().toISOString().slice(0, 10)}`,
-        columns,
-        records: supplierRmaRows,
-        branch: selectedBranch,
-        generatedBy: user,
-        filters: activeFilters,
-        totals: supplierTotals,
-      })
+      exportReportExcel(getSupplierRmaPayload())
     } catch (err) {
       console.error("Export supplier RMA excel failed:", err)
     } finally {
       setIsExporting(false)
     }
+  }
+
+  const handlePrintSupplierRmaPdf = () => {
+    printReport(getSupplierRmaPayload())
   }
 
   return (
@@ -843,28 +860,24 @@ export default function WarrantyReportView({
           </button>
         </div>
 
-        {/* Export Excel Trigger */}
+        {/* Export Trigger */}
         <div className="flex items-center gap-2">
           {viewMode === "SUMMARY" ? (
-            <button
-              type="button"
-              disabled={isExporting || filteredClaims.length === 0}
+            <ExportExcelButton
+              label="Export Claims Summary (.xlsx)"
+              count={filteredClaims.length}
+              isExporting={isExporting}
               onClick={handleExportSummaryExcel}
-              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-600/30 bg-emerald-600/10 px-4 py-2.5 text-xs font-black text-emerald-700 dark:text-emerald-300 transition hover:bg-emerald-600/20 disabled:opacity-50 cursor-pointer"
-            >
-              <FileSpreadsheet size={15} />
-              {isExporting ? "Exporting Excel..." : "Export Claims Summary (.xlsx)"}
-            </button>
+              onPrint={handlePrintSummaryPdf}
+            />
           ) : (
-            <button
-              type="button"
-              disabled={isExporting || supplierRmaRows.length === 0}
+            <ExportExcelButton
+              label="Export Supplier RMA Audit (.xlsx)"
+              count={supplierRmaRows.length}
+              isExporting={isExporting}
               onClick={handleExportSupplierRmaExcel}
-              className="inline-flex items-center gap-2 rounded-2xl border border-violet-600/30 bg-violet-600/10 px-4 py-2.5 text-xs font-black text-violet-700 dark:text-violet-300 transition hover:bg-violet-600/20 disabled:opacity-50 cursor-pointer"
-            >
-              <FileSpreadsheet size={15} />
-              {isExporting ? "Exporting Excel..." : "Export Supplier RMA Audit (.xlsx)"}
-            </button>
+              onPrint={handlePrintSupplierRmaPdf}
+            />
           )}
         </div>
       </div>

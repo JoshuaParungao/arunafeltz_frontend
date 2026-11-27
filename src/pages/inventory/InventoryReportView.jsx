@@ -38,7 +38,8 @@ import {
   formatMainCategoryName,
   formatSubcategoryName,
 } from "../../utils/attributeFilter"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
+import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 function peso(val) {
   return `₱${Number(val || 0).toLocaleString("en-PH", {
@@ -395,59 +396,63 @@ export default function InventoryReportView({
     }
   }, [filteredItems, rawSerials])
 
-  // 11. Multi-Level Enterprise Excel Exporters
+  // 11. Multi-Level Enterprise Excel & PDF Exporters
+  const getValuationPayload = () => {
+    const activeFilters = [
+      ["Search Query", search.trim() || "All Products"],
+      ["Stock Health", healthFilter !== "ALL" ? healthFilter : "All Stock States"],
+      ["Category", formatSubcategoryName(categories.find((c) => c.id === categoryFilter)) !== "—" ? formatSubcategoryName(categories.find((c) => c.id === categoryFilter)) : "All Categories"],
+      ["Serialized", serializedFilter !== "ALL" ? serializedFilter : "All"],
+      ["Branch", selectedBranch?.name || "All Branches"],
+    ]
+
+    const valuationTotals = [
+      ["Total Active SKUs", kpis.totalSkus],
+      ["Total Units Available", kpis.totalUnitsAvailable],
+      ["Total Asset Valuation at Cost", kpis.totalCostValuation],
+      ["Total Asset Valuation at SRP (Retail)", kpis.totalSrpValuation],
+      ["Projected Gross Margin", kpis.projectedProfit],
+      ["Projected Profit Margin (%)", `${kpis.profitMargin.toFixed(1)}%`],
+      ["Low-Stock Alerts", kpis.lowStockCount],
+      ["Out-of-Stock SKUs", kpis.outOfStockCount],
+    ]
+
+    const columns = [
+      ["Item Code", (row) => row.itemCode || "—"],
+      ["Item Name", (row) => row.itemName || "—"],
+      ["Category", (row) => formatMainCategoryName(row.category, textOf(row.categoryName, "—"))],
+      ["Subcategory", (row) => formatSubcategoryName(row.category)],
+      ["Unit", (row) => textOf(row.unit, textOf(row.unitName, "PCS"))],
+      ["Serialized Tracking", (row) => (row.isSerialized ? "YES" : "NO")],
+      ["Available On-Hand", (row) => Number(row.avail || 0)],
+      ["Reserved Stock", (row) => Number(row.reserved || 0)],
+      ["Reorder Threshold", (row) => Number(row.reorder || 0)],
+      ["Stock Health Status", (row) => row.healthLabel],
+      ["Unit Cost (₱)", (row) => Number(row.costPrice || 0)],
+      ["Selling Price / SRP (₱)", (row) => Number(row.srp || 0)],
+      ["Unit Profit Markup (₱)", (row) => Number(row.unitMarkup || 0)],
+      ["Markup Percentage (%)", (row) => `${row.markupPercent.toFixed(1)}%`],
+      ["Total Valuation at Cost (₱)", (row) => Number(row.totalValuationCost || 0)],
+      ["Total Valuation at SRP (₱)", (row) => Number(row.totalValuationSrp || 0)],
+      ["Projected Gross Profit (₱)", (row) => Number(row.projectedGrossProfit || 0)],
+    ]
+
+    return {
+      title: `INVENTORY ASSET VALUATION & STOCK LEDGER REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
+      filename: `Inventory-Valuation-${new Date().toISOString().slice(0, 10)}`,
+      columns,
+      records: filteredItems,
+      branch: selectedBranch,
+      generatedBy: user,
+      filters: activeFilters,
+      totals: valuationTotals,
+    }
+  }
+
   const handleExportValuationExcel = () => {
     setIsExporting(true)
     try {
-      const activeFilters = [
-        ["Search Query", search.trim() || "All Products"],
-        ["Stock Health", healthFilter !== "ALL" ? healthFilter : "All Stock States"],
-        ["Category", formatSubcategoryName(categories.find((c) => c.id === categoryFilter)) !== "—" ? formatSubcategoryName(categories.find((c) => c.id === categoryFilter)) : "All Categories"],
-        ["Serialized", serializedFilter !== "ALL" ? serializedFilter : "All"],
-        ["Branch", selectedBranch?.name || "All Branches"],
-      ]
-
-      const valuationTotals = [
-        ["Total Active SKUs", kpis.totalSkus],
-        ["Total Units Available", kpis.totalUnitsAvailable],
-        ["Total Asset Valuation at Cost", kpis.totalCostValuation],
-        ["Total Asset Valuation at SRP (Retail)", kpis.totalSrpValuation],
-        ["Projected Gross Margin", kpis.projectedProfit],
-        ["Projected Profit Margin (%)", `${kpis.profitMargin.toFixed(1)}%`],
-        ["Low-Stock Alerts", kpis.lowStockCount],
-        ["Out-of-Stock SKUs", kpis.outOfStockCount],
-      ]
-
-      const columns = [
-        ["Item Code", (row) => row.itemCode || "—"],
-        ["Item Name", (row) => row.itemName || "—"],
-        ["Category", (row) => formatMainCategoryName(row.category, textOf(row.categoryName, "—"))],
-        ["Subcategory", (row) => formatSubcategoryName(row.category)],
-        ["Unit", (row) => textOf(row.unit, textOf(row.unitName, "PCS"))],
-        ["Serialized Tracking", (row) => (row.isSerialized ? "YES" : "NO")],
-        ["Available On-Hand", (row) => Number(row.avail || 0)],
-        ["Reserved Stock", (row) => Number(row.reserved || 0)],
-        ["Reorder Threshold", (row) => Number(row.reorder || 0)],
-        ["Stock Health Status", (row) => row.healthLabel],
-        ["Unit Cost (₱)", (row) => Number(row.costPrice || 0)],
-        ["Selling Price / SRP (₱)", (row) => Number(row.srp || 0)],
-        ["Unit Profit Markup (₱)", (row) => Number(row.unitMarkup || 0)],
-        ["Markup Percentage (%)", (row) => `${row.markupPercent.toFixed(1)}%`],
-        ["Total Valuation at Cost (₱)", (row) => Number(row.totalValuationCost || 0)],
-        ["Total Valuation at SRP (₱)", (row) => Number(row.totalValuationSrp || 0)],
-        ["Projected Gross Profit (₱)", (row) => Number(row.projectedGrossProfit || 0)],
-      ]
-
-      exportReportExcel({
-        title: `INVENTORY ASSET VALUATION & STOCK LEDGER REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
-        filename: `Inventory-Valuation-${new Date().toISOString().slice(0, 10)}`,
-        columns,
-        records: filteredItems,
-        branch: selectedBranch,
-        generatedBy: user,
-        filters: activeFilters,
-        totals: valuationTotals,
-      })
+      exportReportExcel(getValuationPayload())
     } catch (err) {
       console.error("Export inventory valuation excel failed:", err)
     } finally {
@@ -455,49 +460,57 @@ export default function InventoryReportView({
     }
   }
 
+  const handlePrintValuationPdf = () => {
+    printReport(getValuationPayload())
+  }
+
+  const getSerialsPayload = () => {
+    const activeFilters = [
+      ["Search Query", search.trim() || "All Serials"],
+      ["Serial Status", serialStatusFilter ? formatStatus(serialStatusFilter) : "All Statuses"],
+      ["Total Exploded Serials", filteredSerials.length],
+      ["Branch", selectedBranch?.name || "All Branches"],
+    ]
+
+    const serialTotals = [
+      ["Total Tracked Serials", filteredSerials.length],
+      ["Available on Shelf", kpis.serialsAvailable],
+      ["Sold in POS", kpis.serialsSold],
+      ["Under Warranty / RMA", kpis.serialsWarranty],
+      ["Damaged / Lost", kpis.serialsDamagedOrLost],
+    ]
+
+    const columns = [
+      ["Serial Number", (row) => row.serialNumber || "—"],
+      ["Item Code", (row) => row.item?.itemCode || "—"],
+      ["Item Name", (row) => row.item?.itemName || "—"],
+      ["Category", (row) => formatMainCategoryName(row.item?.category, "—")],
+      ["Subcategory", (row) => formatSubcategoryName(row.item?.category)],
+      ["Batch Number", (row) => row.batch?.batchCode || "—"],
+      ["Unit Acquisition Cost (₱)", (row) => Number(row.batch?.costPrice || 0)],
+      ["Lifecycle Status", (row) => formatStatus(row.status)],
+      ["Branch Location", (row) => row.branch?.name || "—"],
+      ["Registered Date", (row) => dateOnly(row.createdAt)],
+      ["Days in Inventory", (row) => calculateAgingDays(row.createdAt)],
+      ["Remarks / Condition", (row) => row.remarks || "—"],
+    ]
+
+    return {
+      title: `SERIALIZED HARDWARE LIFECYCLE AUDIT REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
+      filename: `Serialized-Hardware-Audit-${new Date().toISOString().slice(0, 10)}`,
+      columns,
+      records: filteredSerials,
+      branch: selectedBranch,
+      generatedBy: user,
+      filters: activeFilters,
+      totals: serialTotals,
+    }
+  }
+
   const handleExportSerialsExcel = () => {
     setIsExporting(true)
     try {
-      const activeFilters = [
-        ["Search Query", search.trim() || "All Serials"],
-        ["Serial Status", serialStatusFilter ? formatStatus(serialStatusFilter) : "All Statuses"],
-        ["Total Exploded Serials", filteredSerials.length],
-        ["Branch", selectedBranch?.name || "All Branches"],
-      ]
-
-      const serialTotals = [
-        ["Total Tracked Serials", filteredSerials.length],
-        ["Available on Shelf", kpis.serialsAvailable],
-        ["Sold in POS", kpis.serialsSold],
-        ["Under Warranty / RMA", kpis.serialsWarranty],
-        ["Damaged / Lost", kpis.serialsDamagedOrLost],
-      ]
-
-      const columns = [
-        ["Serial Number", (row) => row.serialNumber || "—"],
-        ["Item Code", (row) => row.item?.itemCode || "—"],
-        ["Item Name", (row) => row.item?.itemName || "—"],
-        ["Category", (row) => formatMainCategoryName(row.item?.category, "—")],
-        ["Subcategory", (row) => formatSubcategoryName(row.item?.category)],
-        ["Batch Number", (row) => row.batch?.batchCode || "—"],
-        ["Unit Acquisition Cost (₱)", (row) => Number(row.batch?.costPrice || 0)],
-        ["Lifecycle Status", (row) => formatStatus(row.status)],
-        ["Branch Location", (row) => row.branch?.name || "—"],
-        ["Registered Date", (row) => dateOnly(row.createdAt)],
-        ["Days in Inventory", (row) => calculateAgingDays(row.createdAt)],
-        ["Remarks / Condition", (row) => row.remarks || "—"],
-      ]
-
-      exportReportExcel({
-        title: `SERIALIZED HARDWARE LIFECYCLE AUDIT REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
-        filename: `Serialized-Hardware-Audit-${new Date().toISOString().slice(0, 10)}`,
-        columns,
-        records: filteredSerials,
-        branch: selectedBranch,
-        generatedBy: user,
-        filters: activeFilters,
-        totals: serialTotals,
-      })
+      exportReportExcel(getSerialsPayload())
     } catch (err) {
       console.error("Export serials excel failed:", err)
     } finally {
@@ -505,48 +518,60 @@ export default function InventoryReportView({
     }
   }
 
+  const handlePrintSerialsPdf = () => {
+    printReport(getSerialsPayload())
+  }
+
+  const getMovementsPayload = () => {
+    const activeFilters = [
+      ["Search Query", search.trim() || "All Movements"],
+      ["Movement Type", movementTypeFilter || "All Types"],
+      ["Total Audit Records", filteredMovements.length],
+      ["Branch", selectedBranch?.name || "All Branches"],
+    ]
+
+    const columns = [
+      ["Movement Code", (row) => row.movementCode || "—"],
+      ["Date & Time", (row) => dateTime(row.movementDate || row.createdAt)],
+      ["Movement Type", (row) => row.type || "—"],
+      ["Item Code", (row) => row.item?.itemCode || "—"],
+      ["Item Name", (row) => row.item?.itemName || "—"],
+      ["Serial Number", (row) => row.serial?.serialNumber || "—"],
+      ["Quantity Moved", (row) => Number(row.quantity || 0)],
+      ["Unit Cost (₱)", (row) => Number(row.unitCost || 0)],
+      ["Total Value (₱)", (row) => Number(row.quantity || 0) * Number(row.unitCost || 0)],
+      ["Previous Qty", (row) => Number(row.previousQuantity || 0)],
+      ["New Qty", (row) => Number(row.newQuantity || 0)],
+      ["Reference No.", (row) => row.referenceNo || "—"],
+      ["Handled By", (row) => row.createdBy?.fullName || row.createdBy?.username || "—"],
+      ["Remarks / Notes", (row) => row.remarks || "—"],
+    ]
+
+    return {
+      title: `STOCK MOVEMENT & TRANSACTION AUDIT JOURNAL (${selectedBranch?.name || "ALL BRANCHES"})`,
+      filename: `Stock-Movements-Journal-${new Date().toISOString().slice(0, 10)}`,
+      columns,
+      records: filteredMovements,
+      branch: selectedBranch,
+      generatedBy: user,
+      filters: activeFilters,
+      totals: [["Total Movement Records Exported", filteredMovements.length]],
+    }
+  }
+
   const handleExportMovementsExcel = () => {
     setIsExporting(true)
     try {
-      const activeFilters = [
-        ["Search Query", search.trim() || "All Movements"],
-        ["Movement Type", movementTypeFilter || "All Types"],
-        ["Total Audit Records", filteredMovements.length],
-        ["Branch", selectedBranch?.name || "All Branches"],
-      ]
-
-      const columns = [
-        ["Movement Code", (row) => row.movementCode || "—"],
-        ["Date & Time", (row) => dateTime(row.movementDate || row.createdAt)],
-        ["Movement Type", (row) => row.type || "—"],
-        ["Item Code", (row) => row.item?.itemCode || "—"],
-        ["Item Name", (row) => row.item?.itemName || "—"],
-        ["Serial Number", (row) => row.serial?.serialNumber || "—"],
-        ["Quantity Moved", (row) => Number(row.quantity || 0)],
-        ["Unit Cost (₱)", (row) => Number(row.unitCost || 0)],
-        ["Total Value (₱)", (row) => Number(row.quantity || 0) * Number(row.unitCost || 0)],
-        ["Previous Qty", (row) => Number(row.previousQuantity || 0)],
-        ["New Qty", (row) => Number(row.newQuantity || 0)],
-        ["Reference No.", (row) => row.referenceNo || "—"],
-        ["Handled By", (row) => row.createdBy?.fullName || row.createdBy?.username || "—"],
-        ["Remarks / Notes", (row) => row.remarks || "—"],
-      ]
-
-      exportReportExcel({
-        title: `STOCK MOVEMENT & TRANSACTION AUDIT JOURNAL (${selectedBranch?.name || "ALL BRANCHES"})`,
-        filename: `Stock-Movements-Journal-${new Date().toISOString().slice(0, 10)}`,
-        columns,
-        records: filteredMovements,
-        branch: selectedBranch,
-        generatedBy: user,
-        filters: activeFilters,
-        totals: [["Total Movement Records Exported", filteredMovements.length]],
-      })
+      exportReportExcel(getMovementsPayload())
     } catch (err) {
-      console.error("Export movements excel failed:", err)
+      console.error("Export movements journal excel failed:", err)
     } finally {
       setIsExporting(false)
     }
+  }
+
+  const handlePrintMovementsPdf = () => {
+    printReport(getMovementsPayload())
   }
 
   return (
@@ -874,42 +899,36 @@ export default function InventoryReportView({
           </button>
         </div>
 
-        {/* Excel Export Button */}
+        {/* Excel & PDF Export Button */}
         <div>
           {reportMode === "VALUATION" && (
-            <button
-              type="button"
-              disabled={isExporting || filteredItems.length === 0}
+            <ExportExcelButton
+              label="Export Stock Valuation (.xlsx)"
+              count={filteredItems.length}
+              isExporting={isExporting}
               onClick={handleExportValuationExcel}
-              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-600/30 bg-emerald-600/10 px-4 py-2.5 text-xs font-black text-emerald-700 dark:text-emerald-300 transition hover:bg-emerald-600/20 disabled:opacity-50 cursor-pointer"
-            >
-              <FileSpreadsheet size={15} />
-              {isExporting ? "Exporting Excel..." : "Export Stock Valuation (.xlsx)"}
-            </button>
+              onPrint={handlePrintValuationPdf}
+            />
           )}
 
           {reportMode === "SERIALS" && (
-            <button
-              type="button"
-              disabled={isExporting || filteredSerials.length === 0}
+            <ExportExcelButton
+              label="Export Serialized Audit (.xlsx)"
+              count={filteredSerials.length}
+              isExporting={isExporting}
               onClick={handleExportSerialsExcel}
-              className="inline-flex items-center gap-2 rounded-2xl border border-violet-600/30 bg-violet-600/10 px-4 py-2.5 text-xs font-black text-violet-700 dark:text-violet-300 transition hover:bg-violet-600/20 disabled:opacity-50 cursor-pointer"
-            >
-              <FileSpreadsheet size={15} />
-              {isExporting ? "Exporting Excel..." : "Export Serialized Audit (.xlsx)"}
-            </button>
+              onPrint={handlePrintSerialsPdf}
+            />
           )}
 
           {reportMode === "MOVEMENTS" && (
-            <button
-              type="button"
-              disabled={isExporting || filteredMovements.length === 0}
+            <ExportExcelButton
+              label="Export Movement Journal (.xlsx)"
+              count={filteredMovements.length}
+              isExporting={isExporting}
               onClick={handleExportMovementsExcel}
-              className="inline-flex items-center gap-2 rounded-2xl border border-sky-600/30 bg-sky-600/10 px-4 py-2.5 text-xs font-black text-sky-700 dark:text-sky-300 transition hover:bg-sky-600/20 disabled:opacity-50 cursor-pointer"
-            >
-              <FileSpreadsheet size={15} />
-              {isExporting ? "Exporting Excel..." : "Export Movement Journal (.xlsx)"}
-            </button>
+              onPrint={handlePrintMovementsPdf}
+            />
           )}
         </div>
       </div>

@@ -21,7 +21,7 @@ import {
   getDownpaymentAnalysisReport,
   getCollectionPerformanceReport,
 } from "../../../features/reports/intelligence.api"
-import { exportReportExcel } from "../../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../../utils/businessDocumentExport"
 import ExportExcelButton from "../../../components/common/ExportExcelButton"
 import CustomerArStatementModal from "../../credits/CustomerArStatementModal"
 
@@ -119,7 +119,7 @@ export default function ArAgingView({ selectedBranch, user, dateRange }) {
       ["Status", (r) => r.status],
     ]
 
-    exportReportExcel({
+    const payload = {
       label: "Accounts Receivable Aging Report",
       filename: `AR-Aging-Report-${new Date().toISOString().slice(0, 10)}`,
       columns: exportColumns,
@@ -131,10 +131,45 @@ export default function ArAgingView({ selectedBranch, user, dateRange }) {
         ["Branch", selectedBranch?.name || user?.branch?.name || "All Branches"],
       ],
       totals: [
-        ["Total Accounts", records.length],
-        ["Total Principal Financed", summary.totalPrincipal || 0],
-        ["Total Collected to Date", summary.totalCollected || 0],
-        ["Total Outstanding AR", summary.totalOutstanding || 0],
+        ["Total Accounts", String(records.length)],
+        ["Total Principal Financed", peso(summary.totalPrincipal || 0)],
+        ["Total Collected to Date", peso(summary.totalCollected || 0)],
+        ["Total Outstanding AR", peso(summary.totalOutstanding || 0)],
+      ],
+    }
+
+    exportReportExcel(payload)
+  }
+
+  const handlePrintAgingPdf = () => {
+    const exportColumns = [
+      ["Account No", (r) => r.accountNumber || "—"],
+      ["Customer Name", (r) => r.customerName || "—"],
+      ["Due Date", (r) => (r.nextDueDate ? dateOnly(r.nextDueDate) : "—")],
+      ["Days Overdue", (r) => r.daysOverdue ?? 0],
+      ["Bucket", (r) => r.agingBucket || "Current"],
+      ["Principal (₱)", (r) => peso(r.principalAmount || 0)],
+      ["Collected (₱)", (r) => peso(r.totalCollected || 0)],
+      ["Balance (₱)", (r) => peso(r.remainingBalance || 0)],
+      ["Due Amount (₱)", (r) => peso(r.monthlyDueAmount || 0)],
+    ]
+
+    printReport({
+      label: "Accounts Receivable Aging Report",
+      filename: `AR-Aging-Report-${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      records,
+      branch: selectedBranch || user?.branch,
+      generatedBy: user,
+      filters: [
+        ["Aging Bucket Filter", selectedBucket],
+        ["Branch", selectedBranch?.name || user?.branch?.name || "All Branches"],
+      ],
+      totals: [
+        ["Total Accounts", String(records.length)],
+        ["Total Principal Financed", peso(summary.totalPrincipal || 0)],
+        ["Total Collected to Date", peso(summary.totalCollected || 0)],
+        ["Total Outstanding AR", peso(summary.totalOutstanding || 0)],
       ],
     })
   }
@@ -217,6 +252,7 @@ export default function ArAgingView({ selectedBranch, user, dateRange }) {
                 filteredCount={records.length}
                 label="Export Aging (.xlsx)"
                 onExport={handleExportAgingExcel}
+                onPrint={handlePrintAgingPdf}
               />
               <button
                 className="grid size-9 place-items-center rounded-xl border border-slate-200 hover:bg-slate-50"

@@ -14,7 +14,7 @@ import {
 import { getIncentives } from "../../features/incentives/incentives.api"
 import { getUsers } from "../../features/users/users.api"
 import EnterpriseIncentiveMonitor from "../../features/incentives/EnterpriseIncentiveMonitor"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import IncentivesReportView from "./IncentivesReportView"
 
@@ -229,6 +229,85 @@ export default function IncentivesPage({ selectedBranch, user }) {
     }
   }
 
+  const handlePrintIncentivesPdf = async () => {
+    try {
+      setIsExporting(true)
+      let allEntries = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore && page <= 5) {
+        const query = {
+          page,
+          limit: 100,
+          branchId: selectedBranchId || undefined,
+          status: statusFilter || undefined,
+          type: typeFilter || undefined,
+          userId: userIdFilter || undefined,
+        }
+        const res = await getIncentives(query)
+        const chunk = res.data?.data || res.data?.items || res.data || []
+        if (Array.isArray(chunk) && chunk.length > 0) {
+          allEntries = allEntries.concat(chunk)
+          if (chunk.length < 100) hasMore = false
+          else page++
+        } else {
+          hasMore = false
+        }
+      }
+
+      if (allEntries.length === 0) {
+        allEntries = entries
+      }
+
+      const activeFilters = [
+        ["Branch", selectedBranch?.name || user?.branch?.name || "All Branches"],
+        ["Status", statusFilter || "All Statuses"],
+        ["Incentive Type", typeFilter || "All Types"],
+        ["Employee", userIdFilter ? users.find((u) => u.id === userIdFilter)?.fullName || "Selected User" : "All Employees"],
+      ]
+
+      const headers = [
+        "Date",
+        "Employee",
+        "Type",
+        "Status",
+        "Basis Amount",
+        "Rate (%)",
+        "Incentive Amount",
+      ]
+
+      const rows = allEntries.map((e) => [
+        e.createdAt ? new Date(e.createdAt).toLocaleDateString() : "-",
+        e.user?.fullName || e.user?.username || "-",
+        e.type || "-",
+        e.status || "-",
+        `₱${Number(e.basisAmount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `${Number(e.percent || 0).toFixed(2)}%`,
+        `₱${Number(e.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      ])
+
+      printReport({
+        title: "STAFF COMMISSIONS & INCENTIVES REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "staff_incentives",
+        headers,
+        rows,
+        activeFilters,
+        totals: [
+          ["Total Incentive Entries", String(allEntries.length)],
+          ["Total Payout Value", `₱${allEntries.reduce((s, e) => s + Number(e.amount || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ],
+      })
+    } catch (error) {
+      console.error(error)
+      setMessage("Failed to print incentives report.")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const totalPages = Math.max(1, Number(meta.totalPages || 1))
   const enabledSummary = useMemo(() => {
     const enabled = []
@@ -293,6 +372,7 @@ export default function IncentivesPage({ selectedBranch, user }) {
                 count={meta?.total || entries.length}
                 isExporting={isExporting}
                 onClick={handleExportIncentivesExcel}
+                onPrint={handlePrintIncentivesPdf}
               />
             )}
           </div>

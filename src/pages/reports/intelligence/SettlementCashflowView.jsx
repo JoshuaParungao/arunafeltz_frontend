@@ -15,7 +15,7 @@ import {
   getSalesSettlementReport,
   getPaymentMethodReport,
 } from "../../../features/reports/intelligence.api"
-import { exportReportExcel } from "../../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../../utils/businessDocumentExport"
 import ExportExcelButton from "../../../components/common/ExportExcelButton"
 
 function peso(val) {
@@ -68,7 +68,7 @@ export default function SettlementCashflowView({ selectedBranch, user, dateRange
   const comp = summary.comparison || {}
   const records = data?.records || []
 
-  const handleExportExcel = () => {
+  const getExportPayload = () => {
     const exportColumns = [
       ["Receipt Code", (r) => r.receiptCode],
       ["Date", (r) => r.date ? new Date(r.date).toLocaleString("en-PH") : "—"],
@@ -88,7 +88,7 @@ export default function SettlementCashflowView({ selectedBranch, user, dateRange
       ["Outstanding AR", (r) => Number(r.outstanding || 0)],
     ]
 
-    exportReportExcel({
+    return {
       label: "Sales Settlement & Cash vs AR Report",
       filename: `Sales-Settlement-${new Date().toISOString().slice(0, 10)}`,
       columns: exportColumns,
@@ -110,7 +110,15 @@ export default function SettlementCashflowView({ selectedBranch, user, dateRange
         ["Total Collected", summary.totalCollected || 0],
         ["Total Outstanding AR", summary.totalOutstandingAR || 0],
       ],
-    })
+    }
+  }
+
+  const handleExportExcel = () => {
+    exportReportExcel(getExportPayload())
+  }
+
+  const handlePrintPdf = () => {
+    printReport(getExportPayload())
   }
 
   return (
@@ -211,6 +219,7 @@ export default function SettlementCashflowView({ selectedBranch, user, dateRange
             filteredCount={records.length}
             label="Export Settlements (.xlsx)"
             onExport={handleExportExcel}
+            onPrint={handlePrintPdf}
           />
           <button
             className="grid size-9 place-items-center rounded-xl border border-slate-200 hover:bg-slate-50"

@@ -24,7 +24,7 @@ import {
   getCreditAccounts,
 } from "../../features/credit-accounts/creditAccounts.api";
 import { generateUUID } from "../../utils/uuid";
-import { exportReportExcel } from "../../utils/businessDocumentExport";
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport";
 import ExportExcelButton from "../../components/common/ExportExcelButton";
 import CustomerArStatementModal from "./CustomerArStatementModal";
 import CustomerStatementOfAccountModal from "../customers/CustomerStatementOfAccountModal";
@@ -365,7 +365,7 @@ export default function CreditsPage({ selectedBranch, user }) {
       ["Status", (row) => label(row.status)],
     ];
 
-    exportReportExcel({
+    const payload = {
       label: "Receivable Accounts & Installments",
       filename: `Receivables-${new Date().toISOString().slice(0, 10)}`,
       columns: exportColumns,
@@ -380,9 +380,50 @@ export default function CreditsPage({ selectedBranch, user }) {
         ["Term", term ? label(term) : "All Terms"],
       ],
       totals: [
-        ["Total Accounts Exported", accounts.length],
-        ["Total Remaining Balance", accounts.reduce((sum, a) => sum + Number(a.remainingBalance || 0), 0)],
-        ["Total Collections To Date", accounts.reduce((sum, a) => sum + Number(a.totalCollected || 0), 0)],
+        ["Total Accounts Exported", String(accounts.length)],
+        ["Total Remaining Balance", `₱${accounts.reduce((sum, a) => sum + Number(a.remainingBalance || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Total Collections To Date", `₱${accounts.reduce((sum, a) => sum + Number(a.totalCollected || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+      ],
+    };
+
+    exportReportExcel(payload);
+  };
+
+  const handlePrintPdf = () => {
+    const exportColumns = [
+      ["Account No", (row) => row.accountNumber || "—"],
+      ["Customer Name", (row) => row.customer?.fullName || row.serviceJob?.customerNameSnapshot || "Walk-in Customer"],
+      ["Contact No", (row) => row.customer?.mobileNumber || row.serviceJob?.customerPhoneSnapshot || "—"],
+      ["Provider", (row) => label(row.provider)],
+      ["Term", (row) => row.term ? label(row.term) : "N/A"],
+      ["Source", (row) => row.sale?.receiptCode ? `Sale #${row.sale.receiptCode}` : row.serviceJob?.jobCode ? `Job #${row.serviceJob.jobCode}` : "Direct"],
+      ["Principal Amount", (row) => Number(row.principalAmount || row.regularPriceTotalAmount || 0)],
+      ["Downpayment", (row) => Number(row.downpaymentAmount || 0)],
+      ["Total Collected", (row) => Number(row.totalCollected || 0)],
+      ["Remaining Balance", (row) => Number(row.remainingBalance || 0)],
+      ["Monthly Due", (row) => Number(row.monthlyDueAmount || 0)],
+      ["Next Due Date", (row) => row.nextDueDate ? new Date(row.nextDueDate).toLocaleDateString("en-PH") : "—"],
+      ["Status", (row) => label(row.status)],
+    ];
+
+    printReport({
+      label: "Receivable Accounts & Installments",
+      filename: `Receivables-${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      records: accounts,
+      branch: selectedBranch || user?.branch,
+      generatedBy: user,
+      filters: [
+        ["Search Query", search.trim() || "All"],
+        ["Status", status ? label(status) : "All Statuses"],
+        ["Source Type", sourceType ? label(sourceType) : "All Sources"],
+        ["Provider", provider ? label(provider) : "All Providers"],
+        ["Term", term ? label(term) : "All Terms"],
+      ],
+      totals: [
+        ["Total Accounts Exported", String(accounts.length)],
+        ["Total Remaining Balance", `₱${accounts.reduce((sum, a) => sum + Number(a.remainingBalance || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ["Total Collections To Date", `₱${accounts.reduce((sum, a) => sum + Number(a.totalCollected || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
       ],
     });
   };
@@ -410,6 +451,7 @@ export default function CreditsPage({ selectedBranch, user }) {
               filteredCount={meta?.total ?? accounts.length}
               label="Export Receivables (.xlsx)"
               onExport={handleExportExcel}
+              onPrint={handlePrintPdf}
             />
             <button
               className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"

@@ -36,7 +36,7 @@ import {
 import { getStockTransfers } from "../../features/stock-transfers/stockTransfers.api"
 import { getReport } from "../../features/reports/reports.api"
 import { getBranches } from "../../features/branches/branches.api"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 
 function money(value) {
@@ -522,8 +522,8 @@ export default function StockTransfersReportView({
     return Math.max(1, Math.ceil(total / pageSize))
   }, [activeTab, routeMatrix.length, itemizedManifest.length, reconciliationData.length, dispositionRecords.length])
 
-  // Professional Excel Export
-  const handleExportExcel = async () => {
+  // Professional Excel/PDF Export
+  const handleExportOrPrint = async (mode = "excel") => {
     setIsExporting(true)
     try {
       const activeFilters = [
@@ -571,7 +571,7 @@ export default function StockTransfersReportView({
           r.totalValue,
         ])
 
-        exportReportExcel({
+        const payload = {
           title: "INTER-BRANCH LOGISTICS & ROUTE TRANSIT OVERVIEW",
           branchName,
           generatedBy: user?.fullName || user?.username || "Management",
@@ -579,7 +579,9 @@ export default function StockTransfersReportView({
           headers,
           rows,
           activeFilters,
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "MANIFEST") {
         const headers = [
           "Transfer Code",
@@ -609,7 +611,7 @@ export default function StockTransfersReportView({
           m.lineTotal,
         ])
 
-        exportReportExcel({
+        const payload = {
           title: "ITEMIZED TRANSFER MANIFEST & SERIAL TRACEABILITY LEDGER",
           branchName,
           generatedBy: user?.fullName || user?.username || "Management",
@@ -617,7 +619,9 @@ export default function StockTransfersReportView({
           headers,
           rows,
           activeFilters,
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "RECONCILIATION") {
         const headers = [
           "Branch Code",
@@ -643,7 +647,7 @@ export default function StockTransfersReportView({
           b.netInterBranchBalance,
         ])
 
-        exportReportExcel({
+        const payload = {
           title: "INTER-BRANCH RECONCILIATION & INTERNAL VALUATION REPORT",
           branchName,
           generatedBy: user?.fullName || user?.username || "Management",
@@ -651,7 +655,9 @@ export default function StockTransfersReportView({
           headers,
           rows,
           activeFilters,
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       } else if (activeTab === "DISPOSITION_AUDIT") {
         const headers = [
           "Transfer Code",
@@ -683,7 +689,7 @@ export default function StockTransfersReportView({
           ]
         })
 
-        exportReportExcel({
+        const payload = {
           title: "REJECTED & CANCELLED STOCK TRANSFERS AUDIT REPORT",
           branchName,
           generatedBy: user?.fullName || user?.username || "Management",
@@ -691,7 +697,9 @@ export default function StockTransfersReportView({
           headers,
           rows,
           activeFilters,
-        })
+        }
+        if (mode === "print") printReport(payload)
+        else exportReportExcel(payload)
       }
     } catch (err) {
       console.error("Export error:", err)
@@ -699,6 +707,9 @@ export default function StockTransfersReportView({
       setIsExporting(false)
     }
   }
+
+  const handleExportExcel = () => handleExportOrPrint("excel")
+  const handlePrintPdf = () => handleExportOrPrint("print")
 
   return (
     <div className="space-y-6">
@@ -874,6 +885,7 @@ export default function StockTransfersReportView({
               }
               isExporting={isExporting}
               onClick={handleExportExcel}
+              onPrint={handlePrintPdf}
             />
           </div>
         </div>

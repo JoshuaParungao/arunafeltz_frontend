@@ -967,42 +967,68 @@ export function inventoryDocument(items, context = {}) {
   }
 }
 
-export function reportDocument({
-  label,
-  columns,
-  records,
-  totals = [],
-  branch,
-  generatedBy,
-  filters = [],
-  filename,
-}) {
-  const safeColumns = Array.isArray(columns) ? columns : []
-  const safeRecords = Array.isArray(records) ? records : []
+export function reportDocument(options = {}) {
+  const {
+    label,
+    title,
+    columns,
+    headers: propHeaders,
+    records,
+    rows: propRows,
+    totals = [],
+    branch,
+    branchName,
+    generatedBy,
+    filters = [],
+    activeFilters,
+    filename,
+    filenamePrefix,
+  } = options
 
-  return {
-    title: sanitizeForPdf(label || "Business Report"),
-    branch: branchText(branch),
-    generatedBy: generatedByText(generatedBy),
-    filename: cleanFilename(
-      filename ||
-      `${cleanFilename(label || "Report")}_${new Date()
-        .toISOString()
-        .slice(0, 10)}`
-    ),
-    orientation: safeColumns.length >= 7 ? "landscape" : "portrait",
-    meta: filters.map(([k, v]) => [sanitizeForPdf(k), sanitizeForPdf(v)]),
-    totals: totals.map(([k, v]) => [sanitizeForPdf(k), sanitizeForPdf(v)]),
-    columns: safeColumns.map(([columnLabel]) => sanitizeForPdf(columnLabel)),
-    rows: safeRecords.map((record) =>
-      safeColumns.map(([, accessor]) => {
+  const actualLabel = title || label || "Business Report"
+  const actualBranch = branchName || (branch ? branchText(branch) : "All Branches")
+  const actualFilename = filenamePrefix || filename || cleanFilename(actualLabel)
+
+  const finalColumns = Array.isArray(columns) && columns.length > 0
+    ? columns.map(([colLabel]) => sanitizeForPdf(colLabel))
+    : Array.isArray(propHeaders)
+    ? propHeaders.map((h) => sanitizeForPdf(h))
+    : []
+
+  let finalRows = []
+  if (Array.isArray(propRows) && propRows.length > 0) {
+    finalRows = propRows.map((r) =>
+      Array.isArray(r) ? r.map((c) => sanitizeForPdf(c)) : []
+    )
+  } else if (Array.isArray(records) && Array.isArray(columns)) {
+    finalRows = records.map((record) =>
+      columns.map(([, accessor]) => {
         try {
-          return sanitizeForPdf(accessor(record))
+          return sanitizeForPdf(typeof accessor === "function" ? accessor(record) : record[accessor])
         } catch {
           return "-"
         }
       })
-    ),
+    )
+  }
+
+  const rawFilters = activeFilters || filters || []
+  const finalMeta = rawFilters.map((item) => {
+    if (Array.isArray(item)) return [sanitizeForPdf(item[0]), sanitizeForPdf(item[1])]
+    if (item && typeof item === "object") return [sanitizeForPdf(item.label || item.key), sanitizeForPdf(item.value)]
+    return ["-", "-"]
+  })
+
+  return {
+    title: sanitizeForPdf(actualLabel),
+    branch: actualBranch,
+    generatedBy: typeof generatedBy === "object" && generatedBy ? generatedByText(generatedBy) : String(generatedBy || "Staff"),
+    filename: `${cleanFilename(actualFilename)}_${new Date().toISOString().slice(0, 10)}`,
+    orientation: finalColumns.length >= 7 ? "landscape" : "portrait",
+    meta: finalMeta,
+    totals: (totals || []).map(([k, v]) => [sanitizeForPdf(k), sanitizeForPdf(v)]),
+    columns: finalColumns,
+    rows: finalRows,
   }
 }
 

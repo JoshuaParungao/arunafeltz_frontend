@@ -33,7 +33,7 @@ import {
   Award,
 } from "lucide-react"
 
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import {
   extractServiceTasks,
@@ -603,6 +603,79 @@ export default function ServicesReportView({
     }
   }
 
+  const handlePrintSummaryPdf = () => {
+    const activeFilters = [
+      ["Timeframe Range", TIMEFRAME_OPTIONS.find((t) => t.id === timeframe)?.label || timeframe],
+      ["Search Query", search.trim() || "All"],
+      ["Service Status", statusFilter || "All Statuses"],
+      ["Payment Status", paymentFilter || "All Payment States"],
+      ["Repair Category", repairTypeFilter || "All Repair Types"],
+      ["Job Nature", jobNatureFilter || "All Natures"],
+      ["Technician", technicianFilter ? technicians.find((t) => t.id === technicianFilter)?.fullName || technicianFilter : "All Technicians"],
+      ["Total Job Orders Listed", filteredJobs.length],
+    ]
+
+    const summaryTotals = [
+      ["Total Job Orders Count", kpis.totalJobs],
+      ["Total Gross Services Revenue", kpis.totalGrossRevenue],
+      ["Total Labor Charges Generated", kpis.totalLaborRevenue],
+      ["Total Technician Labor Fees (Labor Cost)", kpis.totalTechnicianFeeCost],
+      ["Total Net Shop Labor Profit", kpis.totalShopLaborProfit],
+      ["Total Replacement Parts Value", kpis.totalPartsRevenue],
+      ["Total Cost of Parts", kpis.totalPartsCost],
+      ["Total Parts Gross Profit", kpis.totalPartsMarkup],
+      ["Total Combined Net Shop Profit", kpis.totalNetShopProfit],
+      ["Total Payments Collected", kpis.totalPaidCollected],
+      ["Total Settle & Released in POS Cashiering", kpis.totalPosBilledAmount],
+      ["Total Outstanding Balance (AR)", kpis.totalRemainingBalance],
+      ["Completed & Released Jobs", kpis.releasedCount],
+      ["Total Backjob Claims Recorded", kpis.backjobCount],
+      ["Backjob Rate (%)", `${kpis.backjobRate}%`],
+    ]
+
+    const columns = [
+      ["JO Code", (row) => row.jobCode],
+      ["Date Encoded", (row) => row.receivedAt ? new Date(row.receivedAt).toLocaleString("en-PH") : "—"],
+      ["Customer Name", (row) => row.customerNameSnapshot || row.customer?.fullName || "Walk-in Customer"],
+      ["Contact Number", (row) => row.customerContactSnapshot || row.customer?.mobileNumber || "—"],
+      ["Device / Model", (row) => row.deviceDescription || "—"],
+      ["Serial Number", (row) => row.serialNumber || "—"],
+      ["Problem / Diagnosis", (row) => row.diagnosis || row.problemDescription || "—"],
+      ["Repair Type", (row) => row.repairType === "BOARD_LEVEL_REPAIR" ? "Specialized / Board-Level" : "Standard Repair"],
+      ["Express Quick Service", (row) => row.isQuickService ? "YES" : "NO"],
+      ["Is Backjob / Warranty Claim", (row) => row.parsedBackjob?.isBackjob ? `YES (Orig JO: ${row.parsedBackjob.originalJobCode || "—"})` : "NO"],
+      ["Assigned Technician", (row) => row.assignedTechnician?.fullName || "Unassigned"],
+      ["Service Done By", (row) => row.serviceDoneBy?.fullName || "—"],
+      ["Service Status", (row) => row.status],
+      ["Payment Status", (row) => row.parsedPayment?.paymentState || "UNPAID"],
+      ["POS Cashiering Status", (row) => row.parsedPayment?.isBilledInPos ? `Billed in POS (Invoice #${row.parsedPayment.posInvoiceCode || "—"})` : "Not Billed in POS"],
+      ["Labor Charges (₱)", (row) => Number(row.laborSum || 0)],
+      ["Tech Labor Fee / Cost (₱)", (row) => Number(row.techLaborCost || 0)],
+      ["Net Shop Labor Profit (₱)", (row) => Number(row.shopLaborProfit || 0)],
+      ["Parts Consumed Total (₱)", (row) => Number(row.partsSum || 0)],
+      ["Parts Cost (₱)", (row) => Number(row.partsCostSum || 0)],
+      ["Parts Gross Profit (₱)", (row) => Number(row.partsMarkupSum || 0)],
+      ["Total Shop Net Profit (₱)", (row) => Number(row.totalShopProfit || 0)],
+      ["Grand Total Price (₱)", (row) => Number(row.computedTotal || 0)],
+      ["Amount Paid (₱)", (row) => Number(row.parsedPayment?.collectedAmount || 0)],
+      ["Balance Due (₱)", (row) => Number(row.parsedPayment?.remainingBalance || 0)],
+      ["Service Warranty Terms", (row) => row.parsedWarranty?.warrantyDays ? `${row.parsedWarranty.warrantyDays} Days (${row.parsedWarranty.isUnderWarranty ? `${row.parsedWarranty.daysRemaining}d left` : "Expired"})` : "None"],
+      ["Release Outcome", (row) => row.releaseOutcome || "—"],
+      ["Remarks / Notes", (row) => cleanUserNotes(row.serviceNotes) || row.releaseNotes || "—"],
+    ]
+
+    printReport({
+      title: `SERVICE JOB ORDERS SUMMARY REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
+      filename: `Service-Job-Orders-Summary-${timeframe}-${new Date().toISOString().slice(0, 10)}`,
+      columns,
+      records: filteredJobs,
+      branch: selectedBranch,
+      generatedBy: user,
+      filters: activeFilters,
+      totals: summaryTotals,
+    })
+  }
+
   const handleExportItemizedExcel = () => {
     setIsExporting(true)
     try {
@@ -663,6 +736,61 @@ export default function ServicesReportView({
     } finally {
       setIsExporting(false)
     }
+  }
+
+  const handlePrintItemizedPdf = () => {
+    const activeFilters = [
+      ["Timeframe Range", TIMEFRAME_OPTIONS.find((t) => t.id === timeframe)?.label || timeframe],
+      ["Search Query", search.trim() || "All"],
+      ["Service Status", statusFilter || "All Statuses"],
+      ["Payment Status", paymentFilter || "All Payment States"],
+      ["Total Exploded Line Items", itemizedRows.length],
+    ]
+
+    const itemizedTotals = [
+      ["Total Consumed Line Items", itemizedRows.length],
+      ["Total Labor Tasks Revenue", kpis.totalLaborRevenue],
+      ["Total Technician Labor Fee (Labor Cost)", kpis.totalTechnicianFeeCost],
+      ["Total Net Shop Labor Profit", kpis.totalShopLaborProfit],
+      ["Total Replacement Parts Revenue", kpis.totalPartsRevenue],
+      ["Total Replacement Parts Cost", kpis.totalPartsCost],
+      ["Total Replacement Parts Gross Profit", kpis.totalPartsMarkup],
+      ["Combined Net Shop Earnings (Labor + Parts)", kpis.totalNetShopProfit],
+      ["Combined Services & Parts Billing", kpis.totalGrossRevenue],
+    ]
+
+    const columns = [
+      ["JO Reference Code", (row) => row.jobCode],
+      ["Date", (row) => row.date ? new Date(row.date).toLocaleString("en-PH") : "—"],
+      ["Customer Name", (row) => row.customerName],
+      ["Contact", (row) => row.customerContact],
+      ["Device / Unit", (row) => row.deviceDescription],
+      ["Item Category / Type", (row) => row.itemTypeLabel],
+      ["Task Description / Part Name", (row) => row.description],
+      ["Catalog Ref / Part Code", (row) => row.catalogCode],
+      ["Part Serial Number", (row) => row.serialNumber],
+      ["Quantity", (row) => row.quantity],
+      ["Unit Cost (Parts Cost / Tech Cut)", (row) => Number(row.unitCost || 0)],
+      ["Unit Selling Price", (row) => Number(row.unitPrice || 0)],
+      ["Mark-up / Shop Profit", (row) => Number(row.markup || 0)],
+      ["Line Total (₱)", (row) => Number(row.lineTotal || 0)],
+      ["Warranty Terms", (row) => row.warrantyDuration || "None"],
+      ["Technician In-Charge", (row) => row.technicianName],
+      ["JO Lifecycle Status", (row) => row.status],
+      ["Payment Settlement State", (row) => row.paymentState],
+      ["POS Cashiering Ref", (row) => row.isBilledInPos ? `Invoice #${row.posInvoiceCode || "—"}` : "—"],
+    ]
+
+    printReport({
+      title: `SERVICES & CONSUMED PARTS ITEMIZED AUDIT REPORT (${selectedBranch?.name || "ALL BRANCHES"})`,
+      filename: `Services-Itemized-Parts-and-Labor-${timeframe}-${new Date().toISOString().slice(0, 10)}`,
+      columns,
+      records: itemizedRows,
+      branch: selectedBranch,
+      generatedBy: user,
+      filters: activeFilters,
+      totals: itemizedTotals,
+    })
   }
 
   return (
@@ -915,6 +1043,7 @@ export default function ServicesReportView({
                 count={filteredJobs.length}
                 isExporting={isExporting}
                 onClick={handleExportSummaryExcel}
+                onPrint={handlePrintSummaryPdf}
                 size="sm"
               />
             ) : (
@@ -923,6 +1052,7 @@ export default function ServicesReportView({
                 count={itemizedRows.length}
                 isExporting={isExporting}
                 onClick={handleExportItemizedExcel}
+                onPrint={handlePrintItemizedPdf}
                 size="sm"
               />
             )}

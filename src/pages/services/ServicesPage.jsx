@@ -49,7 +49,7 @@ import {
 import JobOrderReceiptPrint from "./JobOrderReceiptPrint"
 import DiagnosticIntakePrint from "./DiagnosticIntakePrint"
 import MaintenanceIntakePrint from "./MaintenanceIntakePrint"
-import { exportReportExcel } from "../../utils/businessDocumentExport"
+import { exportReportExcel, printReport } from "../../utils/businessDocumentExport"
 import ExportExcelButton from "../../components/common/ExportExcelButton"
 import ServicesReportView from "./ServicesReportView"
 import {
@@ -3030,6 +3030,110 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
     }
   }
 
+  const handlePrintServicesPdf = async () => {
+    try {
+      setIsExporting(true)
+      let allJobs = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore && page <= 5) {
+        const query = {
+          page,
+          limit: 100,
+          branchId: selectedBranchId || undefined,
+          status: statusFilter || undefined,
+          assignedTechnicianId: technicianFilter || undefined,
+          search: search.trim() || undefined,
+        }
+        const res = await getServiceJobs(query)
+        const chunk = res.data?.data || res.data?.items || res.data || []
+        if (Array.isArray(chunk) && chunk.length > 0) {
+          allJobs = allJobs.concat(chunk)
+          if (chunk.length < 100) hasMore = false
+          else page++
+        } else {
+          hasMore = false
+        }
+      }
+
+      if (allJobs.length === 0) {
+        allJobs = jobs
+      }
+
+      const activeFilters = [
+        ["Branch", selectedBranch?.name || user?.branch?.name || "All Branches"],
+        ["Status Filter", statusFilter ? friendly(statusFilter) : "All Statuses"],
+        ["Technician", technicianFilter ? technicianLabel(technicians.find((t) => t.id === technicianFilter)) : "All Technicians"],
+        ["Search Query", search.trim() || "All"],
+      ]
+
+      const headers = [
+        "Job Code",
+        "Created Date",
+        "Status",
+        "Customer Name",
+        "Contact",
+        "Device / Model",
+        "Serial Number",
+        "Problem / Diagnosis",
+        "Repair Type",
+        "Quick Service",
+        "Assigned Technician",
+        "Total Price",
+        "Paid Amount",
+        "Balance",
+      ]
+
+      const rows = allJobs.map((job) => {
+        const customerName = job.customerNameSnapshot || job.customer?.fullName || "Walk-in"
+        const contact = job.customerContactSnapshot || job.customer?.mobileNumber || "-"
+        const techName = job.assignedTechnician ? technicianLabel(job.assignedTechnician) : "Unassigned"
+        const total = Number(job.totalPrice || 0)
+        const paid = Number(job.paidAmount || 0)
+        const balance = Math.max(0, total - paid)
+        const created = job.createdAt ? new Date(job.createdAt).toLocaleDateString() : "-"
+
+        return [
+          job.jobCode || "-",
+          created,
+          friendly(job.status || "-"),
+          customerName,
+          contact,
+          job.deviceDescription || "-",
+          job.serialNumber || "-",
+          job.problemDescription || job.diagnosis || "-",
+          job.repairType === "BOARD_LEVEL_REPAIR" ? "Specialized" : "Standard",
+          job.isQuickService ? "Yes" : "No",
+          techName,
+          `₱${total.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `₱${paid.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `₱${balance.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        ]
+      })
+
+      printReport({
+        title: "SERVICE JOB ORDERS REPORT",
+        branchName: selectedBranch?.name || user?.branch?.name || "All Branches",
+        generatedBy: user?.fullName || user?.username || "System",
+        filenamePrefix: "service_job_orders",
+        headers,
+        rows,
+        activeFilters,
+        totals: [
+          ["Total Jobs", String(allJobs.length)],
+          ["Total Billed", `₱${allJobs.reduce((s, j) => s + Number(j.totalPrice || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+          ["Total Collected", `₱${allJobs.reduce((s, j) => s + Number(j.paidAmount || 0), 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ],
+      })
+    } catch (error) {
+      console.error(error)
+      setErrorMessage("Failed to print service jobs: " + (error.message || "Unknown error"))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   useEffect(() => {
     const timer = window.setTimeout(refresh, 180)
     return () => window.clearTimeout(timer)
@@ -3937,6 +4041,7 @@ export default function ServicesPage({ onNavigate, selectedBranch, user }) {
               count={meta?.total || jobs.length}
               isExporting={isExporting}
               onClick={handleExportServicesExcel}
+              onPrint={handlePrintServicesPdf}
             />
             <button
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
